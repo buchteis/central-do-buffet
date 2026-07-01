@@ -14,16 +14,330 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      clients: {
+        Row: {
+          address: string | null
+          city: string | null
+          cpf: string | null
+          created_at: string
+          email: string | null
+          id: string
+          name: string
+          notes: string | null
+          owner_id: string
+          phone: string | null
+          updated_at: string
+          whatsapp: string | null
+        }
+        Insert: {
+          address?: string | null
+          city?: string | null
+          cpf?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          owner_id: string
+          phone?: string | null
+          updated_at?: string
+          whatsapp?: string | null
+        }
+        Update: {
+          address?: string | null
+          city?: string | null
+          cpf?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          owner_id?: string
+          phone?: string | null
+          updated_at?: string
+          whatsapp?: string | null
+        }
+        Relationships: []
+      }
+      events: {
+        Row: {
+          client_id: string | null
+          created_at: string
+          event_address: string | null
+          event_date: string
+          event_time: string | null
+          guest_count: number | null
+          id: string
+          notes: string | null
+          owner_id: string
+          package_id: string | null
+          quote_id: string | null
+          status: Database["public"]["Enums"]["event_status"]
+          total_value: number
+          updated_at: string
+        }
+        Insert: {
+          client_id?: string | null
+          created_at?: string
+          event_address?: string | null
+          event_date: string
+          event_time?: string | null
+          guest_count?: number | null
+          id?: string
+          notes?: string | null
+          owner_id: string
+          package_id?: string | null
+          quote_id?: string | null
+          status?: Database["public"]["Enums"]["event_status"]
+          total_value?: number
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string | null
+          created_at?: string
+          event_address?: string | null
+          event_date?: string
+          event_time?: string | null
+          guest_count?: number | null
+          id?: string
+          notes?: string | null
+          owner_id?: string
+          package_id?: string | null
+          quote_id?: string | null
+          status?: Database["public"]["Enums"]["event_status"]
+          total_value?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "events_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "events_package_id_fkey"
+            columns: ["package_id"]
+            isOneToOne: false
+            referencedRelation: "packages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "events_quote_id_fkey"
+            columns: ["quote_id"]
+            isOneToOne: false
+            referencedRelation: "quotes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      packages: {
+        Row: {
+          active: boolean
+          created_at: string
+          description: string | null
+          id: string
+          included_items: string[] | null
+          max_people: number | null
+          min_people: number | null
+          name: string
+          owner_id: string
+          price_per_person: number
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          description?: string | null
+          id?: string
+          included_items?: string[] | null
+          max_people?: number | null
+          min_people?: number | null
+          name: string
+          owner_id: string
+          price_per_person?: number
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          description?: string | null
+          id?: string
+          included_items?: string[] | null
+          max_people?: number | null
+          min_people?: number | null
+          name?: string
+          owner_id?: string
+          price_per_person?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          business_name: string | null
+          created_at: string
+          full_name: string | null
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          business_name?: string | null
+          created_at?: string
+          full_name?: string | null
+          id: string
+          updated_at?: string
+        }
+        Update: {
+          business_name?: string | null
+          created_at?: string
+          full_name?: string | null
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      quotes: {
+        Row: {
+          adults: number
+          balance_value: number
+          children_0_6: number
+          children_7_10: number
+          client_id: string | null
+          created_at: string
+          entry_value: number
+          event_address: string | null
+          event_date: string
+          event_time: string | null
+          event_type: string | null
+          extras: Json
+          has_freezer: boolean | null
+          has_grill: boolean | null
+          id: string
+          notes: string | null
+          owner_id: string
+          package_id: string | null
+          status: Database["public"]["Enums"]["quote_status"]
+          total_value: number
+          updated_at: string
+          valid_until: string | null
+        }
+        Insert: {
+          adults?: number
+          balance_value?: number
+          children_0_6?: number
+          children_7_10?: number
+          client_id?: string | null
+          created_at?: string
+          entry_value?: number
+          event_address?: string | null
+          event_date: string
+          event_time?: string | null
+          event_type?: string | null
+          extras?: Json
+          has_freezer?: boolean | null
+          has_grill?: boolean | null
+          id?: string
+          notes?: string | null
+          owner_id: string
+          package_id?: string | null
+          status?: Database["public"]["Enums"]["quote_status"]
+          total_value?: number
+          updated_at?: string
+          valid_until?: string | null
+        }
+        Update: {
+          adults?: number
+          balance_value?: number
+          children_0_6?: number
+          children_7_10?: number
+          client_id?: string | null
+          created_at?: string
+          entry_value?: number
+          event_address?: string | null
+          event_date?: string
+          event_time?: string | null
+          event_type?: string | null
+          extras?: Json
+          has_freezer?: boolean | null
+          has_grill?: boolean | null
+          id?: string
+          notes?: string | null
+          owner_id?: string
+          package_id?: string | null
+          status?: Database["public"]["Enums"]["quote_status"]
+          total_value?: number
+          updated_at?: string
+          valid_until?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quotes_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quotes_package_id_fkey"
+            columns: ["package_id"]
+            isOneToOne: false
+            referencedRelation: "packages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "proprietario" | "gerente" | "atendente"
+      event_status:
+        | "agendado"
+        | "pagamento_parcial"
+        | "pago"
+        | "em_andamento"
+        | "concluido"
+        | "cancelado"
+      quote_status:
+        | "novo"
+        | "em_analise"
+        | "enviado"
+        | "aprovado"
+        | "recusado"
+        | "cancelado"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +464,24 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["proprietario", "gerente", "atendente"],
+      event_status: [
+        "agendado",
+        "pagamento_parcial",
+        "pago",
+        "em_andamento",
+        "concluido",
+        "cancelado",
+      ],
+      quote_status: [
+        "novo",
+        "em_analise",
+        "enviado",
+        "aprovado",
+        "recusado",
+        "cancelado",
+      ],
+    },
   },
 } as const
