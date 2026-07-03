@@ -90,7 +90,13 @@ function Dashboard() {
         supabase.from("transactions").select("id", { count: "exact", head: true }).eq("status", "pendente").lt("due_date", today),
         supabase.from("clients").select("id", { count: "exact", head: true }),
         supabase.from("clients").select("id", { count: "exact", head: true }).gte("created_at", monthAgo),
-        supabase.from("event_staff").select("id, events!inner(event_date)").eq("events.event_date", today),
+        (async () => {
+          const { data: ids } = await supabase.from("events").select("id").eq("event_date", today);
+          const eventIds = (ids ?? []).map((r: any) => r.id);
+          if (eventIds.length === 0) return { data: [] as any[] };
+          const { data } = await supabase.from("event_staff").select("id").in("event_id", eventIds);
+          return { data: data ?? [] };
+        })(),
         supabase.from("employees").select("id", { count: "exact", head: true }).eq("active", true),
         supabase.from("contracts").select("id", { count: "exact", head: true }).in("status", ["rascunho", "enviado"]),
         supabase.from("events").select("id, event_date, event_time, status, total_value, clients(name), packages(name)").gte("event_date", today).order("event_date").limit(6),
