@@ -14,6 +14,54 @@ export type Database = {
   }
   public: {
     Tables: {
+      buffet_settings: {
+        Row: {
+          address: string | null
+          business_name: string | null
+          contract_template: string | null
+          created_at: string
+          owner_id: string
+          phone: string | null
+          pix_holder: string | null
+          pix_key: string | null
+          updated_at: string
+          wa_pix_template: string | null
+          wa_quote_template: string | null
+          wa_reminder_template: string | null
+          whatsapp: string | null
+        }
+        Insert: {
+          address?: string | null
+          business_name?: string | null
+          contract_template?: string | null
+          created_at?: string
+          owner_id: string
+          phone?: string | null
+          pix_holder?: string | null
+          pix_key?: string | null
+          updated_at?: string
+          wa_pix_template?: string | null
+          wa_quote_template?: string | null
+          wa_reminder_template?: string | null
+          whatsapp?: string | null
+        }
+        Update: {
+          address?: string | null
+          business_name?: string | null
+          contract_template?: string | null
+          created_at?: string
+          owner_id?: string
+          phone?: string | null
+          pix_holder?: string | null
+          pix_key?: string | null
+          updated_at?: string
+          wa_pix_template?: string | null
+          wa_quote_template?: string | null
+          wa_reminder_template?: string | null
+          whatsapp?: string | null
+        }
+        Relationships: []
+      }
       clients: {
         Row: {
           address: string | null
@@ -58,6 +106,194 @@ export type Database = {
           whatsapp?: string | null
         }
         Relationships: []
+      }
+      contracts: {
+        Row: {
+          client_id: string | null
+          content: string
+          created_at: string
+          event_id: string | null
+          id: string
+          owner_id: string
+          signed_at: string | null
+          status: Database["public"]["Enums"]["contract_status"]
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          client_id?: string | null
+          content?: string
+          created_at?: string
+          event_id?: string | null
+          id?: string
+          owner_id: string
+          signed_at?: string | null
+          status?: Database["public"]["Enums"]["contract_status"]
+          title?: string
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string | null
+          content?: string
+          created_at?: string
+          event_id?: string | null
+          id?: string
+          owner_id?: string
+          signed_at?: string | null
+          status?: Database["public"]["Enums"]["contract_status"]
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contracts_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contracts_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      employees: {
+        Row: {
+          active: boolean
+          created_at: string
+          daily_rate: number
+          id: string
+          name: string
+          notes: string | null
+          owner_id: string
+          phone: string | null
+          pix: string | null
+          role: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          daily_rate?: number
+          id?: string
+          name: string
+          notes?: string | null
+          owner_id: string
+          phone?: string | null
+          pix?: string | null
+          role?: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          daily_rate?: number
+          id?: string
+          name?: string
+          notes?: string | null
+          owner_id?: string
+          phone?: string | null
+          pix?: string | null
+          role?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      event_checklist: {
+        Row: {
+          created_at: string
+          done: boolean
+          event_id: string
+          id: string
+          label: string
+          owner_id: string
+          position: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          done?: boolean
+          event_id: string
+          id?: string
+          label: string
+          owner_id: string
+          position?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          done?: boolean
+          event_id?: string
+          id?: string
+          label?: string
+          owner_id?: string
+          position?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_checklist_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      event_staff: {
+        Row: {
+          amount: number
+          created_at: string
+          employee_id: string
+          event_id: string
+          id: string
+          owner_id: string
+          paid: boolean
+          role: string
+          updated_at: string
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          employee_id: string
+          event_id: string
+          id?: string
+          owner_id: string
+          paid?: boolean
+          role?: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          employee_id?: string
+          event_id?: string
+          id?: string
+          owner_id?: string
+          paid?: boolean
+          role?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_staff_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_staff_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       events: {
         Row: {
@@ -288,6 +524,75 @@ export type Database = {
           },
         ]
       }
+      transactions: {
+        Row: {
+          amount: number
+          category: string | null
+          client_id: string | null
+          created_at: string
+          description: string
+          due_date: string | null
+          event_id: string | null
+          id: string
+          method: Database["public"]["Enums"]["tx_method"]
+          notes: string | null
+          owner_id: string
+          paid_date: string | null
+          status: Database["public"]["Enums"]["tx_status"]
+          type: Database["public"]["Enums"]["tx_type"]
+          updated_at: string
+        }
+        Insert: {
+          amount?: number
+          category?: string | null
+          client_id?: string | null
+          created_at?: string
+          description: string
+          due_date?: string | null
+          event_id?: string | null
+          id?: string
+          method?: Database["public"]["Enums"]["tx_method"]
+          notes?: string | null
+          owner_id: string
+          paid_date?: string | null
+          status?: Database["public"]["Enums"]["tx_status"]
+          type: Database["public"]["Enums"]["tx_type"]
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          category?: string | null
+          client_id?: string | null
+          created_at?: string
+          description?: string
+          due_date?: string | null
+          event_id?: string | null
+          id?: string
+          method?: Database["public"]["Enums"]["tx_method"]
+          notes?: string | null
+          owner_id?: string
+          paid_date?: string | null
+          status?: Database["public"]["Enums"]["tx_status"]
+          type?: Database["public"]["Enums"]["tx_type"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transactions_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -324,6 +629,7 @@ export type Database = {
     }
     Enums: {
       app_role: "proprietario" | "gerente" | "atendente"
+      contract_status: "rascunho" | "enviado" | "assinado" | "cancelado"
       event_status:
         | "agendado"
         | "pagamento_parcial"
@@ -338,6 +644,19 @@ export type Database = {
         | "aprovado"
         | "recusado"
         | "cancelado"
+        | "primeiro_contato"
+        | "visitado"
+        | "negociacao"
+        | "aguardando"
+      tx_method:
+        | "pix"
+        | "dinheiro"
+        | "cartao"
+        | "boleto"
+        | "transferencia"
+        | "outro"
+      tx_status: "pendente" | "pago" | "atrasado" | "cancelado"
+      tx_type: "entrada" | "saida"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -466,6 +785,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["proprietario", "gerente", "atendente"],
+      contract_status: ["rascunho", "enviado", "assinado", "cancelado"],
       event_status: [
         "agendado",
         "pagamento_parcial",
@@ -481,7 +801,21 @@ export const Constants = {
         "aprovado",
         "recusado",
         "cancelado",
+        "primeiro_contato",
+        "visitado",
+        "negociacao",
+        "aguardando",
       ],
+      tx_method: [
+        "pix",
+        "dinheiro",
+        "cartao",
+        "boleto",
+        "transferencia",
+        "outro",
+      ],
+      tx_status: ["pendente", "pago", "atrasado", "cancelado"],
+      tx_type: ["entrada", "saida"],
     },
   },
 } as const
