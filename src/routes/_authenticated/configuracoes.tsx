@@ -55,9 +55,35 @@ function SettingsPage() {
   return (
     <div className="space-y-6 max-w-3xl">
       <div>
+      <div>
         <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">Configurações</h1>
         <p className="text-sm text-muted-foreground mt-1">Dados do buffet, PIX e modelos de mensagens</p>
       </div>
+
+      {access?.tenant?.slug && (
+        <Section title="Link público de orçamento">
+          <p className="text-xs text-muted-foreground">
+            Compartilhe este link no Instagram, WhatsApp ou site. Cada solicitação chega direto na aba <strong>Leads</strong>.
+          </p>
+          <div className="flex items-center gap-2">
+            <input
+              readOnly
+              value={`${window.location.origin}/orcamento/${access.tenant.slug}`}
+              className="input font-mono text-xs"
+            />
+            <button
+              type="button"
+              onClick={() => {
+                navigator.clipboard.writeText(`${window.location.origin}/orcamento/${access.tenant.slug}`);
+                toast.success("Link copiado!");
+              }}
+              className="h-10 px-4 rounded-lg bg-primary text-primary-foreground text-xs font-bold whitespace-nowrap"
+            >
+              Copiar
+            </button>
+          </div>
+        </Section>
+      )}
 
       <Section title="Dados do buffet">
         <Field label="Nome do buffet"><input value={f.business_name} onChange={(e) => setF({ ...f, business_name: e.target.value })} className="input" /></Field>
