@@ -20,6 +20,7 @@ const pipeline: { id: string; label: string; tone: string }[] = [
   { id: "negociacao", label: "Negociação", tone: "bg-amber-500/10 text-amber-600 border-amber-500/20" },
   { id: "aguardando", label: "Aguardando", tone: "bg-yellow-500/10 text-yellow-700 border-yellow-500/20" },
   { id: "aprovado", label: "Aprovado", tone: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20" },
+  { id: "fechado", label: "Fechado (→ Evento)", tone: "bg-green-600/10 text-green-700 border-green-600/30" },
   { id: "recusado", label: "Recusado", tone: "bg-rose-500/10 text-rose-600 border-rose-500/20" },
 ];
 
