@@ -115,6 +115,27 @@ function QuotesPage() {
                             <option key={s.id} value={s.id}>{s.label}</option>
                           ))}
                         </select>
+                        {q.status !== "fechado" && q.status !== "recusado" && (
+                          <button
+                            onClick={() => {
+                              if (confirm("Fechar orçamento e criar evento automaticamente?"))
+                                move.mutate({ id: q.id, status: "fechado" });
+                            }}
+                            className="mt-2 w-full text-[11px] font-bold bg-primary text-primary-foreground rounded-md py-1.5 hover:bg-primary/90"
+                          >
+                            ✓ Fechar orçamento
+                          </button>
+                        )}
+                        {(q.clients?.whatsapp || q.clients?.phone) && (
+                          <a
+                            href={`https://wa.me/55${String(q.clients?.whatsapp ?? q.clients?.phone).replace(/\D/g, "")}?text=${encodeURIComponent(`Olá, ${q.clients?.name}. Segue o orçamento do seu evento.`)}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="mt-1 block text-center w-full text-[11px] font-bold border border-border rounded-md py-1.5 hover:bg-accent"
+                          >
+                            WhatsApp
+                          </a>
+                        )}
                       </div>
                     ))}
                     {items.length === 0 && (
