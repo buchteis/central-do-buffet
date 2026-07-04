@@ -73,7 +73,7 @@ function SettingsPage() {
             <button
               type="button"
               onClick={() => {
-                navigator.clipboard.writeText(`${window.location.origin}/orcamento/${access.tenant.slug}`);
+                navigator.clipboard.writeText(`${window.location.origin}/orcamento/${access.tenant!.slug}`);
                 toast.success("Link copiado!");
               }}
               className="h-10 px-4 rounded-lg bg-primary text-primary-foreground text-xs font-bold whitespace-nowrap"
