@@ -12,6 +12,7 @@ export const Route = createFileRoute("/_authenticated/configuracoes")({
 
 function SettingsPage() {
   const qc = useQueryClient();
+  const { data: access } = useTenantAccess();
   const { data } = useQuery({
     queryKey: ["buffet-settings"],
     queryFn: async () => {
