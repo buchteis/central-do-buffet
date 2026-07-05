@@ -756,9 +756,12 @@ function StaffSection({ event }: { event: any }) {
   const addStaff = useMutation({
     mutationFn: async () => {
       if (!employeeId) throw new Error("Selecione um profissional");
+      const { data: u } = await supabase.auth.getUser();
+      if (!u.user) throw new Error("Sessão expirada");
       const { error } = await supabase.from("event_staff").insert({
         event_id: event.id,
         employee_id: employeeId,
+        owner_id: u.user.id,
         role: role || undefined,
         amount: amount ? Number(amount) : undefined,
       });
