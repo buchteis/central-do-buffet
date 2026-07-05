@@ -759,8 +759,8 @@ function StaffSection({ event }: { event: any }) {
       const { error } = await supabase.from("event_staff").insert({
         event_id: event.id,
         employee_id: employeeId,
-        role: role || null,
-        amount: amount ? Number(amount) : null,
+        role: role || undefined,
+        amount: amount ? Number(amount) : undefined,
       });
       if (error) throw error;
     },
