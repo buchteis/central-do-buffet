@@ -1,9 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { Plus, LayoutGrid, List } from "lucide-react";
+import { Plus, LayoutGrid, List, MessageCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { brl, formatDateBR } from "@/lib/format";
+import { waLink } from "@/lib/whatsapp";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -11,6 +12,14 @@ export const Route = createFileRoute("/_authenticated/orcamentos/")({
   head: () => ({ meta: [{ title: "Orçamentos — Meu Churras" }] }),
   component: QuotesPage,
 });
+
+function whatsappMessage(q: any) {
+  const name = q.clients?.name?.split(" ")[0] ?? "tudo bem";
+  const date = formatDateBR(q.event_date) ?? "a data definida";
+  const pkg = q.packages?.name ?? "pacote escolhido";
+  const value = brl(q.total_value);
+  return `Olá, ${name}! Tudo bem? Aqui é do Meu Churras. Estou entrando em contato sobre o orçamento do seu evento em ${date} (${pkg}). O investimento estimado é ${value}. Posso te passar mais detalhes?`;
+}
 
 const pipeline: { id: string; label: string; tone: string }[] = [
   { id: "novo", label: "Novo Lead", tone: "bg-slate-500/10 text-slate-600 border-slate-500/20" },
@@ -128,12 +137,15 @@ function QuotesPage() {
                         )}
                         {(q.clients?.whatsapp || q.clients?.phone) && (
                           <a
-                            href={`https://wa.me/55${String(q.clients?.whatsapp ?? q.clients?.phone).replace(/\D/g, "")}?text=${encodeURIComponent(`Olá, ${q.clients?.name}. Segue o orçamento do seu evento.`)}`}
+                            href={waLink(
+                              q.clients?.whatsapp ?? q.clients?.phone,
+                              whatsappMessage(q),
+                            )}
                             target="_blank"
-                            rel="noreferrer"
-                            className="mt-1 block text-center w-full text-[11px] font-bold border border-border rounded-md py-1.5 hover:bg-accent"
+                            rel="noopener noreferrer"
+                            className="mt-2 w-full text-[11px] font-bold border border-border rounded-md py-1.5 hover:bg-accent inline-flex items-center justify-center gap-1"
                           >
-                            WhatsApp
+                            <MessageCircle className="size-3" /> WhatsApp
                           </a>
                         )}
                       </div>
@@ -157,6 +169,7 @@ function QuotesPage() {
                 <th className="px-4 py-3 font-bold">Pacote</th>
                 <th className="px-4 py-3 font-bold text-right">Total</th>
                 <th className="px-4 py-3 font-bold">Etapa</th>
+                <th className="px-4 py-3 font-bold text-center">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -170,6 +183,22 @@ function QuotesPage() {
                     <td className="px-4 py-4 text-sm font-mono text-right">{brl(q.total_value)}</td>
                     <td className="px-4 py-4">
                       <span className={cn("px-2 py-1 text-[10px] rounded-full font-bold uppercase border", stage?.tone)}>{stage?.label ?? q.status}</span>
+                    </td>
+                    <td className="px-4 py-4 text-center">
+                      {(q.clients?.whatsapp || q.clients?.phone) && (
+                        <a
+                          href={waLink(
+                            q.clients?.whatsapp ?? q.clients?.phone,
+                            whatsappMessage(q),
+                          )}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title="Conversar no WhatsApp"
+                          className="inline-flex items-center justify-center p-2 text-emerald-600 hover:bg-emerald-500/10 rounded-md"
+                        >
+                          <MessageCircle className="size-4" />
+                        </a>
+                      )}
                     </td>
                   </tr>
                 );
