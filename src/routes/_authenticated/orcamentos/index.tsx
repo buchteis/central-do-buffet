@@ -169,6 +169,7 @@ function QuotesPage() {
                 <th className="px-4 py-3 font-bold">Pacote</th>
                 <th className="px-4 py-3 font-bold text-right">Total</th>
                 <th className="px-4 py-3 font-bold">Etapa</th>
+                <th className="px-4 py-3 font-bold text-center">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -182,6 +183,22 @@ function QuotesPage() {
                     <td className="px-4 py-4 text-sm font-mono text-right">{brl(q.total_value)}</td>
                     <td className="px-4 py-4">
                       <span className={cn("px-2 py-1 text-[10px] rounded-full font-bold uppercase border", stage?.tone)}>{stage?.label ?? q.status}</span>
+                    </td>
+                    <td className="px-4 py-4 text-center">
+                      {(q.clients?.whatsapp || q.clients?.phone) && (
+                        <a
+                          href={waLink(
+                            q.clients?.whatsapp ?? q.clients?.phone,
+                            whatsappMessage(q),
+                          )}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title="Conversar no WhatsApp"
+                          className="inline-flex items-center justify-center p-2 text-emerald-600 hover:bg-emerald-500/10 rounded-md"
+                        >
+                          <MessageCircle className="size-4" />
+                        </a>
+                      )}
                     </td>
                   </tr>
                 );
