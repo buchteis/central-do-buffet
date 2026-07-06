@@ -13,6 +13,14 @@ export const Route = createFileRoute("/_authenticated/orcamentos/")({
   component: QuotesPage,
 });
 
+function whatsappMessage(q: any) {
+  const name = q.clients?.name?.split(" ")[0] ?? "tudo bem";
+  const date = formatDateBR(q.event_date) ?? "a data definida";
+  const pkg = q.packages?.name ?? "pacote escolhido";
+  const value = brl(q.total_value);
+  return `Olá, ${name}! Tudo bem? Aqui é do Meu Churras. Estou entrando em contato sobre o orçamento do seu evento em ${date} (${pkg}). O investimento estimado é ${value}. Posso te passar mais detalhes?`;
+}
+
 const pipeline: { id: string; label: string; tone: string }[] = [
   { id: "novo", label: "Novo Lead", tone: "bg-slate-500/10 text-slate-600 border-slate-500/20" },
   { id: "primeiro_contato", label: "Primeiro Contato", tone: "bg-blue-500/10 text-blue-600 border-blue-500/20" },
