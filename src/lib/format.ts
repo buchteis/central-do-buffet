@@ -10,15 +10,24 @@ export const brlCompact = (n: number | null | undefined) => {
   return brl(v);
 };
 
+const parseDate = (d: string | Date): Date => {
+  if (d instanceof Date) return d;
+  // Date-only string like "2026-07-16" → local midnight to avoid TZ shift
+  if (/^\d{4}-\d{2}-\d{2}$/.test(d)) return new Date(d + "T00:00:00");
+  return new Date(d);
+};
+
 export const formatDateBR = (d: string | Date | null | undefined) => {
   if (!d) return "—";
-  const date = typeof d === "string" ? new Date(d + "T00:00:00") : d;
+  const date = parseDate(d);
+  if (isNaN(date.getTime())) return "—";
   return new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "short" }).format(date);
 };
 
 export const formatDateFullBR = (d: string | Date | null | undefined) => {
   if (!d) return "—";
-  const date = typeof d === "string" ? new Date(d + "T00:00:00") : d;
+  const date = parseDate(d);
+  if (isNaN(date.getTime())) return "—";
   return new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "long", year: "numeric" }).format(
     date,
   );
