@@ -137,12 +137,15 @@ function QuotesPage() {
                         )}
                         {(q.clients?.whatsapp || q.clients?.phone) && (
                           <a
-                            href={`https://wa.me/55${String(q.clients?.whatsapp ?? q.clients?.phone).replace(/\D/g, "")}?text=${encodeURIComponent(`Olá, ${q.clients?.name}. Segue o orçamento do seu evento.`)}`}
+                            href={waLink(
+                              q.clients?.whatsapp ?? q.clients?.phone,
+                              whatsappMessage(q),
+                            )}
                             target="_blank"
-                            rel="noreferrer"
-                            className="mt-1 block text-center w-full text-[11px] font-bold border border-border rounded-md py-1.5 hover:bg-accent"
+                            rel="noopener noreferrer"
+                            className="mt-2 w-full text-[11px] font-bold border border-border rounded-md py-1.5 hover:bg-accent inline-flex items-center justify-center gap-1"
                           >
-                            WhatsApp
+                            <MessageCircle className="size-3" /> WhatsApp
                           </a>
                         )}
                       </div>
