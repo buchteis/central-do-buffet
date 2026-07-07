@@ -30,6 +30,7 @@ type NavItem = { to: string; label: string; icon: typeof Home };
 const primary: NavItem[] = [
   { to: "/dashboard", label: "Dashboard", icon: Home },
   { to: "/leads", label: "Leads", icon: Inbox },
+  { to: "/link-publico", label: "Link Público", icon: Link2 },
   { to: "/orcamentos", label: "Orçamentos", icon: FileText },
   { to: "/eventos", label: "Eventos", icon: Receipt },
   { to: "/agenda", label: "Calendário", icon: Calendar },
