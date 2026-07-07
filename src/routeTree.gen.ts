@@ -15,6 +15,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as OrcamentoSlugRouteImport } from './routes/orcamento.$slug'
 import { Route as AuthenticatedRelatoriosRouteImport } from './routes/_authenticated/relatorios'
 import { Route as AuthenticatedPacotesRouteImport } from './routes/_authenticated/pacotes'
+import { Route as AuthenticatedLinkPublicoRouteImport } from './routes/_authenticated/link-publico'
 import { Route as AuthenticatedLeadsRouteImport } from './routes/_authenticated/leads'
 import { Route as AuthenticatedFuncionariosRouteImport } from './routes/_authenticated/funcionarios'
 import { Route as AuthenticatedFinanceiroRouteImport } from './routes/_authenticated/financeiro'
@@ -58,6 +59,12 @@ const AuthenticatedPacotesRoute = AuthenticatedPacotesRouteImport.update({
   path: '/pacotes',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedLinkPublicoRoute =
+  AuthenticatedLinkPublicoRouteImport.update({
+    id: '/link-publico',
+    path: '/link-publico',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedLeadsRoute = AuthenticatedLeadsRouteImport.update({
   id: '/leads',
   path: '/leads',
@@ -142,6 +149,7 @@ export interface FileRoutesByFullPath {
   '/financeiro': typeof AuthenticatedFinanceiroRoute
   '/funcionarios': typeof AuthenticatedFuncionariosRoute
   '/leads': typeof AuthenticatedLeadsRoute
+  '/link-publico': typeof AuthenticatedLinkPublicoRoute
   '/pacotes': typeof AuthenticatedPacotesRoute
   '/relatorios': typeof AuthenticatedRelatoriosRoute
   '/orcamento/$slug': typeof OrcamentoSlugRoute
@@ -162,6 +170,7 @@ export interface FileRoutesByTo {
   '/financeiro': typeof AuthenticatedFinanceiroRoute
   '/funcionarios': typeof AuthenticatedFuncionariosRoute
   '/leads': typeof AuthenticatedLeadsRoute
+  '/link-publico': typeof AuthenticatedLinkPublicoRoute
   '/pacotes': typeof AuthenticatedPacotesRoute
   '/relatorios': typeof AuthenticatedRelatoriosRoute
   '/orcamento/$slug': typeof OrcamentoSlugRoute
@@ -184,6 +193,7 @@ export interface FileRoutesById {
   '/_authenticated/financeiro': typeof AuthenticatedFinanceiroRoute
   '/_authenticated/funcionarios': typeof AuthenticatedFuncionariosRoute
   '/_authenticated/leads': typeof AuthenticatedLeadsRoute
+  '/_authenticated/link-publico': typeof AuthenticatedLinkPublicoRoute
   '/_authenticated/pacotes': typeof AuthenticatedPacotesRoute
   '/_authenticated/relatorios': typeof AuthenticatedRelatoriosRoute
   '/orcamento/$slug': typeof OrcamentoSlugRoute
@@ -206,6 +216,7 @@ export interface FileRouteTypes {
     | '/financeiro'
     | '/funcionarios'
     | '/leads'
+    | '/link-publico'
     | '/pacotes'
     | '/relatorios'
     | '/orcamento/$slug'
@@ -226,6 +237,7 @@ export interface FileRouteTypes {
     | '/financeiro'
     | '/funcionarios'
     | '/leads'
+    | '/link-publico'
     | '/pacotes'
     | '/relatorios'
     | '/orcamento/$slug'
@@ -247,6 +259,7 @@ export interface FileRouteTypes {
     | '/_authenticated/financeiro'
     | '/_authenticated/funcionarios'
     | '/_authenticated/leads'
+    | '/_authenticated/link-publico'
     | '/_authenticated/pacotes'
     | '/_authenticated/relatorios'
     | '/orcamento/$slug'
@@ -306,6 +319,13 @@ declare module '@tanstack/react-router' {
       path: '/pacotes'
       fullPath: '/pacotes'
       preLoaderRoute: typeof AuthenticatedPacotesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/link-publico': {
+      id: '/_authenticated/link-publico'
+      path: '/link-publico'
+      fullPath: '/link-publico'
+      preLoaderRoute: typeof AuthenticatedLinkPublicoRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/leads': {
@@ -411,6 +431,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedFinanceiroRoute: typeof AuthenticatedFinanceiroRoute
   AuthenticatedFuncionariosRoute: typeof AuthenticatedFuncionariosRoute
   AuthenticatedLeadsRoute: typeof AuthenticatedLeadsRoute
+  AuthenticatedLinkPublicoRoute: typeof AuthenticatedLinkPublicoRoute
   AuthenticatedPacotesRoute: typeof AuthenticatedPacotesRoute
   AuthenticatedRelatoriosRoute: typeof AuthenticatedRelatoriosRoute
   AuthenticatedClientesNovoRoute: typeof AuthenticatedClientesNovoRoute
@@ -429,6 +450,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedFinanceiroRoute: AuthenticatedFinanceiroRoute,
   AuthenticatedFuncionariosRoute: AuthenticatedFuncionariosRoute,
   AuthenticatedLeadsRoute: AuthenticatedLeadsRoute,
+  AuthenticatedLinkPublicoRoute: AuthenticatedLinkPublicoRoute,
   AuthenticatedPacotesRoute: AuthenticatedPacotesRoute,
   AuthenticatedRelatoriosRoute: AuthenticatedRelatoriosRoute,
   AuthenticatedClientesNovoRoute: AuthenticatedClientesNovoRoute,

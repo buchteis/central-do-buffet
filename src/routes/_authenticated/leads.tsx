@@ -35,6 +35,8 @@ function LeadsPage() {
   const { data: leads } = useQuery({
     queryKey: ["leads", access?.tenant?.id],
     enabled: !!access?.tenant?.id,
+    refetchInterval: 20_000,
+    refetchOnWindowFocus: true,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("leads")
@@ -45,6 +47,7 @@ function LeadsPage() {
       return data ?? [];
     },
   });
+
 
   const updateStatus = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
@@ -136,9 +139,6 @@ function LeadsPage() {
     onError: (e: any) => toast.error(e.message),
   });
 
-  const slug = access?.tenant?.slug;
-  const publicUrl = slug ? `${window.location.origin}/orcamento/${slug}` : "";
-
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
@@ -148,24 +148,11 @@ function LeadsPage() {
             {leads?.length ?? 0} solicitação(ões) recebida(s) pelo formulário público
           </p>
         </div>
-        {publicUrl && (
-          <div className="flex items-center gap-2">
-            <div className="bg-muted/50 border border-border rounded-full px-3 py-1.5 text-xs font-mono truncate max-w-[320px]">
-              {publicUrl}
-            </div>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => {
-                navigator.clipboard.writeText(publicUrl);
-                toast.success("Link copiado!");
-              }}
-            >
-              Copiar link
-            </Button>
-          </div>
-        )}
+        <Button size="sm" variant="outline" onClick={() => navigate({ to: "/link-publico" })}>
+          Ver link público
+        </Button>
       </div>
+
 
       <div className="bg-card border border-border rounded-2xl shadow-sm overflow-hidden">
         {leads && leads.length > 0 ? (
