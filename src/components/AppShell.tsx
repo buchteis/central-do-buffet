@@ -7,6 +7,7 @@ import {
   Flame,
   Home,
   Inbox,
+  Link2,
   LogOut,
   Receipt,
   Search,
@@ -16,6 +17,7 @@ import {
   Users,
   Wallet,
 } from "lucide-react";
+
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
