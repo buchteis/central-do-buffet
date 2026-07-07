@@ -35,6 +35,8 @@ function LeadsPage() {
   const { data: leads } = useQuery({
     queryKey: ["leads", access?.tenant?.id],
     enabled: !!access?.tenant?.id,
+    refetchInterval: 20_000,
+    refetchOnWindowFocus: true,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("leads")
@@ -45,6 +47,7 @@ function LeadsPage() {
       return data ?? [];
     },
   });
+
 
   const updateStatus = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
