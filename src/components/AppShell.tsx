@@ -50,6 +50,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       const { count } = await supabase
         .from("leads")
         .select("id", { count: "exact", head: true })
+        .eq("tenant_id", access!.tenant!.id)
         .eq("status", "novo");
       return count ?? 0;
     },

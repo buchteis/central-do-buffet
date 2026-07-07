@@ -33,11 +33,13 @@ function LeadsPage() {
   const { data: access } = useTenantAccess();
 
   const { data: leads } = useQuery({
-    queryKey: ["leads"],
+    queryKey: ["leads", access?.tenant?.id],
+    enabled: !!access?.tenant?.id,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("leads")
         .select("*")
+        .eq("tenant_id", access!.tenant!.id)
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data ?? [];
