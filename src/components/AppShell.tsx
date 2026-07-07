@@ -188,10 +188,11 @@ function TopBar({ leadsCount }: { leadsCount: number }) {
         />
       </div>
       <div className="flex items-center gap-2 md:gap-3">
-        <button
-          onClick={() => router.navigate({ to: "/leads" })}
+        <Link
+          to="/leads"
           className="relative p-2 text-muted-foreground hover:text-foreground transition-colors"
           title="Leads novos"
+          aria-label="Leads novos"
         >
           <Bell className="size-5" />
           {leadsCount > 0 && (
@@ -199,7 +200,8 @@ function TopBar({ leadsCount }: { leadsCount: number }) {
               {leadsCount}
             </span>
           )}
-        </button>
+        </Link>
+
         <Button
           onClick={() => router.navigate({ to: "/orcamentos/novo" })}
           className="rounded-full shadow-lg shadow-primary/20 font-bold text-xs"
