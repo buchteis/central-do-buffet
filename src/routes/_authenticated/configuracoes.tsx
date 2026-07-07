@@ -3,7 +3,6 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { useTenantAccess } from "@/hooks/useTenantAccess";
 
 export const Route = createFileRoute("/_authenticated/configuracoes")({
   head: () => ({ meta: [{ title: "Configurações — Meu Churras" }] }),
@@ -12,7 +11,6 @@ export const Route = createFileRoute("/_authenticated/configuracoes")({
 
 function SettingsPage() {
   const qc = useQueryClient();
-  const { data: access } = useTenantAccess();
   const { data } = useQuery({
     queryKey: ["buffet-settings"],
     queryFn: async () => {
@@ -58,31 +56,6 @@ function SettingsPage() {
         <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">Configurações</h1>
         <p className="text-sm text-muted-foreground mt-1">Dados do buffet, PIX e modelos de mensagens</p>
       </div>
-
-      {access?.tenant?.slug && (
-        <Section title="Link público de orçamento">
-          <p className="text-xs text-muted-foreground">
-            Compartilhe este link no Instagram, WhatsApp ou site. Cada solicitação chega direto na aba <strong>Leads</strong>.
-          </p>
-          <div className="flex items-center gap-2">
-            <input
-              readOnly
-              value={`${window.location.origin}/orcamento/${access.tenant.slug}`}
-              className="input font-mono text-xs"
-            />
-            <button
-              type="button"
-              onClick={() => {
-                navigator.clipboard.writeText(`${window.location.origin}/orcamento/${access.tenant!.slug}`);
-                toast.success("Link copiado!");
-              }}
-              className="h-10 px-4 rounded-lg bg-primary text-primary-foreground text-xs font-bold whitespace-nowrap"
-            >
-              Copiar
-            </button>
-          </div>
-        </Section>
-      )}
 
       <Section title="Dados do buffet">
         <Field label="Nome do buffet"><input value={f.business_name} onChange={(e) => setF({ ...f, business_name: e.target.value })} className="input" /></Field>
