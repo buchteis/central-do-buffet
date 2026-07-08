@@ -8,6 +8,7 @@ import { ArrowRight, MessageCircle, Trash2, Inbox } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { waLink } from "@/lib/whatsapp";
 import { useTenantAccess } from "@/hooks/useTenantAccess";
+import { copyToClipboard } from "@/lib/clipboard";
 
 export const Route = createFileRoute("/_authenticated/leads")({
   head: () => ({ meta: [{ title: "Leads — Meu Churras" }] }),
