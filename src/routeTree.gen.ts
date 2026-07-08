@@ -13,6 +13,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as OrcamentoSlugRouteImport } from './routes/orcamento.$slug'
+import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as AuthenticatedRelatoriosRouteImport } from './routes/_authenticated/relatorios'
 import { Route as AuthenticatedPacotesRouteImport } from './routes/_authenticated/pacotes'
 import { Route as AuthenticatedLeadsRouteImport } from './routes/_authenticated/leads'
@@ -47,6 +48,11 @@ const OrcamentoSlugRoute = OrcamentoSlugRouteImport.update({
   id: '/orcamento/$slug',
   path: '/orcamento/$slug',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AuthCallbackRoute = AuthCallbackRouteImport.update({
+  id: '/callback',
+  path: '/callback',
+  getParentRoute: () => AuthRoute,
 } as any)
 const AuthenticatedRelatoriosRoute = AuthenticatedRelatoriosRouteImport.update({
   id: '/relatorios',
@@ -133,7 +139,7 @@ const AuthenticatedClientesNovoRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/auth': typeof AuthRoute
+  '/auth': typeof AuthRouteWithChildren
   '/admin': typeof AuthenticatedAdminRoute
   '/agenda': typeof AuthenticatedAgendaRoute
   '/configuracoes': typeof AuthenticatedConfiguracoesRoute
@@ -144,6 +150,7 @@ export interface FileRoutesByFullPath {
   '/leads': typeof AuthenticatedLeadsRoute
   '/pacotes': typeof AuthenticatedPacotesRoute
   '/relatorios': typeof AuthenticatedRelatoriosRoute
+  '/auth/callback': typeof AuthCallbackRoute
   '/orcamento/$slug': typeof OrcamentoSlugRoute
   '/clientes/novo': typeof AuthenticatedClientesNovoRoute
   '/orcamentos/novo': typeof AuthenticatedOrcamentosNovoRoute
@@ -153,7 +160,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/auth': typeof AuthRoute
+  '/auth': typeof AuthRouteWithChildren
   '/admin': typeof AuthenticatedAdminRoute
   '/agenda': typeof AuthenticatedAgendaRoute
   '/configuracoes': typeof AuthenticatedConfiguracoesRoute
@@ -164,6 +171,7 @@ export interface FileRoutesByTo {
   '/leads': typeof AuthenticatedLeadsRoute
   '/pacotes': typeof AuthenticatedPacotesRoute
   '/relatorios': typeof AuthenticatedRelatoriosRoute
+  '/auth/callback': typeof AuthCallbackRoute
   '/orcamento/$slug': typeof OrcamentoSlugRoute
   '/clientes/novo': typeof AuthenticatedClientesNovoRoute
   '/orcamentos/novo': typeof AuthenticatedOrcamentosNovoRoute
@@ -175,7 +183,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
-  '/auth': typeof AuthRoute
+  '/auth': typeof AuthRouteWithChildren
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
   '/_authenticated/agenda': typeof AuthenticatedAgendaRoute
   '/_authenticated/configuracoes': typeof AuthenticatedConfiguracoesRoute
@@ -186,6 +194,7 @@ export interface FileRoutesById {
   '/_authenticated/leads': typeof AuthenticatedLeadsRoute
   '/_authenticated/pacotes': typeof AuthenticatedPacotesRoute
   '/_authenticated/relatorios': typeof AuthenticatedRelatoriosRoute
+  '/auth/callback': typeof AuthCallbackRoute
   '/orcamento/$slug': typeof OrcamentoSlugRoute
   '/_authenticated/clientes/novo': typeof AuthenticatedClientesNovoRoute
   '/_authenticated/orcamentos/novo': typeof AuthenticatedOrcamentosNovoRoute
@@ -208,6 +217,7 @@ export interface FileRouteTypes {
     | '/leads'
     | '/pacotes'
     | '/relatorios'
+    | '/auth/callback'
     | '/orcamento/$slug'
     | '/clientes/novo'
     | '/orcamentos/novo'
@@ -228,6 +238,7 @@ export interface FileRouteTypes {
     | '/leads'
     | '/pacotes'
     | '/relatorios'
+    | '/auth/callback'
     | '/orcamento/$slug'
     | '/clientes/novo'
     | '/orcamentos/novo'
@@ -249,6 +260,7 @@ export interface FileRouteTypes {
     | '/_authenticated/leads'
     | '/_authenticated/pacotes'
     | '/_authenticated/relatorios'
+    | '/auth/callback'
     | '/orcamento/$slug'
     | '/_authenticated/clientes/novo'
     | '/_authenticated/orcamentos/novo'
@@ -260,7 +272,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
-  AuthRoute: typeof AuthRoute
+  AuthRoute: typeof AuthRouteWithChildren
   OrcamentoSlugRoute: typeof OrcamentoSlugRoute
 }
 
@@ -293,6 +305,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/orcamento/$slug'
       preLoaderRoute: typeof OrcamentoSlugRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/auth/callback': {
+      id: '/auth/callback'
+      path: '/callback'
+      fullPath: '/auth/callback'
+      preLoaderRoute: typeof AuthCallbackRouteImport
+      parentRoute: typeof AuthRoute
     }
     '/_authenticated/relatorios': {
       id: '/_authenticated/relatorios'
@@ -441,10 +460,20 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
 const AuthenticatedRouteRouteWithChildren =
   AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
 
+interface AuthRouteChildren {
+  AuthCallbackRoute: typeof AuthCallbackRoute
+}
+
+const AuthRouteChildren: AuthRouteChildren = {
+  AuthCallbackRoute: AuthCallbackRoute,
+}
+
+const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
-  AuthRoute: AuthRoute,
+  AuthRoute: AuthRouteWithChildren,
   OrcamentoSlugRoute: OrcamentoSlugRoute,
 }
 export const routeTree = rootRouteImport
