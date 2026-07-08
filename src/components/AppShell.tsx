@@ -1,13 +1,16 @@
 import { Link, useRouter, useRouterState } from "@tanstack/react-router";
 import { type ReactNode, useState } from "react";
 import {
+  BarChart3,
   Bell,
   Calendar,
+  FileSignature,
   FileText,
   Flame,
   Home,
   Inbox,
   LogOut,
+  Package,
   Receipt,
   Search,
   Settings,
