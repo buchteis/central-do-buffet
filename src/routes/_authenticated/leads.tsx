@@ -156,9 +156,10 @@ function LeadsPage() {
             <Button
               size="sm"
               variant="outline"
-              onClick={() => {
-                navigator.clipboard.writeText(publicUrl);
-                toast.success("Link copiado!");
+              onClick={async () => {
+                const ok = await copyToClipboard(publicUrl);
+                if (ok) toast.success("Link copiado!");
+                else toast.error("Não foi possível copiar. Copie manualmente.");
               }}
             >
               Copiar link
