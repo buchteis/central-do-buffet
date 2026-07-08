@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { Search, Plus, Users } from "lucide-react";
+import { Search, Plus, Users, Upload } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDateBR } from "@/lib/format";
 
@@ -44,12 +44,20 @@ function ClientsPage() {
             {clients?.length ?? 0} cliente(s) cadastrado(s)
           </p>
         </div>
-        <Link
-          to="/clientes/novo"
-          className="inline-flex items-center gap-1 h-9 px-4 rounded-full bg-primary text-primary-foreground text-xs font-bold shadow-lg shadow-primary/20"
-        >
-          <Plus className="size-4" /> Novo cliente
-        </Link>
+        <div className="flex gap-2">
+          <Link
+            to="/clientes/importar"
+            className="inline-flex items-center gap-1 h-9 px-4 rounded-full border border-border text-xs font-bold hover:bg-accent"
+          >
+            <Upload className="size-4" /> Importar clientes
+          </Link>
+          <Link
+            to="/clientes/novo"
+            className="inline-flex items-center gap-1 h-9 px-4 rounded-full bg-primary text-primary-foreground text-xs font-bold shadow-lg shadow-primary/20"
+          >
+            <Plus className="size-4" /> Novo cliente
+          </Link>
+        </div>
       </div>
 
       <div className="relative max-w-md">
