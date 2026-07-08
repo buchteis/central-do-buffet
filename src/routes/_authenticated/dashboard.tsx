@@ -173,6 +173,20 @@ function Dashboard() {
         </div>
       )}
 
+
+      <div className="bg-gradient-to-br from-primary/10 via-primary/5 to-background border border-primary/20 rounded-2xl p-5 md:p-6 shadow-sm">
+        <div className="flex items-center justify-between">
+          <span className="text-[10px] font-bold text-primary uppercase tracking-widest">Ganhos previsíveis</span>
+          <DollarSign className="size-5 text-primary" />
+        </div>
+        <div className="mt-2 text-3xl md:text-4xl font-extrabold tracking-tighter text-primary font-mono">
+          {brl(stats?.ganhosPrevisiveis ?? 0)}
+        </div>
+        <p className="text-xs text-muted-foreground mt-1">
+          Soma dos agendamentos confirmados + orçamentos em análise/negociação.
+        </p>
+      </div>
+
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
         <Kpi label="Eventos hoje" value={String(stats?.evToday ?? "—")} icon={Calendar} />
         <Kpi label="Eventos na semana" value={String(stats?.evWeek ?? "—")} icon={CalendarDays} />
@@ -187,6 +201,7 @@ function Dashboard() {
         <Kpi label="Escala hoje" value={String(stats?.staffToday ?? "—")} icon={UserCheck} />
         <Kpi label="Funcionários ativos" value={String(stats?.employeesActive ?? "—")} icon={ShoppingCart} />
       </div>
+
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 bg-card rounded-2xl border border-border shadow-sm">
