@@ -72,9 +72,11 @@ function SettingsPage() {
             />
             <button
               type="button"
-              onClick={() => {
-                navigator.clipboard.writeText(`${window.location.origin}/orcamento/${access.tenant!.slug}`);
-                toast.success("Link copiado!");
+              onClick={async () => {
+                const url = `${window.location.origin}/orcamento/${access.tenant!.slug}`;
+                const ok = await copyToClipboard(url);
+                if (ok) toast.success("Link copiado!");
+                else toast.error("Não foi possível copiar. Copie manualmente.");
               }}
               className="h-10 px-4 rounded-lg bg-primary text-primary-foreground text-xs font-bold whitespace-nowrap"
             >
