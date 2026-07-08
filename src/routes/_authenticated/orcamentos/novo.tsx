@@ -428,10 +428,12 @@ function NumField({
   label,
   value,
   onChange,
+  step,
 }: {
   label: string;
   value: number;
   onChange: (v: number) => void;
+  step?: string;
 }) {
   return (
     <div className="space-y-2">
@@ -439,6 +441,7 @@ function NumField({
       <Input
         type="number"
         min={0}
+        step={step}
         value={value}
         onChange={(e) => onChange(Number(e.target.value) || 0)}
       />
