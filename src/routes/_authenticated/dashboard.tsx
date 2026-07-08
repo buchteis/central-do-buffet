@@ -78,6 +78,9 @@ function Dashboard() {
         upcoming,
         alertsPay,
         alertsEvTomorrow,
+        eventosConfirmados,
+        quotesNegociacao,
+      
       ] = await Promise.all([
         supabase.from("events").select("id", { count: "exact", head: true }).eq("event_date", today),
         supabase.from("events").select("id", { count: "exact", head: true }).gte("event_date", isoDate(weekStart)).lt("event_date", isoDate(weekEnd)),
@@ -102,11 +105,16 @@ function Dashboard() {
         supabase.from("events").select("id, event_date, event_time, status, total_value, clients(name), packages(name)").gte("event_date", today).order("event_date").limit(6),
         supabase.from("transactions").select("id, description, amount, due_date").eq("status", "pendente").lt("due_date", today).limit(5),
         supabase.from("events").select("id, event_time, clients(name)").eq("event_date", tomorrow).limit(5),
+        supabase.from("events").select("total_value").in("status", ["agendado", "pagamento_parcial", "em_andamento"]),
+        supabase.from("quotes").select("total_value").in("status", ["em_analise", "negociacao", "aguardando", "primeiro_contato", "visitado", "enviado"]),
       ]);
 
       const revenuePredicted = (revPredicted.data ?? []).reduce((s, r) => s + Number(r.total_value ?? 0), 0);
       const revenueReceived = (revReceived.data ?? []).reduce((s, r) => s + Number(r.amount ?? 0), 0);
       const toReceive = (txPending.data ?? []).reduce((s, r) => s + Number(r.amount ?? 0), 0);
+      const confirmadosVal = (eventosConfirmados.data ?? []).reduce((s, r: any) => s + Number(r.total_value ?? 0), 0);
+      const negociacaoVal = (quotesNegociacao.data ?? []).reduce((s, r: any) => s + Number(r.total_value ?? 0), 0);
+      const ganhosPrevisiveis = confirmadosVal + negociacaoVal;
 
       return {
         evToday: evToday.count ?? 0,
@@ -117,6 +125,7 @@ function Dashboard() {
         revenuePredicted,
         revenueReceived,
         toReceive,
+        ganhosPrevisiveis,
         clientsCount: clientsCount.count ?? 0,
         newClients: newClients.count ?? 0,
         staffToday: staffToday.data?.length ?? 0,
@@ -164,6 +173,20 @@ function Dashboard() {
         </div>
       )}
 
+
+      <div className="bg-gradient-to-br from-primary/10 via-primary/5 to-background border border-primary/20 rounded-2xl p-5 md:p-6 shadow-sm">
+        <div className="flex items-center justify-between">
+          <span className="text-[10px] font-bold text-primary uppercase tracking-widest">Ganhos previsíveis</span>
+          <DollarSign className="size-5 text-primary" />
+        </div>
+        <div className="mt-2 text-3xl md:text-4xl font-extrabold tracking-tighter text-primary font-mono">
+          {brl(stats?.ganhosPrevisiveis ?? 0)}
+        </div>
+        <p className="text-xs text-muted-foreground mt-1">
+          Soma dos agendamentos confirmados + orçamentos em análise/negociação.
+        </p>
+      </div>
+
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
         <Kpi label="Eventos hoje" value={String(stats?.evToday ?? "—")} icon={Calendar} />
         <Kpi label="Eventos na semana" value={String(stats?.evWeek ?? "—")} icon={CalendarDays} />
@@ -178,6 +201,7 @@ function Dashboard() {
         <Kpi label="Escala hoje" value={String(stats?.staffToday ?? "—")} icon={UserCheck} />
         <Kpi label="Funcionários ativos" value={String(stats?.employeesActive ?? "—")} icon={ShoppingCart} />
       </div>
+
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 bg-card rounded-2xl border border-border shadow-sm">
