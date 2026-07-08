@@ -29,14 +29,10 @@ const schema = z.object({
   client_id: z.string().uuid("Selecione um cliente"),
   package_id: z.string().uuid("Selecione um pacote"),
   event_date: z.string().min(1, "Data obrigatória"),
-  event_time: z.string().optional(),
-  event_address: z.string().max(200).optional(),
-  event_type: z.string().max(80).optional(),
   adults: z.number().int().min(0).max(9999),
-  children_7_10: z.number().int().min(0).max(9999),
-  children_0_6: z.number().int().min(0).max(9999),
-  notes: z.string().max(1000).optional(),
-});
+  children_count: z.number().int().min(0).max(9999),
+  child_price: z.number().min(0).max(999999),
+}).passthrough();
 
 function NewQuotePage() {
   const navigate = useNavigate();
