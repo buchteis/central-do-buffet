@@ -252,35 +252,26 @@ function NewQuotePage() {
             />
           </div>
 
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <NumField
               label="Adultos"
               value={form.adults}
               onChange={(v) => setForm((f) => ({ ...f, adults: v }))}
             />
             <NumField
-              label="Crianças 7-10"
-              value={form.children_7_10}
-              onChange={(v) => setForm((f) => ({ ...f, children_7_10: v }))}
+              label="Nº de crianças"
+              value={form.children_count}
+              onChange={(v) => setForm((f) => ({ ...f, children_count: v }))}
             />
             <NumField
-              label="Crianças 0-6"
-              value={form.children_0_6}
-              onChange={(v) => setForm((f) => ({ ...f, children_0_6: v }))}
+              label="Valor por criança (R$)"
+              value={form.child_price}
+              onChange={(v) => setForm((f) => ({ ...f, child_price: v }))}
+              step="0.01"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-3 pt-2">
-            <ToggleRow
-              label="Feijão Tropeiro"
-              checked={form.extras_feijao}
-              onChange={(v) => setForm((f) => ({ ...f, extras_feijao: v }))}
-            />
-            <ToggleRow
-              label="Farofa Rica"
-              checked={form.extras_farofa}
-              onChange={(v) => setForm((f) => ({ ...f, extras_farofa: v }))}
-            />
             <ToggleRow
               label="Possui churrasqueira"
               checked={form.has_grill}
@@ -292,6 +283,74 @@ function NewQuotePage() {
               onChange={(v) => setForm((f) => ({ ...f, has_freezer: v }))}
             />
           </div>
+
+          <div className="space-y-3 pt-2">
+            <div className="flex items-center justify-between">
+              <Label>Acréscimos manuais</Label>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  setCustomExtras((arr) => [...arr, { description: "", value: 0 }])
+                }
+              >
+                <Plus className="size-3.5" /> Adicionar
+              </Button>
+            </div>
+            {customExtras.length === 0 && (
+              <p className="text-xs text-muted-foreground">
+                Nenhum acréscimo. Clique em "Adicionar" para incluir itens extras (ex.: taxa de deslocamento, decoração).
+              </p>
+            )}
+            {customExtras.map((ex, i) => (
+              <div key={i} className="grid grid-cols-[1fr_140px_auto] gap-2 items-end">
+                <div className="space-y-1">
+                  <Label className="text-xs">Descrição</Label>
+                  <Input
+                    value={ex.description}
+                    placeholder="Ex.: Taxa de deslocamento"
+                    onChange={(e) =>
+                      setCustomExtras((arr) =>
+                        arr.map((it, idx) =>
+                          idx === i ? { ...it, description: e.target.value } : it,
+                        ),
+                      )
+                    }
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Valor (R$)</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    value={ex.value}
+                    onChange={(e) =>
+                      setCustomExtras((arr) =>
+                        arr.map((it, idx) =>
+                          idx === i
+                            ? { ...it, value: Number(e.target.value) || 0 }
+                            : it,
+                        ),
+                      )
+                    }
+                  />
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={() =>
+                    setCustomExtras((arr) => arr.filter((_, idx) => idx !== i))
+                  }
+                >
+                  <Trash2 className="size-4" />
+                </Button>
+              </div>
+            ))}
+          </div>
+
 
           <div className="space-y-2">
             <Label>Observações</Label>
