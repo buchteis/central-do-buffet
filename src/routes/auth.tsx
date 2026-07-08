@@ -50,7 +50,28 @@ function AuthPage() {
     setLoading(true);
     const { error } = await supabase.auth.signInWithPassword(parsed.data);
     setLoading(false);
-    if (error) return toast.error(error.message);
+    if (error) {
+      const msg = error.message?.toLowerCase() ?? "";
+      if (msg.includes("email not confirmed") || msg.includes("not confirmed")) {
+        toast.error("E-mail ainda não confirmado.", {
+          action: {
+            label: "Reenviar e-mail",
+            onClick: async () => {
+              const { error: rErr } = await supabase.auth.resend({
+                type: "signup",
+                email: parsed.data.email,
+                options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+              });
+              if (rErr) toast.error(rErr.message);
+              else toast.success("Novo link enviado. Verifique seu e-mail.");
+            },
+          },
+          duration: 10000,
+        });
+        return;
+      }
+      return toast.error(error.message);
+    }
     toast.success("Bem-vindo!");
     navigate({ to: "/dashboard", replace: true });
   }
@@ -64,11 +85,11 @@ function AuthPage() {
       return;
     }
     setLoading(true);
-    const { error } = await supabase.auth.signUp({
+    const { data: signUpData, error } = await supabase.auth.signUp({
       email: parsed.data.email,
       password: parsed.data.password,
       options: {
-        emailRedirectTo: window.location.origin,
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
         data: {
           full_name: parsed.data.fullName,
           business_name: parsed.data.businessName,
@@ -77,9 +98,16 @@ function AuthPage() {
     });
     setLoading(false);
     if (error) return toast.error(error.message);
-    toast.success("Conta criada. Você já está conectado!");
-    navigate({ to: "/dashboard", replace: true });
+    if (signUpData.session) {
+      toast.success("Conta criada. Você já está conectado!");
+      navigate({ to: "/dashboard", replace: true });
+    } else {
+      toast.success("Conta criada! Confira seu e-mail para confirmar o cadastro antes de entrar.", {
+        duration: 10000,
+      });
+    }
   }
+
 
   async function handleGoogle() {
     setLoading(true);
