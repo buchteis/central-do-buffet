@@ -69,14 +69,15 @@ function NewQuotePage() {
     event_address: "",
     event_type: "",
     adults: 0,
-    children_7_10: 0,
-    children_0_6: 0,
+    children_count: 0,
+    child_price: 0,
     notes: "",
     has_grill: false,
     has_freezer: false,
-    extras_feijao: false,
-    extras_farofa: false,
   });
+  const [customExtras, setCustomExtras] = useState<
+    { description: string; value: number }[]
+  >([]);
 
   const selectedPackage = packages?.find((p) => p.id === form.package_id);
   const breakdown = useMemo(
@@ -84,14 +85,11 @@ function NewQuotePage() {
       calcQuote({
         pricePerPerson: Number(selectedPackage?.price_per_person ?? 0),
         adults: Number(form.adults) || 0,
-        children7to10: Number(form.children_7_10) || 0,
-        children0to6: Number(form.children_0_6) || 0,
-        extras: {
-          feijaoTropeiro: form.extras_feijao,
-          farofaRica: form.extras_farofa,
-        },
+        childrenCount: Number(form.children_count) || 0,
+        childPrice: Number(form.child_price) || 0,
+        customExtras,
       }),
-    [form, selectedPackage],
+    [form, selectedPackage, customExtras],
   );
 
   const mut = useMutation({
