@@ -112,6 +112,9 @@ function Dashboard() {
       const revenuePredicted = (revPredicted.data ?? []).reduce((s, r) => s + Number(r.total_value ?? 0), 0);
       const revenueReceived = (revReceived.data ?? []).reduce((s, r) => s + Number(r.amount ?? 0), 0);
       const toReceive = (txPending.data ?? []).reduce((s, r) => s + Number(r.amount ?? 0), 0);
+      const confirmadosVal = (eventosConfirmados.data ?? []).reduce((s, r: any) => s + Number(r.total_value ?? 0), 0);
+      const negociacaoVal = (quotesNegociacao.data ?? []).reduce((s, r: any) => s + Number(r.total_value ?? 0), 0);
+      const ganhosPrevisiveis = confirmadosVal + negociacaoVal;
 
       return {
         evToday: evToday.count ?? 0,
@@ -122,6 +125,7 @@ function Dashboard() {
         revenuePredicted,
         revenueReceived,
         toReceive,
+        ganhosPrevisiveis,
         clientsCount: clientsCount.count ?? 0,
         newClients: newClients.count ?? 0,
         staffToday: staffToday.data?.length ?? 0,
