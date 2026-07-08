@@ -1,5 +1,4 @@
 import { Link, useRouter, useRouterState } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
 import { type ReactNode, useState } from "react";
 import {
   Bell,
@@ -7,56 +6,53 @@ import {
   FileText,
   Flame,
   Home,
+  Inbox,
   LogOut,
-  Package,
   Receipt,
   Search,
   Settings,
+  Shield,
+  UserCog,
   Users,
   Wallet,
-  UserCog,
-  BarChart3,
-  ScrollText,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { useTenantAccess } from "@/hooks/useTenantAccess";
+import { useQuery } from "@tanstack/react-query";
 
 type NavItem = { to: string; label: string; icon: typeof Home };
 
 const primary: NavItem[] = [
   { to: "/dashboard", label: "Dashboard", icon: Home },
+  { to: "/leads", label: "Leads", icon: Inbox },
   { to: "/orcamentos", label: "Orçamentos", icon: FileText },
   { to: "/eventos", label: "Eventos", icon: Receipt },
+  { to: "/agenda", label: "Calendário", icon: Calendar },
   { to: "/clientes", label: "Clientes", icon: Users },
-  { to: "/agenda", label: "Agenda", icon: Calendar },
+  { to: "/funcionarios", label: "Profissionais", icon: UserCog },
   { to: "/financeiro", label: "Financeiro", icon: Wallet },
-];
-
-const secondary: NavItem[] = [
-  { to: "/pacotes", label: "Pacotes", icon: Package },
-  { to: "/funcionarios", label: "Funcionários", icon: UserCog },
-  { to: "/contratos", label: "Contratos", icon: ScrollText },
-  { to: "/relatorios", label: "Relatórios", icon: BarChart3 },
   { to: "/configuracoes", label: "Configurações", icon: Settings },
 ];
 
 export function AppShell({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const { data: access } = useTenantAccess();
 
-  const { data: profile } = useQuery({
-    queryKey: ["profile-shell"],
+  const { data: leadsCount } = useQuery({
+    queryKey: ["leads-new-count", access?.tenant?.id],
+    enabled: !!access?.tenant?.id,
+    refetchInterval: 30_000,
     queryFn: async () => {
-      const { data: userRes } = await supabase.auth.getUser();
-      if (!userRes.user) return null;
-      const { data } = await supabase
-        .from("profiles")
-        .select("full_name, business_name")
-        .eq("id", userRes.user.id)
-        .maybeSingle();
-      return { ...data, email: userRes.user.email };
+      const { count } = await supabase
+        .from("leads")
+        .select("id", { count: "exact", head: true })
+        .eq("tenant_id", access!.tenant!.id)
+        .eq("status", "novo");
+      return count ?? 0;
     },
   });
 
@@ -83,28 +79,38 @@ export function AppShell({ children }: { children: ReactNode }) {
 
         <nav className="flex-1 px-3 space-y-0.5 overflow-y-auto">
           {primary.map((item) => (
-            <SideLink key={item.to} item={item} active={isActive(pathname, item.to)} />
+            <SideLink
+              key={item.to}
+              item={item}
+              active={isActive(pathname, item.to)}
+              badge={item.to === "/leads" ? leadsCount : undefined}
+            />
           ))}
-          <div className="h-px bg-border my-4 mx-3" />
-          <div className="px-3 pb-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-            Gestão
-          </div>
-          {secondary.map((item) => (
-            <SideLink key={item.to} item={item} active={isActive(pathname, item.to)} />
-          ))}
+          {access?.isSuperAdmin && (
+            <>
+              <div className="h-px bg-border my-4 mx-3" />
+              <div className="px-3 pb-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                Administração
+              </div>
+              <SideLink
+                item={{ to: "/admin", label: "Super Admin", icon: Shield }}
+                active={isActive(pathname, "/admin")}
+              />
+            </>
+          )}
         </nav>
 
         <div className="p-4 mt-auto border-t border-border">
           <div className="flex items-center gap-3 px-2">
             <div className="size-9 rounded-full bg-primary/10 text-primary font-bold text-xs flex items-center justify-center ring-1 ring-primary/20">
-              {(profile?.business_name ?? "MC").slice(0, 2).toUpperCase()}
+              {(access?.tenant?.name ?? "MC").slice(0, 2).toUpperCase()}
             </div>
             <div className="flex flex-col overflow-hidden flex-1 min-w-0">
               <span className="text-xs font-bold truncate">
-                {profile?.business_name ?? "Meu Buffet"}
+                {access?.tenant?.name ?? "Meu Buffet"}
               </span>
               <span className="text-[10px] text-muted-foreground truncate">
-                {profile?.full_name ?? profile?.email ?? "Proprietário"}
+                {access?.isSuperAdmin ? "Super Admin" : access?.email}
               </span>
             </div>
             <button
@@ -120,14 +126,22 @@ export function AppShell({ children }: { children: ReactNode }) {
       </aside>
 
       <main className="flex-1 flex flex-col min-w-0">
-        <TopBar />
+        <TopBar leadsCount={leadsCount ?? 0} />
         <div className="flex-1 p-4 md:p-8 max-w-[1280px] mx-auto w-full">{children}</div>
       </main>
     </div>
   );
 }
 
-function SideLink({ item, active }: { item: NavItem; active: boolean }) {
+function SideLink({
+  item,
+  active,
+  badge,
+}: {
+  item: NavItem;
+  active: boolean;
+  badge?: number;
+}) {
   const Icon = item.icon;
   return (
     <Link
@@ -140,7 +154,12 @@ function SideLink({ item, active }: { item: NavItem; active: boolean }) {
       )}
     >
       <Icon className="size-4 shrink-0" />
-      <span className="truncate">{item.label}</span>
+      <span className="truncate flex-1">{item.label}</span>
+      {badge ? (
+        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-primary text-primary-foreground min-w-4 text-center">
+          {badge}
+        </span>
+      ) : null}
     </Link>
   );
 }
@@ -150,7 +169,7 @@ function isActive(pathname: string, to: string) {
   return pathname === to || pathname.startsWith(to + "/");
 }
 
-function TopBar() {
+function TopBar({ leadsCount }: { leadsCount: number }) {
   const [q, setQ] = useState("");
   const router = useRouter();
   return (
@@ -166,9 +185,17 @@ function TopBar() {
         />
       </div>
       <div className="flex items-center gap-2 md:gap-3">
-        <button className="relative p-2 text-muted-foreground hover:text-foreground transition-colors">
+        <button
+          onClick={() => router.navigate({ to: "/leads" })}
+          className="relative p-2 text-muted-foreground hover:text-foreground transition-colors"
+          title="Leads novos"
+        >
           <Bell className="size-5" />
-          <span className="absolute top-1.5 right-1.5 size-2 bg-primary rounded-full ring-2 ring-background" />
+          {leadsCount > 0 && (
+            <span className="absolute -top-0.5 -right-0.5 text-[9px] font-bold min-w-4 h-4 px-1 rounded-full bg-primary text-primary-foreground flex items-center justify-center ring-2 ring-background">
+              {leadsCount}
+            </span>
+          )}
         </button>
         <Button
           onClick={() => router.navigate({ to: "/orcamentos/novo" })}
