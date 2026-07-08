@@ -78,6 +78,9 @@ function Dashboard() {
         upcoming,
         alertsPay,
         alertsEvTomorrow,
+        eventosConfirmados,
+        quotesNegociacao,
+      
       ] = await Promise.all([
         supabase.from("events").select("id", { count: "exact", head: true }).eq("event_date", today),
         supabase.from("events").select("id", { count: "exact", head: true }).gte("event_date", isoDate(weekStart)).lt("event_date", isoDate(weekEnd)),
