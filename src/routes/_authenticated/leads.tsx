@@ -8,6 +8,7 @@ import { ArrowRight, MessageCircle, Trash2, Inbox } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { waLink } from "@/lib/whatsapp";
 import { useTenantAccess } from "@/hooks/useTenantAccess";
+import { copyToClipboard } from "@/lib/clipboard";
 
 export const Route = createFileRoute("/_authenticated/leads")({
   head: () => ({ meta: [{ title: "Leads — Meu Churras" }] }),
@@ -156,9 +157,10 @@ function LeadsPage() {
             <Button
               size="sm"
               variant="outline"
-              onClick={() => {
-                navigator.clipboard.writeText(publicUrl);
-                toast.success("Link copiado!");
+              onClick={async () => {
+                const ok = await copyToClipboard(publicUrl);
+                if (ok) toast.success("Link copiado!");
+                else toast.error("Não foi possível copiar. Copie manualmente.");
               }}
             >
               Copiar link

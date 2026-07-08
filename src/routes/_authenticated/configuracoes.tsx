@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { copyToClipboard } from "@/lib/clipboard";
 import { useTenantAccess } from "@/hooks/useTenantAccess";
 
 export const Route = createFileRoute("/_authenticated/configuracoes")({
@@ -72,9 +73,11 @@ function SettingsPage() {
             />
             <button
               type="button"
-              onClick={() => {
-                navigator.clipboard.writeText(`${window.location.origin}/orcamento/${access.tenant!.slug}`);
-                toast.success("Link copiado!");
+              onClick={async () => {
+                const url = `${window.location.origin}/orcamento/${access.tenant!.slug}`;
+                const ok = await copyToClipboard(url);
+                if (ok) toast.success("Link copiado!");
+                else toast.error("Não foi possível copiar. Copie manualmente.");
               }}
               className="h-10 px-4 rounded-lg bg-primary text-primary-foreground text-xs font-bold whitespace-nowrap"
             >
