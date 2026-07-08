@@ -385,16 +385,17 @@ function NewQuotePage() {
             </div>
           </div>
 
+          <SummaryRow label="Adultos" value={brl(breakdown.adultsSubtotal)} />
           <SummaryRow
-            label="Pessoas cobradas"
-            value={`${breakdown.chargeableEquivalent.toFixed(1)}`}
+            label={`Crianças (${form.children_count} × ${brl(form.child_price)})`}
+            value={brl(breakdown.childrenSubtotal)}
           />
           <SummaryRow
             label="Preço por pessoa"
             value={brl(selectedPackage?.price_per_person ?? 0)}
           />
           <SummaryRow label="Subtotal" value={brl(breakdown.subtotal)} />
-          {breakdown.extras > 0 && <SummaryRow label="Adicionais" value={brl(breakdown.extras)} />}
+          {breakdown.extras > 0 && <SummaryRow label="Acréscimos" value={brl(breakdown.extras)} />}
 
           <div className="h-px bg-border" />
 
