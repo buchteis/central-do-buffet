@@ -42,7 +42,7 @@ const schema = z.object({
   guest_count: z.coerce.number().int().min(1).max(9999),
   event_type: z.string().trim().max(80).optional(),
   package_desired: z.string().trim().max(120).optional(),
-  package_id: z.string().uuid().optional(),
+  package_id: z.preprocess((v) => (v === "" || v == null ? undefined : v), z.string().uuid().optional()),
   notes: z.string().trim().max(1000).optional(),
 });
 
