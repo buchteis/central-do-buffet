@@ -1,50 +1,52 @@
 /**
- * Cálculo do orçamento (versão MVP).
+ * Cálculo do orçamento.
  *
  * Regras:
- * - Adultos: 100% do valor por pessoa.
- * - Crianças 7-10 anos: 50%.
- * - Crianças 0-6 anos: gratuito.
- * - Feijão tropeiro / farofa rica: adicional fixo por pessoa cobrada.
+ * - Adultos: valor por pessoa do pacote.
+ * - Crianças: quantidade x valor por criança (definido manualmente).
+ * - Acréscimos: itens manuais (descrição + valor) somados ao total.
  */
-export type QuoteExtras = {
-  feijaoTropeiro?: boolean;
-  farofaRica?: boolean;
+export type QuoteExtraItem = {
+  description: string;
+  value: number;
 };
 
 export type QuoteInputs = {
   pricePerPerson: number;
   adults: number;
-  children7to10: number;
-  children0to6: number;
-  extras?: QuoteExtras;
+  childrenCount: number;
+  childPrice: number;
+  customExtras?: QuoteExtraItem[];
 };
 
 export type QuoteBreakdown = {
-  chargeableEquivalent: number; // "pessoas equivalentes" cobradas
-  subtotal: number;
+  adultsSubtotal: number;
+  childrenSubtotal: number;
   extras: number;
+  subtotal: number;
   total: number;
   entry: number;
   balance: number;
 };
 
-const EXTRA_FEIJAO = 6; // R$ por pessoa cobrada
-const EXTRA_FAROFA = 4; // R$ por pessoa cobrada
+const round2 = (n: number) => Math.round(n * 100) / 100;
 
 export function calcQuote(input: QuoteInputs): QuoteBreakdown {
-  const equivalent = input.adults + input.children7to10 * 0.5;
-  const subtotal = equivalent * (input.pricePerPerson || 0);
-  let extras = 0;
-  if (input.extras?.feijaoTropeiro) extras += equivalent * EXTRA_FEIJAO;
-  if (input.extras?.farofaRica) extras += equivalent * EXTRA_FAROFA;
-  const total = Math.round((subtotal + extras) * 100) / 100;
-  const entry = Math.round(total * 50) / 100;
-  const balance = Math.round((total - entry) * 100) / 100;
+  const adultsSubtotal = (input.adults || 0) * (input.pricePerPerson || 0);
+  const childrenSubtotal = (input.childrenCount || 0) * (input.childPrice || 0);
+  const extras = (input.customExtras ?? []).reduce(
+    (sum, e) => sum + (Number(e.value) || 0),
+    0,
+  );
+  const subtotal = adultsSubtotal + childrenSubtotal;
+  const total = round2(subtotal + extras);
+  const entry = round2(total * 0.5);
+  const balance = round2(total - entry);
   return {
-    chargeableEquivalent: equivalent,
-    subtotal,
-    extras,
+    adultsSubtotal: round2(adultsSubtotal),
+    childrenSubtotal: round2(childrenSubtotal),
+    extras: round2(extras),
+    subtotal: round2(subtotal),
     total,
     entry,
     balance,
