@@ -83,8 +83,10 @@ export type Database = {
           id: string
           name: string
           notes: string | null
+          origem: string
           owner_id: string
           phone: string | null
+          status: string
           tenant_id: string | null
           updated_at: string
           whatsapp: string | null
@@ -98,8 +100,10 @@ export type Database = {
           id?: string
           name: string
           notes?: string | null
+          origem?: string
           owner_id: string
           phone?: string | null
+          status?: string
           tenant_id?: string | null
           updated_at?: string
           whatsapp?: string | null
@@ -113,8 +117,10 @@ export type Database = {
           id?: string
           name?: string
           notes?: string | null
+          origem?: string
           owner_id?: string
           phone?: string | null
+          status?: string
           tenant_id?: string | null
           updated_at?: string
           whatsapp?: string | null
