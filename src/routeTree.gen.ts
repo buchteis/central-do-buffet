@@ -29,6 +29,7 @@ import { Route as AuthenticatedEventosIndexRouteImport } from './routes/_authent
 import { Route as AuthenticatedClientesIndexRouteImport } from './routes/_authenticated/clientes/index'
 import { Route as AuthenticatedOrcamentosNovoRouteImport } from './routes/_authenticated/orcamentos/novo'
 import { Route as AuthenticatedClientesNovoRouteImport } from './routes/_authenticated/clientes/novo'
+import { Route as AuthenticatedClientesImportarRouteImport } from './routes/_authenticated/clientes/importar'
 
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
@@ -136,6 +137,12 @@ const AuthenticatedClientesNovoRoute =
     path: '/clientes/novo',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedClientesImportarRoute =
+  AuthenticatedClientesImportarRouteImport.update({
+    id: '/clientes/importar',
+    path: '/clientes/importar',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -152,6 +159,7 @@ export interface FileRoutesByFullPath {
   '/relatorios': typeof AuthenticatedRelatoriosRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/orcamento/$slug': typeof OrcamentoSlugRoute
+  '/clientes/importar': typeof AuthenticatedClientesImportarRoute
   '/clientes/novo': typeof AuthenticatedClientesNovoRoute
   '/orcamentos/novo': typeof AuthenticatedOrcamentosNovoRoute
   '/clientes/': typeof AuthenticatedClientesIndexRoute
@@ -173,6 +181,7 @@ export interface FileRoutesByTo {
   '/relatorios': typeof AuthenticatedRelatoriosRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/orcamento/$slug': typeof OrcamentoSlugRoute
+  '/clientes/importar': typeof AuthenticatedClientesImportarRoute
   '/clientes/novo': typeof AuthenticatedClientesNovoRoute
   '/orcamentos/novo': typeof AuthenticatedOrcamentosNovoRoute
   '/clientes': typeof AuthenticatedClientesIndexRoute
@@ -196,6 +205,7 @@ export interface FileRoutesById {
   '/_authenticated/relatorios': typeof AuthenticatedRelatoriosRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/orcamento/$slug': typeof OrcamentoSlugRoute
+  '/_authenticated/clientes/importar': typeof AuthenticatedClientesImportarRoute
   '/_authenticated/clientes/novo': typeof AuthenticatedClientesNovoRoute
   '/_authenticated/orcamentos/novo': typeof AuthenticatedOrcamentosNovoRoute
   '/_authenticated/clientes/': typeof AuthenticatedClientesIndexRoute
@@ -219,6 +229,7 @@ export interface FileRouteTypes {
     | '/relatorios'
     | '/auth/callback'
     | '/orcamento/$slug'
+    | '/clientes/importar'
     | '/clientes/novo'
     | '/orcamentos/novo'
     | '/clientes/'
@@ -240,6 +251,7 @@ export interface FileRouteTypes {
     | '/relatorios'
     | '/auth/callback'
     | '/orcamento/$slug'
+    | '/clientes/importar'
     | '/clientes/novo'
     | '/orcamentos/novo'
     | '/clientes'
@@ -262,6 +274,7 @@ export interface FileRouteTypes {
     | '/_authenticated/relatorios'
     | '/auth/callback'
     | '/orcamento/$slug'
+    | '/_authenticated/clientes/importar'
     | '/_authenticated/clientes/novo'
     | '/_authenticated/orcamentos/novo'
     | '/_authenticated/clientes/'
@@ -418,6 +431,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedClientesNovoRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/clientes/importar': {
+      id: '/_authenticated/clientes/importar'
+      path: '/clientes/importar'
+      fullPath: '/clientes/importar'
+      preLoaderRoute: typeof AuthenticatedClientesImportarRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
@@ -432,6 +452,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedLeadsRoute: typeof AuthenticatedLeadsRoute
   AuthenticatedPacotesRoute: typeof AuthenticatedPacotesRoute
   AuthenticatedRelatoriosRoute: typeof AuthenticatedRelatoriosRoute
+  AuthenticatedClientesImportarRoute: typeof AuthenticatedClientesImportarRoute
   AuthenticatedClientesNovoRoute: typeof AuthenticatedClientesNovoRoute
   AuthenticatedOrcamentosNovoRoute: typeof AuthenticatedOrcamentosNovoRoute
   AuthenticatedClientesIndexRoute: typeof AuthenticatedClientesIndexRoute
@@ -450,6 +471,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedLeadsRoute: AuthenticatedLeadsRoute,
   AuthenticatedPacotesRoute: AuthenticatedPacotesRoute,
   AuthenticatedRelatoriosRoute: AuthenticatedRelatoriosRoute,
+  AuthenticatedClientesImportarRoute: AuthenticatedClientesImportarRoute,
   AuthenticatedClientesNovoRoute: AuthenticatedClientesNovoRoute,
   AuthenticatedOrcamentosNovoRoute: AuthenticatedOrcamentosNovoRoute,
   AuthenticatedClientesIndexRoute: AuthenticatedClientesIndexRoute,
