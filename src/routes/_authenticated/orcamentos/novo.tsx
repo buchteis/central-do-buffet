@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
@@ -69,14 +69,15 @@ function NewQuotePage() {
     event_address: "",
     event_type: "",
     adults: 0,
-    children_7_10: 0,
-    children_0_6: 0,
+    children_count: 0,
+    child_price: 0,
     notes: "",
     has_grill: false,
     has_freezer: false,
-    extras_feijao: false,
-    extras_farofa: false,
   });
+  const [customExtras, setCustomExtras] = useState<
+    { description: string; value: number }[]
+  >([]);
 
   const selectedPackage = packages?.find((p) => p.id === form.package_id);
   const breakdown = useMemo(
@@ -84,14 +85,11 @@ function NewQuotePage() {
       calcQuote({
         pricePerPerson: Number(selectedPackage?.price_per_person ?? 0),
         adults: Number(form.adults) || 0,
-        children7to10: Number(form.children_7_10) || 0,
-        children0to6: Number(form.children_0_6) || 0,
-        extras: {
-          feijaoTropeiro: form.extras_feijao,
-          farofaRica: form.extras_farofa,
-        },
+        childrenCount: Number(form.children_count) || 0,
+        childPrice: Number(form.child_price) || 0,
+        customExtras,
       }),
-    [form, selectedPackage],
+    [form, selectedPackage, customExtras],
   );
 
   const mut = useMutation({
@@ -116,13 +114,15 @@ function NewQuotePage() {
           event_address: form.event_address || null,
           event_type: form.event_type || null,
           adults: form.adults,
-          children_7_10: form.children_7_10,
-          children_0_6: form.children_0_6,
+          children_7_10: form.children_count,
+          children_0_6: 0,
           has_grill: form.has_grill,
           has_freezer: form.has_freezer,
           extras: {
-            feijao_tropeiro: form.extras_feijao,
-            farofa_rica: form.extras_farofa,
+            child_price: form.child_price,
+            custom: customExtras.filter(
+              (e) => e.description.trim() !== "" || Number(e.value) > 0,
+            ),
           },
           notes: form.notes || null,
           total_value: breakdown.total,
@@ -252,35 +252,26 @@ function NewQuotePage() {
             />
           </div>
 
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <NumField
               label="Adultos"
               value={form.adults}
               onChange={(v) => setForm((f) => ({ ...f, adults: v }))}
             />
             <NumField
-              label="Crianças 7-10"
-              value={form.children_7_10}
-              onChange={(v) => setForm((f) => ({ ...f, children_7_10: v }))}
+              label="Nº de crianças"
+              value={form.children_count}
+              onChange={(v) => setForm((f) => ({ ...f, children_count: v }))}
             />
             <NumField
-              label="Crianças 0-6"
-              value={form.children_0_6}
-              onChange={(v) => setForm((f) => ({ ...f, children_0_6: v }))}
+              label="Valor por criança (R$)"
+              value={form.child_price}
+              onChange={(v) => setForm((f) => ({ ...f, child_price: v }))}
+              step="0.01"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-3 pt-2">
-            <ToggleRow
-              label="Feijão Tropeiro"
-              checked={form.extras_feijao}
-              onChange={(v) => setForm((f) => ({ ...f, extras_feijao: v }))}
-            />
-            <ToggleRow
-              label="Farofa Rica"
-              checked={form.extras_farofa}
-              onChange={(v) => setForm((f) => ({ ...f, extras_farofa: v }))}
-            />
             <ToggleRow
               label="Possui churrasqueira"
               checked={form.has_grill}
@@ -292,6 +283,74 @@ function NewQuotePage() {
               onChange={(v) => setForm((f) => ({ ...f, has_freezer: v }))}
             />
           </div>
+
+          <div className="space-y-3 pt-2">
+            <div className="flex items-center justify-between">
+              <Label>Acréscimos manuais</Label>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  setCustomExtras((arr) => [...arr, { description: "", value: 0 }])
+                }
+              >
+                <Plus className="size-3.5" /> Adicionar
+              </Button>
+            </div>
+            {customExtras.length === 0 && (
+              <p className="text-xs text-muted-foreground">
+                Nenhum acréscimo. Clique em "Adicionar" para incluir itens extras (ex.: taxa de deslocamento, decoração).
+              </p>
+            )}
+            {customExtras.map((ex, i) => (
+              <div key={i} className="grid grid-cols-[1fr_140px_auto] gap-2 items-end">
+                <div className="space-y-1">
+                  <Label className="text-xs">Descrição</Label>
+                  <Input
+                    value={ex.description}
+                    placeholder="Ex.: Taxa de deslocamento"
+                    onChange={(e) =>
+                      setCustomExtras((arr) =>
+                        arr.map((it, idx) =>
+                          idx === i ? { ...it, description: e.target.value } : it,
+                        ),
+                      )
+                    }
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Valor (R$)</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    value={ex.value}
+                    onChange={(e) =>
+                      setCustomExtras((arr) =>
+                        arr.map((it, idx) =>
+                          idx === i
+                            ? { ...it, value: Number(e.target.value) || 0 }
+                            : it,
+                        ),
+                      )
+                    }
+                  />
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={() =>
+                    setCustomExtras((arr) => arr.filter((_, idx) => idx !== i))
+                  }
+                >
+                  <Trash2 className="size-4" />
+                </Button>
+              </div>
+            ))}
+          </div>
+
 
           <div className="space-y-2">
             <Label>Observações</Label>
@@ -326,16 +385,17 @@ function NewQuotePage() {
             </div>
           </div>
 
+          <SummaryRow label="Adultos" value={brl(breakdown.adultsSubtotal)} />
           <SummaryRow
-            label="Pessoas cobradas"
-            value={`${breakdown.chargeableEquivalent.toFixed(1)}`}
+            label={`Crianças (${form.children_count} × ${brl(form.child_price)})`}
+            value={brl(breakdown.childrenSubtotal)}
           />
           <SummaryRow
             label="Preço por pessoa"
             value={brl(selectedPackage?.price_per_person ?? 0)}
           />
           <SummaryRow label="Subtotal" value={brl(breakdown.subtotal)} />
-          {breakdown.extras > 0 && <SummaryRow label="Adicionais" value={brl(breakdown.extras)} />}
+          {breakdown.extras > 0 && <SummaryRow label="Acréscimos" value={brl(breakdown.extras)} />}
 
           <div className="h-px bg-border" />
 
@@ -368,10 +428,12 @@ function NumField({
   label,
   value,
   onChange,
+  step,
 }: {
   label: string;
   value: number;
   onChange: (v: number) => void;
+  step?: string;
 }) {
   return (
     <div className="space-y-2">
@@ -379,6 +441,7 @@ function NumField({
       <Input
         type="number"
         min={0}
+        step={step}
         value={value}
         onChange={(e) => onChange(Number(e.target.value) || 0)}
       />
