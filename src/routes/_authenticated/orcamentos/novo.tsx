@@ -351,6 +351,26 @@ function NewQuotePage() {
 
 
           <div className="space-y-2">
+            <Label>Forma de pagamento *</Label>
+            <Select
+              value={form.payment_method}
+              onValueChange={(v) => setForm((f) => ({ ...f, payment_method: v as typeof f.payment_method }))}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="PIX">PIX</SelectItem>
+                <SelectItem value="Dados Bancários">Dados Bancários</SelectItem>
+                <SelectItem value="Dinheiro">Dinheiro</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-[11px] text-muted-foreground">
+              Esta opção será usada automaticamente na geração do contrato.
+            </p>
+          </div>
+
+          <div className="space-y-2">
             <Label>Observações</Label>
             <Textarea
               rows={3}
