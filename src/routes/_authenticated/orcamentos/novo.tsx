@@ -70,6 +70,7 @@ function NewQuotePage() {
     notes: "",
     has_grill: false,
     has_freezer: false,
+    payment_method: "PIX" as "PIX" | "Dados Bancários" | "Dinheiro",
   });
   const [customExtras, setCustomExtras] = useState<
     { description: string; value: number }[]
