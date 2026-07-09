@@ -159,7 +159,7 @@ function ContractsPage() {
 
       {open && <NewContractDialog onClose={() => setOpen(false)} />}
       {editing && <ContractEditor contract={editing} onClose={() => setEditing(null)} onSave={(c) => upd.mutate(c)} onPreview={(c) => setPreviewing(c)} />}
-      {previewing && <ContractPreview contract={previewing} onClose={() => setPreviewing(null)} />}
+      {previewing && <ContractPreview contract={previewing} logoUrl={(settings as any)?.logo_url ?? ""} onClose={() => setPreviewing(null)} />}
     </div>
   );
 }
