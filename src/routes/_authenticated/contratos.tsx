@@ -192,7 +192,7 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
   const { data: clients } = useQuery({
     queryKey: ["clients-for-contract"],
     queryFn: async () => {
-      const { data } = await supabase.from("clients").select("id, name, address, phone").order("name").limit(500);
+      const { data } = await supabase.from("clients").select("id, name, address, phone, cpf").order("name").limit(500);
       return data ?? [];
     },
   });
