@@ -162,16 +162,90 @@ function NewQuotePage() {
         .select()
         .single();
       if (error) throw error;
+
+      // When creating from a lead: convert the lead and auto-create the linked event.
+      if (leadId && data?.id) {
+        try {
+          await supabase
+            .from("leads")
+            .update({ status: "convertido" as any, converted_quote_id: data.id } as any)
+            .eq("id", leadId);
+
+          const guestCount =
+            (Number(form.adults) || 0) + (Number(form.children_count) || 0);
+
+          const { data: existingEvent } = await supabase
+            .from("events")
+            .select("id")
+            .eq("quote_id", data.id)
+            .maybeSingle();
+
+          if (!existingEvent) {
+            await supabase.from("events").insert({
+              owner_id: userRes.user.id,
+              tenant_id: access?.tenant?.id ?? null,
+              client_id: form.client_id,
+              quote_id: data.id,
+              package_id: form.package_id,
+              event_date: form.event_date,
+              event_time: form.event_time || null,
+              event_address: form.event_address || null,
+              guest_count: guestCount,
+              total_value: breakdown.total,
+              status: "agendado" as any,
+              notes: form.notes || null,
+            } as any);
+          }
+        } catch (e) {
+          console.warn("[quote-from-lead] post-save link failed", e);
+        }
+      }
+
       return data;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["quotes"] });
       qc.invalidateQueries({ queryKey: ["dashboard-stats"] });
-      toast.success("Orçamento criado!");
-      navigate({ to: "/orcamentos" });
+      qc.invalidateQueries({ queryKey: ["leads"] });
+      qc.invalidateQueries({ queryKey: ["events"] });
+      qc.invalidateQueries({ queryKey: ["agenda"] });
+      qc.invalidateQueries({ queryKey: ["clients"] });
+      toast.success(leadId ? "Orçamento criado e evento agendado!" : "Orçamento criado!");
+      navigate({ to: leadId ? "/agenda" : "/orcamentos" });
     },
     onError: (e: Error) => toast.error(e.message),
   });
+
+  // Prefill from lead when data arrives (only once).
+  const [prefilled, setPrefilled] = useState(false);
+  useEffect(() => {
+    if (!leadId || prefilled || !lead) return;
+    // If already converted, jump to the pipeline.
+    if ((lead as any).converted_quote_id) {
+      toast.info("Este lead já possui um orçamento vinculado.");
+      navigate({ to: "/orcamentos" });
+      return;
+    }
+    const clientMatch = (clients ?? []).find(
+      (c: any) =>
+        (lead.phone && c.phone === lead.phone) ||
+        (lead.email && c.email === lead.email) ||
+        (lead.whatsapp && c.phone === lead.whatsapp),
+    );
+    setForm((f) => ({
+      ...f,
+      client_id: clientMatch?.id ?? f.client_id,
+      package_id: (lead as any).package_id ?? f.package_id,
+      event_date: (lead as any).event_date ?? f.event_date,
+      event_time: (lead as any).event_time ?? f.event_time,
+      event_address: (lead as any).event_address ?? f.event_address,
+      event_type: (lead as any).event_type ?? f.event_type,
+      adults: (lead as any).guest_count ?? f.adults,
+      notes: (lead as any).notes ?? f.notes,
+    }));
+    setPrefilled(true);
+  }, [lead, clients, leadId, prefilled, navigate]);
+
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
