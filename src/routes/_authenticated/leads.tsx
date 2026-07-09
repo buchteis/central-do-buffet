@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { formatDateBR } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { ArrowRight, MessageCircle, Trash2, Inbox } from "lucide-react";
+import { FileText, MessageCircle, Trash2, Inbox } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { waLink } from "@/lib/whatsapp";
 import { useTenantAccess } from "@/hooks/useTenantAccess";
