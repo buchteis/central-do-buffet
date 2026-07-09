@@ -63,7 +63,7 @@ function RelatoriosPage() {
         supabase
           .from("events")
           .select("total_value")
-          .in("status", ["agendado", "pagamento_parcial", "em_andamento"]),
+          .in("status", ["agendado", "em_andamento", "pago", "realizado"]),
       ]);
 
       const somaSaidas = (saidas.data ?? []).reduce(
