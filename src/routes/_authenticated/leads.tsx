@@ -175,12 +175,19 @@ function LeadsPage() {
                           </a>
                         )}
                         <button
-                          onClick={() => convert.mutate(l)}
-                          disabled={convert.isPending || l.status === "convertido"}
-                          title="Transformar em orçamento"
-                          className="p-2 text-primary hover:bg-primary/10 rounded-md disabled:opacity-40"
+                          onClick={() =>
+                            navigate({
+                              to: "/orcamentos/novo",
+                              search: { leadId: l.id } as any,
+                            })
+                          }
+                          title="Criar/Completar Orçamento"
+                          className="p-2 text-primary hover:bg-primary/10 rounded-md disabled:opacity-40 inline-flex items-center gap-1 text-xs font-semibold"
                         >
-                          <ArrowRight className="size-4" />
+                          <FileText className="size-4" />
+                          <span className="hidden sm:inline">
+                            {l.status === "convertido" ? "Ver orçamento" : "Criar/Completar Orçamento"}
+                          </span>
                         </button>
                         <button
                           onClick={() => {
