@@ -33,8 +33,24 @@ const pipeline: { id: string; label: string; tone: string }[] = [
   { id: "recusado", label: "Recusado", tone: "bg-rose-500/10 text-rose-600 border-rose-500/20" },
 ];
 
+type Period = "all" | "week" | "month" | "year";
+
+function periodStart(p: Period): Date | null {
+  if (p === "all") return null;
+  const now = new Date();
+  if (p === "week") {
+    const d = new Date(now);
+    d.setDate(now.getDate() - now.getDay());
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }
+  if (p === "month") return new Date(now.getFullYear(), now.getMonth(), 1);
+  return new Date(now.getFullYear(), 0, 1);
+}
+
 function QuotesPage() {
   const [view, setView] = useState<"kanban" | "list">("kanban");
+  const [period, setPeriod] = useState<Period>("all");
   const qc = useQueryClient();
 
   const { data } = useQuery({
@@ -62,9 +78,16 @@ function QuotesPage() {
     onError: (e: any) => toast.error(e.message),
   });
 
+  const start = periodStart(period);
+  const filtered = (data ?? []).filter((q: any) => {
+    if (!start) return true;
+    const ref = q.created_at ? new Date(q.created_at) : null;
+    return ref ? ref >= start : true;
+  });
+
   const byStage = new Map<string, any[]>();
   pipeline.forEach((s) => byStage.set(s.id, []));
-  (data ?? []).forEach((q: any) => {
+  filtered.forEach((q: any) => {
     const list = byStage.get(q.status);
     if (list) list.push(q);
     else byStage.set(q.status, [q]);
@@ -75,9 +98,25 @@ function QuotesPage() {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">Orçamentos</h1>
-          <p className="text-sm text-muted-foreground mt-1">Pipeline · {data?.length ?? 0} orçamento(s) ativos</p>
+          <p className="text-sm text-muted-foreground mt-1">Pipeline · {filtered.length} orçamento(s) {period === "all" ? "ativos" : "no período"}</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex bg-muted rounded-full p-1">
+            {([
+              { id: "all", label: "Tudo" },
+              { id: "week", label: "Semana" },
+              { id: "month", label: "Mês" },
+              { id: "year", label: "Ano" },
+            ] as { id: Period; label: string }[]).map((p) => (
+              <button
+                key={p.id}
+                onClick={() => setPeriod(p.id)}
+                className={cn("px-3 py-1 text-xs font-bold rounded-full", period === p.id && "bg-background shadow")}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
           <div className="flex bg-muted rounded-full p-1">
             <button onClick={() => setView("kanban")} className={cn("px-3 py-1 text-xs font-bold rounded-full flex items-center gap-1", view === "kanban" && "bg-background shadow")}>
               <LayoutGrid className="size-3" /> Pipeline
@@ -173,7 +212,7 @@ function QuotesPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {(data ?? []).map((q: any) => {
+              {filtered.map((q: any) => {
                 const stage = pipeline.find((s) => s.id === q.status);
                 return (
                   <tr key={q.id} className="hover:bg-muted/30">
