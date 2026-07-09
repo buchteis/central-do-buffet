@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { copyToClipboard } from "@/lib/clipboard";
 import { useTenantAccess } from "@/hooks/useTenantAccess";
+import { useLogoDisplayUrl } from "@/lib/logo";
 
 export const Route = createFileRoute("/_authenticated/configuracoes")({
   head: () => ({ meta: [{ title: "Configurações — Meu Churras" }] }),
