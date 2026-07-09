@@ -131,17 +131,13 @@ function SettingsPage() {
                       .from("buffet-logos")
                       .upload(path, file, { upsert: true, contentType: file.type });
                     if (upErr) throw upErr;
-                    const { data: signed, error: sErr } = await supabase.storage
-                      .from("buffet-logos")
-                      .createSignedUrl(path, 60 * 60 * 24 * 365 * 10);
-                    if (sErr) throw sErr;
-                    const url = signed.signedUrl;
                     const { error: saveErr } = await supabase
                       .from("buffet_settings")
-                      .upsert({ ...f, logo_url: url, owner_id: u.user.id });
+                      .upsert({ ...f, logo_url: path, owner_id: u.user.id });
                     if (saveErr) throw saveErr;
-                    setF({ ...f, logo_url: url });
+                    setF({ ...f, logo_url: path });
                     qc.invalidateQueries({ queryKey: ["buffet-settings"] });
+                    qc.invalidateQueries({ queryKey: ["logo-signed-url"] });
                     toast.success("Logomarca enviada");
                   } catch (err: any) {
                     toast.error(err.message ?? "Falha no upload");
