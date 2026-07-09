@@ -1,9 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { Search, Plus, Users, Upload } from "lucide-react";
+import { Search, Plus, Users, Upload, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDateBR } from "@/lib/format";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/clientes/")({
   head: () => ({ meta: [{ title: "Clientes — Meu Churras" }] }),
@@ -11,7 +12,10 @@ export const Route = createFileRoute("/_authenticated/clientes/")({
 });
 
 function ClientsPage() {
+  const qc = useQueryClient();
   const [q, setQ] = useState("");
+  const [confirmId, setConfirmId] = useState<string | null>(null);
+
   const { data: clients, isLoading } = useQuery({
     queryKey: ["clients"],
     queryFn: async () => {
@@ -24,6 +28,19 @@ function ClientsPage() {
     },
   });
 
+  const del = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("clients").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["clients"] });
+      toast.success("Cliente excluído");
+      setConfirmId(null);
+    },
+    onError: (e: any) => toast.error(e.message ?? "Erro ao excluir"),
+  });
+
   const filtered = (clients ?? []).filter((c) => {
     if (!q.trim()) return true;
     const term = q.toLowerCase();
@@ -34,6 +51,8 @@ function ClientsPage() {
       c.cpf?.toLowerCase().includes(term)
     );
   });
+
+  const confirming = (clients ?? []).find((c) => c.id === confirmId);
 
   return (
     <div className="space-y-6">
@@ -97,6 +116,7 @@ function ClientsPage() {
                   <th className="px-4 py-3 font-bold hidden md:table-cell">E-mail</th>
                   <th className="px-4 py-3 font-bold">Cidade</th>
                   <th className="px-4 py-3 font-bold hidden lg:table-cell">Desde</th>
+                  <th className="px-4 py-3 font-bold text-right">Ações</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
@@ -111,6 +131,14 @@ function ClientsPage() {
                     <td className="px-4 py-4 text-xs font-mono hidden lg:table-cell">
                       {formatDateBR(c.created_at)}
                     </td>
+                    <td className="px-4 py-4 text-right">
+                      <button
+                        onClick={() => setConfirmId(c.id)}
+                        className="inline-flex items-center gap-1 text-xs font-bold text-destructive hover:underline"
+                      >
+                        <Trash2 className="size-3.5" /> Excluir
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -118,6 +146,45 @@ function ClientsPage() {
           </div>
         )}
       </div>
+
+      {confirming && (
+        <div
+          className="fixed inset-0 z-50 bg-background/70 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => !del.isPending && setConfirmId(null)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-card border border-border rounded-2xl p-6 w-full max-w-md space-y-4"
+          >
+            <div className="flex items-center gap-3">
+              <div className="size-10 rounded-full bg-destructive/10 flex items-center justify-center">
+                <Trash2 className="size-5 text-destructive" />
+              </div>
+              <h3 className="text-lg font-extrabold">Excluir cliente</h3>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Tem certeza que deseja excluir <strong>{confirming.name}</strong>? Esta ação não pode ser
+              desfeita. Orçamentos, eventos e contratos vinculados podem ser afetados.
+            </p>
+            <div className="flex gap-2 pt-2">
+              <button
+                onClick={() => setConfirmId(null)}
+                disabled={del.isPending}
+                className="flex-1 h-10 rounded-lg border border-border text-sm font-bold"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => del.mutate(confirming.id)}
+                disabled={del.isPending}
+                className="flex-1 h-10 rounded-lg bg-destructive text-destructive-foreground text-sm font-bold disabled:opacity-50"
+              >
+                {del.isPending ? "Excluindo…" : "Excluir"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
