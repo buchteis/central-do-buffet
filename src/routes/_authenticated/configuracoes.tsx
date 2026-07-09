@@ -25,6 +25,7 @@ function SettingsPage() {
   const [f, setF] = useState({
     business_name: "", phone: "", whatsapp: "", address: "", pix_key: "", pix_holder: "",
     bank_name: "", bank_agency: "", bank_account: "", bank_holder: "",
+    logo_url: "",
     contract_template: "", wa_quote_template: "", wa_reminder_template: "", wa_pix_template: "",
   });
 
@@ -40,6 +41,7 @@ function SettingsPage() {
       bank_agency: (data as any).bank_agency ?? "",
       bank_account: (data as any).bank_account ?? "",
       bank_holder: (data as any).bank_holder ?? "",
+      logo_url: (data as any).logo_url ?? "",
       contract_template: data.contract_template ?? "",
       wa_quote_template: data.wa_quote_template ?? "",
       wa_reminder_template: data.wa_reminder_template ?? "",
