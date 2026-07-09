@@ -459,7 +459,7 @@ function ContractPreview({ contract, logoValue, onClose }: { contract: any; logo
     const w = window.open("", "_blank");
     if (!w) { toast.error("Permita pop-ups para gerar o PDF"); return; }
     const logoHtml = freshLogo
-      ? `<div class="logo"><img src="${escapeHtml(freshLogo)}" alt="Logomarca" onerror="this.style.display='none'"/></div>`
+      ? `<div class="logo"><img id="__logo" src="${escapeHtml(freshLogo)}" alt="Logomarca"/></div>`
       : "";
     const html = `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(contract.title)}</title>
 <style>
@@ -477,7 +477,18 @@ ${logoHtml}
 <h1>${escapeHtml(contract.title)}</h1>
 <div class="content">${escapeHtml(contract.content)}</div>
 <div class="footer">Documento gerado em ${escapeHtml(formatDateFullBR(new Date()))}</div>
-<script>window.onload=()=>{setTimeout(()=>window.print(),400);}</script>
+<script>
+  (function(){
+    var img = document.getElementById('__logo');
+    var done = false;
+    function go(){ if(done) return; done = true; setTimeout(function(){ window.focus(); window.print(); }, 200); }
+    if (!img) { go(); return; }
+    if (img.complete && img.naturalWidth > 0) { go(); return; }
+    img.addEventListener('load', go);
+    img.addEventListener('error', function(){ img.style.display='none'; go(); });
+    setTimeout(go, 5000);
+  })();
+</script>
 </body></html>`;
     w.document.write(html);
     w.document.close();
