@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { copyToClipboard } from "@/lib/clipboard";
 import { useTenantAccess } from "@/hooks/useTenantAccess";
+import { useLogoDisplayUrl } from "@/lib/logo";
 
 export const Route = createFileRoute("/_authenticated/configuracoes")({
   head: () => ({ meta: [{ title: "Configurações — Meu Churras" }] }),
@@ -130,17 +131,13 @@ function SettingsPage() {
                       .from("buffet-logos")
                       .upload(path, file, { upsert: true, contentType: file.type });
                     if (upErr) throw upErr;
-                    const { data: signed, error: sErr } = await supabase.storage
-                      .from("buffet-logos")
-                      .createSignedUrl(path, 60 * 60 * 24 * 365 * 10);
-                    if (sErr) throw sErr;
-                    const url = signed.signedUrl;
                     const { error: saveErr } = await supabase
                       .from("buffet_settings")
-                      .upsert({ ...f, logo_url: url, owner_id: u.user.id });
+                      .upsert({ ...f, logo_url: path, owner_id: u.user.id });
                     if (saveErr) throw saveErr;
-                    setF({ ...f, logo_url: url });
+                    setF({ ...f, logo_url: path });
                     qc.invalidateQueries({ queryKey: ["buffet-settings"] });
+                    qc.invalidateQueries({ queryKey: ["logo-signed-url"] });
                     toast.success("Logomarca enviada");
                   } catch (err: any) {
                     toast.error(err.message ?? "Falha no upload");
@@ -162,13 +159,9 @@ function SettingsPage() {
           </div>
           <p className="text-[11px] text-muted-foreground mt-2">PNG, JPG, JPEG ou SVG.</p>
         </Field>
-        {f.logo_url && (
-          <div className="p-3 bg-muted/40 rounded-lg text-center">
-            <div className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest mb-2">Prévia da logomarca</div>
-            <img alt="Logomarca" src={f.logo_url} className="mx-auto max-h-24 object-contain" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
-          </div>
-        )}
+        {f.logo_url && <LogoPreview value={f.logo_url} />}
       </Section>
+
 
       <Section title="PIX">
         <div className="grid grid-cols-2 gap-3">
@@ -230,6 +223,17 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
     <div>
       <div className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest mb-1">{label}</div>
       {children}
+    </div>
+  );
+}
+
+function LogoPreview({ value }: { value: string }) {
+  const { data: url } = useLogoDisplayUrl(value);
+  if (!url) return null;
+  return (
+    <div className="p-3 bg-muted/40 rounded-lg text-center">
+      <div className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest mb-2">Prévia da logomarca</div>
+      <img alt="Logomarca" src={url} className="mx-auto max-h-24 object-contain" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
     </div>
   );
 }

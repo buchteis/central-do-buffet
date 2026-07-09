@@ -7,6 +7,7 @@ import { brl, formatDateFullBR } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { fillTemplate } from "@/lib/whatsapp";
+import { useLogoDisplayUrl, getLogoDisplayUrl } from "@/lib/logo";
 
 export const Route = createFileRoute("/_authenticated/contratos")({
   head: () => ({ meta: [{ title: "Contratos — Meu Churras" }] }),
@@ -159,7 +160,7 @@ function ContractsPage() {
 
       {open && <NewContractDialog onClose={() => setOpen(false)} />}
       {editing && <ContractEditor contract={editing} onClose={() => setEditing(null)} onSave={(c) => upd.mutate(c)} onPreview={(c) => setPreviewing(c)} />}
-      {previewing && <ContractPreview contract={previewing} logoUrl={(settings as any)?.logo_url ?? ""} onClose={() => setPreviewing(null)} />}
+      {previewing && <ContractPreview contract={previewing} logoValue={(settings as any)?.logo_url ?? ""} onClose={() => setPreviewing(null)} />}
     </div>
   );
 }
@@ -449,15 +450,16 @@ function ContractEditor({ contract, onClose, onSave, onPreview }: { contract: an
   );
 }
 
-function ContractPreview({ contract, logoUrl, onClose }: { contract: any; logoUrl?: string; onClose: () => void }) {
+function ContractPreview({ contract, logoValue, onClose }: { contract: any; logoValue?: string; onClose: () => void }) {
   const escapeHtml = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-  const logo = (logoUrl ?? "").trim();
+  const { data: logo = "" } = useLogoDisplayUrl(logoValue);
 
-  function printPdf() {
+  async function printPdf() {
+    const freshLogo = await getLogoDisplayUrl(logoValue);
     const w = window.open("", "_blank");
     if (!w) { toast.error("Permita pop-ups para gerar o PDF"); return; }
-    const logoHtml = logo
-      ? `<div class="logo"><img src="${escapeHtml(logo)}" alt="Logomarca" onerror="this.style.display='none'"/></div>`
+    const logoHtml = freshLogo
+      ? `<div class="logo"><img src="${escapeHtml(freshLogo)}" alt="Logomarca" onerror="this.style.display='none'"/></div>`
       : "";
     const html = `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(contract.title)}</title>
 <style>
