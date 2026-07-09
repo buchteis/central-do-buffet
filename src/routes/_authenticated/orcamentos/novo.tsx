@@ -43,6 +43,19 @@ const schema = z.object({
 function NewQuotePage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const { leadId } = Route.useSearch();
+  const { data: access } = useTenantAccess();
+
+  const { data: lead } = useQuery({
+    queryKey: ["lead-prefill", leadId],
+    enabled: !!leadId,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("leads").select("*").eq("id", leadId!).maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+
 
   const { data: clients } = useQuery({
     queryKey: ["clients-select-full"],
