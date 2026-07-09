@@ -33,8 +33,24 @@ const pipeline: { id: string; label: string; tone: string }[] = [
   { id: "recusado", label: "Recusado", tone: "bg-rose-500/10 text-rose-600 border-rose-500/20" },
 ];
 
+type Period = "all" | "week" | "month" | "year";
+
+function periodStart(p: Period): Date | null {
+  if (p === "all") return null;
+  const now = new Date();
+  if (p === "week") {
+    const d = new Date(now);
+    d.setDate(now.getDate() - now.getDay());
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }
+  if (p === "month") return new Date(now.getFullYear(), now.getMonth(), 1);
+  return new Date(now.getFullYear(), 0, 1);
+}
+
 function QuotesPage() {
   const [view, setView] = useState<"kanban" | "list">("kanban");
+  const [period, setPeriod] = useState<Period>("all");
   const qc = useQueryClient();
 
   const { data } = useQuery({
@@ -62,9 +78,16 @@ function QuotesPage() {
     onError: (e: any) => toast.error(e.message),
   });
 
+  const start = periodStart(period);
+  const filtered = (data ?? []).filter((q: any) => {
+    if (!start) return true;
+    const ref = q.created_at ? new Date(q.created_at) : null;
+    return ref ? ref >= start : true;
+  });
+
   const byStage = new Map<string, any[]>();
   pipeline.forEach((s) => byStage.set(s.id, []));
-  (data ?? []).forEach((q: any) => {
+  filtered.forEach((q: any) => {
     const list = byStage.get(q.status);
     if (list) list.push(q);
     else byStage.set(q.status, [q]);
