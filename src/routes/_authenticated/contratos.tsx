@@ -459,7 +459,7 @@ function ContractPreview({ contract, logoValue, onClose }: { contract: any; logo
     const w = window.open("", "_blank");
     if (!w) { toast.error("Permita pop-ups para gerar o PDF"); return; }
     const logoHtml = freshLogo
-      ? `<div class="logo"><img id="__logo" src="${escapeHtml(freshLogo)}" alt="Logomarca" crossorigin="anonymous"/></div>`
+      ? `<div class="logo"><img id="__logo" src="${escapeHtml(freshLogo)}" alt="Logomarca"/></div>`
       : "";
     const html = `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(contract.title)}</title>
 <style>
