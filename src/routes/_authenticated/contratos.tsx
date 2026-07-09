@@ -67,6 +67,14 @@ function ContractsPage() {
   const [editing, setEditing] = useState<any | null>(null);
   const [previewing, setPreviewing] = useState<any | null>(null);
 
+  const { data: settings } = useQuery({
+    queryKey: ["buffet-settings"],
+    queryFn: async () => {
+      const { data } = await supabase.from("buffet_settings").select("*").maybeSingle();
+      return data;
+    },
+  });
+
   const { data: contracts } = useQuery({
     queryKey: ["contracts"],
     queryFn: async () => {
