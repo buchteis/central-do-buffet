@@ -115,6 +115,18 @@ function SettingsPage() {
         )}
       </Section>
 
+      <Section title="Dados Bancários">
+        <p className="text-xs text-muted-foreground">Utilizados no contrato quando a forma de pagamento for "Dados Bancários".</p>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Banco"><input value={f.bank_name} onChange={(e) => setF({ ...f, bank_name: e.target.value })} className="input" /></Field>
+          <Field label="Agência"><input value={f.bank_agency} onChange={(e) => setF({ ...f, bank_agency: e.target.value })} className="input" /></Field>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Conta"><input value={f.bank_account} onChange={(e) => setF({ ...f, bank_account: e.target.value })} className="input" /></Field>
+          <Field label="Titular"><input value={f.bank_holder} onChange={(e) => setF({ ...f, bank_holder: e.target.value })} className="input" /></Field>
+        </div>
+      </Section>
+
       <Section title="Modelos de mensagens (WhatsApp)">
         <p className="text-xs text-muted-foreground">Variáveis disponíveis: {"{cliente}"}, {"{valor}"}, {"{data}"}, {"{hora}"}, {"{pix}"}.</p>
         <Field label="Envio de orçamento"><textarea rows={2} value={f.wa_quote_template} onChange={(e) => setF({ ...f, wa_quote_template: e.target.value })} className="input min-h-[70px]" /></Field>
