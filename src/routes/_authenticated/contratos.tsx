@@ -449,26 +449,33 @@ function ContractEditor({ contract, onClose, onSave, onPreview }: { contract: an
   );
 }
 
-function ContractPreview({ contract, onClose }: { contract: any; onClose: () => void }) {
+function ContractPreview({ contract, logoUrl, onClose }: { contract: any; logoUrl?: string; onClose: () => void }) {
   const escapeHtml = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const logo = (logoUrl ?? "").trim();
 
   function printPdf() {
     const w = window.open("", "_blank");
     if (!w) { toast.error("Permita pop-ups para gerar o PDF"); return; }
+    const logoHtml = logo
+      ? `<div class="logo"><img src="${escapeHtml(logo)}" alt="Logomarca" onerror="this.style.display='none'"/></div>`
+      : "";
     const html = `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(contract.title)}</title>
 <style>
   @page { size: A4; margin: 22mm 20mm; }
   * { box-sizing: border-box; }
   body { font-family: Georgia, 'Times New Roman', serif; color: #111; line-height: 1.65; font-size: 12pt; margin: 0; }
+  .logo { text-align: center; margin: 0 0 16px; }
+  .logo img { max-height: 90px; max-width: 60%; object-fit: contain; }
   h1 { font-size: 16pt; text-align: center; text-transform: uppercase; letter-spacing: 0.5px; margin: 0 0 20px; }
   .content { white-space: pre-wrap; text-align: justify; }
   .footer { margin-top: 28px; font-size: 10pt; color: #666; text-align: center; border-top: 1px solid #ddd; padding-top: 8px; }
   @media print { .no-print { display: none; } }
 </style></head><body>
+${logoHtml}
 <h1>${escapeHtml(contract.title)}</h1>
 <div class="content">${escapeHtml(contract.content)}</div>
 <div class="footer">Documento gerado em ${escapeHtml(formatDateFullBR(new Date()))}</div>
-<script>window.onload=()=>{setTimeout(()=>window.print(),200);}</script>
+<script>window.onload=()=>{setTimeout(()=>window.print(),400);}</script>
 </body></html>`;
     w.document.write(html);
     w.document.close();
@@ -486,6 +493,11 @@ function ContractPreview({ contract, onClose }: { contract: any; onClose: () => 
         </div>
         <div className="flex-1 overflow-auto bg-muted/40 p-6">
           <div className="mx-auto max-w-[720px] bg-white text-neutral-900 shadow-lg rounded-md p-12" style={{ fontFamily: "Georgia, 'Times New Roman', serif", lineHeight: 1.65 }}>
+            {logo && (
+              <div className="text-center mb-4">
+                <img src={logo} alt="Logomarca" className="mx-auto max-h-24 object-contain" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
+              </div>
+            )}
             <h1 className="text-center text-xl font-bold uppercase tracking-wide mb-6">{contract.title}</h1>
             <div className="whitespace-pre-wrap text-justify text-[14px]">{contract.content}</div>
           </div>
