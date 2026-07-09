@@ -5,5 +5,8 @@ export function waLink(phone: string | null | undefined, message: string) {
 }
 
 export function fillTemplate(tpl: string, vars: Record<string, string>) {
-  return tpl.replace(/\{(\w+)\}/g, (_, k) => vars[k] ?? "");
+  // Suporta tanto {{var}} quanto {var}
+  return tpl
+    .replace(/\{\{\s*(\w+)\s*\}\}/g, (_, k) => vars[k] ?? "")
+    .replace(/\{(\w+)\}/g, (_, k) => vars[k] ?? "");
 }
