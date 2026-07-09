@@ -24,6 +24,7 @@ export type Database = {
           business_name: string | null
           contract_template: string | null
           created_at: string
+          logo_url: string | null
           owner_id: string
           phone: string | null
           pix_holder: string | null
@@ -44,6 +45,7 @@ export type Database = {
           business_name?: string | null
           contract_template?: string | null
           created_at?: string
+          logo_url?: string | null
           owner_id: string
           phone?: string | null
           pix_holder?: string | null
@@ -64,6 +66,7 @@ export type Database = {
           business_name?: string | null
           contract_template?: string | null
           created_at?: string
+          logo_url?: string | null
           owner_id?: string
           phone?: string | null
           pix_holder?: string | null
