@@ -41,9 +41,12 @@ function NewQuotePage() {
   const qc = useQueryClient();
 
   const { data: clients } = useQuery({
-    queryKey: ["clients-select"],
+    queryKey: ["clients-select-full"],
     queryFn: async () => {
-      const { data } = await supabase.from("clients").select("id, name").order("name");
+      const { data } = await supabase
+        .from("clients")
+        .select("id, name, cpf, address, phone, email")
+        .order("name");
       return data ?? [];
     },
   });
@@ -58,6 +61,14 @@ function NewQuotePage() {
       return data ?? [];
     },
   });
+  const { data: settings } = useQuery({
+    queryKey: ["buffet-settings"],
+    queryFn: async () => {
+      const { data } = await supabase.from("buffet_settings").select("*").maybeSingle();
+      return data;
+    },
+  });
+
 
   const [form, setForm] = useState({
     client_id: "",
