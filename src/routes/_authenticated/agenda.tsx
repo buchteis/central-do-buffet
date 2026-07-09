@@ -679,6 +679,21 @@ function EventPanel({ event, onClose }: { event: any; onClose: () => void }) {
             <p className="text-xs text-muted-foreground">
               {formatDateFullBR(event.event_date)} · {event.event_time?.slice(0, 5) ?? "—"}
             </p>
+            <div className="mt-3 flex items-center gap-2">
+              <label className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">Status</label>
+              <select
+                value={event.status}
+                onChange={(e) => changeStatus.mutate(e.target.value)}
+                className="h-7 px-2 border border-border rounded-md bg-background text-xs font-bold"
+              >
+                <option value="agendado">Agendado</option>
+                <option value="em_andamento">Em andamento</option>
+                <option value="pago">Pago</option>
+                <option value="concluido">Concluído</option>
+                <option value="cancelado">Cancelado</option>
+                <option value="realizado">Realizado (arquivar)</option>
+              </select>
+            </div>
           </div>
           <button
             onClick={onClose}
