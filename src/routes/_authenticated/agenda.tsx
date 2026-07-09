@@ -637,6 +637,20 @@ function DayView({
 }
 
 function EventPanel({ event, onClose }: { event: any; onClose: () => void }) {
+  const qc = useQueryClient();
+  const changeStatus = useMutation({
+    mutationFn: async (status: string) => {
+      const { error } = await supabase.from("events").update({ status: status as any }).eq("id", event.id);
+      if (error) throw error;
+    },
+    onSuccess: (_d, status) => {
+      qc.invalidateQueries({ queryKey: ["agenda"] });
+      qc.invalidateQueries({ queryKey: ["event-detail"] });
+      toast.success(status === "realizado" ? "Evento arquivado" : "Status atualizado");
+      if (status === "realizado") onClose();
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
   if (!event)
     return (
       <div className="fixed inset-0 z-40 bg-background/60 backdrop-blur-sm flex items-center justify-center">
