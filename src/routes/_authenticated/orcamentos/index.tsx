@@ -212,7 +212,7 @@ function QuotesPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {(data ?? []).map((q: any) => {
+              {filtered.map((q: any) => {
                 const stage = pipeline.find((s) => s.id === q.status);
                 return (
                   <tr key={q.id} className="hover:bg-muted/30">
