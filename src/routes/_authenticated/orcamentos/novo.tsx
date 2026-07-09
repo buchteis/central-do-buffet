@@ -19,11 +19,13 @@ import {
 } from "@/components/ui/select";
 import { calcQuote } from "@/lib/quote-calc";
 import { brl } from "@/lib/format";
+import { openQuotePdf } from "@/lib/quote-pdf";
 
 export const Route = createFileRoute("/_authenticated/orcamentos/novo")({
   head: () => ({ meta: [{ title: "Novo orçamento — Meu Churras" }] }),
   component: NewQuotePage,
 });
+
 
 const schema = z.object({
   client_id: z.string().uuid("Selecione um cliente"),
