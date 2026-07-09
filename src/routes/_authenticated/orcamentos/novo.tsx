@@ -127,7 +127,8 @@ function NewQuotePage() {
           balance_value: breakdown.balance,
           valid_until: valid.toISOString().slice(0, 10),
           status: "novo" as const,
-        })
+          payment_method: form.payment_method,
+        } as any)
         .select()
         .single();
       if (error) throw error;
