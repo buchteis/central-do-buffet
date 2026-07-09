@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ChevronLeft,
   ChevronRight,
@@ -51,6 +51,22 @@ function AgendaPage() {
   const [selected, setSelected] = useState<string | null>(null);
   const [filters, setFilters] = useState<Filters>({ statuses: [], packageId: "", query: "" });
   const qc = useQueryClient();
+
+  useEffect(() => {
+    const invalidate = () => {
+      qc.invalidateQueries({ queryKey: ["agenda"] });
+      qc.invalidateQueries({ queryKey: ["events"] });
+    };
+    const channel = supabase
+      .channel("agenda-live")
+      .on("postgres_changes", { event: "*", schema: "public", table: "events" }, invalidate)
+      .on("postgres_changes", { event: "*", schema: "public", table: "quotes" }, invalidate)
+      .on("postgres_changes", { event: "*", schema: "public", table: "event_staff" }, invalidate)
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [qc]);
 
   const range = getRange(view, cursor);
 

@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { formatDateBR } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { ArrowRight, MessageCircle, Trash2, Inbox } from "lucide-react";
+import { FileText, MessageCircle, Trash2, Inbox } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { waLink } from "@/lib/whatsapp";
 import { useTenantAccess } from "@/hooks/useTenantAccess";
@@ -66,76 +66,8 @@ function LeadsPage() {
     },
   });
 
-  const convert = useMutation({
-    mutationFn: async (lead: any) => {
-      const { data: u } = await supabase.auth.getUser();
-      if (!u.user) throw new Error("Sem sessão");
+  // Conversion now happens via navigation to the pre-filled quote form.
 
-      // 1. Create/find client
-      let clientId: string | null = null;
-      if (lead.name) {
-        const { data: existing } = await supabase
-          .from("clients")
-          .select("id")
-          .eq("name", lead.name)
-          .maybeSingle();
-        if (existing?.id) clientId = existing.id;
-        else {
-          const { data: newClient, error } = await supabase
-            .from("clients")
-            .insert({
-              owner_id: u.user.id,
-              name: lead.name,
-              phone: lead.phone,
-              whatsapp: lead.whatsapp,
-              email: lead.email,
-              city: lead.city,
-              address: lead.event_address,
-            })
-            .select("id")
-            .single();
-          if (error) throw error;
-          clientId = newClient.id;
-        }
-      }
-
-      // 2. Create quote
-      const { data: quote, error: qerr } = await supabase
-        .from("quotes")
-        .insert({
-          owner_id: u.user.id,
-          client_id: clientId,
-          package_id: lead.package_id,
-          event_date: lead.event_date ?? new Date().toISOString().slice(0, 10),
-          event_time: lead.event_time,
-          event_address: lead.event_address,
-          event_type: lead.event_type,
-          adults: lead.guest_count ?? 0,
-          children_7_10: 0,
-          children_0_6: 0,
-          extras: {},
-          notes: lead.notes,
-          status: "novo",
-        })
-        .select("id")
-        .single();
-      if (qerr) throw qerr;
-
-      // 3. Mark lead as converted
-      await supabase
-        .from("leads")
-        .update({ status: "convertido", converted_quote_id: quote.id } as any)
-        .eq("id", lead.id);
-      return quote.id;
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["leads"] });
-      qc.invalidateQueries({ queryKey: ["quotes"] });
-      toast.success("Lead convertido em orçamento!");
-      navigate({ to: "/orcamentos" });
-    },
-    onError: (e: any) => toast.error(e.message),
-  });
 
   const slug = access?.tenant?.slug;
   const publicUrl = slug ? `${window.location.origin}/orcamento/${slug}` : "";
@@ -243,12 +175,19 @@ function LeadsPage() {
                           </a>
                         )}
                         <button
-                          onClick={() => convert.mutate(l)}
-                          disabled={convert.isPending || l.status === "convertido"}
-                          title="Transformar em orçamento"
-                          className="p-2 text-primary hover:bg-primary/10 rounded-md disabled:opacity-40"
+                          onClick={() =>
+                            navigate({
+                              to: "/orcamentos/novo",
+                              search: { leadId: l.id } as any,
+                            })
+                          }
+                          title="Criar/Completar Orçamento"
+                          className="p-2 text-primary hover:bg-primary/10 rounded-md disabled:opacity-40 inline-flex items-center gap-1 text-xs font-semibold"
                         >
-                          <ArrowRight className="size-4" />
+                          <FileText className="size-4" />
+                          <span className="hidden sm:inline">
+                            {l.status === "convertido" ? "Ver orçamento" : "Criar/Completar Orçamento"}
+                          </span>
                         </button>
                         <button
                           onClick={() => {

@@ -59,6 +59,7 @@ function Dashboard() {
       .on("postgres_changes", { event: "*", schema: "public", table: "contracts" }, invalidate)
       .on("postgres_changes", { event: "*", schema: "public", table: "transactions" }, invalidate)
       .on("postgres_changes", { event: "*", schema: "public", table: "clients" }, invalidate)
+      .on("postgres_changes", { event: "*", schema: "public", table: "leads" }, invalidate)
       .subscribe();
     return () => {
       supabase.removeChannel(channel);
