@@ -16,6 +16,7 @@ export const Route = createFileRoute("/_authenticated/contratos")({
 const DEFAULT_TEMPLATE = `CONTRATO DE PRESTAÇÃO DE SERVIÇOS DE BUFFET
 
 CONTRATANTE: {cliente}
+CPF: {cpf_cliente}
 Endereço: {endereco_cliente}
 Telefone: {telefone_cliente}
 
@@ -30,7 +31,8 @@ CLÁUSULA 2 — VALOR E PAGAMENTO
 Valor total dos serviços: {valor}.
 Sinal/Entrada: {entrada}.
 Saldo remanescente: {saldo}, a ser pago até a data do evento.
-Forma de pagamento: PIX — chave: {pix} (titular: {pix_titular}).
+Forma de pagamento: {forma_pagamento}.
+PIX — chave: {pix} (titular: {pix_titular}).
 
 CLÁUSULA 3 — OBRIGAÇÕES DO CONTRATADO
 Fornecer os alimentos, bebidas e serviços conforme o pacote contratado, com equipe treinada e higiene adequada.
