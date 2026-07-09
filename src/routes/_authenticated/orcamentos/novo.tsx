@@ -32,13 +32,14 @@ export const Route = createFileRoute("/_authenticated/orcamentos/novo")({
 
 
 const schema = z.object({
-  client_id: z.string().uuid("Selecione um cliente"),
+  client_id: z.string().uuid().optional().or(z.literal("")),
   package_id: z.string().uuid("Selecione um pacote"),
   event_date: z.string().min(1, "Data obrigatória"),
   adults: z.number().int().min(0).max(9999),
   children_count: z.number().int().min(0).max(9999),
   child_price: z.number().min(0).max(999999),
 }).passthrough();
+
 
 function NewQuotePage() {
   const navigate = useNavigate();
@@ -127,6 +128,31 @@ function NewQuotePage() {
       const { data: userRes } = await supabase.auth.getUser();
       if (!userRes.user) throw new Error("Sessão expirada");
 
+      // Resolve client: use selected one, otherwise create from lead data on save.
+      let clientId = form.client_id;
+      if (!clientId) {
+        if (!lead) throw new Error("Selecione um cliente");
+        const { data: created, error: cErr } = await supabase
+          .from("clients")
+          .insert({
+            owner_id: userRes.user.id,
+            tenant_id: access?.tenant?.id ?? null,
+            name: (lead as any).name ?? "Cliente",
+            phone: (lead as any).phone ?? null,
+            whatsapp: (lead as any).whatsapp ?? (lead as any).phone ?? null,
+            email: (lead as any).email ?? null,
+            city: (lead as any).city ?? null,
+            address: (lead as any).event_address ?? null,
+            notes: (lead as any).notes ?? null,
+            origem: "link_orcamento",
+            status: "novo_cliente",
+          } as any)
+          .select("id")
+          .single();
+        if (cErr || !created) throw new Error(cErr?.message ?? "Falha ao criar cliente");
+        clientId = created.id;
+      }
+
       const valid = new Date();
       valid.setDate(valid.getDate() + 7);
 
@@ -134,7 +160,7 @@ function NewQuotePage() {
         .from("quotes")
         .insert({
           owner_id: userRes.user.id,
-          client_id: form.client_id,
+          client_id: clientId,
           package_id: form.package_id,
           event_date: form.event_date,
           event_time: form.event_time || null,
@@ -184,7 +210,7 @@ function NewQuotePage() {
             await supabase.from("events").insert({
               owner_id: userRes.user.id,
               tenant_id: access?.tenant?.id ?? null,
-              client_id: form.client_id,
+              client_id: clientId,
               quote_id: data.id,
               package_id: form.package_id,
               event_date: form.event_date,
@@ -210,17 +236,19 @@ function NewQuotePage() {
       qc.invalidateQueries({ queryKey: ["events"] });
       qc.invalidateQueries({ queryKey: ["agenda"] });
       qc.invalidateQueries({ queryKey: ["clients"] });
+      qc.invalidateQueries({ queryKey: ["clients-select-full"] });
       toast.success(leadId ? "Orçamento criado e evento agendado!" : "Orçamento criado!");
       navigate({ to: leadId ? "/agenda" : "/orcamentos" });
     },
     onError: (e: Error) => toast.error(e.message),
   });
 
-  // Prefill from lead when data arrives (only once).
+
+  // Prefill from lead when data arrives (only once). Never creates a client here;
+  // if no matching client exists, one is created on save.
   const [prefilled, setPrefilled] = useState(false);
   useEffect(() => {
     if (!leadId || prefilled || !lead) return;
-    // If already converted, jump to the pipeline.
     if ((lead as any).converted_quote_id) {
       toast.info("Este lead já possui um orçamento vinculado.");
       navigate({ to: "/orcamentos" });
@@ -235,60 +263,21 @@ function NewQuotePage() {
         (leadName && (c.name ?? "").trim().toLowerCase() === leadName),
     );
 
-    const applyPrefill = (clientId: string) => {
-      setForm((f) => ({
-        ...f,
-        client_id: clientId || f.client_id,
-        package_id: (lead as any).package_id ?? f.package_id,
-        event_date: (lead as any).event_date ?? f.event_date,
-        event_time: (lead as any).event_time ?? f.event_time,
-        event_address: (lead as any).event_address ?? f.event_address,
-        event_type: (lead as any).event_type ?? f.event_type,
-        adults: (lead as any).guest_count ?? f.adults,
-        notes: (lead as any).notes ?? f.notes,
-      }));
-      setPrefilled(true);
-    };
+    setForm((f) => ({
+      ...f,
+      client_id: clientMatch?.id ?? "",
+      package_id: (lead as any).package_id ?? f.package_id,
+      event_date: (lead as any).event_date ?? f.event_date,
+      event_time: (lead as any).event_time ?? f.event_time,
+      event_address: (lead as any).event_address ?? f.event_address,
+      event_type: (lead as any).event_type ?? f.event_type,
+      adults: (lead as any).guest_count ?? f.adults,
+      notes: (lead as any).notes ?? f.notes,
+    }));
+    setPrefilled(true);
+  }, [lead, clients, leadId, prefilled, navigate]);
 
-    if (clientMatch) {
-      applyPrefill(clientMatch.id);
-      return;
-    }
 
-    // No matching client — create one from the lead so the requester's name
-    // is carried over automatically as a rule.
-    (async () => {
-      const { data: userRes } = await supabase.auth.getUser();
-      if (!userRes.user) {
-        applyPrefill("");
-        return;
-      }
-      const { data: created, error } = await supabase
-        .from("clients")
-        .insert({
-          owner_id: userRes.user.id,
-          tenant_id: access?.tenant?.id ?? null,
-          name: (lead as any).name ?? "Cliente",
-          phone: (lead as any).phone ?? null,
-          whatsapp: (lead as any).whatsapp ?? (lead as any).phone ?? null,
-          email: (lead as any).email ?? null,
-          city: (lead as any).city ?? null,
-          address: (lead as any).event_address ?? null,
-          notes: (lead as any).notes ?? null,
-          origem: "link_orcamento",
-          status: "novo_cliente",
-        } as any)
-        .select("id")
-        .single();
-      if (error || !created) {
-        applyPrefill("");
-        return;
-      }
-      qc.invalidateQueries({ queryKey: ["clients-select-full"] });
-      qc.invalidateQueries({ queryKey: ["clients"] });
-      applyPrefill(created.id);
-    })();
-  }, [lead, clients, leadId, prefilled, navigate, access?.tenant?.id, qc]);
 
 
   return (
@@ -337,7 +326,15 @@ function NewQuotePage() {
                   )}
                 </SelectContent>
               </Select>
+              {!form.client_id && lead && (
+                <p className="text-[11px] text-primary">
+                  Novo cliente será criado a partir do lead ao salvar:{" "}
+                  <strong>{(lead as any).name}</strong>
+                  {(lead as any).phone ? ` · ${(lead as any).phone}` : ""}
+                </p>
+              )}
             </div>
+
             <div className="space-y-2">
               <Label>Pacote *</Label>
               <Select
@@ -540,21 +537,31 @@ function NewQuotePage() {
               variant="outline"
               onClick={async () => {
                 try {
-                  if (!form.client_id) {
-                    toast.error("Selecione um cliente para gerar o PDF");
-                    return;
-                  }
                   if (!selectedPackage) {
                     toast.error("Selecione um pacote para gerar o PDF");
                     return;
                   }
                   const cli = (clients ?? []).find((c: any) => c.id === form.client_id) as any;
+                  const clientForPdf = cli
+                    ? { name: cli.name, cpf: cli.cpf, address: cli.address, phone: cli.phone, email: cli.email }
+                    : lead
+                      ? {
+                          name: (lead as any).name,
+                          cpf: null,
+                          address: (lead as any).event_address ?? (lead as any).city ?? null,
+                          phone: (lead as any).phone ?? (lead as any).whatsapp ?? null,
+                          email: (lead as any).email ?? null,
+                        }
+                      : null;
+                  if (!clientForPdf) {
+                    toast.error("Selecione um cliente para gerar o PDF");
+                    return;
+                  }
                   await openQuotePdf({
                     issuedAt: new Date(),
                     validUntil: (() => { const d = new Date(); d.setDate(d.getDate() + 7); return d; })(),
-                    client: cli
-                      ? { name: cli.name, cpf: cli.cpf, address: cli.address, phone: cli.phone, email: cli.email }
-                      : null,
+                    client: clientForPdf,
+
                     event: {
                       date: form.event_date || null,
                       time: form.event_time || null,
