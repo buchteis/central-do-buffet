@@ -73,6 +73,7 @@ function AgendaPage() {
         )
         .gte("event_date", range.start)
         .lt("event_date", range.end)
+        .neq("status", "realizado")
         .order("event_date");
       return data ?? [];
     },
