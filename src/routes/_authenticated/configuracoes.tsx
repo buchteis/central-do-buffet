@@ -101,8 +101,65 @@ function SettingsPage() {
           <Field label="WhatsApp"><input value={f.whatsapp} onChange={(e) => setF({ ...f, whatsapp: e.target.value })} className="input" /></Field>
         </div>
         <Field label="Endereço"><input value={f.address} onChange={(e) => setF({ ...f, address: e.target.value })} className="input" /></Field>
-        <Field label="Logomarca (URL da imagem)">
-          <input value={f.logo_url} onChange={(e) => setF({ ...f, logo_url: e.target.value })} placeholder="https://..." className="input" />
+        <Field label="Logomarca">
+          <div className="flex items-center gap-3">
+            <label className="h-10 px-4 rounded-lg bg-primary text-primary-foreground text-xs font-bold whitespace-nowrap cursor-pointer inline-flex items-center">
+              {uploading ? "Enviando..." : "Selecionar Logomarca"}
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/jpg,image/svg+xml,.png,.jpg,.jpeg,.svg"
+                className="hidden"
+                disabled={uploading}
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  e.target.value = "";
+                  if (!file) return;
+                  const allowed = ["image/png", "image/jpeg", "image/jpg", "image/svg+xml"];
+                  if (!allowed.includes(file.type)) {
+                    toast.error("Formato inválido. Use PNG, JPG, JPEG ou SVG.");
+                    return;
+                  }
+                  try {
+                    setUploading(true);
+                    const { data: u } = await supabase.auth.getUser();
+                    if (!u.user) throw new Error("Sem sessão");
+                    const ext = file.name.split(".").pop()?.toLowerCase() || "png";
+                    const path = `${u.user.id}/logo-${Date.now()}.${ext}`;
+                    const { error: upErr } = await supabase.storage
+                      .from("buffet-logos")
+                      .upload(path, file, { upsert: true, contentType: file.type });
+                    if (upErr) throw upErr;
+                    const { data: signed, error: sErr } = await supabase.storage
+                      .from("buffet-logos")
+                      .createSignedUrl(path, 60 * 60 * 24 * 365 * 10);
+                    if (sErr) throw sErr;
+                    const url = signed.signedUrl;
+                    const { error: saveErr } = await supabase
+                      .from("buffet_settings")
+                      .upsert({ ...f, logo_url: url, owner_id: u.user.id });
+                    if (saveErr) throw saveErr;
+                    setF({ ...f, logo_url: url });
+                    qc.invalidateQueries({ queryKey: ["buffet-settings"] });
+                    toast.success("Logomarca enviada");
+                  } catch (err: any) {
+                    toast.error(err.message ?? "Falha no upload");
+                  } finally {
+                    setUploading(false);
+                  }
+                }}
+              />
+            </label>
+            {f.logo_url && (
+              <button
+                type="button"
+                onClick={() => setF({ ...f, logo_url: "" })}
+                className="h-10 px-3 rounded-lg border border-border text-xs font-bold"
+              >
+                Remover
+              </button>
+            )}
+          </div>
+          <p className="text-[11px] text-muted-foreground mt-2">PNG, JPG, JPEG ou SVG.</p>
         </Field>
         {f.logo_url && (
           <div className="p-3 bg-muted/40 rounded-lg text-center">
