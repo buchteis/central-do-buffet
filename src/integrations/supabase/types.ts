@@ -894,6 +894,7 @@ export type Database = {
         | "em_andamento"
         | "concluido"
         | "cancelado"
+        | "realizado"
       lead_status: "novo" | "contatado" | "convertido" | "descartado"
       quote_status:
         | "novo"
@@ -1059,6 +1060,7 @@ export const Constants = {
         "em_andamento",
         "concluido",
         "cancelado",
+        "realizado",
       ],
       lead_status: ["novo", "contatado", "convertido", "descartado"],
       quote_status: [
