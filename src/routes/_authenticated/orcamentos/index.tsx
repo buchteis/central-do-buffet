@@ -98,9 +98,25 @@ function QuotesPage() {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">Orçamentos</h1>
-          <p className="text-sm text-muted-foreground mt-1">Pipeline · {data?.length ?? 0} orçamento(s) ativos</p>
+          <p className="text-sm text-muted-foreground mt-1">Pipeline · {filtered.length} orçamento(s) {period === "all" ? "ativos" : "no período"}</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex bg-muted rounded-full p-1">
+            {([
+              { id: "all", label: "Tudo" },
+              { id: "week", label: "Semana" },
+              { id: "month", label: "Mês" },
+              { id: "year", label: "Ano" },
+            ] as { id: Period; label: string }[]).map((p) => (
+              <button
+                key={p.id}
+                onClick={() => setPeriod(p.id)}
+                className={cn("px-3 py-1 text-xs font-bold rounded-full", period === p.id && "bg-background shadow")}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
           <div className="flex bg-muted rounded-full p-1">
             <button onClick={() => setView("kanban")} className={cn("px-3 py-1 text-xs font-bold rounded-full flex items-center gap-1", view === "kanban" && "bg-background shadow")}>
               <LayoutGrid className="size-3" /> Pipeline
