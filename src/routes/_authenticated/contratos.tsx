@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Plus, FileText, Printer, Eye, Pencil } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { brl, formatDateFullBR } from "@/lib/format";
@@ -31,8 +31,8 @@ CLÁUSULA 2 — VALOR E PAGAMENTO
 Valor total dos serviços: {valor}.
 Sinal/Entrada: {entrada}.
 Saldo remanescente: {saldo}, a ser pago até a data do evento.
-Forma de pagamento: {forma_pagamento}.
-PIX — chave: {pix} (titular: {pix_titular}).
+Forma de pagamento: {{forma_pagamento}}.
+{{dados_pagamento}}
 
 CLÁUSULA 3 — OBRIGAÇÕES DO CONTRATADO
 Fornecer os alimentos, bebidas e serviços conforme o pacote contratado, com equipe treinada e higiene adequada.
@@ -162,14 +162,14 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
   const [refId, setRefId] = useState("");
   const [clientId, setClientId] = useState("");
   const [title, setTitle] = useState("Contrato de prestação de serviços");
-  const [formaPagamento, setFormaPagamento] = useState("PIX");
+  const [formaPagamento, setFormaPagamento] = useState<"PIX" | "Dados Bancários" | "Dinheiro">("PIX");
 
   const { data: quotes } = useQuery({
     queryKey: ["quotes-closed-for-contract"],
     queryFn: async () => {
       const { data } = await supabase
         .from("quotes")
-        .select("id, event_date, event_time, event_address, adults, children_7_10, children_0_6, total_value, entry_value, balance_value, client_id, clients(name, address, phone, cpf)")
+        .select("id, event_date, event_time, event_address, adults, children_7_10, children_0_6, total_value, entry_value, balance_value, client_id, payment_method, clients(name, address, phone, cpf)")
         .eq("status", "fechado")
         .order("event_date", { ascending: false })
         .limit(200);
@@ -205,11 +205,62 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
     },
   });
 
+  // Se a origem for orçamento, herda automaticamente a forma de pagamento salva
+  useEffect(() => {
+    if (source !== "quote" || !refId) return;
+    const q: any = (quotes ?? []).find((x: any) => x.id === refId);
+    const pm = q?.payment_method;
+    if (pm === "PIX" || pm === "Dados Bancários" || pm === "Dinheiro") {
+      setFormaPagamento(pm);
+    }
+  }, [source, refId, quotes]);
+
+  function buildPaymentVars(method: "PIX" | "Dados Bancários" | "Dinheiro", s: any) {
+    const pix = s?.pix_key?.trim() ?? "";
+    const pixHolder = s?.pix_holder?.trim() ?? "";
+    const bankName = s?.bank_name?.trim() ?? "";
+    const bankAgency = s?.bank_agency?.trim() ?? "";
+    const bankAccount = s?.bank_account?.trim() ?? "";
+    const bankHolder = s?.bank_holder?.trim() ?? "";
+
+    if (method === "PIX") {
+      if (!pix) throw new Error("Cadastre a chave PIX em Configurações antes de gerar o contrato.");
+      const chave = pixHolder ? `${pix} (titular: ${pixHolder})` : pix;
+      return {
+        forma_pagamento: "PIX",
+        chave_pix: chave,
+        dados_bancarios: "",
+        dados_pagamento: `PIX — chave: ${chave}.`,
+      };
+    }
+    if (method === "Dados Bancários") {
+      if (!bankName || !bankAgency || !bankAccount || !bankHolder) {
+        throw new Error("Cadastre os Dados Bancários (Banco, Agência, Conta e Titular) em Configurações antes de gerar o contrato.");
+      }
+      const dados = `Banco: ${bankName} | Agência: ${bankAgency} | Conta: ${bankAccount} | Titular: ${bankHolder}`;
+      return {
+        forma_pagamento: "Dados Bancários",
+        chave_pix: "",
+        dados_bancarios: dados,
+        dados_pagamento: `Dados Bancários — ${dados}.`,
+      };
+    }
+    // Dinheiro
+    return {
+      forma_pagamento: "Dinheiro",
+      chave_pix: "",
+      dados_bancarios: "",
+      dados_pagamento: "Pagamento em Dinheiro.",
+    };
+  }
+
   const mut = useMutation({
     mutationFn: async () => {
       const { data: u } = await supabase.auth.getUser();
       if (!u.user) throw new Error("Sem sessão");
       const tpl = settings?.contract_template || DEFAULT_TEMPLATE;
+
+      const payVars = buildPaymentVars(formaPagamento, settings);
 
       let vars: Record<string, string> = {
         buffet: settings?.business_name ?? "Buffet",
@@ -221,7 +272,7 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
         cliente: "", cpf_cliente: "", endereco_cliente: "", telefone_cliente: "",
         data_evento: "", hora_evento: "", local_evento: "",
         convidados: "", valor: brl(0), entrada: brl(0), saldo: brl(0),
-        forma_pagamento: formaPagamento || "PIX",
+        ...payVars,
       };
 
       let ev_id: string | null = null;
@@ -335,7 +386,18 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
 
         <div>
           <label className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">Forma de pagamento</label>
-          <input value={formaPagamento} onChange={(e) => setFormaPagamento(e.target.value)} placeholder="Ex.: PIX, Dinheiro, Cartão, Transferência" className="mt-1 w-full h-10 px-3 border border-border rounded-lg bg-background text-sm" />
+          <select
+            value={formaPagamento}
+            onChange={(e) => setFormaPagamento(e.target.value as "PIX" | "Dados Bancários" | "Dinheiro")}
+            className="mt-1 w-full h-10 px-3 border border-border rounded-lg bg-background text-sm"
+          >
+            <option value="PIX">PIX</option>
+            <option value="Dados Bancários">Dados Bancários</option>
+            <option value="Dinheiro">Dinheiro</option>
+          </select>
+          {source === "quote" && refId && (
+            <p className="text-[11px] text-muted-foreground mt-1">Herdada do orçamento selecionado (você pode alterar se necessário).</p>
+          )}
         </div>
 
 

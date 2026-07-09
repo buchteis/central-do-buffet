@@ -17,6 +17,10 @@ export type Database = {
       buffet_settings: {
         Row: {
           address: string | null
+          bank_account: string | null
+          bank_agency: string | null
+          bank_holder: string | null
+          bank_name: string | null
           business_name: string | null
           contract_template: string | null
           created_at: string
@@ -33,6 +37,10 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          bank_account?: string | null
+          bank_agency?: string | null
+          bank_holder?: string | null
+          bank_name?: string | null
           business_name?: string | null
           contract_template?: string | null
           created_at?: string
@@ -49,6 +57,10 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          bank_account?: string | null
+          bank_agency?: string | null
+          bank_holder?: string | null
+          bank_name?: string | null
           business_name?: string | null
           contract_template?: string | null
           created_at?: string
@@ -628,6 +640,7 @@ export type Database = {
           notes: string | null
           owner_id: string
           package_id: string | null
+          payment_method: string
           status: Database["public"]["Enums"]["quote_status"]
           tenant_id: string | null
           total_value: number
@@ -653,6 +666,7 @@ export type Database = {
           notes?: string | null
           owner_id: string
           package_id?: string | null
+          payment_method?: string
           status?: Database["public"]["Enums"]["quote_status"]
           tenant_id?: string | null
           total_value?: number
@@ -678,6 +692,7 @@ export type Database = {
           notes?: string | null
           owner_id?: string
           package_id?: string | null
+          payment_method?: string
           status?: Database["public"]["Enums"]["quote_status"]
           tenant_id?: string | null
           total_value?: number

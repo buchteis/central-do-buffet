@@ -24,6 +24,7 @@ function SettingsPage() {
 
   const [f, setF] = useState({
     business_name: "", phone: "", whatsapp: "", address: "", pix_key: "", pix_holder: "",
+    bank_name: "", bank_agency: "", bank_account: "", bank_holder: "",
     contract_template: "", wa_quote_template: "", wa_reminder_template: "", wa_pix_template: "",
   });
 
@@ -35,6 +36,10 @@ function SettingsPage() {
       address: data.address ?? "",
       pix_key: data.pix_key ?? "",
       pix_holder: data.pix_holder ?? "",
+      bank_name: (data as any).bank_name ?? "",
+      bank_agency: (data as any).bank_agency ?? "",
+      bank_account: (data as any).bank_account ?? "",
+      bank_holder: (data as any).bank_holder ?? "",
       contract_template: data.contract_template ?? "",
       wa_quote_template: data.wa_quote_template ?? "",
       wa_reminder_template: data.wa_reminder_template ?? "",
@@ -108,6 +113,18 @@ function SettingsPage() {
             <div className="text-[11px] font-mono mt-2">{f.pix_key}</div>
           </div>
         )}
+      </Section>
+
+      <Section title="Dados Bancários">
+        <p className="text-xs text-muted-foreground">Utilizados no contrato quando a forma de pagamento for "Dados Bancários".</p>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Banco"><input value={f.bank_name} onChange={(e) => setF({ ...f, bank_name: e.target.value })} className="input" /></Field>
+          <Field label="Agência"><input value={f.bank_agency} onChange={(e) => setF({ ...f, bank_agency: e.target.value })} className="input" /></Field>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Conta"><input value={f.bank_account} onChange={(e) => setF({ ...f, bank_account: e.target.value })} className="input" /></Field>
+          <Field label="Titular"><input value={f.bank_holder} onChange={(e) => setF({ ...f, bank_holder: e.target.value })} className="input" /></Field>
+        </div>
       </Section>
 
       <Section title="Modelos de mensagens (WhatsApp)">
