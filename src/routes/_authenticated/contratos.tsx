@@ -7,6 +7,7 @@ import { brl, formatDateFullBR } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { fillTemplate } from "@/lib/whatsapp";
+import { useLogoDisplayUrl, getLogoDisplayUrl } from "@/lib/logo";
 
 export const Route = createFileRoute("/_authenticated/contratos")({
   head: () => ({ meta: [{ title: "Contratos — Meu Churras" }] }),
