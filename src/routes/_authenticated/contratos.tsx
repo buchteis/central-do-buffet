@@ -333,6 +333,12 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
           </select>
         )}
 
+        <div>
+          <label className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">Forma de pagamento</label>
+          <input value={formaPagamento} onChange={(e) => setFormaPagamento(e.target.value)} placeholder="Ex.: PIX, Dinheiro, Cartão, Transferência" className="mt-1 w-full h-10 px-3 border border-border rounded-lg bg-background text-sm" />
+        </div>
+
+
         <p className="text-[11px] text-muted-foreground">
           {source === "blank"
             ? "O contrato será criado com o modelo padrão. Você poderá editar todo o texto em seguida."
