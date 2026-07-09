@@ -244,11 +244,11 @@ function NewQuotePage() {
   });
 
 
-  // Prefill from lead when data arrives (only once).
+  // Prefill from lead when data arrives (only once). Never creates a client here;
+  // if no matching client exists, one is created on save.
   const [prefilled, setPrefilled] = useState(false);
   useEffect(() => {
     if (!leadId || prefilled || !lead) return;
-    // If already converted, jump to the pipeline.
     if ((lead as any).converted_quote_id) {
       toast.info("Este lead já possui um orçamento vinculado.");
       navigate({ to: "/orcamentos" });
@@ -263,60 +263,21 @@ function NewQuotePage() {
         (leadName && (c.name ?? "").trim().toLowerCase() === leadName),
     );
 
-    const applyPrefill = (clientId: string) => {
-      setForm((f) => ({
-        ...f,
-        client_id: clientId || f.client_id,
-        package_id: (lead as any).package_id ?? f.package_id,
-        event_date: (lead as any).event_date ?? f.event_date,
-        event_time: (lead as any).event_time ?? f.event_time,
-        event_address: (lead as any).event_address ?? f.event_address,
-        event_type: (lead as any).event_type ?? f.event_type,
-        adults: (lead as any).guest_count ?? f.adults,
-        notes: (lead as any).notes ?? f.notes,
-      }));
-      setPrefilled(true);
-    };
+    setForm((f) => ({
+      ...f,
+      client_id: clientMatch?.id ?? "",
+      package_id: (lead as any).package_id ?? f.package_id,
+      event_date: (lead as any).event_date ?? f.event_date,
+      event_time: (lead as any).event_time ?? f.event_time,
+      event_address: (lead as any).event_address ?? f.event_address,
+      event_type: (lead as any).event_type ?? f.event_type,
+      adults: (lead as any).guest_count ?? f.adults,
+      notes: (lead as any).notes ?? f.notes,
+    }));
+    setPrefilled(true);
+  }, [lead, clients, leadId, prefilled, navigate]);
 
-    if (clientMatch) {
-      applyPrefill(clientMatch.id);
-      return;
-    }
 
-    // No matching client — create one from the lead so the requester's name
-    // is carried over automatically as a rule.
-    (async () => {
-      const { data: userRes } = await supabase.auth.getUser();
-      if (!userRes.user) {
-        applyPrefill("");
-        return;
-      }
-      const { data: created, error } = await supabase
-        .from("clients")
-        .insert({
-          owner_id: userRes.user.id,
-          tenant_id: access?.tenant?.id ?? null,
-          name: (lead as any).name ?? "Cliente",
-          phone: (lead as any).phone ?? null,
-          whatsapp: (lead as any).whatsapp ?? (lead as any).phone ?? null,
-          email: (lead as any).email ?? null,
-          city: (lead as any).city ?? null,
-          address: (lead as any).event_address ?? null,
-          notes: (lead as any).notes ?? null,
-          origem: "link_orcamento",
-          status: "novo_cliente",
-        } as any)
-        .select("id")
-        .single();
-      if (error || !created) {
-        applyPrefill("");
-        return;
-      }
-      qc.invalidateQueries({ queryKey: ["clients-select-full"] });
-      qc.invalidateQueries({ queryKey: ["clients"] });
-      applyPrefill(created.id);
-    })();
-  }, [lead, clients, leadId, prefilled, navigate, access?.tenant?.id, qc]);
 
 
   return (
