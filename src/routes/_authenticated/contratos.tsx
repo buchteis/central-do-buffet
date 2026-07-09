@@ -16,6 +16,7 @@ export const Route = createFileRoute("/_authenticated/contratos")({
 const DEFAULT_TEMPLATE = `CONTRATO DE PRESTAÇÃO DE SERVIÇOS DE BUFFET
 
 CONTRATANTE: {cliente}
+CPF: {cpf_cliente}
 Endereço: {endereco_cliente}
 Telefone: {telefone_cliente}
 
@@ -30,7 +31,8 @@ CLÁUSULA 2 — VALOR E PAGAMENTO
 Valor total dos serviços: {valor}.
 Sinal/Entrada: {entrada}.
 Saldo remanescente: {saldo}, a ser pago até a data do evento.
-Forma de pagamento: PIX — chave: {pix} (titular: {pix_titular}).
+Forma de pagamento: {forma_pagamento}.
+PIX — chave: {pix} (titular: {pix_titular}).
 
 CLÁUSULA 3 — OBRIGAÇÕES DO CONTRATADO
 Fornecer os alimentos, bebidas e serviços conforme o pacote contratado, com equipe treinada e higiene adequada.
@@ -160,13 +162,14 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
   const [refId, setRefId] = useState("");
   const [clientId, setClientId] = useState("");
   const [title, setTitle] = useState("Contrato de prestação de serviços");
+  const [formaPagamento, setFormaPagamento] = useState("PIX");
 
   const { data: quotes } = useQuery({
     queryKey: ["quotes-closed-for-contract"],
     queryFn: async () => {
       const { data } = await supabase
         .from("quotes")
-        .select("id, event_date, event_time, event_address, adults, children_7_10, children_0_6, total_value, entry_value, balance_value, client_id, clients(name, address, phone)")
+        .select("id, event_date, event_time, event_address, adults, children_7_10, children_0_6, total_value, entry_value, balance_value, client_id, clients(name, address, phone, cpf)")
         .eq("status", "fechado")
         .order("event_date", { ascending: false })
         .limit(200);
@@ -179,7 +182,7 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
     queryFn: async () => {
       const { data } = await supabase
         .from("events")
-        .select("id, event_date, event_time, event_address, guest_count, total_value, client_id, clients(name, address, phone)")
+        .select("id, event_date, event_time, event_address, guest_count, total_value, client_id, clients(name, address, phone, cpf)")
         .order("event_date", { ascending: false })
         .limit(200);
       return data ?? [];
@@ -189,7 +192,7 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
   const { data: clients } = useQuery({
     queryKey: ["clients-for-contract"],
     queryFn: async () => {
-      const { data } = await supabase.from("clients").select("id, name, address, phone").order("name").limit(500);
+      const { data } = await supabase.from("clients").select("id, name, address, phone, cpf").order("name").limit(500);
       return data ?? [];
     },
   });
@@ -215,9 +218,10 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
         pix: settings?.pix_key ?? "",
         pix_titular: settings?.pix_holder ?? "",
         data_hoje: formatDateFullBR(new Date()),
-        cliente: "", endereco_cliente: "", telefone_cliente: "",
+        cliente: "", cpf_cliente: "", endereco_cliente: "", telefone_cliente: "",
         data_evento: "", hora_evento: "", local_evento: "",
         convidados: "", valor: brl(0), entrada: brl(0), saldo: brl(0),
+        forma_pagamento: formaPagamento || "PIX",
       };
 
       let ev_id: string | null = null;
@@ -230,6 +234,7 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
         const guests = (q.adults ?? 0) + (q.children_7_10 ?? 0) + (q.children_0_6 ?? 0);
         vars = { ...vars,
           cliente: q.clients?.name ?? "",
+          cpf_cliente: q.clients?.cpf ?? "",
           endereco_cliente: q.clients?.address ?? "",
           telefone_cliente: q.clients?.phone ?? "",
           data_evento: formatDateFullBR(q.event_date),
@@ -247,6 +252,7 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
         cli_id = ev.client_id;
         vars = { ...vars,
           cliente: ev.clients?.name ?? "",
+          cpf_cliente: ev.clients?.cpf ?? "",
           endereco_cliente: ev.clients?.address ?? "",
           telefone_cliente: ev.clients?.phone ?? "",
           data_evento: formatDateFullBR(ev.event_date),
@@ -262,6 +268,7 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
             cli_id = cli.id;
             vars = { ...vars,
               cliente: cli.name ?? "",
+              cpf_cliente: cli.cpf ?? "",
               endereco_cliente: cli.address ?? "",
               telefone_cliente: cli.phone ?? "",
             };
@@ -325,6 +332,12 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
             {(clients ?? []).map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
         )}
+
+        <div>
+          <label className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">Forma de pagamento</label>
+          <input value={formaPagamento} onChange={(e) => setFormaPagamento(e.target.value)} placeholder="Ex.: PIX, Dinheiro, Cartão, Transferência" className="mt-1 w-full h-10 px-3 border border-border rounded-lg bg-background text-sm" />
+        </div>
+
 
         <p className="text-[11px] text-muted-foreground">
           {source === "blank"

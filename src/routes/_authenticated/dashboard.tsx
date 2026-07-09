@@ -25,19 +25,19 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
 
 const statusStyles: Record<string, string> = {
   agendado: "bg-info/10 text-info",
-  pagamento_parcial: "bg-warning/20 text-warning-foreground",
-  pago: "bg-success/10 text-success",
   em_andamento: "bg-primary/10 text-primary",
+  pago: "bg-success/10 text-success",
   concluido: "bg-muted text-muted-foreground",
   cancelado: "bg-destructive/10 text-destructive",
+  realizado: "bg-slate-500/10 text-slate-600",
 };
 const statusLabels: Record<string, string> = {
   agendado: "Agendado",
-  pagamento_parcial: "Parcial",
-  pago: "Pago",
   em_andamento: "Em andamento",
+  pago: "Pago",
   concluido: "Concluído",
   cancelado: "Cancelado",
+  realizado: "Realizado",
 };
 
 function isoDate(d: Date) {
@@ -105,7 +105,7 @@ function Dashboard() {
         supabase.from("events").select("id, event_date, event_time, status, total_value, clients(name), packages(name)").gte("event_date", today).order("event_date").limit(6),
         supabase.from("transactions").select("id, description, amount, due_date").eq("status", "pendente").lt("due_date", today).limit(5),
         supabase.from("events").select("id, event_time, clients(name)").eq("event_date", tomorrow).limit(5),
-        supabase.from("events").select("total_value").in("status", ["agendado", "pagamento_parcial", "em_andamento"]),
+        supabase.from("events").select("total_value").in("status", ["agendado", "em_andamento"]),
         supabase.from("quotes").select("total_value").in("status", ["em_analise", "negociacao", "aguardando", "primeiro_contato", "visitado", "enviado"]),
       ]);
 

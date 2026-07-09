@@ -27,18 +27,17 @@ export const Route = createFileRoute("/_authenticated/agenda")({
 
 const statusColor: Record<string, string> = {
   agendado: "bg-blue-500 text-white",
-  pagamento_parcial: "bg-amber-500 text-white",
-  pago: "bg-emerald-500 text-white",
   em_andamento: "bg-primary text-primary-foreground",
+  pago: "bg-emerald-500 text-white",
   concluido: "bg-slate-400 text-white",
   cancelado: "bg-rose-500 text-white",
+  realizado: "bg-slate-600 text-white",
 };
 
 const statusOptions = [
   { key: "agendado", label: "Agendado" },
-  { key: "pagamento_parcial", label: "Parcial" },
-  { key: "pago", label: "Pago" },
   { key: "em_andamento", label: "Em andamento" },
+  { key: "pago", label: "Pago" },
   { key: "concluido", label: "Concluído" },
   { key: "cancelado", label: "Cancelado" },
 ];
@@ -74,6 +73,7 @@ function AgendaPage() {
         )
         .gte("event_date", range.start)
         .lt("event_date", range.end)
+        .neq("status", "realizado")
         .order("event_date");
       return data ?? [];
     },
@@ -637,6 +637,20 @@ function DayView({
 }
 
 function EventPanel({ event, onClose }: { event: any; onClose: () => void }) {
+  const qc = useQueryClient();
+  const changeStatus = useMutation({
+    mutationFn: async (status: string) => {
+      const { error } = await supabase.from("events").update({ status: status as any }).eq("id", event.id);
+      if (error) throw error;
+    },
+    onSuccess: (_d, status) => {
+      qc.invalidateQueries({ queryKey: ["agenda"] });
+      qc.invalidateQueries({ queryKey: ["event-detail"] });
+      toast.success(status === "realizado" ? "Evento arquivado" : "Status atualizado");
+      if (status === "realizado") onClose();
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
   if (!event)
     return (
       <div className="fixed inset-0 z-40 bg-background/60 backdrop-blur-sm flex items-center justify-center">
@@ -665,6 +679,21 @@ function EventPanel({ event, onClose }: { event: any; onClose: () => void }) {
             <p className="text-xs text-muted-foreground">
               {formatDateFullBR(event.event_date)} · {event.event_time?.slice(0, 5) ?? "—"}
             </p>
+            <div className="mt-3 flex items-center gap-2">
+              <label className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">Status</label>
+              <select
+                value={event.status}
+                onChange={(e) => changeStatus.mutate(e.target.value)}
+                className="h-7 px-2 border border-border rounded-md bg-background text-xs font-bold"
+              >
+                <option value="agendado">Agendado</option>
+                <option value="em_andamento">Em andamento</option>
+                <option value="pago">Pago</option>
+                <option value="concluido">Concluído</option>
+                <option value="cancelado">Cancelado</option>
+                <option value="realizado">Realizado (arquivar)</option>
+              </select>
+            </div>
           </div>
           <button
             onClick={onClose}
