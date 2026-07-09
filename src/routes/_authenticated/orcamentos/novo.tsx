@@ -537,21 +537,31 @@ function NewQuotePage() {
               variant="outline"
               onClick={async () => {
                 try {
-                  if (!form.client_id) {
-                    toast.error("Selecione um cliente para gerar o PDF");
-                    return;
-                  }
                   if (!selectedPackage) {
                     toast.error("Selecione um pacote para gerar o PDF");
                     return;
                   }
                   const cli = (clients ?? []).find((c: any) => c.id === form.client_id) as any;
+                  const clientForPdf = cli
+                    ? { name: cli.name, cpf: cli.cpf, address: cli.address, phone: cli.phone, email: cli.email }
+                    : lead
+                      ? {
+                          name: (lead as any).name,
+                          cpf: null,
+                          address: (lead as any).event_address ?? (lead as any).city ?? null,
+                          phone: (lead as any).phone ?? (lead as any).whatsapp ?? null,
+                          email: (lead as any).email ?? null,
+                        }
+                      : null;
+                  if (!clientForPdf) {
+                    toast.error("Selecione um cliente para gerar o PDF");
+                    return;
+                  }
                   await openQuotePdf({
                     issuedAt: new Date(),
                     validUntil: (() => { const d = new Date(); d.setDate(d.getDate() + 7); return d; })(),
-                    client: cli
-                      ? { name: cli.name, cpf: cli.cpf, address: cli.address, phone: cli.phone, email: cli.email }
-                      : null,
+                    client: clientForPdf,
+
                     event: {
                       date: form.event_date || null,
                       time: form.event_time || null,
