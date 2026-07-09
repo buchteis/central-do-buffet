@@ -326,7 +326,15 @@ function NewQuotePage() {
                   )}
                 </SelectContent>
               </Select>
+              {!form.client_id && lead && (
+                <p className="text-[11px] text-primary">
+                  Novo cliente será criado a partir do lead ao salvar:{" "}
+                  <strong>{(lead as any).name}</strong>
+                  {(lead as any).phone ? ` · ${(lead as any).phone}` : ""}
+                </p>
+              )}
             </div>
+
             <div className="space-y-2">
               <Label>Pacote *</Label>
               <Select
