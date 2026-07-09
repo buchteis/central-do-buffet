@@ -46,6 +46,25 @@ function isoDate(d: Date) {
 }
 
 function Dashboard() {
+  const qc = useQueryClient();
+
+  useEffect(() => {
+    const invalidate = () => {
+      qc.invalidateQueries({ queryKey: ["dashboard-stats-v2"] });
+    };
+    const channel = supabase
+      .channel("dashboard-live")
+      .on("postgres_changes", { event: "*", schema: "public", table: "quotes" }, invalidate)
+      .on("postgres_changes", { event: "*", schema: "public", table: "events" }, invalidate)
+      .on("postgres_changes", { event: "*", schema: "public", table: "contracts" }, invalidate)
+      .on("postgres_changes", { event: "*", schema: "public", table: "transactions" }, invalidate)
+      .on("postgres_changes", { event: "*", schema: "public", table: "clients" }, invalidate)
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [qc]);
+
   const { data: stats } = useQuery({
     queryKey: ["dashboard-stats-v2"],
     queryFn: async () => {
