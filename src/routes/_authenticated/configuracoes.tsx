@@ -159,13 +159,9 @@ function SettingsPage() {
           </div>
           <p className="text-[11px] text-muted-foreground mt-2">PNG, JPG, JPEG ou SVG.</p>
         </Field>
-        {f.logo_url && (
-          <div className="p-3 bg-muted/40 rounded-lg text-center">
-            <div className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest mb-2">Prévia da logomarca</div>
-            <img alt="Logomarca" src={f.logo_url} className="mx-auto max-h-24 object-contain" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
-          </div>
-        )}
+        {f.logo_url && <LogoPreview value={f.logo_url} />}
       </Section>
+
 
       <Section title="PIX">
         <div className="grid grid-cols-2 gap-3">
