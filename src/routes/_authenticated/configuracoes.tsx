@@ -28,6 +28,7 @@ function SettingsPage() {
     logo_url: "",
     contract_template: "", wa_quote_template: "", wa_reminder_template: "", wa_pix_template: "",
   });
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     if (data) setF({
