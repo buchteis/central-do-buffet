@@ -392,7 +392,7 @@ function NewQuotePage() {
             />
           </div>
 
-          <div className="flex justify-end gap-2 pt-4">
+          <div className="flex flex-wrap justify-end gap-2 pt-4">
             <Button
               type="button"
               variant="outline"
@@ -400,10 +400,61 @@ function NewQuotePage() {
             >
               Cancelar
             </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={async () => {
+                try {
+                  if (!form.client_id) {
+                    toast.error("Selecione um cliente para gerar o PDF");
+                    return;
+                  }
+                  if (!selectedPackage) {
+                    toast.error("Selecione um pacote para gerar o PDF");
+                    return;
+                  }
+                  const cli = (clients ?? []).find((c: any) => c.id === form.client_id) as any;
+                  await openQuotePdf({
+                    issuedAt: new Date(),
+                    validUntil: (() => { const d = new Date(); d.setDate(d.getDate() + 7); return d; })(),
+                    client: cli
+                      ? { name: cli.name, cpf: cli.cpf, address: cli.address, phone: cli.phone, email: cli.email }
+                      : null,
+                    event: {
+                      date: form.event_date || null,
+                      time: form.event_time || null,
+                      address: form.event_address || null,
+                      type: form.event_type || null,
+                      adults: form.adults,
+                      childrenCount: form.children_count,
+                    },
+                    package: {
+                      name: selectedPackage.name,
+                      pricePerPerson: Number(selectedPackage.price_per_person ?? 0),
+                    },
+                    childPrice: form.child_price,
+                    extras: customExtras.filter(
+                      (e) => e.description.trim() !== "" || Number(e.value) > 0,
+                    ),
+                    breakdown,
+                    paymentMethod: form.payment_method,
+                    notes: form.notes,
+                    hasGrill: form.has_grill,
+                    hasFreezer: form.has_freezer,
+                    buffet: (settings as any) ?? null,
+                  });
+                } catch (err: any) {
+                  toast.error(err?.message ?? "Falha ao gerar PDF");
+                }
+              }}
+            >
+              Gerar PDF
+            </Button>
             <Button type="submit" disabled={mut.isPending}>
               {mut.isPending ? "Salvando…" : "Salvar orçamento"}
             </Button>
           </div>
+
         </form>
 
         <aside className="bg-card border border-border rounded-2xl p-6 space-y-4 h-fit sticky top-20">
