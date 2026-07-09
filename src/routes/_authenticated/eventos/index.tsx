@@ -12,19 +12,19 @@ export const Route = createFileRoute("/_authenticated/eventos/")({
 
 const statusStyles: Record<string, string> = {
   agendado: "bg-info/10 text-info",
-  pagamento_parcial: "bg-warning/20 text-warning-foreground",
-  pago: "bg-success/10 text-success",
   em_andamento: "bg-primary/10 text-primary",
+  pago: "bg-success/10 text-success",
   concluido: "bg-muted text-muted-foreground",
   cancelado: "bg-destructive/10 text-destructive",
+  realizado: "bg-slate-500/10 text-slate-600",
 };
 const statusLabels: Record<string, string> = {
   agendado: "Agendado",
-  pagamento_parcial: "Parcial",
-  pago: "Pago",
   em_andamento: "Em andamento",
+  pago: "Pago",
   concluido: "Concluído",
   cancelado: "Cancelado",
+  realizado: "Realizado",
 };
 
 function EventsPage() {
