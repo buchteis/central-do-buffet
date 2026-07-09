@@ -101,6 +101,15 @@ function SettingsPage() {
           <Field label="WhatsApp"><input value={f.whatsapp} onChange={(e) => setF({ ...f, whatsapp: e.target.value })} className="input" /></Field>
         </div>
         <Field label="Endereço"><input value={f.address} onChange={(e) => setF({ ...f, address: e.target.value })} className="input" /></Field>
+        <Field label="Logomarca (URL da imagem)">
+          <input value={f.logo_url} onChange={(e) => setF({ ...f, logo_url: e.target.value })} placeholder="https://..." className="input" />
+        </Field>
+        {f.logo_url && (
+          <div className="p-3 bg-muted/40 rounded-lg text-center">
+            <div className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest mb-2">Prévia da logomarca</div>
+            <img alt="Logomarca" src={f.logo_url} className="mx-auto max-h-24 object-contain" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
+          </div>
+        )}
       </Section>
 
       <Section title="PIX">
