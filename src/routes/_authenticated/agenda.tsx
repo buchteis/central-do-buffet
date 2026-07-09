@@ -27,18 +27,17 @@ export const Route = createFileRoute("/_authenticated/agenda")({
 
 const statusColor: Record<string, string> = {
   agendado: "bg-blue-500 text-white",
-  pagamento_parcial: "bg-amber-500 text-white",
-  pago: "bg-emerald-500 text-white",
   em_andamento: "bg-primary text-primary-foreground",
+  pago: "bg-emerald-500 text-white",
   concluido: "bg-slate-400 text-white",
   cancelado: "bg-rose-500 text-white",
+  realizado: "bg-slate-600 text-white",
 };
 
 const statusOptions = [
   { key: "agendado", label: "Agendado" },
-  { key: "pagamento_parcial", label: "Parcial" },
-  { key: "pago", label: "Pago" },
   { key: "em_andamento", label: "Em andamento" },
+  { key: "pago", label: "Pago" },
   { key: "concluido", label: "Concluído" },
   { key: "cancelado", label: "Cancelado" },
 ];
