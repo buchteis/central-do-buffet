@@ -386,7 +386,18 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
 
         <div>
           <label className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">Forma de pagamento</label>
-          <input value={formaPagamento} onChange={(e) => setFormaPagamento(e.target.value)} placeholder="Ex.: PIX, Dinheiro, Cartão, Transferência" className="mt-1 w-full h-10 px-3 border border-border rounded-lg bg-background text-sm" />
+          <select
+            value={formaPagamento}
+            onChange={(e) => setFormaPagamento(e.target.value as "PIX" | "Dados Bancários" | "Dinheiro")}
+            className="mt-1 w-full h-10 px-3 border border-border rounded-lg bg-background text-sm"
+          >
+            <option value="PIX">PIX</option>
+            <option value="Dados Bancários">Dados Bancários</option>
+            <option value="Dinheiro">Dinheiro</option>
+          </select>
+          {source === "quote" && refId && (
+            <p className="text-[11px] text-muted-foreground mt-1">Herdada do orçamento selecionado (você pode alterar se necessário).</p>
+          )}
         </div>
 
 
