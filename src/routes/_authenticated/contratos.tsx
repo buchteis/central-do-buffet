@@ -31,8 +31,8 @@ CLÁUSULA 2 — VALOR E PAGAMENTO
 Valor total dos serviços: {valor}.
 Sinal/Entrada: {entrada}.
 Saldo remanescente: {saldo}, a ser pago até a data do evento.
-Forma de pagamento: {forma_pagamento}.
-PIX — chave: {pix} (titular: {pix_titular}).
+Forma de pagamento: {{forma_pagamento}}.
+{{dados_pagamento}}
 
 CLÁUSULA 3 — OBRIGAÇÕES DO CONTRATADO
 Fornecer os alimentos, bebidas e serviços conforme o pacote contratado, com equipe treinada e higiene adequada.
