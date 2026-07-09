@@ -226,3 +226,14 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
     </div>
   );
 }
+
+function LogoPreview({ value }: { value: string }) {
+  const { data: url } = useLogoDisplayUrl(value);
+  if (!url) return null;
+  return (
+    <div className="p-3 bg-muted/40 rounded-lg text-center">
+      <div className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest mb-2">Prévia da logomarca</div>
+      <img alt="Logomarca" src={url} className="mx-auto max-h-24 object-contain" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
+    </div>
+  );
+}
