@@ -162,14 +162,14 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
   const [refId, setRefId] = useState("");
   const [clientId, setClientId] = useState("");
   const [title, setTitle] = useState("Contrato de prestação de serviços");
-  const [formaPagamento, setFormaPagamento] = useState("PIX");
+  const [formaPagamento, setFormaPagamento] = useState<"PIX" | "Dados Bancários" | "Dinheiro">("PIX");
 
   const { data: quotes } = useQuery({
     queryKey: ["quotes-closed-for-contract"],
     queryFn: async () => {
       const { data } = await supabase
         .from("quotes")
-        .select("id, event_date, event_time, event_address, adults, children_7_10, children_0_6, total_value, entry_value, balance_value, client_id, clients(name, address, phone, cpf)")
+        .select("id, event_date, event_time, event_address, adults, children_7_10, children_0_6, total_value, entry_value, balance_value, client_id, payment_method, clients(name, address, phone, cpf)")
         .eq("status", "fechado")
         .order("event_date", { ascending: false })
         .limit(200);
