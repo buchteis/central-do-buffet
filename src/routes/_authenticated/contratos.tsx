@@ -205,11 +205,62 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
     },
   });
 
+  // Se a origem for orçamento, herda automaticamente a forma de pagamento salva
+  useEffect(() => {
+    if (source !== "quote" || !refId) return;
+    const q: any = (quotes ?? []).find((x: any) => x.id === refId);
+    const pm = q?.payment_method;
+    if (pm === "PIX" || pm === "Dados Bancários" || pm === "Dinheiro") {
+      setFormaPagamento(pm);
+    }
+  }, [source, refId, quotes]);
+
+  function buildPaymentVars(method: "PIX" | "Dados Bancários" | "Dinheiro", s: any) {
+    const pix = s?.pix_key?.trim() ?? "";
+    const pixHolder = s?.pix_holder?.trim() ?? "";
+    const bankName = s?.bank_name?.trim() ?? "";
+    const bankAgency = s?.bank_agency?.trim() ?? "";
+    const bankAccount = s?.bank_account?.trim() ?? "";
+    const bankHolder = s?.bank_holder?.trim() ?? "";
+
+    if (method === "PIX") {
+      if (!pix) throw new Error("Cadastre a chave PIX em Configurações antes de gerar o contrato.");
+      const chave = pixHolder ? `${pix} (titular: ${pixHolder})` : pix;
+      return {
+        forma_pagamento: "PIX",
+        chave_pix: chave,
+        dados_bancarios: "",
+        dados_pagamento: `PIX — chave: ${chave}.`,
+      };
+    }
+    if (method === "Dados Bancários") {
+      if (!bankName || !bankAgency || !bankAccount || !bankHolder) {
+        throw new Error("Cadastre os Dados Bancários (Banco, Agência, Conta e Titular) em Configurações antes de gerar o contrato.");
+      }
+      const dados = `Banco: ${bankName} | Agência: ${bankAgency} | Conta: ${bankAccount} | Titular: ${bankHolder}`;
+      return {
+        forma_pagamento: "Dados Bancários",
+        chave_pix: "",
+        dados_bancarios: dados,
+        dados_pagamento: `Dados Bancários — ${dados}.`,
+      };
+    }
+    // Dinheiro
+    return {
+      forma_pagamento: "Dinheiro",
+      chave_pix: "",
+      dados_bancarios: "",
+      dados_pagamento: "Pagamento em Dinheiro.",
+    };
+  }
+
   const mut = useMutation({
     mutationFn: async () => {
       const { data: u } = await supabase.auth.getUser();
       if (!u.user) throw new Error("Sem sessão");
       const tpl = settings?.contract_template || DEFAULT_TEMPLATE;
+
+      const payVars = buildPaymentVars(formaPagamento, settings);
 
       let vars: Record<string, string> = {
         buffet: settings?.business_name ?? "Buffet",
@@ -221,7 +272,7 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
         cliente: "", cpf_cliente: "", endereco_cliente: "", telefone_cliente: "",
         data_evento: "", hora_evento: "", local_evento: "",
         convidados: "", valor: brl(0), entrada: brl(0), saldo: brl(0),
-        forma_pagamento: formaPagamento || "PIX",
+        ...payVars,
       };
 
       let ev_id: string | null = null;
