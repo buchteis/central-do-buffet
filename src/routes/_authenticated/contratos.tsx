@@ -169,7 +169,7 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
     queryFn: async () => {
       const { data } = await supabase
         .from("quotes")
-        .select("id, event_date, event_time, event_address, adults, children_7_10, children_0_6, total_value, entry_value, balance_value, client_id, clients(name, address, phone)")
+        .select("id, event_date, event_time, event_address, adults, children_7_10, children_0_6, total_value, entry_value, balance_value, client_id, clients(name, address, phone, cpf)")
         .eq("status", "fechado")
         .order("event_date", { ascending: false })
         .limit(200);
