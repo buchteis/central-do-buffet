@@ -128,6 +128,31 @@ function NewQuotePage() {
       const { data: userRes } = await supabase.auth.getUser();
       if (!userRes.user) throw new Error("Sessão expirada");
 
+      // Resolve client: use selected one, otherwise create from lead data on save.
+      let clientId = form.client_id;
+      if (!clientId) {
+        if (!lead) throw new Error("Selecione um cliente");
+        const { data: created, error: cErr } = await supabase
+          .from("clients")
+          .insert({
+            owner_id: userRes.user.id,
+            tenant_id: access?.tenant?.id ?? null,
+            name: (lead as any).name ?? "Cliente",
+            phone: (lead as any).phone ?? null,
+            whatsapp: (lead as any).whatsapp ?? (lead as any).phone ?? null,
+            email: (lead as any).email ?? null,
+            city: (lead as any).city ?? null,
+            address: (lead as any).event_address ?? null,
+            notes: (lead as any).notes ?? null,
+            origem: "link_orcamento",
+            status: "novo_cliente",
+          } as any)
+          .select("id")
+          .single();
+        if (cErr || !created) throw new Error(cErr?.message ?? "Falha ao criar cliente");
+        clientId = created.id;
+      }
+
       const valid = new Date();
       valid.setDate(valid.getDate() + 7);
 
@@ -135,7 +160,7 @@ function NewQuotePage() {
         .from("quotes")
         .insert({
           owner_id: userRes.user.id,
-          client_id: form.client_id,
+          client_id: clientId,
           package_id: form.package_id,
           event_date: form.event_date,
           event_time: form.event_time || null,
@@ -185,7 +210,7 @@ function NewQuotePage() {
             await supabase.from("events").insert({
               owner_id: userRes.user.id,
               tenant_id: access?.tenant?.id ?? null,
-              client_id: form.client_id,
+              client_id: clientId,
               quote_id: data.id,
               package_id: form.package_id,
               event_date: form.event_date,
@@ -211,11 +236,13 @@ function NewQuotePage() {
       qc.invalidateQueries({ queryKey: ["events"] });
       qc.invalidateQueries({ queryKey: ["agenda"] });
       qc.invalidateQueries({ queryKey: ["clients"] });
+      qc.invalidateQueries({ queryKey: ["clients-select-full"] });
       toast.success(leadId ? "Orçamento criado e evento agendado!" : "Orçamento criado!");
       navigate({ to: leadId ? "/agenda" : "/orcamentos" });
     },
     onError: (e: Error) => toast.error(e.message),
   });
+
 
   // Prefill from lead when data arrives (only once).
   const [prefilled, setPrefilled] = useState(false);
