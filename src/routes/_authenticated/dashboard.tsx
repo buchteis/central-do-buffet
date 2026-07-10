@@ -196,18 +196,33 @@ function Dashboard() {
       )}
 
 
-      <div className="bg-gradient-to-br from-primary/10 via-primary/5 to-background border border-primary/20 rounded-2xl p-5 md:p-6 shadow-sm">
-        <div className="flex items-center justify-between">
-          <span className="text-[10px] font-bold text-primary uppercase tracking-widest">Ganhos previsíveis</span>
-          <DollarSign className="size-5 text-primary" />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-background border border-emerald-500/20 rounded-2xl p-5 md:p-6 shadow-sm">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-widest">Faturamento concluído</span>
+            <DollarSign className="size-5 text-emerald-600" />
+          </div>
+          <div className="mt-2 text-3xl md:text-4xl font-extrabold tracking-tighter text-emerald-700 font-mono">
+            {brl(stats?.faturamentoConcluido ?? 0)}
+          </div>
+          <p className="text-xs text-muted-foreground mt-1">
+            Soma dos orçamentos com status <strong>Fechado</strong> e marcados como <strong>Pago</strong>.
+          </p>
         </div>
-        <div className="mt-2 text-3xl md:text-4xl font-extrabold tracking-tighter text-primary font-mono">
-          {brl(stats?.ganhosPrevisiveis ?? 0)}
+        <div className="bg-gradient-to-br from-primary/10 via-primary/5 to-background border border-primary/20 rounded-2xl p-5 md:p-6 shadow-sm">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-bold text-primary uppercase tracking-widest">Ganhos previsíveis</span>
+            <DollarSign className="size-5 text-primary" />
+          </div>
+          <div className="mt-2 text-3xl md:text-4xl font-extrabold tracking-tighter text-primary font-mono">
+            {brl(stats?.ganhosPrevisiveis ?? 0)}
+          </div>
+          <p className="text-xs text-muted-foreground mt-1">
+            Concluído + orçamentos em andamento/negociação.
+          </p>
         </div>
-        <p className="text-xs text-muted-foreground mt-1">
-          Soma dos agendamentos confirmados + orçamentos em análise/negociação.
-        </p>
       </div>
+
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
         <Kpi label="Eventos hoje" value={String(stats?.evToday ?? "—")} icon={Calendar} />
