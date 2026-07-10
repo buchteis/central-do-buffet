@@ -254,18 +254,12 @@ function NewQuotePage() {
       navigate({ to: "/orcamentos" });
       return;
     }
-    const leadName = ((lead as any).name ?? "").trim().toLowerCase();
-    const clientMatch = (clients ?? []).find(
-      (c: any) =>
-        (lead.phone && c.phone === lead.phone) ||
-        (lead.email && c.email === lead.email) ||
-        (lead.whatsapp && c.phone === lead.whatsapp) ||
-        (leadName && (c.name ?? "").trim().toLowerCase() === leadName),
-    );
-
+    // Public-link leads must NEVER auto-bind to an existing client.
+    // Keep client_id empty so the requester's data from the lead is used as-is;
+    // the client record is created on save from the lead's own information.
     setForm((f) => ({
       ...f,
-      client_id: clientMatch?.id ?? "",
+      client_id: "",
       package_id: (lead as any).package_id ?? f.package_id,
       event_date: (lead as any).event_date ?? f.event_date,
       event_time: (lead as any).event_time ?? f.event_time,
