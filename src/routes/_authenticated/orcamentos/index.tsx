@@ -11,6 +11,7 @@ import {
   Pencil,
   ChevronLeft,
   ChevronRight,
+  Link2,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { brl, formatDateBR } from "@/lib/format";
@@ -20,6 +21,8 @@ import { toast } from "sonner";
 import { useGlobalSearch, normalizeSearch } from "@/lib/search-store";
 import { openQuotePdf } from "@/lib/quote-pdf";
 import { calcQuote } from "@/lib/quote-calc";
+import { copyToClipboard } from "@/lib/clipboard";
+import { useTenantAccess } from "@/hooks/useTenantAccess";
 
 export const Route = createFileRoute("/_authenticated/orcamentos/")({
   head: () => ({ meta: [{ title: "Orçamentos — Meu Churras" }] }),
