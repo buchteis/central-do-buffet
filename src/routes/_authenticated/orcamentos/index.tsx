@@ -552,6 +552,25 @@ function QuotesPage() {
                         {stage?.label ?? q.status}
                       </span>
                     </td>
+                    <td className="px-4 py-4 text-center">
+                      {stageOf(q.status) === "fechado" ? (
+                        <button
+                          onClick={() => togglePaid.mutate({ id: q.id, paid: !q.paid })}
+                          title={q.paid ? "Marcar como não pago" : "Marcar como pago"}
+                          className={cn(
+                            "inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-full border transition",
+                            q.paid
+                              ? "bg-emerald-500 text-white border-emerald-500"
+                              : "bg-background text-muted-foreground border-border hover:border-emerald-500 hover:text-emerald-600",
+                          )}
+                        >
+                          {q.paid ? <CheckCircle2 className="size-3" /> : <Circle className="size-3" />}
+                          {q.paid ? "Pago" : "Marcar"}
+                        </button>
+                      ) : (
+                        <span className="text-[11px] text-muted-foreground">—</span>
+                      )}
+                    </td>
                     <td className="px-4 py-4">
                       <div className="flex items-center justify-center gap-1">
                         {phone && (
