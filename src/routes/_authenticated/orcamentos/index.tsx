@@ -12,6 +12,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Link2,
+  CheckCircle2,
+  Circle,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { brl, formatDateBR } from "@/lib/format";
@@ -23,6 +25,7 @@ import { openQuotePdf } from "@/lib/quote-pdf";
 import { calcQuote } from "@/lib/quote-calc";
 import { copyToClipboard } from "@/lib/clipboard";
 import { useTenantAccess } from "@/hooks/useTenantAccess";
+import { useEffect } from "react";
 
 export const Route = createFileRoute("/_authenticated/orcamentos/")({
   head: () => ({ meta: [{ title: "Orçamentos — Meu Churras" }] }),
@@ -37,13 +40,18 @@ function whatsappMessage(q: any) {
   return `Olá, ${name}! Tudo bem? Aqui é do Meu Churras. Estou entrando em contato sobre o orçamento do seu evento em ${date} (${pkg}). O investimento estimado é ${value}. Posso te passar mais detalhes?`;
 }
 
-const pipeline: { id: string; label: string; tone: string }[] = [
+type Stage = "novo" | "em_andamento" | "fechado";
+const pipeline: { id: Stage; label: string; tone: string }[] = [
   { id: "novo", label: "Novo", tone: "bg-slate-500/10 text-slate-600 border-slate-500/20" },
   { id: "em_andamento", label: "Em andamento", tone: "bg-blue-500/10 text-blue-600 border-blue-500/20" },
+  { id: "fechado", label: "Fechado", tone: "bg-emerald-500/10 text-emerald-700 border-emerald-500/20" },
 ];
-function stageOf(status: string): "novo" | "em_andamento" {
-  return status === "novo" ? "novo" : "em_andamento";
+function stageOf(status: string): Stage {
+  if (status === "fechado" || status === "aprovado") return "fechado";
+  if (status === "novo") return "novo";
+  return "em_andamento";
 }
+
 
 type Period = "all" | "day" | "week" | "month" | "year";
 
