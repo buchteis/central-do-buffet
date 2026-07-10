@@ -257,8 +257,9 @@ export async function openQuotePdf(input: QuotePdfInput) {
     method
       ? `<section>
     <h2>Pagamento</h2>
-    <div><span class="pill">${esc(method)}</span></div>
-    ${payDetail ? `<div style="margin-top:6px; font-size:10pt;">${esc(payDetail)}</div>` : ""}
+    <div style="padding: 0 12px;"><span class="pill">${esc(method)}</span></div>
+    ${payDetail ? `<div class="pay-detail">${esc(payDetail)}</div>` : ""}
+
   </section>`
       : ""
   }
