@@ -632,10 +632,7 @@ function NewQuotePage() {
             label={`Crianças (${form.children_count} × ${brl(form.child_price)})`}
             value={brl(breakdown.childrenSubtotal)}
           />
-          <SummaryRow
-            label="Preço por pessoa"
-            value={brl(selectedPackage?.price_per_person ?? 0)}
-          />
+          <SummaryRow label="Preço por pessoa" value={brl(effectivePrice)} />
           <SummaryRow label="Subtotal" value={brl(breakdown.subtotal)} />
           {breakdown.extras > 0 && <SummaryRow label="Acréscimos" value={brl(breakdown.extras)} />}
 
@@ -651,13 +648,28 @@ function NewQuotePage() {
           </div>
 
           <div className="pt-2 space-y-2 text-xs">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Entrada (50%)</span>
-              <span className="font-mono font-bold">{brl(breakdown.entry)}</span>
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-muted-foreground shrink-0">Entrada</span>
+              <Input
+                type="number"
+                min={0}
+                step="0.01"
+                value={breakdown.entry}
+                onChange={(e) => setEntryOverride(Number(e.target.value) || 0)}
+                className="h-8 max-w-[140px] text-right font-mono"
+              />
             </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Saldo</span>
-              <span className="font-mono font-bold">{brl(breakdown.balance)}</span>
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-muted-foreground shrink-0">Saldo</span>
+              <Input
+                type="number"
+                min={0}
+                step="0.01"
+                value={breakdown.balance}
+                onChange={(e) => setBalanceOverride(Number(e.target.value) || 0)}
+                className="h-8 max-w-[140px] text-right font-mono"
+              />
+
             </div>
           </div>
         </aside>
