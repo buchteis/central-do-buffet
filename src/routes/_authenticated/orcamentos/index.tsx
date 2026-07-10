@@ -21,31 +21,37 @@ function whatsappMessage(q: any) {
   return `Olá, ${name}! Tudo bem? Aqui é do Meu Churras. Estou entrando em contato sobre o orçamento do seu evento em ${date} (${pkg}). O investimento estimado é ${value}. Posso te passar mais detalhes?`;
 }
 
+// Simplified pipeline: only Novo / Em andamento surface as columns.
+// Legacy statuses map to "em_andamento" for display purposes.
 const pipeline: { id: string; label: string; tone: string }[] = [
-  { id: "novo", label: "Novo Lead", tone: "bg-slate-500/10 text-slate-600 border-slate-500/20" },
-  { id: "primeiro_contato", label: "Primeiro Contato", tone: "bg-blue-500/10 text-blue-600 border-blue-500/20" },
-  { id: "visitado", label: "Visitado", tone: "bg-indigo-500/10 text-indigo-600 border-indigo-500/20" },
-  { id: "enviado", label: "Orçamento Enviado", tone: "bg-cyan-500/10 text-cyan-600 border-cyan-500/20" },
-  { id: "negociacao", label: "Negociação", tone: "bg-amber-500/10 text-amber-600 border-amber-500/20" },
-  { id: "aguardando", label: "Aguardando", tone: "bg-yellow-500/10 text-yellow-700 border-yellow-500/20" },
-  { id: "aprovado", label: "Aprovado", tone: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20" },
-  { id: "fechado", label: "Fechado (→ Evento)", tone: "bg-green-600/10 text-green-700 border-green-600/30" },
-  { id: "recusado", label: "Recusado", tone: "bg-rose-500/10 text-rose-600 border-rose-500/20" },
+  { id: "novo", label: "Novo", tone: "bg-slate-500/10 text-slate-600 border-slate-500/20" },
+  { id: "em_andamento", label: "Em andamento", tone: "bg-blue-500/10 text-blue-600 border-blue-500/20" },
 ];
+function stageOf(status: string): "novo" | "em_andamento" {
+  return status === "novo" ? "novo" : "em_andamento";
+}
 
 type Period = "all" | "week" | "month" | "year";
 
-function periodStart(p: Period): Date | null {
+function periodRange(p: Period): { start: Date; end: Date } | null {
   if (p === "all") return null;
   const now = new Date();
   if (p === "week") {
-    const d = new Date(now);
-    d.setDate(now.getDate() - now.getDay());
-    d.setHours(0, 0, 0, 0);
-    return d;
+    const start = new Date(now);
+    start.setDate(now.getDate() - now.getDay());
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(start);
+    end.setDate(start.getDate() + 7);
+    return { start, end };
   }
-  if (p === "month") return new Date(now.getFullYear(), now.getMonth(), 1);
-  return new Date(now.getFullYear(), 0, 1);
+  if (p === "month") {
+    const start = new Date(now.getFullYear(), now.getMonth(), 1);
+    const end = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    return { start, end };
+  }
+  const start = new Date(now.getFullYear(), 0, 1);
+  const end = new Date(now.getFullYear() + 1, 0, 1);
+  return { start, end };
 }
 
 function QuotesPage() {
@@ -73,25 +79,25 @@ function QuotesPage() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["quotes"] });
+      qc.invalidateQueries({ queryKey: ["leads"] });
       toast.success("Etapa atualizada");
     },
     onError: (e: any) => toast.error(e.message),
   });
 
-  const start = periodStart(period);
+  const range = periodRange(period);
   const filtered = (data ?? []).filter((q: any) => {
-    if (!start) return true;
+    if (!range) return true;
     const ref = q.created_at ? new Date(q.created_at) : null;
-    return ref ? ref >= start : true;
+    return ref ? ref >= range.start && ref < range.end : false;
   });
 
   const byStage = new Map<string, any[]>();
   pipeline.forEach((s) => byStage.set(s.id, []));
   filtered.forEach((q: any) => {
-    const list = byStage.get(q.status);
-    if (list) list.push(q);
-    else byStage.set(q.status, [q]);
+    byStage.get(stageOf(q.status))!.push(q);
   });
+
 
   return (
     <div className="space-y-6">
@@ -155,7 +161,7 @@ function QuotesPage() {
                         <div className="text-[11px] text-muted-foreground truncate">{q.packages?.name ?? "Sem pacote"} · {formatDateBR(q.event_date)}</div>
                         <div className="font-mono font-bold text-sm mt-1">{brl(q.total_value)}</div>
                         <select
-                          value={q.status}
+                          value={stageOf(q.status)}
                           onChange={(e) => move.mutate({ id: q.id, status: e.target.value })}
                           className="mt-2 w-full text-[11px] border border-border rounded-md bg-background px-2 py-1"
                         >
@@ -163,17 +169,7 @@ function QuotesPage() {
                             <option key={s.id} value={s.id}>{s.label}</option>
                           ))}
                         </select>
-                        {q.status !== "fechado" && q.status !== "recusado" && (
-                          <button
-                            onClick={() => {
-                              if (confirm("Fechar orçamento e criar evento automaticamente?"))
-                                move.mutate({ id: q.id, status: "fechado" });
-                            }}
-                            className="mt-2 w-full text-[11px] font-bold bg-primary text-primary-foreground rounded-md py-1.5 hover:bg-primary/90"
-                          >
-                            ✓ Fechar orçamento
-                          </button>
-                        )}
+
                         {(q.clients?.whatsapp || q.clients?.phone) && (
                           <a
                             href={waLink(
@@ -213,8 +209,9 @@ function QuotesPage() {
             </thead>
             <tbody className="divide-y divide-border">
               {filtered.map((q: any) => {
-                const stage = pipeline.find((s) => s.id === q.status);
+                const stage = pipeline.find((s) => s.id === stageOf(q.status));
                 return (
+
                   <tr key={q.id} className="hover:bg-muted/30">
                     <td className="px-5 py-4 text-sm font-semibold">{q.clients?.name ?? "—"}</td>
                     <td className="px-4 py-4 text-xs font-mono">{formatDateBR(q.event_date)}</td>

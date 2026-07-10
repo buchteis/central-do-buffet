@@ -32,8 +32,7 @@ export const Route = createFileRoute("/orcamento/$slug")({
 
 const schema = z.object({
   name: z.string().trim().min(2, "Informe seu nome").max(100),
-  phone: z.string().trim().min(8, "Telefone inválido").max(20),
-  whatsapp: z.string().trim().max(20).optional(),
+  whatsapp: z.string().trim().min(8, "WhatsApp inválido").max(20),
   email: z.string().trim().email("E-mail inválido").max(255).optional().or(z.literal("")),
   cpf: z.string().trim().max(20).optional(),
   city: z.string().trim().max(80).optional(),
@@ -69,7 +68,7 @@ function PublicQuoteForm() {
     queryFn: async () => {
       const { data } = await supabase
         .from("packages")
-        .select("id, name, description, price_per_person")
+        .select("id, name")
         .eq("tenant_id", tenant!.id)
         .eq("active", true)
         .order("name");
@@ -80,11 +79,12 @@ function PublicQuoteForm() {
   const submit = useMutation({
     mutationFn: async (payload: z.infer<typeof schema>) => {
       if (!tenant?.id) throw new Error("Buffet não encontrado");
+      const chosenPkg = (packages ?? []).find((p) => p.id === payload.package_id);
       const { error } = await supabase.from("leads").insert({
         tenant_id: tenant.id,
         name: payload.name,
-        phone: payload.phone,
-        whatsapp: payload.whatsapp || payload.phone,
+        phone: payload.whatsapp,
+        whatsapp: payload.whatsapp,
         email: payload.email || null,
         cpf: payload.cpf || null,
         city: payload.city || null,
@@ -93,7 +93,7 @@ function PublicQuoteForm() {
         event_time: payload.event_time || null,
         guest_count: payload.guest_count,
         event_type: payload.event_type || null,
-        package_desired: payload.package_desired || null,
+        package_desired: chosenPkg?.name ?? payload.package_desired ?? null,
         package_id: payload.package_id || null,
         notes: payload.notes || null,
         source: "formulario_publico",
@@ -174,9 +174,7 @@ function PublicQuoteForm() {
         >
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Field name="name" label="Seu nome *" required />
-            <Field name="phone" label="Telefone *" required placeholder="(11) 99999-9999" />
-            <Field name="whatsapp" label="WhatsApp" placeholder="(11) 99999-9999" />
-            <Field name="email" label="E-mail" type="email" />
+            <Field name="whatsapp" label="WhatsApp *" required placeholder="(11) 99999-9999" />
             <Field name="email" label="E-mail" type="email" />
             <Field name="cpf" label="CPF" placeholder="000.000.000-00" />
             <Field name="city" label="Cidade" />

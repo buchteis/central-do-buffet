@@ -1,5 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDateBR } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -15,25 +16,50 @@ export const Route = createFileRoute("/_authenticated/leads")({
   component: LeadsPage,
 });
 
+// Simplified pipeline: only two states surface in UI.
+// Legacy values (contatado/convertido/descartado) are treated as "em_andamento".
 const statusStyles: Record<string, string> = {
   novo: "bg-primary/10 text-primary",
-  contatado: "bg-info/10 text-info",
-  convertido: "bg-success/10 text-success",
-  descartado: "bg-muted text-muted-foreground",
+  em_andamento: "bg-info/10 text-info",
 };
 const statusLabels: Record<string, string> = {
   novo: "Novo",
-  contatado: "Contatado",
-  convertido: "Convertido",
-  descartado: "Descartado",
+  em_andamento: "Em andamento",
 };
+function normalizeStatus(s: string): "novo" | "em_andamento" {
+  return s === "novo" ? "novo" : "em_andamento";
+}
+
+type Period = "all" | "week" | "month" | "year";
+
+function periodRange(p: Period): { start: Date; end: Date } | null {
+  if (p === "all") return null;
+  const now = new Date();
+  if (p === "week") {
+    const start = new Date(now);
+    start.setDate(now.getDate() - now.getDay());
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(start);
+    end.setDate(start.getDate() + 7);
+    return { start, end };
+  }
+  if (p === "month") {
+    const start = new Date(now.getFullYear(), now.getMonth(), 1);
+    const end = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    return { start, end };
+  }
+  const start = new Date(now.getFullYear(), 0, 1);
+  const end = new Date(now.getFullYear() + 1, 0, 1);
+  return { start, end };
+}
 
 function LeadsPage() {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const { data: access } = useTenantAccess();
+  const [period, setPeriod] = useState<Period>("all");
 
-  const { data: leads } = useQuery({
+  const { data: leadsRaw } = useQuery({
     queryKey: ["leads", access?.tenant?.id],
     enabled: !!access?.tenant?.id,
     queryFn: async () => {
@@ -47,12 +73,22 @@ function LeadsPage() {
     },
   });
 
+  const range = periodRange(period);
+  const leads = (leadsRaw ?? []).filter((l: any) => {
+    if (!range) return true;
+    const ref = l.created_at ? new Date(l.created_at) : null;
+    return ref ? ref >= range.start && ref < range.end : false;
+  });
+
   const updateStatus = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
       const { error } = await supabase.from("leads").update({ status: status as any }).eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["leads"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["leads"] });
+      qc.invalidateQueries({ queryKey: ["quotes"] });
+    },
   });
 
   const remove = useMutation({
@@ -62,12 +98,10 @@ function LeadsPage() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["leads"] });
+      qc.invalidateQueries({ queryKey: ["quotes"] });
       toast.success("Lead excluído");
     },
   });
-
-  // Conversion now happens via navigation to the pre-filled quote form.
-
 
   const slug = access?.tenant?.slug;
   const publicUrl = slug ? `${window.location.origin}/orcamento/${slug}` : "";
@@ -78,28 +112,50 @@ function LeadsPage() {
         <div>
           <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">Leads</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            {leads?.length ?? 0} solicitação(ões) recebida(s) pelo formulário público
+            {leads.length} solicitação(ões) {period === "all" ? "recebidas" : "no período"}
           </p>
         </div>
-        {publicUrl && (
-          <div className="flex items-center gap-2">
-            <div className="bg-muted/50 border border-border rounded-full px-3 py-1.5 text-xs font-mono truncate max-w-[320px]">
-              {publicUrl}
-            </div>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={async () => {
-                const ok = await copyToClipboard(publicUrl);
-                if (ok) toast.success("Link copiado!");
-                else toast.error("Não foi possível copiar. Copie manualmente.");
-              }}
-            >
-              Copiar link
-            </Button>
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex bg-muted rounded-full p-1">
+            {([
+              { id: "all", label: "Tudo" },
+              { id: "week", label: "Semana" },
+              { id: "month", label: "Mês" },
+              { id: "year", label: "Ano" },
+            ] as { id: Period; label: string }[]).map((p) => (
+              <button
+                key={p.id}
+                onClick={() => setPeriod(p.id)}
+                className={cn(
+                  "px-3 py-1 text-xs font-bold rounded-full",
+                  period === p.id && "bg-background shadow",
+                )}
+              >
+                {p.label}
+              </button>
+            ))}
           </div>
-        )}
+          {publicUrl && (
+            <>
+              <div className="bg-muted/50 border border-border rounded-full px-3 py-1.5 text-xs font-mono truncate max-w-[320px]">
+                {publicUrl}
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={async () => {
+                  const ok = await copyToClipboard(publicUrl);
+                  if (ok) toast.success("Link copiado!");
+                  else toast.error("Não foi possível copiar. Copie manualmente.");
+                }}
+              >
+                Copiar link
+              </Button>
+            </>
+          )}
+        </div>
       </div>
+
 
       <div className="bg-card border border-border rounded-2xl shadow-sm overflow-hidden">
         {leads && leads.length > 0 ? (
@@ -142,13 +198,13 @@ function LeadsPage() {
                     </td>
                     <td className="px-4 py-4">
                       <select
-                        value={l.status}
+                        value={normalizeStatus(l.status)}
                         onChange={(e) =>
                           updateStatus.mutate({ id: l.id, status: e.target.value })
                         }
                         className={cn(
                           "text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-full border-0 cursor-pointer",
-                          statusStyles[l.status] ?? "bg-muted text-muted-foreground",
+                          statusStyles[normalizeStatus(l.status)],
                         )}
                       >
                         {Object.entries(statusLabels).map(([k, v]) => (
@@ -158,6 +214,7 @@ function LeadsPage() {
                         ))}
                       </select>
                     </td>
+
                     <td className="px-4 py-4">
                       <div className="flex items-center justify-end gap-1">
                         {(l.whatsapp || l.phone) && (

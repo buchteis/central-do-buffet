@@ -142,38 +142,40 @@ export async function openQuotePdf(input: QuotePdfInput) {
   const html = `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"/>
 <title>Orçamento ${esc(input.quoteNumber ?? "")}</title>
 <style>
-  @page { size: A4; margin: 16mm 14mm; }
+  @page { size: A4; margin: 22mm 20mm; }
   * { box-sizing: border-box; }
-  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; color: #111; font-size: 10.5pt; line-height: 1.45; margin: 0; }
-  .header { display: flex; justify-content: space-between; align-items: flex-start; gap: 18px; padding-bottom: 14px; border-bottom: 2px solid #111; }
-  .brand { display: flex; align-items: center; gap: 14px; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; color: #111; font-size: 10.5pt; line-height: 1.5; margin: 0; }
+  .header { display: flex; justify-content: space-between; align-items: flex-start; gap: 18px; padding: 4px 4px 18px; border-bottom: 2px solid #111; margin-bottom: 8px; }
+  .brand { display: flex; align-items: center; gap: 14px; padding-left: 2px; }
   .brand img { max-height: 68px; max-width: 200px; object-fit: contain; }
   .brand .name { font-size: 15pt; font-weight: 800; letter-spacing: .2px; }
   .brand .contact { font-size: 8.5pt; color: #555; margin-top: 2px; white-space: pre-line; }
-  .doc-meta { text-align: right; font-size: 9pt; }
+  .doc-meta { text-align: right; font-size: 9pt; padding-right: 2px; }
   .doc-meta .title { font-size: 12pt; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; color: #111; }
   .doc-meta .num { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; margin-top: 4px; font-size: 10pt; }
   .doc-meta .muted { color: #666; margin-top: 2px; }
-  section { margin-top: 18px; }
-  h2 { font-size: 9pt; text-transform: uppercase; letter-spacing: 1.4px; color: #666; margin: 0 0 6px; font-weight: 700; }
-  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 20px; }
-  .grid .row { display: flex; gap: 6px; font-size: 10pt; }
-  .grid .row .k { color: #666; min-width: 92px; }
+  section { margin-top: 20px; margin-bottom: 18px; padding: 0 2px; }
+  h2 { display: block; font-size: 9pt; text-transform: uppercase; letter-spacing: 1.4px; color: #444; margin: 0 0 12px; font-weight: 700; background: #f2f2f2; padding: 10px 14px; border-radius: 6px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 24px; padding: 4px 12px 0; }
+  .grid .row { display: flex; gap: 8px; font-size: 10pt; padding: 2px 0; }
+  .grid .row .k { color: #666; min-width: 100px; }
   .grid .row .v { color: #111; font-weight: 500; }
-  table { width: 100%; border-collapse: collapse; margin-top: 6px; }
-  th, td { padding: 8px 10px; border-bottom: 1px solid #e5e5e5; text-align: left; vertical-align: top; font-size: 10pt; }
+  table { width: 100%; border-collapse: collapse; margin: 4px 0 0; }
+  th, td { padding: 10px 14px; border-bottom: 1px solid #e5e5e5; text-align: left; vertical-align: top; font-size: 10pt; }
   th { font-size: 8.5pt; text-transform: uppercase; letter-spacing: 1px; color: #666; background: #fafafa; border-bottom: 1px solid #ddd; }
   td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
   td .muted { color: #777; font-size: 9pt; margin-top: 2px; }
-  .totals { margin-top: 10px; margin-left: auto; width: 55%; }
-  .totals .row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 10pt; }
-  .totals .row.total { border-top: 2px solid #111; margin-top: 6px; padding-top: 8px; font-weight: 800; font-size: 12pt; }
+  .totals { margin: 14px 12px 0 auto; width: 55%; }
+  .totals .row { display: flex; justify-content: space-between; padding: 5px 0; font-size: 10pt; }
+  .totals .row.total { border-top: 2px solid #111; margin-top: 8px; padding-top: 10px; font-weight: 800; font-size: 12pt; }
   .totals .row.sub { color: #444; }
-  .pill { display: inline-block; padding: 2px 8px; border: 1px solid #111; border-radius: 999px; font-size: 8.5pt; font-weight: 700; text-transform: uppercase; letter-spacing: .8px; }
-  .notes { white-space: pre-wrap; background: #fafafa; border: 1px solid #eee; border-radius: 8px; padding: 10px 12px; font-size: 10pt; }
-  .footer { margin-top: 22px; padding-top: 10px; border-top: 1px solid #ddd; color: #666; font-size: 8.5pt; display: flex; justify-content: space-between; }
-  .tags { margin-top: 6px; display: flex; gap: 6px; flex-wrap: wrap; }
-  .tag { font-size: 8.5pt; padding: 2px 8px; background: #f2f2f2; border-radius: 999px; color: #333; }
+  .pill { display: inline-block; padding: 4px 10px; border: 1px solid #111; border-radius: 999px; font-size: 8.5pt; font-weight: 700; text-transform: uppercase; letter-spacing: .8px; margin-left: 12px; }
+  .pay-detail { margin-top: 10px; padding: 0 12px; font-size: 10pt; }
+  .notes { white-space: pre-wrap; background: #fafafa; border: 1px solid #eee; border-radius: 8px; padding: 12px 16px; font-size: 10pt; margin: 0 4px; }
+  .footer { margin-top: 26px; padding: 12px 4px 0; border-top: 1px solid #ddd; color: #666; font-size: 8.5pt; display: flex; justify-content: space-between; }
+  .tags { margin-top: 10px; padding: 0 12px; display: flex; gap: 6px; flex-wrap: wrap; }
+  .tag { font-size: 8.5pt; padding: 3px 10px; background: #f2f2f2; border-radius: 999px; color: #333; }
+
 </style></head><body>
   <div class="header">
     <div class="brand">
@@ -255,8 +257,9 @@ export async function openQuotePdf(input: QuotePdfInput) {
     method
       ? `<section>
     <h2>Pagamento</h2>
-    <div><span class="pill">${esc(method)}</span></div>
-    ${payDetail ? `<div style="margin-top:6px; font-size:10pt;">${esc(payDetail)}</div>` : ""}
+    <div style="padding: 0 12px;"><span class="pill">${esc(method)}</span></div>
+    ${payDetail ? `<div class="pay-detail">${esc(payDetail)}</div>` : ""}
+
   </section>`
       : ""
   }

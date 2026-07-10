@@ -107,18 +107,35 @@ function NewQuotePage() {
     { description: string; value: number }[]
   >([]);
 
+  // Manual overrides — administrator has total freedom to edit price per person,
+  // entry (50%) and balance directly. `null` means "use auto value".
+  const [priceOverride, setPriceOverride] = useState<number | null>(null);
+  const [entryOverride, setEntryOverride] = useState<number | null>(null);
+  const [balanceOverride, setBalanceOverride] = useState<number | null>(null);
+
   const selectedPackage = packages?.find((p) => p.id === form.package_id);
-  const breakdown = useMemo(
+  const effectivePrice =
+    priceOverride ?? Number(selectedPackage?.price_per_person ?? 0);
+
+  const autoBreakdown = useMemo(
     () =>
       calcQuote({
-        pricePerPerson: Number(selectedPackage?.price_per_person ?? 0),
+        pricePerPerson: effectivePrice,
         adults: Number(form.adults) || 0,
         childrenCount: Number(form.children_count) || 0,
         childPrice: Number(form.child_price) || 0,
         customExtras,
       }),
-    [form, selectedPackage, customExtras],
+    [effectivePrice, form.adults, form.children_count, form.child_price, customExtras],
   );
+
+  const breakdown = useMemo(() => {
+    const entry = entryOverride ?? autoBreakdown.entry;
+    const balance =
+      balanceOverride ?? Math.round((autoBreakdown.total - entry) * 100) / 100;
+    return { ...autoBreakdown, entry, balance };
+  }, [autoBreakdown, entryOverride, balanceOverride]);
+
 
   const mut = useMutation({
     mutationFn: async () => {
@@ -155,10 +172,14 @@ function NewQuotePage() {
           has_freezer: form.has_freezer,
           extras: {
             child_price: form.child_price,
+            price_per_person_override: priceOverride,
+            entry_override: entryOverride,
+            balance_override: balanceOverride,
             custom: customExtras.filter(
               (e) => e.description.trim() !== "" || Number(e.value) > 0,
             ),
           },
+
           notes: form.notes || null,
           total_value: breakdown.total,
           entry_value: breakdown.entry,
@@ -226,8 +247,7 @@ function NewQuotePage() {
   });
 
 
-  // Prefill from lead when data arrives (only once). Never creates a client here;
-  // if no matching client exists, one is created on save.
+  // Prefill from lead when data arrives (only once). Never creates a client here.
   const [prefilled, setPrefilled] = useState(false);
   useEffect(() => {
     if (!leadId || prefilled || !lead) return;
@@ -236,13 +256,17 @@ function NewQuotePage() {
       navigate({ to: "/orcamentos" });
       return;
     }
-    // Public-link leads must NEVER auto-bind to an existing client.
-    // Keep client_id empty so the requester's data from the lead is used as-is;
-    // the client record is created on save from the lead's own information.
+    // Resolve package: prefer package_id from lead; otherwise match by name (package_desired)
+    let pkgId: string = (lead as any).package_id ?? "";
+    if (!pkgId && (lead as any).package_desired && packages?.length) {
+      const target = String((lead as any).package_desired).trim().toLowerCase();
+      const match = packages.find((p) => p.name.trim().toLowerCase() === target);
+      if (match) pkgId = match.id;
+    }
     setForm((f) => ({
       ...f,
       client_id: "",
-      package_id: (lead as any).package_id ?? f.package_id,
+      package_id: pkgId || f.package_id,
       event_date: (lead as any).event_date ?? f.event_date,
       event_time: (lead as any).event_time ?? f.event_time,
       event_address: (lead as any).event_address ?? f.event_address,
@@ -251,7 +275,8 @@ function NewQuotePage() {
       notes: (lead as any).notes ?? f.notes,
     }));
     setPrefilled(true);
-  }, [lead, clients, leadId, prefilled, navigate]);
+  }, [lead, packages, leadId, prefilled, navigate]);
+
 
 
 
@@ -374,12 +399,25 @@ function NewQuotePage() {
             />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <NumField
               label="Adultos"
               value={form.adults}
               onChange={(v) => setForm((f) => ({ ...f, adults: v }))}
             />
+            <div className="space-y-2">
+              <Label>Preço por pessoa (R$)</Label>
+              <Input
+                type="number"
+                min={0}
+                step="0.01"
+                value={effectivePrice}
+                onChange={(e) => setPriceOverride(Number(e.target.value) || 0)}
+              />
+              <p className="text-[10px] text-muted-foreground">
+                Edite livremente o valor por adulto.
+              </p>
+            </div>
             <NumField
               label="Nº de crianças"
               value={form.children_count}
@@ -392,6 +430,7 @@ function NewQuotePage() {
               step="0.01"
             />
           </div>
+
 
           <div className="grid grid-cols-2 gap-3 pt-2">
             <ToggleRow
@@ -551,8 +590,9 @@ function NewQuotePage() {
                     },
                     package: {
                       name: selectedPackage.name,
-                      pricePerPerson: Number(selectedPackage.price_per_person ?? 0),
+                      pricePerPerson: effectivePrice,
                     },
+
                     childPrice: form.child_price,
                     extras: customExtras.filter(
                       (e) => e.description.trim() !== "" || Number(e.value) > 0,
@@ -593,10 +633,7 @@ function NewQuotePage() {
             label={`Crianças (${form.children_count} × ${brl(form.child_price)})`}
             value={brl(breakdown.childrenSubtotal)}
           />
-          <SummaryRow
-            label="Preço por pessoa"
-            value={brl(selectedPackage?.price_per_person ?? 0)}
-          />
+          <SummaryRow label="Preço por pessoa" value={brl(effectivePrice)} />
           <SummaryRow label="Subtotal" value={brl(breakdown.subtotal)} />
           {breakdown.extras > 0 && <SummaryRow label="Acréscimos" value={brl(breakdown.extras)} />}
 
@@ -612,13 +649,28 @@ function NewQuotePage() {
           </div>
 
           <div className="pt-2 space-y-2 text-xs">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Entrada (50%)</span>
-              <span className="font-mono font-bold">{brl(breakdown.entry)}</span>
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-muted-foreground shrink-0">Entrada</span>
+              <Input
+                type="number"
+                min={0}
+                step="0.01"
+                value={breakdown.entry}
+                onChange={(e) => setEntryOverride(Number(e.target.value) || 0)}
+                className="h-8 max-w-[140px] text-right font-mono"
+              />
             </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Saldo</span>
-              <span className="font-mono font-bold">{brl(breakdown.balance)}</span>
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-muted-foreground shrink-0">Saldo</span>
+              <Input
+                type="number"
+                min={0}
+                step="0.01"
+                value={breakdown.balance}
+                onChange={(e) => setBalanceOverride(Number(e.target.value) || 0)}
+                className="h-8 max-w-[140px] text-right font-mono"
+              />
+
             </div>
           </div>
         </aside>
