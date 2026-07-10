@@ -172,10 +172,14 @@ function NewQuotePage() {
           has_freezer: form.has_freezer,
           extras: {
             child_price: form.child_price,
+            price_per_person_override: priceOverride,
+            entry_override: entryOverride,
+            balance_override: balanceOverride,
             custom: customExtras.filter(
               (e) => e.description.trim() !== "" || Number(e.value) > 0,
             ),
           },
+
           notes: form.notes || null,
           total_value: breakdown.total,
           entry_value: breakdown.entry,
