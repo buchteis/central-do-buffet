@@ -1,15 +1,13 @@
 import { Link, useRouter, useRouterState } from "@tanstack/react-router";
-import { type ReactNode, useState } from "react";
+import { type ReactNode } from "react";
 import { setGlobalSearch, useGlobalSearch } from "@/lib/search-store";
 import {
   BarChart3,
-  Bell,
   Calendar,
   FileSignature,
   FileText,
   Flame,
   Home,
-  Inbox,
   LogOut,
   Package,
   Receipt,
@@ -25,13 +23,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { useTenantAccess } from "@/hooks/useTenantAccess";
-import { useQuery } from "@tanstack/react-query";
 
 type NavItem = { to: string; label: string; icon: typeof Home };
 
 const primary: NavItem[] = [
   { to: "/dashboard", label: "Dashboard", icon: Home },
-  { to: "/leads", label: "Leads", icon: Inbox },
   { to: "/orcamentos", label: "Orçamentos", icon: FileText },
   { to: "/eventos", label: "Eventos", icon: Receipt },
   { to: "/contratos", label: "Contratos", icon: FileSignature },
@@ -48,20 +44,6 @@ export function AppShell({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const { data: access } = useTenantAccess();
-
-  const { data: leadsCount } = useQuery({
-    queryKey: ["leads-new-count", access?.tenant?.id],
-    enabled: !!access?.tenant?.id,
-    refetchInterval: 30_000,
-    queryFn: async () => {
-      const { count } = await supabase
-        .from("leads")
-        .select("id", { count: "exact", head: true })
-        .eq("tenant_id", access!.tenant!.id)
-        .eq("status", "novo");
-      return count ?? 0;
-    },
-  });
 
   async function handleSignOut() {
     await supabase.auth.signOut();
@@ -90,7 +72,6 @@ export function AppShell({ children }: { children: ReactNode }) {
               key={item.to}
               item={item}
               active={isActive(pathname, item.to)}
-              badge={item.to === "/leads" ? leadsCount : undefined}
             />
           ))}
           {access?.isSuperAdmin && (
@@ -133,22 +114,14 @@ export function AppShell({ children }: { children: ReactNode }) {
       </aside>
 
       <main className="flex-1 flex flex-col min-w-0">
-        <TopBar leadsCount={leadsCount ?? 0} />
+        <TopBar />
         <div className="flex-1 p-4 md:p-8 max-w-[1280px] mx-auto w-full">{children}</div>
       </main>
     </div>
   );
 }
 
-function SideLink({
-  item,
-  active,
-  badge,
-}: {
-  item: NavItem;
-  active: boolean;
-  badge?: number;
-}) {
+function SideLink({ item, active }: { item: NavItem; active: boolean }) {
   const Icon = item.icon;
   return (
     <Link
@@ -162,11 +135,6 @@ function SideLink({
     >
       <Icon className="size-4 shrink-0" />
       <span className="truncate flex-1">{item.label}</span>
-      {badge ? (
-        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-primary text-primary-foreground min-w-4 text-center">
-          {badge}
-        </span>
-      ) : null}
     </Link>
   );
 }
@@ -176,7 +144,7 @@ function isActive(pathname: string, to: string) {
   return pathname === to || pathname.startsWith(to + "/");
 }
 
-function TopBar({ leadsCount }: { leadsCount: number }) {
+function TopBar() {
   const q = useGlobalSearch();
   const router = useRouter();
   return (
@@ -192,18 +160,6 @@ function TopBar({ leadsCount }: { leadsCount: number }) {
         />
       </div>
       <div className="flex items-center gap-2 md:gap-3">
-        <button
-          onClick={() => router.navigate({ to: "/leads" })}
-          className="relative p-2 text-muted-foreground hover:text-foreground transition-colors"
-          title="Leads novos"
-        >
-          <Bell className="size-5" />
-          {leadsCount > 0 && (
-            <span className="absolute -top-0.5 -right-0.5 text-[9px] font-bold min-w-4 h-4 px-1 rounded-full bg-primary text-primary-foreground flex items-center justify-center ring-2 ring-background">
-              {leadsCount}
-            </span>
-          )}
-        </button>
         <Button
           onClick={() => router.navigate({ to: "/orcamentos/novo" })}
           className="rounded-full shadow-lg shadow-primary/20 font-bold text-xs"
