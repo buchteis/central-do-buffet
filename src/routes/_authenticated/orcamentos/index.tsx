@@ -522,6 +522,7 @@ function QuotesPage() {
                 <th className="px-4 py-3 font-bold">Pacote</th>
                 <th className="px-4 py-3 font-bold text-right">Total</th>
                 <th className="px-4 py-3 font-bold">Etapa</th>
+                <th className="px-4 py-3 font-bold text-center">Pago</th>
                 <th className="px-4 py-3 font-bold text-center">Ações</th>
               </tr>
             </thead>
