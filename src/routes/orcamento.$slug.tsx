@@ -86,6 +86,7 @@ function PublicQuoteForm() {
         phone: payload.phone,
         whatsapp: payload.whatsapp || payload.phone,
         email: payload.email || null,
+        cpf: payload.cpf || null,
         city: payload.city || null,
         event_address: payload.event_address || null,
         event_date: payload.event_date,
