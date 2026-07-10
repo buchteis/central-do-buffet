@@ -431,8 +431,25 @@ function QuotesPage() {
                           <div className="text-[11px] text-muted-foreground truncate">
                             {q.packages?.name ?? "Sem pacote"} · {formatDateBR(q.event_date)}
                           </div>
-                          <div className="font-mono font-bold text-sm mt-1">
-                            {brl(q.total_value)}
+                          <div className="mt-1 flex items-center justify-between gap-2">
+                            <div className="font-mono font-bold text-sm">
+                              {brl(q.total_value)}
+                            </div>
+                            {stageOf(q.status) === "fechado" && (
+                              <button
+                                onClick={() => togglePaid.mutate({ id: q.id, paid: !q.paid })}
+                                title={q.paid ? "Marcar como não pago" : "Marcar como pago"}
+                                className={cn(
+                                  "inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-full border transition",
+                                  q.paid
+                                    ? "bg-emerald-500 text-white border-emerald-500"
+                                    : "bg-background text-muted-foreground border-border hover:border-emerald-500 hover:text-emerald-600",
+                                )}
+                              >
+                                {q.paid ? <CheckCircle2 className="size-3" /> : <Circle className="size-3" />}
+                                {q.paid ? "Pago" : "Pago?"}
+                              </button>
+                            )}
                           </div>
                           <select
                             value={stageOf(q.status)}
@@ -445,6 +462,7 @@ function QuotesPage() {
                               </option>
                             ))}
                           </select>
+
 
                           <div className="mt-2 flex items-center gap-1">
                             {phone && (
