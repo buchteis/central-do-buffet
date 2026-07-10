@@ -198,13 +198,13 @@ function LeadsPage() {
                     </td>
                     <td className="px-4 py-4">
                       <select
-                        value={l.status}
+                        value={normalizeStatus(l.status)}
                         onChange={(e) =>
                           updateStatus.mutate({ id: l.id, status: e.target.value })
                         }
                         className={cn(
                           "text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-full border-0 cursor-pointer",
-                          statusStyles[l.status] ?? "bg-muted text-muted-foreground",
+                          statusStyles[normalizeStatus(l.status)],
                         )}
                       >
                         {Object.entries(statusLabels).map(([k, v]) => (
@@ -214,6 +214,7 @@ function LeadsPage() {
                         ))}
                       </select>
                     </td>
+
                     <td className="px-4 py-4">
                       <div className="flex items-center justify-end gap-1">
                         {(l.whatsapp || l.phone) && (
