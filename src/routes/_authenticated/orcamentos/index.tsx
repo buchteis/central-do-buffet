@@ -11,6 +11,7 @@ import {
   Pencil,
   ChevronLeft,
   ChevronRight,
+  Link2,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { brl, formatDateBR } from "@/lib/format";
@@ -20,6 +21,8 @@ import { toast } from "sonner";
 import { useGlobalSearch, normalizeSearch } from "@/lib/search-store";
 import { openQuotePdf } from "@/lib/quote-pdf";
 import { calcQuote } from "@/lib/quote-calc";
+import { copyToClipboard } from "@/lib/clipboard";
+import { useTenantAccess } from "@/hooks/useTenantAccess";
 
 export const Route = createFileRoute("/_authenticated/orcamentos/")({
   head: () => ({ meta: [{ title: "Orçamentos — Meu Churras" }] }),
@@ -100,6 +103,10 @@ function QuotesPage() {
   const navigate = useNavigate();
   const search = useGlobalSearch();
   const nq = normalizeSearch(search);
+  const { data: access } = useTenantAccess();
+  const slug = access?.tenant?.slug;
+  const publicUrl =
+    slug && typeof window !== "undefined" ? `${window.location.origin}/orcamento/${slug}` : "";
 
   const { data } = useQuery({
     queryKey: ["quotes"],
@@ -294,6 +301,19 @@ function QuotesPage() {
               <List className="size-3" /> Lista
             </button>
           </div>
+          {publicUrl && (
+            <button
+              onClick={async () => {
+                const ok = await copyToClipboard(publicUrl);
+                if (ok) toast.success("Link do formulário copiado!");
+                else toast.error("Não foi possível copiar. Copie manualmente.");
+              }}
+              title={publicUrl}
+              className="inline-flex items-center gap-1 h-9 px-4 rounded-full border border-border bg-background text-xs font-bold hover:bg-accent"
+            >
+              <Link2 className="size-4" /> Copiar link do formulário
+            </button>
+          )}
           <Link
             to="/orcamentos/novo"
             className="inline-flex items-center gap-1 h-9 px-4 rounded-full bg-primary text-primary-foreground text-xs font-bold shadow-lg shadow-primary/20"
