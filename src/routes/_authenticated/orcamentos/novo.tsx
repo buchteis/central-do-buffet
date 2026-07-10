@@ -280,36 +280,38 @@ function NewQuotePage() {
           className="lg:col-span-2 bg-card border border-border rounded-2xl p-6 space-y-4"
         >
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Cliente *</Label>
-              <Select
-                value={form.client_id}
-                onValueChange={(v) => setForm((f) => ({ ...f, client_id: v }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione…" />
-                </SelectTrigger>
-                <SelectContent>
-                  {(clients ?? []).map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.name}
-                    </SelectItem>
-                  ))}
-                  {(clients ?? []).length === 0 && (
-                    <div className="p-4 text-xs text-muted-foreground">
-                      Cadastre um cliente antes.
-                    </div>
-                  )}
-                </SelectContent>
-              </Select>
-              {!form.client_id && lead && (
-                <p className="text-[11px] text-muted-foreground">
-                  Este orçamento está usando os dados do lead:{" "}
-                  <strong>{(lead as any).name}</strong>
-                  {(lead as any).phone ? ` · ${(lead as any).phone}` : ""}
-                </p>
+            <div className="space-y-2 md:col-span-2">
+              <Label>Cliente / Solicitante *</Label>
+              {lead && !form.client_id ? (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <Input readOnly value={(lead as any).name ?? ""} placeholder="Nome do solicitante" />
+                  <Input readOnly value={(lead as any).phone ?? ""} placeholder="Telefone" />
+                  <Input readOnly value={(lead as any).email ?? ""} placeholder="E-mail" />
+                </div>
+              ) : (
+                <Select
+                  value={form.client_id}
+                  onValueChange={(v) => setForm((f) => ({ ...f, client_id: v }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(clients ?? []).map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.name}
+                      </SelectItem>
+                    ))}
+                    {(clients ?? []).length === 0 && (
+                      <div className="p-4 text-xs text-muted-foreground">
+                        Cadastre um cliente antes.
+                      </div>
+                    )}
+                  </SelectContent>
+                </Select>
               )}
             </div>
+
 
             <div className="space-y-2">
               <Label>Pacote *</Label>
