@@ -35,6 +35,7 @@ const schema = z.object({
   phone: z.string().trim().min(8, "Telefone inválido").max(20),
   whatsapp: z.string().trim().max(20).optional(),
   email: z.string().trim().email("E-mail inválido").max(255).optional().or(z.literal("")),
+  cpf: z.string().trim().max(20).optional(),
   city: z.string().trim().max(80).optional(),
   event_address: z.string().trim().max(200).optional(),
   event_date: z.string().min(1, "Data obrigatória"),
