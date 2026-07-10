@@ -128,30 +128,12 @@ function NewQuotePage() {
       const { data: userRes } = await supabase.auth.getUser();
       if (!userRes.user) throw new Error("Sessão expirada");
 
-      // Resolve client: use selected one, otherwise create from lead data on save.
-      let clientId = form.client_id;
-      if (!clientId) {
-        if (!lead) throw new Error("Selecione um cliente");
-        const { data: created, error: cErr } = await supabase
-          .from("clients")
-          .insert({
-            owner_id: userRes.user.id,
-            tenant_id: access?.tenant?.id ?? null,
-            name: (lead as any).name ?? "Cliente",
-            phone: (lead as any).phone ?? null,
-            whatsapp: (lead as any).whatsapp ?? (lead as any).phone ?? null,
-            email: (lead as any).email ?? null,
-            city: (lead as any).city ?? null,
-            address: (lead as any).event_address ?? null,
-            notes: (lead as any).notes ?? null,
-            origem: "link_orcamento",
-            status: "novo_cliente",
-          } as any)
-          .select("id")
-          .single();
-        if (cErr || !created) throw new Error(cErr?.message ?? "Falha ao criar cliente");
-        clientId = created.id;
+      // Use selected client if any. Never auto-create a client from a lead here —
+      // client cadastro só acontece por ação explícita de conversão.
+      if (!form.client_id && !lead) {
+        throw new Error("Selecione um cliente");
       }
+      const clientId: string | null = form.client_id || null;
 
       const valid = new Date();
       valid.setDate(valid.getDate() + 7);
@@ -321,8 +303,8 @@ function NewQuotePage() {
                 </SelectContent>
               </Select>
               {!form.client_id && lead && (
-                <p className="text-[11px] text-primary">
-                  Novo cliente será criado a partir do lead ao salvar:{" "}
+                <p className="text-[11px] text-muted-foreground">
+                  Este orçamento está usando os dados do lead:{" "}
                   <strong>{(lead as any).name}</strong>
                   {(lead as any).phone ? ` · ${(lead as any).phone}` : ""}
                 </p>
