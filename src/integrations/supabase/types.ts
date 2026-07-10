@@ -466,6 +466,7 @@ export type Database = {
         Row: {
           city: string | null
           converted_quote_id: string | null
+          cpf: string | null
           created_at: string
           email: string | null
           event_address: string | null
@@ -488,6 +489,7 @@ export type Database = {
         Insert: {
           city?: string | null
           converted_quote_id?: string | null
+          cpf?: string | null
           created_at?: string
           email?: string | null
           event_address?: string | null
@@ -510,6 +512,7 @@ export type Database = {
         Update: {
           city?: string | null
           converted_quote_id?: string | null
+          cpf?: string | null
           created_at?: string
           email?: string | null
           event_address?: string | null
