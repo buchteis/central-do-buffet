@@ -590,8 +590,9 @@ function NewQuotePage() {
                     },
                     package: {
                       name: selectedPackage.name,
-                      pricePerPerson: Number(selectedPackage.price_per_person ?? 0),
+                      pricePerPerson: effectivePrice,
                     },
+
                     childPrice: form.child_price,
                     extras: customExtras.filter(
                       (e) => e.description.trim() !== "" || Number(e.value) > 0,
