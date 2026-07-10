@@ -107,18 +107,35 @@ function NewQuotePage() {
     { description: string; value: number }[]
   >([]);
 
+  // Manual overrides — administrator has total freedom to edit price per person,
+  // entry (50%) and balance directly. `null` means "use auto value".
+  const [priceOverride, setPriceOverride] = useState<number | null>(null);
+  const [entryOverride, setEntryOverride] = useState<number | null>(null);
+  const [balanceOverride, setBalanceOverride] = useState<number | null>(null);
+
   const selectedPackage = packages?.find((p) => p.id === form.package_id);
-  const breakdown = useMemo(
+  const effectivePrice =
+    priceOverride ?? Number(selectedPackage?.price_per_person ?? 0);
+
+  const autoBreakdown = useMemo(
     () =>
       calcQuote({
-        pricePerPerson: Number(selectedPackage?.price_per_person ?? 0),
+        pricePerPerson: effectivePrice,
         adults: Number(form.adults) || 0,
         childrenCount: Number(form.children_count) || 0,
         childPrice: Number(form.child_price) || 0,
         customExtras,
       }),
-    [form, selectedPackage, customExtras],
+    [effectivePrice, form.adults, form.children_count, form.child_price, customExtras],
   );
+
+  const breakdown = useMemo(() => {
+    const entry = entryOverride ?? autoBreakdown.entry;
+    const balance =
+      balanceOverride ?? Math.round((autoBreakdown.total - entry) * 100) / 100;
+    return { ...autoBreakdown, entry, balance };
+  }, [autoBreakdown, entryOverride, balanceOverride]);
+
 
   const mut = useMutation({
     mutationFn: async () => {
