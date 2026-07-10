@@ -395,12 +395,25 @@ function NewQuotePage() {
             />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <NumField
               label="Adultos"
               value={form.adults}
               onChange={(v) => setForm((f) => ({ ...f, adults: v }))}
             />
+            <div className="space-y-2">
+              <Label>Preço por pessoa (R$)</Label>
+              <Input
+                type="number"
+                min={0}
+                step="0.01"
+                value={effectivePrice}
+                onChange={(e) => setPriceOverride(Number(e.target.value) || 0)}
+              />
+              <p className="text-[10px] text-muted-foreground">
+                Edite livremente o valor por adulto.
+              </p>
+            </div>
             <NumField
               label="Nº de crianças"
               value={form.children_count}
@@ -413,6 +426,7 @@ function NewQuotePage() {
               step="0.01"
             />
           </div>
+
 
           <div className="grid grid-cols-2 gap-3 pt-2">
             <ToggleRow
