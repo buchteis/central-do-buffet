@@ -243,8 +243,7 @@ function NewQuotePage() {
   });
 
 
-  // Prefill from lead when data arrives (only once). Never creates a client here;
-  // if no matching client exists, one is created on save.
+  // Prefill from lead when data arrives (only once). Never creates a client here.
   const [prefilled, setPrefilled] = useState(false);
   useEffect(() => {
     if (!leadId || prefilled || !lead) return;
@@ -253,13 +252,17 @@ function NewQuotePage() {
       navigate({ to: "/orcamentos" });
       return;
     }
-    // Public-link leads must NEVER auto-bind to an existing client.
-    // Keep client_id empty so the requester's data from the lead is used as-is;
-    // the client record is created on save from the lead's own information.
+    // Resolve package: prefer package_id from lead; otherwise match by name (package_desired)
+    let pkgId: string = (lead as any).package_id ?? "";
+    if (!pkgId && (lead as any).package_desired && packages?.length) {
+      const target = String((lead as any).package_desired).trim().toLowerCase();
+      const match = packages.find((p) => p.name.trim().toLowerCase() === target);
+      if (match) pkgId = match.id;
+    }
     setForm((f) => ({
       ...f,
       client_id: "",
-      package_id: (lead as any).package_id ?? f.package_id,
+      package_id: pkgId || f.package_id,
       event_date: (lead as any).event_date ?? f.event_date,
       event_time: (lead as any).event_time ?? f.event_time,
       event_address: (lead as any).event_address ?? f.event_address,
@@ -268,7 +271,8 @@ function NewQuotePage() {
       notes: (lead as any).notes ?? f.notes,
     }));
     setPrefilled(true);
-  }, [lead, clients, leadId, prefilled, navigate]);
+  }, [lead, packages, leadId, prefilled, navigate]);
+
 
 
 
