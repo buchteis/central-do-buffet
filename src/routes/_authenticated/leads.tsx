@@ -112,28 +112,50 @@ function LeadsPage() {
         <div>
           <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">Leads</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            {leads?.length ?? 0} solicitação(ões) recebida(s) pelo formulário público
+            {leads.length} solicitação(ões) {period === "all" ? "recebidas" : "no período"}
           </p>
         </div>
-        {publicUrl && (
-          <div className="flex items-center gap-2">
-            <div className="bg-muted/50 border border-border rounded-full px-3 py-1.5 text-xs font-mono truncate max-w-[320px]">
-              {publicUrl}
-            </div>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={async () => {
-                const ok = await copyToClipboard(publicUrl);
-                if (ok) toast.success("Link copiado!");
-                else toast.error("Não foi possível copiar. Copie manualmente.");
-              }}
-            >
-              Copiar link
-            </Button>
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex bg-muted rounded-full p-1">
+            {([
+              { id: "all", label: "Tudo" },
+              { id: "week", label: "Semana" },
+              { id: "month", label: "Mês" },
+              { id: "year", label: "Ano" },
+            ] as { id: Period; label: string }[]).map((p) => (
+              <button
+                key={p.id}
+                onClick={() => setPeriod(p.id)}
+                className={cn(
+                  "px-3 py-1 text-xs font-bold rounded-full",
+                  period === p.id && "bg-background shadow",
+                )}
+              >
+                {p.label}
+              </button>
+            ))}
           </div>
-        )}
+          {publicUrl && (
+            <>
+              <div className="bg-muted/50 border border-border rounded-full px-3 py-1.5 text-xs font-mono truncate max-w-[320px]">
+                {publicUrl}
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={async () => {
+                  const ok = await copyToClipboard(publicUrl);
+                  if (ok) toast.success("Link copiado!");
+                  else toast.error("Não foi possível copiar. Copie manualmente.");
+                }}
+              >
+                Copiar link
+              </Button>
+            </>
+          )}
+        </div>
       </div>
+
 
       <div className="bg-card border border-border rounded-2xl shadow-sm overflow-hidden">
         {leads && leads.length > 0 ? (
