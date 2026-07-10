@@ -209,8 +209,9 @@ function QuotesPage() {
             </thead>
             <tbody className="divide-y divide-border">
               {filtered.map((q: any) => {
-                const stage = pipeline.find((s) => s.id === q.status);
+                const stage = pipeline.find((s) => s.id === stageOf(q.status));
                 return (
+
                   <tr key={q.id} className="hover:bg-muted/30">
                     <td className="px-5 py-4 text-sm font-semibold">{q.clients?.name ?? "—"}</td>
                     <td className="px-4 py-4 text-xs font-mono">{formatDateBR(q.event_date)}</td>
