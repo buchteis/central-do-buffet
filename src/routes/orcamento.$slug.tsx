@@ -78,25 +78,21 @@ function PublicQuoteForm() {
 
   const submit = useMutation({
     mutationFn: async (payload: z.infer<typeof schema>) => {
-      if (!tenant?.id) throw new Error("Buffet não encontrado");
-      const chosenPkg = (packages ?? []).find((p) => p.id === payload.package_id);
-      const { error } = await supabase.from("leads").insert({
-        tenant_id: tenant.id,
-        name: payload.name,
-        phone: payload.whatsapp,
-        whatsapp: payload.whatsapp,
-        email: payload.email || null,
-        cpf: payload.cpf || null,
-        city: payload.city || null,
-        event_address: payload.event_address || null,
-        event_date: payload.event_date,
-        event_time: payload.event_time || null,
-        guest_count: payload.guest_count,
-        event_type: payload.event_type || null,
-        package_desired: chosenPkg?.name ?? payload.package_desired ?? null,
-        package_id: payload.package_id || null,
-        notes: payload.notes || null,
-        source: "formulario_publico",
+      if (!tenant?.slug) throw new Error("Buffet não encontrado");
+      const { error } = await supabase.rpc("submit_public_quote", {
+        p_slug: tenant.slug,
+        p_name: payload.name,
+        p_whatsapp: payload.whatsapp,
+        p_email: payload.email || null,
+        p_cpf: payload.cpf || null,
+        p_city: payload.city || null,
+        p_event_address: payload.event_address || null,
+        p_event_date: payload.event_date,
+        p_event_time: payload.event_time || null,
+        p_guest_count: payload.guest_count,
+        p_event_type: payload.event_type || null,
+        p_package_id: payload.package_id || null,
+        p_notes: payload.notes || null,
       } as any);
       if (error) throw error;
     },

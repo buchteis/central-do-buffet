@@ -419,14 +419,16 @@ function QuotesPage() {
                   </div>
                   <div className="p-2 space-y-2 overflow-y-auto flex-1">
                     {items.map((q: any) => {
-                      const phone = q.clients?.whatsapp ?? q.clients?.phone;
+                      const requester = (q.extras as any)?.requester ?? {};
+                      const displayName = q.clients?.name ?? requester.name ?? "—";
+                      const phone = q.clients?.whatsapp ?? q.clients?.phone ?? requester.whatsapp;
                       return (
                         <div
                           key={q.id}
                           className="bg-card border border-border rounded-xl p-3 shadow-sm hover:border-primary/40 transition-colors"
                         >
                           <div className="font-semibold text-sm truncate">
-                            {q.clients?.name ?? "—"}
+                            {displayName}
                           </div>
                           <div className="text-[11px] text-muted-foreground truncate">
                             {q.packages?.name ?? "Sem pacote"} · {formatDateBR(q.event_date)}
@@ -529,11 +531,13 @@ function QuotesPage() {
             <tbody className="divide-y divide-border">
               {filtered.map((q: any) => {
                 const stage = pipeline.find((s) => s.id === stageOf(q.status));
-                const phone = q.clients?.whatsapp ?? q.clients?.phone;
+                const requester = (q.extras as any)?.requester ?? {};
+                const displayName = q.clients?.name ?? requester.name ?? "—";
+                const phone = q.clients?.whatsapp ?? q.clients?.phone ?? requester.whatsapp;
                 return (
                   <tr key={q.id} className="hover:bg-muted/30">
                     <td className="px-5 py-4 text-sm font-semibold">
-                      {q.clients?.name ?? "—"}
+                      {displayName}
                     </td>
                     <td className="px-4 py-4 text-xs font-mono">
                       {formatDateBR(q.event_date)}
