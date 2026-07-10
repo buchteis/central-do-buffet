@@ -137,7 +137,23 @@ function QuotesPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["quotes"] });
       qc.invalidateQueries({ queryKey: ["leads"] });
+      qc.invalidateQueries({ queryKey: ["agenda"] });
+      qc.invalidateQueries({ queryKey: ["dashboard-stats-v2"] });
       toast.success("Etapa atualizada");
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const togglePaid = useMutation({
+    mutationFn: async ({ id, paid }: { id: string; paid: boolean }) => {
+      const { error } = await supabase.from("quotes").update({ paid } as any).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: ["quotes"] });
+      qc.invalidateQueries({ queryKey: ["agenda"] });
+      qc.invalidateQueries({ queryKey: ["dashboard-stats-v2"] });
+      toast.success(vars.paid ? "Marcado como pago" : "Pagamento removido");
     },
     onError: (e: any) => toast.error(e.message),
   });
@@ -149,10 +165,25 @@ function QuotesPage() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["quotes"] });
+      qc.invalidateQueries({ queryKey: ["agenda"] });
+      qc.invalidateQueries({ queryKey: ["dashboard-stats-v2"] });
       toast.success("Orçamento excluído");
     },
     onError: (e: any) => toast.error(e.message),
   });
+
+  useEffect(() => {
+    const ch = supabase
+      .channel("quotes-live")
+      .on("postgres_changes", { event: "*", schema: "public", table: "quotes" }, () => {
+        qc.invalidateQueries({ queryKey: ["quotes"] });
+      })
+      .subscribe();
+    return () => {
+      supabase.removeChannel(ch);
+    };
+  }, [qc]);
+
 
   const range = useMemo(() => periodRange(period, offset), [period, offset]);
 
