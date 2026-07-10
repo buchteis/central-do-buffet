@@ -901,6 +901,24 @@ export type Database = {
         Returns: boolean
       }
       slugify: { Args: { txt: string }; Returns: string }
+      submit_public_quote: {
+        Args: {
+          p_city: string
+          p_cpf: string
+          p_email: string
+          p_event_address: string
+          p_event_date: string
+          p_event_time: string
+          p_event_type: string
+          p_guest_count: number
+          p_name: string
+          p_notes: string
+          p_package_id: string
+          p_slug: string
+          p_whatsapp: string
+        }
+        Returns: string
+      }
       unaccent_string: { Args: { txt: string }; Returns: string }
     }
     Enums: {
