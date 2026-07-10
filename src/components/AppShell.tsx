@@ -176,7 +176,7 @@ function isActive(pathname: string, to: string) {
 }
 
 function TopBar({ leadsCount }: { leadsCount: number }) {
-  const [q, setQ] = useState("");
+  const q = useGlobalSearch();
   const router = useRouter();
   return (
     <header className="h-16 border-b border-border bg-background/80 backdrop-blur flex items-center justify-between px-4 md:px-8 sticky top-0 z-10">
@@ -185,7 +185,7 @@ function TopBar({ leadsCount }: { leadsCount: number }) {
         <input
           type="search"
           value={q}
-          onChange={(e) => setQ(e.target.value)}
+          onChange={(e) => setGlobalSearch(e.target.value)}
           placeholder="Buscar cliente, orçamento…"
           className="w-full bg-muted/40 border border-border rounded-full py-2 pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:bg-background transition"
         />
