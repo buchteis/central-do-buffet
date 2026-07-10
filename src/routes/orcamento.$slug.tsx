@@ -177,6 +177,8 @@ function PublicQuoteForm() {
             <Field name="phone" label="Telefone *" required placeholder="(11) 99999-9999" />
             <Field name="whatsapp" label="WhatsApp" placeholder="(11) 99999-9999" />
             <Field name="email" label="E-mail" type="email" />
+            <Field name="email" label="E-mail" type="email" />
+            <Field name="cpf" label="CPF" placeholder="000.000.000-00" />
             <Field name="city" label="Cidade" />
             <Field name="event_type" label="Tipo do evento" placeholder="Aniversário, casamento…" />
           </div>
