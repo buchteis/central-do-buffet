@@ -297,6 +297,19 @@ function QuotesPage() {
               <List className="size-3" /> Lista
             </button>
           </div>
+          {publicUrl && (
+            <button
+              onClick={async () => {
+                const ok = await copyToClipboard(publicUrl);
+                if (ok) toast.success("Link do formulário copiado!");
+                else toast.error("Não foi possível copiar. Copie manualmente.");
+              }}
+              title={publicUrl}
+              className="inline-flex items-center gap-1 h-9 px-4 rounded-full border border-border bg-background text-xs font-bold hover:bg-accent"
+            >
+              <Link2 className="size-4" /> Copiar link do formulário
+            </button>
+          )}
           <Link
             to="/orcamentos/novo"
             className="inline-flex items-center gap-1 h-9 px-4 rounded-full bg-primary text-primary-foreground text-xs font-bold shadow-lg shadow-primary/20"
