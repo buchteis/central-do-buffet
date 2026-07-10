@@ -1,5 +1,6 @@
 import { Link, useRouter, useRouterState } from "@tanstack/react-router";
 import { type ReactNode, useState } from "react";
+import { setGlobalSearch, useGlobalSearch } from "@/lib/search-store";
 import {
   BarChart3,
   Bell,
