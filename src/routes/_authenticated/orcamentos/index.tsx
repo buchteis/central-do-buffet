@@ -12,6 +12,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Link2,
+  CheckCircle2,
+  Circle,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { brl, formatDateBR } from "@/lib/format";
@@ -23,6 +25,7 @@ import { openQuotePdf } from "@/lib/quote-pdf";
 import { calcQuote } from "@/lib/quote-calc";
 import { copyToClipboard } from "@/lib/clipboard";
 import { useTenantAccess } from "@/hooks/useTenantAccess";
+import { useEffect } from "react";
 
 export const Route = createFileRoute("/_authenticated/orcamentos/")({
   head: () => ({ meta: [{ title: "Orçamentos — Meu Churras" }] }),
@@ -37,13 +40,18 @@ function whatsappMessage(q: any) {
   return `Olá, ${name}! Tudo bem? Aqui é do Meu Churras. Estou entrando em contato sobre o orçamento do seu evento em ${date} (${pkg}). O investimento estimado é ${value}. Posso te passar mais detalhes?`;
 }
 
-const pipeline: { id: string; label: string; tone: string }[] = [
+type Stage = "novo" | "em_andamento" | "fechado";
+const pipeline: { id: Stage; label: string; tone: string }[] = [
   { id: "novo", label: "Novo", tone: "bg-slate-500/10 text-slate-600 border-slate-500/20" },
   { id: "em_andamento", label: "Em andamento", tone: "bg-blue-500/10 text-blue-600 border-blue-500/20" },
+  { id: "fechado", label: "Fechado", tone: "bg-emerald-500/10 text-emerald-700 border-emerald-500/20" },
 ];
-function stageOf(status: string): "novo" | "em_andamento" {
-  return status === "novo" ? "novo" : "em_andamento";
+function stageOf(status: string): Stage {
+  if (status === "fechado" || status === "aprovado") return "fechado";
+  if (status === "novo") return "novo";
+  return "em_andamento";
 }
+
 
 type Period = "all" | "day" | "week" | "month" | "year";
 
@@ -129,7 +137,23 @@ function QuotesPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["quotes"] });
       qc.invalidateQueries({ queryKey: ["leads"] });
+      qc.invalidateQueries({ queryKey: ["agenda"] });
+      qc.invalidateQueries({ queryKey: ["dashboard-stats-v2"] });
       toast.success("Etapa atualizada");
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const togglePaid = useMutation({
+    mutationFn: async ({ id, paid }: { id: string; paid: boolean }) => {
+      const { error } = await supabase.from("quotes").update({ paid } as any).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: ["quotes"] });
+      qc.invalidateQueries({ queryKey: ["agenda"] });
+      qc.invalidateQueries({ queryKey: ["dashboard-stats-v2"] });
+      toast.success(vars.paid ? "Marcado como pago" : "Pagamento removido");
     },
     onError: (e: any) => toast.error(e.message),
   });
@@ -141,10 +165,25 @@ function QuotesPage() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["quotes"] });
+      qc.invalidateQueries({ queryKey: ["agenda"] });
+      qc.invalidateQueries({ queryKey: ["dashboard-stats-v2"] });
       toast.success("Orçamento excluído");
     },
     onError: (e: any) => toast.error(e.message),
   });
+
+  useEffect(() => {
+    const ch = supabase
+      .channel("quotes-live")
+      .on("postgres_changes", { event: "*", schema: "public", table: "quotes" }, () => {
+        qc.invalidateQueries({ queryKey: ["quotes"] });
+      })
+      .subscribe();
+    return () => {
+      supabase.removeChannel(ch);
+    };
+  }, [qc]);
+
 
   const range = useMemo(() => periodRange(period, offset), [period, offset]);
 
@@ -392,8 +431,25 @@ function QuotesPage() {
                           <div className="text-[11px] text-muted-foreground truncate">
                             {q.packages?.name ?? "Sem pacote"} · {formatDateBR(q.event_date)}
                           </div>
-                          <div className="font-mono font-bold text-sm mt-1">
-                            {brl(q.total_value)}
+                          <div className="mt-1 flex items-center justify-between gap-2">
+                            <div className="font-mono font-bold text-sm">
+                              {brl(q.total_value)}
+                            </div>
+                            {stageOf(q.status) === "fechado" && (
+                              <button
+                                onClick={() => togglePaid.mutate({ id: q.id, paid: !q.paid })}
+                                title={q.paid ? "Marcar como não pago" : "Marcar como pago"}
+                                className={cn(
+                                  "inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-full border transition",
+                                  q.paid
+                                    ? "bg-emerald-500 text-white border-emerald-500"
+                                    : "bg-background text-muted-foreground border-border hover:border-emerald-500 hover:text-emerald-600",
+                                )}
+                              >
+                                {q.paid ? <CheckCircle2 className="size-3" /> : <Circle className="size-3" />}
+                                {q.paid ? "Pago" : "Pago?"}
+                              </button>
+                            )}
                           </div>
                           <select
                             value={stageOf(q.status)}
@@ -406,6 +462,7 @@ function QuotesPage() {
                               </option>
                             ))}
                           </select>
+
 
                           <div className="mt-2 flex items-center gap-1">
                             {phone && (
@@ -465,6 +522,7 @@ function QuotesPage() {
                 <th className="px-4 py-3 font-bold">Pacote</th>
                 <th className="px-4 py-3 font-bold text-right">Total</th>
                 <th className="px-4 py-3 font-bold">Etapa</th>
+                <th className="px-4 py-3 font-bold text-center">Pago</th>
                 <th className="px-4 py-3 font-bold text-center">Ações</th>
               </tr>
             </thead>
@@ -493,6 +551,25 @@ function QuotesPage() {
                       >
                         {stage?.label ?? q.status}
                       </span>
+                    </td>
+                    <td className="px-4 py-4 text-center">
+                      {stageOf(q.status) === "fechado" ? (
+                        <button
+                          onClick={() => togglePaid.mutate({ id: q.id, paid: !q.paid })}
+                          title={q.paid ? "Marcar como não pago" : "Marcar como pago"}
+                          className={cn(
+                            "inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-full border transition",
+                            q.paid
+                              ? "bg-emerald-500 text-white border-emerald-500"
+                              : "bg-background text-muted-foreground border-border hover:border-emerald-500 hover:text-emerald-600",
+                          )}
+                        >
+                          {q.paid ? <CheckCircle2 className="size-3" /> : <Circle className="size-3" />}
+                          {q.paid ? "Pago" : "Marcar"}
+                        </button>
+                      ) : (
+                        <span className="text-[11px] text-muted-foreground">—</span>
+                      )}
                     </td>
                     <td className="px-4 py-4">
                       <div className="flex items-center justify-center gap-1">
@@ -535,7 +612,7 @@ function QuotesPage() {
               })}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-4 py-10 text-center text-sm text-muted-foreground">
+                  <td colSpan={7} className="px-4 py-10 text-center text-sm text-muted-foreground">
                     Nenhum orçamento encontrado.
                   </td>
                 </tr>

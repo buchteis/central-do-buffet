@@ -646,6 +646,7 @@ export type Database = {
           notes: string | null
           owner_id: string
           package_id: string | null
+          paid: boolean
           payment_method: string
           status: Database["public"]["Enums"]["quote_status"]
           tenant_id: string | null
@@ -672,6 +673,7 @@ export type Database = {
           notes?: string | null
           owner_id: string
           package_id?: string | null
+          paid?: boolean
           payment_method?: string
           status?: Database["public"]["Enums"]["quote_status"]
           tenant_id?: string | null
@@ -698,6 +700,7 @@ export type Database = {
           notes?: string | null
           owner_id?: string
           package_id?: string | null
+          paid?: boolean
           payment_method?: string
           status?: Database["public"]["Enums"]["quote_status"]
           tenant_id?: string | null

@@ -126,16 +126,16 @@ function Dashboard() {
         supabase.from("events").select("id, event_date, event_time, status, total_value, clients(name), packages(name)").gte("event_date", today).order("event_date").limit(6),
         supabase.from("transactions").select("id, description, amount, due_date").eq("status", "pendente").lt("due_date", today).limit(5),
         supabase.from("events").select("id, event_time, clients(name)").eq("event_date", tomorrow).limit(5),
-        supabase.from("events").select("total_value").in("status", ["agendado", "em_andamento"]),
-        supabase.from("quotes").select("total_value").in("status", ["em_analise", "negociacao", "aguardando", "primeiro_contato", "visitado", "enviado"]),
+        supabase.from("quotes").select("total_value").eq("status", "fechado").eq("paid", true),
+        supabase.from("quotes").select("total_value").in("status", ["em_analise", "negociacao", "aguardando", "primeiro_contato", "visitado", "enviado", "em_andamento"]),
       ]);
 
       const revenuePredicted = (revPredicted.data ?? []).reduce((s, r) => s + Number(r.total_value ?? 0), 0);
       const revenueReceived = (revReceived.data ?? []).reduce((s, r) => s + Number(r.amount ?? 0), 0);
       const toReceive = (txPending.data ?? []).reduce((s, r) => s + Number(r.amount ?? 0), 0);
-      const confirmadosVal = (eventosConfirmados.data ?? []).reduce((s, r: any) => s + Number(r.total_value ?? 0), 0);
+      const faturamentoConcluido = (eventosConfirmados.data ?? []).reduce((s, r: any) => s + Number(r.total_value ?? 0), 0);
       const negociacaoVal = (quotesNegociacao.data ?? []).reduce((s, r: any) => s + Number(r.total_value ?? 0), 0);
-      const ganhosPrevisiveis = confirmadosVal + negociacaoVal;
+      const ganhosPrevisiveis = faturamentoConcluido + negociacaoVal;
 
       return {
         evToday: evToday.count ?? 0,
@@ -147,6 +147,7 @@ function Dashboard() {
         revenueReceived,
         toReceive,
         ganhosPrevisiveis,
+        faturamentoConcluido,
         clientsCount: clientsCount.count ?? 0,
         newClients: newClients.count ?? 0,
         staffToday: staffToday.data?.length ?? 0,
@@ -195,18 +196,33 @@ function Dashboard() {
       )}
 
 
-      <div className="bg-gradient-to-br from-primary/10 via-primary/5 to-background border border-primary/20 rounded-2xl p-5 md:p-6 shadow-sm">
-        <div className="flex items-center justify-between">
-          <span className="text-[10px] font-bold text-primary uppercase tracking-widest">Ganhos previsíveis</span>
-          <DollarSign className="size-5 text-primary" />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-background border border-emerald-500/20 rounded-2xl p-5 md:p-6 shadow-sm">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-widest">Faturamento concluído</span>
+            <DollarSign className="size-5 text-emerald-600" />
+          </div>
+          <div className="mt-2 text-3xl md:text-4xl font-extrabold tracking-tighter text-emerald-700 font-mono">
+            {brl(stats?.faturamentoConcluido ?? 0)}
+          </div>
+          <p className="text-xs text-muted-foreground mt-1">
+            Soma dos orçamentos com status <strong>Fechado</strong> e marcados como <strong>Pago</strong>.
+          </p>
         </div>
-        <div className="mt-2 text-3xl md:text-4xl font-extrabold tracking-tighter text-primary font-mono">
-          {brl(stats?.ganhosPrevisiveis ?? 0)}
+        <div className="bg-gradient-to-br from-primary/10 via-primary/5 to-background border border-primary/20 rounded-2xl p-5 md:p-6 shadow-sm">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-bold text-primary uppercase tracking-widest">Ganhos previsíveis</span>
+            <DollarSign className="size-5 text-primary" />
+          </div>
+          <div className="mt-2 text-3xl md:text-4xl font-extrabold tracking-tighter text-primary font-mono">
+            {brl(stats?.ganhosPrevisiveis ?? 0)}
+          </div>
+          <p className="text-xs text-muted-foreground mt-1">
+            Concluído + orçamentos em andamento/negociação.
+          </p>
         </div>
-        <p className="text-xs text-muted-foreground mt-1">
-          Soma dos agendamentos confirmados + orçamentos em análise/negociação.
-        </p>
       </div>
+
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
         <Kpi label="Eventos hoje" value={String(stats?.evToday ?? "—")} icon={Calendar} />
