@@ -126,16 +126,16 @@ function Dashboard() {
         supabase.from("events").select("id, event_date, event_time, status, total_value, clients(name), packages(name)").gte("event_date", today).order("event_date").limit(6),
         supabase.from("transactions").select("id, description, amount, due_date").eq("status", "pendente").lt("due_date", today).limit(5),
         supabase.from("events").select("id, event_time, clients(name)").eq("event_date", tomorrow).limit(5),
-        supabase.from("events").select("total_value").in("status", ["agendado", "em_andamento"]),
-        supabase.from("quotes").select("total_value").in("status", ["em_analise", "negociacao", "aguardando", "primeiro_contato", "visitado", "enviado"]),
+        supabase.from("quotes").select("total_value").eq("status", "fechado").eq("paid", true),
+        supabase.from("quotes").select("total_value").in("status", ["em_analise", "negociacao", "aguardando", "primeiro_contato", "visitado", "enviado", "em_andamento"]),
       ]);
 
       const revenuePredicted = (revPredicted.data ?? []).reduce((s, r) => s + Number(r.total_value ?? 0), 0);
       const revenueReceived = (revReceived.data ?? []).reduce((s, r) => s + Number(r.amount ?? 0), 0);
       const toReceive = (txPending.data ?? []).reduce((s, r) => s + Number(r.amount ?? 0), 0);
-      const confirmadosVal = (eventosConfirmados.data ?? []).reduce((s, r: any) => s + Number(r.total_value ?? 0), 0);
+      const faturamentoConcluido = (eventosConfirmados.data ?? []).reduce((s, r: any) => s + Number(r.total_value ?? 0), 0);
       const negociacaoVal = (quotesNegociacao.data ?? []).reduce((s, r: any) => s + Number(r.total_value ?? 0), 0);
-      const ganhosPrevisiveis = confirmadosVal + negociacaoVal;
+      const ganhosPrevisiveis = faturamentoConcluido + negociacaoVal;
 
       return {
         evToday: evToday.count ?? 0,
