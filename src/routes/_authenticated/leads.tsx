@@ -1,5 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDateBR } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -15,25 +16,50 @@ export const Route = createFileRoute("/_authenticated/leads")({
   component: LeadsPage,
 });
 
+// Simplified pipeline: only two states surface in UI.
+// Legacy values (contatado/convertido/descartado) are treated as "em_andamento".
 const statusStyles: Record<string, string> = {
   novo: "bg-primary/10 text-primary",
-  contatado: "bg-info/10 text-info",
-  convertido: "bg-success/10 text-success",
-  descartado: "bg-muted text-muted-foreground",
+  em_andamento: "bg-info/10 text-info",
 };
 const statusLabels: Record<string, string> = {
   novo: "Novo",
-  contatado: "Contatado",
-  convertido: "Convertido",
-  descartado: "Descartado",
+  em_andamento: "Em andamento",
 };
+function normalizeStatus(s: string): "novo" | "em_andamento" {
+  return s === "novo" ? "novo" : "em_andamento";
+}
+
+type Period = "all" | "week" | "month" | "year";
+
+function periodRange(p: Period): { start: Date; end: Date } | null {
+  if (p === "all") return null;
+  const now = new Date();
+  if (p === "week") {
+    const start = new Date(now);
+    start.setDate(now.getDate() - now.getDay());
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(start);
+    end.setDate(start.getDate() + 7);
+    return { start, end };
+  }
+  if (p === "month") {
+    const start = new Date(now.getFullYear(), now.getMonth(), 1);
+    const end = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    return { start, end };
+  }
+  const start = new Date(now.getFullYear(), 0, 1);
+  const end = new Date(now.getFullYear() + 1, 0, 1);
+  return { start, end };
+}
 
 function LeadsPage() {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const { data: access } = useTenantAccess();
+  const [period, setPeriod] = useState<Period>("all");
 
-  const { data: leads } = useQuery({
+  const { data: leadsRaw } = useQuery({
     queryKey: ["leads", access?.tenant?.id],
     enabled: !!access?.tenant?.id,
     queryFn: async () => {
@@ -47,12 +73,22 @@ function LeadsPage() {
     },
   });
 
+  const range = periodRange(period);
+  const leads = (leadsRaw ?? []).filter((l: any) => {
+    if (!range) return true;
+    const ref = l.created_at ? new Date(l.created_at) : null;
+    return ref ? ref >= range.start && ref < range.end : false;
+  });
+
   const updateStatus = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
       const { error } = await supabase.from("leads").update({ status: status as any }).eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["leads"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["leads"] });
+      qc.invalidateQueries({ queryKey: ["quotes"] });
+    },
   });
 
   const remove = useMutation({
@@ -62,12 +98,10 @@ function LeadsPage() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["leads"] });
+      qc.invalidateQueries({ queryKey: ["quotes"] });
       toast.success("Lead excluído");
     },
   });
-
-  // Conversion now happens via navigation to the pre-filled quote form.
-
 
   const slug = access?.tenant?.slug;
   const publicUrl = slug ? `${window.location.origin}/orcamento/${slug}` : "";
