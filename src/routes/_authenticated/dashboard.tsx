@@ -147,6 +147,7 @@ function Dashboard() {
         revenueReceived,
         toReceive,
         ganhosPrevisiveis,
+        faturamentoConcluido,
         clientsCount: clientsCount.count ?? 0,
         newClients: newClients.count ?? 0,
         staffToday: staffToday.data?.length ?? 0,
