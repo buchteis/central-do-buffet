@@ -916,7 +916,12 @@ export type Database = {
         | "concluido"
         | "cancelado"
         | "realizado"
-      lead_status: "novo" | "contatado" | "convertido" | "descartado"
+      lead_status:
+        | "novo"
+        | "contatado"
+        | "convertido"
+        | "descartado"
+        | "em_andamento"
       quote_status:
         | "novo"
         | "em_analise"
@@ -929,6 +934,7 @@ export type Database = {
         | "negociacao"
         | "aguardando"
         | "fechado"
+        | "em_andamento"
       tenant_status: "pendente" | "ativo" | "rejeitado" | "suspenso"
       tx_method:
         | "pix"
@@ -1083,7 +1089,13 @@ export const Constants = {
         "cancelado",
         "realizado",
       ],
-      lead_status: ["novo", "contatado", "convertido", "descartado"],
+      lead_status: [
+        "novo",
+        "contatado",
+        "convertido",
+        "descartado",
+        "em_andamento",
+      ],
       quote_status: [
         "novo",
         "em_analise",
@@ -1096,6 +1108,7 @@ export const Constants = {
         "negociacao",
         "aguardando",
         "fechado",
+        "em_andamento",
       ],
       tenant_status: ["pendente", "ativo", "rejeitado", "suspenso"],
       tx_method: [
