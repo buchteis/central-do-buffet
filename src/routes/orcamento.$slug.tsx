@@ -35,6 +35,7 @@ const schema = z.object({
   phone: z.string().trim().min(8, "Telefone inválido").max(20),
   whatsapp: z.string().trim().max(20).optional(),
   email: z.string().trim().email("E-mail inválido").max(255).optional().or(z.literal("")),
+  cpf: z.string().trim().max(20).optional(),
   city: z.string().trim().max(80).optional(),
   event_address: z.string().trim().max(200).optional(),
   event_date: z.string().min(1, "Data obrigatória"),
@@ -85,6 +86,7 @@ function PublicQuoteForm() {
         phone: payload.phone,
         whatsapp: payload.whatsapp || payload.phone,
         email: payload.email || null,
+        cpf: payload.cpf || null,
         city: payload.city || null,
         event_address: payload.event_address || null,
         event_date: payload.event_date,
@@ -175,6 +177,8 @@ function PublicQuoteForm() {
             <Field name="phone" label="Telefone *" required placeholder="(11) 99999-9999" />
             <Field name="whatsapp" label="WhatsApp" placeholder="(11) 99999-9999" />
             <Field name="email" label="E-mail" type="email" />
+            <Field name="email" label="E-mail" type="email" />
+            <Field name="cpf" label="CPF" placeholder="000.000.000-00" />
             <Field name="city" label="Cidade" />
             <Field name="event_type" label="Tipo do evento" placeholder="Aniversário, casamento…" />
           </div>
