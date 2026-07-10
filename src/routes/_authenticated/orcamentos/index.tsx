@@ -103,6 +103,10 @@ function QuotesPage() {
   const navigate = useNavigate();
   const search = useGlobalSearch();
   const nq = normalizeSearch(search);
+  const { data: access } = useTenantAccess();
+  const slug = access?.tenant?.slug;
+  const publicUrl =
+    slug && typeof window !== "undefined" ? `${window.location.origin}/orcamento/${slug}` : "";
 
   const { data } = useQuery({
     queryKey: ["quotes"],
