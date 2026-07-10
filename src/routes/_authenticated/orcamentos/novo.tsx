@@ -303,8 +303,8 @@ function NewQuotePage() {
                 </SelectContent>
               </Select>
               {!form.client_id && lead && (
-                <p className="text-[11px] text-primary">
-                  Novo cliente será criado a partir do lead ao salvar:{" "}
+                <p className="text-[11px] text-muted-foreground">
+                  Este orçamento está usando os dados do lead:{" "}
                   <strong>{(lead as any).name}</strong>
                   {(lead as any).phone ? ` · ${(lead as any).phone}` : ""}
                 </p>
