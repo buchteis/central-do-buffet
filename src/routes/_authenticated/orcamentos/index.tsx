@@ -161,7 +161,7 @@ function QuotesPage() {
                         <div className="text-[11px] text-muted-foreground truncate">{q.packages?.name ?? "Sem pacote"} · {formatDateBR(q.event_date)}</div>
                         <div className="font-mono font-bold text-sm mt-1">{brl(q.total_value)}</div>
                         <select
-                          value={q.status}
+                          value={stageOf(q.status)}
                           onChange={(e) => move.mutate({ id: q.id, status: e.target.value })}
                           className="mt-2 w-full text-[11px] border border-border rounded-md bg-background px-2 py-1"
                         >
@@ -169,17 +169,7 @@ function QuotesPage() {
                             <option key={s.id} value={s.id}>{s.label}</option>
                           ))}
                         </select>
-                        {q.status !== "fechado" && q.status !== "recusado" && (
-                          <button
-                            onClick={() => {
-                              if (confirm("Fechar orçamento e criar evento automaticamente?"))
-                                move.mutate({ id: q.id, status: "fechado" });
-                            }}
-                            className="mt-2 w-full text-[11px] font-bold bg-primary text-primary-foreground rounded-md py-1.5 hover:bg-primary/90"
-                          >
-                            ✓ Fechar orçamento
-                          </button>
-                        )}
+
                         {(q.clients?.whatsapp || q.clients?.phone) && (
                           <a
                             href={waLink(
