@@ -656,7 +656,7 @@ function NewQuotePage() {
                       childrenCount: form.children_count,
                     },
                     package: {
-                      name: selectedPackage.name,
+                      name: selectedPackages.map((p) => p.name).join(" + "),
                       pricePerPerson: effectivePrice,
                     },
 
