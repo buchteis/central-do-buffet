@@ -361,28 +361,73 @@ function NewQuotePage() {
             </div>
 
 
-            <div className="space-y-2">
-              <Label>Pacote *</Label>
-              <Select
-                value={form.package_id}
-                onValueChange={(v) => setForm((f) => ({ ...f, package_id: v }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione…" />
-                </SelectTrigger>
-                <SelectContent>
-                  {(packages ?? []).map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {p.name} · {brl(p.price_per_person)}/pessoa
-                    </SelectItem>
-                  ))}
-                  {(packages ?? []).length === 0 && (
-                    <div className="p-4 text-xs text-muted-foreground">
-                      Cadastre um pacote antes.
+            <div className="space-y-2 md:col-span-2">
+              <div className="flex items-center justify-between">
+                <Label>Pacotes *</Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPackageLines((l) => [...l, ""])}
+                  disabled={(packages ?? []).length === 0}
+                >
+                  <Plus className="size-3.5" /> Adicionar pacote
+                </Button>
+              </div>
+              <div className="space-y-2">
+                {packageLines.map((pid, i) => (
+                  <div key={i} className="flex gap-2 items-start">
+                    <div className="flex-1">
+                      <Select
+                        value={pid}
+                        onValueChange={(v) =>
+                          setPackageLines((arr) =>
+                            arr.map((x, idx) => (idx === i ? v : x)),
+                          )
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione um pacote…" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {(packages ?? []).map((p) => (
+                            <SelectItem
+                              key={p.id}
+                              value={p.id}
+                              disabled={packageLines.includes(p.id) && p.id !== pid}
+                            >
+                              {p.name} · {brl(p.price_per_person)}/pessoa
+                            </SelectItem>
+                          ))}
+                          {(packages ?? []).length === 0 && (
+                            <div className="p-4 text-xs text-muted-foreground">
+                              Cadastre um pacote antes.
+                            </div>
+                          )}
+                        </SelectContent>
+                      </Select>
                     </div>
-                  )}
-                </SelectContent>
-              </Select>
+                    {packageLines.length > 1 && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() =>
+                          setPackageLines((arr) => arr.filter((_, idx) => idx !== i))
+                        }
+                        aria-label="Remover pacote"
+                      >
+                        <Trash2 className="size-4" />
+                      </Button>
+                    )}
+                  </div>
+                ))}
+              </div>
+              {selectedPackages.length > 1 && (
+                <p className="text-[11px] text-muted-foreground">
+                  Total por pessoa: <b>{brl(packagesSumPerPerson)}</b> (soma de {selectedPackages.length} pacotes)
+                </p>
+              )}
             </div>
           </div>
 
