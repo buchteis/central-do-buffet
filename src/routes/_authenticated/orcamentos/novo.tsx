@@ -90,7 +90,6 @@ function NewQuotePage() {
 
   const [form, setForm] = useState({
     client_id: "",
-    package_id: "",
     event_date: "",
     event_time: "",
     event_address: "",
@@ -103,19 +102,31 @@ function NewQuotePage() {
     has_freezer: false,
     payment_method: "PIX" as "PIX" | "Dados Bancários" | "Dinheiro",
   });
+  // Multiple packages support: list of selected package ids (empty string = "pick one" row).
+  const [packageLines, setPackageLines] = useState<string[]>([""]);
   const [customExtras, setCustomExtras] = useState<
     { description: string; value: number }[]
   >([]);
 
-  // Manual overrides — administrator has total freedom to edit price per person,
+  // Manual overrides — administrator has total freedom to edit price per person (sum),
   // entry (50%) and balance directly. `null` means "use auto value".
   const [priceOverride, setPriceOverride] = useState<number | null>(null);
   const [entryOverride, setEntryOverride] = useState<number | null>(null);
   const [balanceOverride, setBalanceOverride] = useState<number | null>(null);
 
-  const selectedPackage = packages?.find((p) => p.id === form.package_id);
-  const effectivePrice =
-    priceOverride ?? Number(selectedPackage?.price_per_person ?? 0);
+  const selectedPackages = useMemo(
+    () =>
+      packageLines
+        .map((id) => (packages ?? []).find((p) => p.id === id))
+        .filter(Boolean) as { id: string; name: string; price_per_person: number }[],
+    [packageLines, packages],
+  );
+  const primaryPackage = selectedPackages[0];
+  const packagesSumPerPerson = selectedPackages.reduce(
+    (s, p) => s + Number(p.price_per_person ?? 0),
+    0,
+  );
+  const effectivePrice = priceOverride ?? packagesSumPerPerson;
 
   const autoBreakdown = useMemo(
     () =>
