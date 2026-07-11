@@ -414,10 +414,10 @@ function QuotesPage() {
         </div>
       )}
 
-      {view === "kanban" ? (
+      {effectiveView === "kanban" ? (
         <div className="overflow-x-auto pb-4">
           <div className="flex gap-3 min-w-max">
-            {pipeline.map((stage) => {
+            {activePipeline.map((stage) => {
               const items = byStage.get(stage.id) ?? [];
               const total = items.reduce((s, q) => s + Number(q.total_value ?? 0), 0);
               return (
