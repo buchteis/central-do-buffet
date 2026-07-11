@@ -150,7 +150,7 @@ function NewQuotePage() {
 
   const mut = useMutation({
     mutationFn: async () => {
-      const parsed = schema.safeParse(form);
+      const parsed = schema.safeParse({ ...form, package_ids: packageLines.filter(Boolean) });
       if (!parsed.success) throw new Error(parsed.error.issues[0].message);
 
       const { data: userRes } = await supabase.auth.getUser();
