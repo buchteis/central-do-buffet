@@ -285,10 +285,10 @@ function NewQuotePage() {
       const match = packages.find((p) => p.name.trim().toLowerCase() === target);
       if (match) pkgId = match.id;
     }
+    if (pkgId) setPackageLines([pkgId]);
     setForm((f) => ({
       ...f,
       client_id: "",
-      package_id: pkgId || f.package_id,
       event_date: (lead as any).event_date ?? f.event_date,
       event_time: (lead as any).event_time ?? f.event_time,
       event_address: (lead as any).event_address ?? f.event_address,
