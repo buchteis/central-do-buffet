@@ -166,12 +166,22 @@ function NewQuotePage() {
       const valid = new Date();
       valid.setDate(valid.getDate() + 7);
 
+      const pkgIds = packageLines.filter((id) => !!id);
+      const pkgList = pkgIds
+        .map((id) => (packages ?? []).find((p) => p.id === id))
+        .filter(Boolean)
+        .map((p) => ({
+          package_id: p!.id,
+          name: p!.name,
+          price_per_person: Number(p!.price_per_person ?? 0),
+        }));
+
       const { data, error } = await supabase
         .from("quotes")
         .insert({
           owner_id: userRes.user.id,
           client_id: clientId,
-          package_id: form.package_id,
+          package_id: pkgList[0]?.package_id ?? null,
           event_date: form.event_date,
           event_time: form.event_time || null,
           event_address: form.event_address || null,
@@ -186,6 +196,7 @@ function NewQuotePage() {
             price_per_person_override: priceOverride,
             entry_override: entryOverride,
             balance_override: balanceOverride,
+            packages: pkgList,
             custom: customExtras.filter(
               (e) => e.description.trim() !== "" || Number(e.value) > 0,
             ),
@@ -226,7 +237,7 @@ function NewQuotePage() {
               tenant_id: access?.tenant?.id ?? null,
               client_id: clientId,
               quote_id: data.id,
-              package_id: form.package_id,
+              package_id: pkgList[0]?.package_id ?? null,
               event_date: form.event_date,
               event_time: form.event_time || null,
               event_address: form.event_address || null,
