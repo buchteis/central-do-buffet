@@ -107,6 +107,7 @@ function QuotesPage() {
   const [view, setView] = useState<"kanban" | "list">("kanban");
   const [period, setPeriod] = useState<Period>("all");
   const [offset, setOffset] = useState(0);
+  const [archived, setArchived] = useState(false);
   const qc = useQueryClient();
   const navigate = useNavigate();
   const search = useGlobalSearch();
@@ -188,6 +189,8 @@ function QuotesPage() {
   const range = useMemo(() => periodRange(period, offset), [period, offset]);
 
   const filtered = (data ?? []).filter((q: any) => {
+    const isClosed = stageOf(q.status) === "fechado";
+    if (archived ? !isClosed : isClosed) return false;
     if (range) {
       const ref = parseEventDate(q.event_date);
       if (!ref || ref < range.start || ref >= range.end) return false;
@@ -203,9 +206,15 @@ function QuotesPage() {
     return true;
   });
 
+  const activePipeline = archived ? pipeline : pipeline.filter((s) => s.id !== "fechado");
+  const effectiveView: "kanban" | "list" = archived ? "list" : view;
+
   const byStage = new Map<string, any[]>();
-  pipeline.forEach((s) => byStage.set(s.id, []));
-  filtered.forEach((q: any) => byStage.get(stageOf(q.status))!.push(q));
+  activePipeline.forEach((s) => byStage.set(s.id, []));
+  filtered.forEach((q: any) => {
+    const key = stageOf(q.status);
+    if (byStage.has(key)) byStage.get(key)!.push(q);
+  });
 
   const totalFilteredValue = filtered.reduce((s, q: any) => s + Number(q.total_value ?? 0), 0);
 
@@ -310,36 +319,49 @@ function QuotesPage() {
                 onClick={() => {
                   setPeriod(p.id);
                   setOffset(0);
+                  setArchived(false);
                 }}
                 className={cn(
                   "px-3 py-1 text-xs font-bold rounded-full",
-                  period === p.id && "bg-background shadow",
+                  !archived && period === p.id && "bg-background shadow",
                 )}
               >
                 {p.label}
               </button>
             ))}
-          </div>
-          <div className="flex bg-muted rounded-full p-1">
             <button
-              onClick={() => setView("kanban")}
+              onClick={() => setArchived(true)}
               className={cn(
-                "px-3 py-1 text-xs font-bold rounded-full flex items-center gap-1",
-                view === "kanban" && "bg-background shadow",
+                "px-3 py-1 text-xs font-bold rounded-full",
+                archived && "bg-background shadow",
               )}
+              title="Ver histórico de orçamentos fechados"
             >
-              <LayoutGrid className="size-3" /> Pipeline
-            </button>
-            <button
-              onClick={() => setView("list")}
-              className={cn(
-                "px-3 py-1 text-xs font-bold rounded-full flex items-center gap-1",
-                view === "list" && "bg-background shadow",
-              )}
-            >
-              <List className="size-3" /> Lista
+              Fechados
             </button>
           </div>
+          {!archived && (
+            <div className="flex bg-muted rounded-full p-1">
+              <button
+                onClick={() => setView("kanban")}
+                className={cn(
+                  "px-3 py-1 text-xs font-bold rounded-full flex items-center gap-1",
+                  view === "kanban" && "bg-background shadow",
+                )}
+              >
+                <LayoutGrid className="size-3" /> Pipeline
+              </button>
+              <button
+                onClick={() => setView("list")}
+                className={cn(
+                  "px-3 py-1 text-xs font-bold rounded-full flex items-center gap-1",
+                  view === "list" && "bg-background shadow",
+                )}
+              >
+                <List className="size-3" /> Lista
+              </button>
+            </div>
+          )}
           {publicUrl && (
             <button
               onClick={async () => {
@@ -392,10 +414,10 @@ function QuotesPage() {
         </div>
       )}
 
-      {view === "kanban" ? (
+      {effectiveView === "kanban" ? (
         <div className="overflow-x-auto pb-4">
           <div className="flex gap-3 min-w-max">
-            {pipeline.map((stage) => {
+            {activePipeline.map((stage) => {
               const items = byStage.get(stage.id) ?? [];
               const total = items.reduce((s, q) => s + Number(q.total_value ?? 0), 0);
               return (

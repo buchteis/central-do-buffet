@@ -33,7 +33,7 @@ export const Route = createFileRoute("/_authenticated/orcamentos/novo")({
 
 const schema = z.object({
   client_id: z.string().uuid().optional().or(z.literal("")),
-  package_id: z.string().uuid("Selecione um pacote"),
+  package_ids: z.array(z.string().uuid()).min(1, "Selecione ao menos um pacote"),
   event_date: z.string().min(1, "Data obrigatória"),
   adults: z.number().int().min(0).max(9999),
   children_count: z.number().int().min(0).max(9999),
@@ -90,7 +90,6 @@ function NewQuotePage() {
 
   const [form, setForm] = useState({
     client_id: "",
-    package_id: "",
     event_date: "",
     event_time: "",
     event_address: "",
@@ -103,19 +102,31 @@ function NewQuotePage() {
     has_freezer: false,
     payment_method: "PIX" as "PIX" | "Dados Bancários" | "Dinheiro",
   });
+  // Multiple packages support: list of selected package ids (empty string = "pick one" row).
+  const [packageLines, setPackageLines] = useState<string[]>([""]);
   const [customExtras, setCustomExtras] = useState<
     { description: string; value: number }[]
   >([]);
 
-  // Manual overrides — administrator has total freedom to edit price per person,
+  // Manual overrides — administrator has total freedom to edit price per person (sum),
   // entry (50%) and balance directly. `null` means "use auto value".
   const [priceOverride, setPriceOverride] = useState<number | null>(null);
   const [entryOverride, setEntryOverride] = useState<number | null>(null);
   const [balanceOverride, setBalanceOverride] = useState<number | null>(null);
 
-  const selectedPackage = packages?.find((p) => p.id === form.package_id);
-  const effectivePrice =
-    priceOverride ?? Number(selectedPackage?.price_per_person ?? 0);
+  const selectedPackages = useMemo(
+    () =>
+      packageLines
+        .map((id) => (packages ?? []).find((p) => p.id === id))
+        .filter(Boolean) as { id: string; name: string; price_per_person: number }[],
+    [packageLines, packages],
+  );
+  const primaryPackage = selectedPackages[0];
+  const packagesSumPerPerson = selectedPackages.reduce(
+    (s, p) => s + Number(p.price_per_person ?? 0),
+    0,
+  );
+  const effectivePrice = priceOverride ?? packagesSumPerPerson;
 
   const autoBreakdown = useMemo(
     () =>
@@ -139,7 +150,7 @@ function NewQuotePage() {
 
   const mut = useMutation({
     mutationFn: async () => {
-      const parsed = schema.safeParse(form);
+      const parsed = schema.safeParse({ ...form, package_ids: packageLines.filter(Boolean) });
       if (!parsed.success) throw new Error(parsed.error.issues[0].message);
 
       const { data: userRes } = await supabase.auth.getUser();
@@ -155,12 +166,22 @@ function NewQuotePage() {
       const valid = new Date();
       valid.setDate(valid.getDate() + 7);
 
+      const pkgIds = packageLines.filter((id) => !!id);
+      const pkgList = pkgIds
+        .map((id) => (packages ?? []).find((p) => p.id === id))
+        .filter(Boolean)
+        .map((p) => ({
+          package_id: p!.id,
+          name: p!.name,
+          price_per_person: Number(p!.price_per_person ?? 0),
+        }));
+
       const { data, error } = await supabase
         .from("quotes")
         .insert({
           owner_id: userRes.user.id,
           client_id: clientId,
-          package_id: form.package_id,
+          package_id: pkgList[0]?.package_id ?? null,
           event_date: form.event_date,
           event_time: form.event_time || null,
           event_address: form.event_address || null,
@@ -175,6 +196,7 @@ function NewQuotePage() {
             price_per_person_override: priceOverride,
             entry_override: entryOverride,
             balance_override: balanceOverride,
+            packages: pkgList,
             custom: customExtras.filter(
               (e) => e.description.trim() !== "" || Number(e.value) > 0,
             ),
@@ -215,7 +237,7 @@ function NewQuotePage() {
               tenant_id: access?.tenant?.id ?? null,
               client_id: clientId,
               quote_id: data.id,
-              package_id: form.package_id,
+              package_id: pkgList[0]?.package_id ?? null,
               event_date: form.event_date,
               event_time: form.event_time || null,
               event_address: form.event_address || null,
@@ -263,10 +285,10 @@ function NewQuotePage() {
       const match = packages.find((p) => p.name.trim().toLowerCase() === target);
       if (match) pkgId = match.id;
     }
+    if (pkgId) setPackageLines([pkgId]);
     setForm((f) => ({
       ...f,
       client_id: "",
-      package_id: pkgId || f.package_id,
       event_date: (lead as any).event_date ?? f.event_date,
       event_time: (lead as any).event_time ?? f.event_time,
       event_address: (lead as any).event_address ?? f.event_address,
@@ -339,28 +361,73 @@ function NewQuotePage() {
             </div>
 
 
-            <div className="space-y-2">
-              <Label>Pacote *</Label>
-              <Select
-                value={form.package_id}
-                onValueChange={(v) => setForm((f) => ({ ...f, package_id: v }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione…" />
-                </SelectTrigger>
-                <SelectContent>
-                  {(packages ?? []).map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {p.name} · {brl(p.price_per_person)}/pessoa
-                    </SelectItem>
-                  ))}
-                  {(packages ?? []).length === 0 && (
-                    <div className="p-4 text-xs text-muted-foreground">
-                      Cadastre um pacote antes.
+            <div className="space-y-2 md:col-span-2">
+              <div className="flex items-center justify-between">
+                <Label>Pacotes *</Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPackageLines((l) => [...l, ""])}
+                  disabled={(packages ?? []).length === 0}
+                >
+                  <Plus className="size-3.5" /> Adicionar pacote
+                </Button>
+              </div>
+              <div className="space-y-2">
+                {packageLines.map((pid, i) => (
+                  <div key={i} className="flex gap-2 items-start">
+                    <div className="flex-1">
+                      <Select
+                        value={pid}
+                        onValueChange={(v) =>
+                          setPackageLines((arr) =>
+                            arr.map((x, idx) => (idx === i ? v : x)),
+                          )
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione um pacote…" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {(packages ?? []).map((p) => (
+                            <SelectItem
+                              key={p.id}
+                              value={p.id}
+                              disabled={packageLines.includes(p.id) && p.id !== pid}
+                            >
+                              {p.name} · {brl(p.price_per_person)}/pessoa
+                            </SelectItem>
+                          ))}
+                          {(packages ?? []).length === 0 && (
+                            <div className="p-4 text-xs text-muted-foreground">
+                              Cadastre um pacote antes.
+                            </div>
+                          )}
+                        </SelectContent>
+                      </Select>
                     </div>
-                  )}
-                </SelectContent>
-              </Select>
+                    {packageLines.length > 1 && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() =>
+                          setPackageLines((arr) => arr.filter((_, idx) => idx !== i))
+                        }
+                        aria-label="Remover pacote"
+                      >
+                        <Trash2 className="size-4" />
+                      </Button>
+                    )}
+                  </div>
+                ))}
+              </div>
+              {selectedPackages.length > 1 && (
+                <p className="text-[11px] text-muted-foreground">
+                  Total por pessoa: <b>{brl(packagesSumPerPerson)}</b> (soma de {selectedPackages.length} pacotes)
+                </p>
+              )}
             </div>
           </div>
 
@@ -555,8 +622,8 @@ function NewQuotePage() {
               variant="outline"
               onClick={async () => {
                 try {
-                  if (!selectedPackage) {
-                    toast.error("Selecione um pacote para gerar o PDF");
+                  if (selectedPackages.length === 0) {
+                    toast.error("Selecione ao menos um pacote para gerar o PDF");
                     return;
                   }
                   const cli = (clients ?? []).find((c: any) => c.id === form.client_id) as any;
@@ -589,7 +656,7 @@ function NewQuotePage() {
                       childrenCount: form.children_count,
                     },
                     package: {
-                      name: selectedPackage.name,
+                      name: selectedPackages.map((p) => p.name).join(" + "),
                       pricePerPerson: effectivePrice,
                     },
 
