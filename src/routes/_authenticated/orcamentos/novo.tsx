@@ -622,8 +622,8 @@ function NewQuotePage() {
               variant="outline"
               onClick={async () => {
                 try {
-                  if (!selectedPackage) {
-                    toast.error("Selecione um pacote para gerar o PDF");
+                  if (selectedPackages.length === 0) {
+                    toast.error("Selecione ao menos um pacote para gerar o PDF");
                     return;
                   }
                   const cli = (clients ?? []).find((c: any) => c.id === form.client_id) as any;
