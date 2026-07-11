@@ -33,7 +33,7 @@ export const Route = createFileRoute("/_authenticated/orcamentos/novo")({
 
 const schema = z.object({
   client_id: z.string().uuid().optional().or(z.literal("")),
-  package_id: z.string().uuid("Selecione um pacote"),
+  package_ids: z.array(z.string().uuid()).min(1, "Selecione ao menos um pacote"),
   event_date: z.string().min(1, "Data obrigatória"),
   adults: z.number().int().min(0).max(9999),
   children_count: z.number().int().min(0).max(9999),
