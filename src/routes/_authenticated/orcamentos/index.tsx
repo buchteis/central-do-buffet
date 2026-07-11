@@ -319,36 +319,49 @@ function QuotesPage() {
                 onClick={() => {
                   setPeriod(p.id);
                   setOffset(0);
+                  setArchived(false);
                 }}
                 className={cn(
                   "px-3 py-1 text-xs font-bold rounded-full",
-                  period === p.id && "bg-background shadow",
+                  !archived && period === p.id && "bg-background shadow",
                 )}
               >
                 {p.label}
               </button>
             ))}
-          </div>
-          <div className="flex bg-muted rounded-full p-1">
             <button
-              onClick={() => setView("kanban")}
+              onClick={() => setArchived(true)}
               className={cn(
-                "px-3 py-1 text-xs font-bold rounded-full flex items-center gap-1",
-                view === "kanban" && "bg-background shadow",
+                "px-3 py-1 text-xs font-bold rounded-full",
+                archived && "bg-background shadow",
               )}
+              title="Ver histórico de orçamentos fechados"
             >
-              <LayoutGrid className="size-3" /> Pipeline
-            </button>
-            <button
-              onClick={() => setView("list")}
-              className={cn(
-                "px-3 py-1 text-xs font-bold rounded-full flex items-center gap-1",
-                view === "list" && "bg-background shadow",
-              )}
-            >
-              <List className="size-3" /> Lista
+              Fechados
             </button>
           </div>
+          {!archived && (
+            <div className="flex bg-muted rounded-full p-1">
+              <button
+                onClick={() => setView("kanban")}
+                className={cn(
+                  "px-3 py-1 text-xs font-bold rounded-full flex items-center gap-1",
+                  view === "kanban" && "bg-background shadow",
+                )}
+              >
+                <LayoutGrid className="size-3" /> Pipeline
+              </button>
+              <button
+                onClick={() => setView("list")}
+                className={cn(
+                  "px-3 py-1 text-xs font-bold rounded-full flex items-center gap-1",
+                  view === "list" && "bg-background shadow",
+                )}
+              >
+                <List className="size-3" /> Lista
+              </button>
+            </div>
+          )}
           {publicUrl && (
             <button
               onClick={async () => {
