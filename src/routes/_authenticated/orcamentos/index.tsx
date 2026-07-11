@@ -107,6 +107,7 @@ function QuotesPage() {
   const [view, setView] = useState<"kanban" | "list">("kanban");
   const [period, setPeriod] = useState<Period>("all");
   const [offset, setOffset] = useState(0);
+  const [archived, setArchived] = useState(false);
   const qc = useQueryClient();
   const navigate = useNavigate();
   const search = useGlobalSearch();
