@@ -296,7 +296,7 @@ function NewQuotePage() {
       qc.invalidateQueries({ queryKey: ["agenda"] });
       qc.invalidateQueries({ queryKey: ["clients"] });
       qc.invalidateQueries({ queryKey: ["clients-select-full"] });
-      toast.success(leadId ? "Orçamento criado e evento agendado!" : "Orçamento criado!");
+      toast.success(quoteId ? "Orçamento atualizado!" : leadId ? "Orçamento criado e evento agendado!" : "Orçamento criado!");
       navigate({ to: leadId ? "/agenda" : "/orcamentos" });
     },
     onError: (e: Error) => toast.error(e.message),
