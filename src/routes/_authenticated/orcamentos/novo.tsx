@@ -333,6 +333,47 @@ function NewQuotePage() {
     setPrefilled(true);
   }, [lead, packages, leadId, prefilled, navigate]);
 
+  // Prefill from an existing quote (e.g. pré-orçamento vindo do link público).
+  const [prefilledQuote, setPrefilledQuote] = useState(false);
+  useEffect(() => {
+    if (!quoteId || prefilledQuote || !existingQuote) return;
+    const q: any = existingQuote;
+    const extras: any = q.extras ?? {};
+    const requester: any = extras.requester ?? {};
+    // Packages: prefer extras.packages list; fallback to package_id
+    let lines: string[] = [];
+    if (Array.isArray(extras.packages) && extras.packages.length) {
+      lines = extras.packages.map((p: any) => p.package_id).filter(Boolean);
+    } else if (q.package_id) {
+      lines = [q.package_id];
+    }
+    if (lines.length === 0) lines = [""];
+    setPackageLines(lines);
+
+    setForm((f) => ({
+      ...f,
+      client_id: q.client_id ?? "",
+      event_date: q.event_date ?? f.event_date,
+      event_time: q.event_time ?? f.event_time,
+      event_address: q.event_address ?? f.event_address,
+      event_type: q.event_type ?? f.event_type,
+      adults: q.adults ?? f.adults,
+      children_count: (q.children_7_10 ?? 0) + (q.children_0_6 ?? 0),
+      child_price: Number(extras.child_price ?? 0),
+      notes: q.notes ?? requester.notes ?? f.notes,
+      has_grill: !!q.has_grill,
+      has_freezer: !!q.has_freezer,
+      payment_method: (q.payment_method ?? f.payment_method) as typeof f.payment_method,
+    }));
+
+    if (Array.isArray(extras.custom)) setCustomExtras(extras.custom);
+    if (extras.price_per_person_override != null) setPriceOverride(Number(extras.price_per_person_override));
+    if (extras.entry_override != null) setEntryOverride(Number(extras.entry_override));
+    if (extras.balance_override != null) setBalanceOverride(Number(extras.balance_override));
+
+    setPrefilledQuote(true);
+  }, [quoteId, existingQuote, prefilledQuote]);
+
 
 
 
