@@ -26,6 +26,7 @@ export const Route = createFileRoute("/_authenticated/orcamentos/novo")({
   head: () => ({ meta: [{ title: "Novo orçamento — Meu Churras" }] }),
   validateSearch: (s: Record<string, unknown>) => ({
     leadId: typeof s.leadId === "string" ? s.leadId : undefined,
+    quoteId: typeof s.quoteId === "string" ? s.quoteId : undefined,
   }),
   component: NewQuotePage,
 });
