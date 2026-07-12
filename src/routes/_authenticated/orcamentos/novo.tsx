@@ -45,7 +45,7 @@ const schema = z.object({
 function NewQuotePage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const { leadId } = Route.useSearch();
+  const { leadId, quoteId } = Route.useSearch();
   const { data: access } = useTenantAccess();
 
   const { data: lead } = useQuery({
@@ -53,6 +53,20 @@ function NewQuotePage() {
     enabled: !!leadId,
     queryFn: async () => {
       const { data, error } = await supabase.from("leads").select("*").eq("id", leadId!).maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: existingQuote } = useQuery({
+    queryKey: ["quote-prefill", quoteId],
+    enabled: !!quoteId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("quotes")
+        .select("*, clients(id, name, cpf, phone, whatsapp, email, address)")
+        .eq("id", quoteId!)
+        .maybeSingle();
       if (error) throw error;
       return data;
     },
