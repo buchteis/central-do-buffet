@@ -289,7 +289,7 @@ function QuotesPage() {
     if (leadId) {
       navigate({ to: "/orcamentos/novo", search: { leadId } as any });
     } else {
-      navigate({ to: "/orcamentos/novo" });
+      navigate({ to: "/orcamentos/novo", search: { quoteId: q.id } as any });
     }
   }
 
