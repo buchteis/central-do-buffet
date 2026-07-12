@@ -176,7 +176,18 @@ function NewQuotePage() {
       if (!form.client_id && !lead) {
         throw new Error("Selecione um cliente");
       }
-      const clientId: string | null = form.client_id || null;
+  const mut = useMutation({
+    mutationFn: async () => {
+      const parsed = schema.safeParse({ ...form, package_ids: packageLines.filter(Boolean) });
+      if (!parsed.success) throw new Error(parsed.error.issues[0].message);
+
+      const { data: userRes } = await supabase.auth.getUser();
+      if (!userRes.user) throw new Error("Sessão expirada");
+
+      if (!form.client_id && !lead && !existingQuote?.client_id) {
+        throw new Error("Selecione um cliente");
+      }
+      const clientId: string | null = form.client_id || (existingQuote?.client_id as string) || null;
 
       const valid = new Date();
       valid.setDate(valid.getDate() + 7);
@@ -191,43 +202,64 @@ function NewQuotePage() {
           price_per_person: Number(p!.price_per_person ?? 0),
         }));
 
-      const { data, error } = await supabase
-        .from("quotes")
-        .insert({
-          owner_id: userRes.user.id,
-          client_id: clientId,
-          package_id: pkgList[0]?.package_id ?? null,
-          event_date: form.event_date,
-          event_time: form.event_time || null,
-          event_address: form.event_address || null,
-          event_type: form.event_type || null,
-          adults: form.adults,
-          children_7_10: form.children_count,
-          children_0_6: 0,
-          has_grill: form.has_grill,
-          has_freezer: form.has_freezer,
-          extras: {
-            child_price: form.child_price,
-            price_per_person_override: priceOverride,
-            entry_override: entryOverride,
-            balance_override: balanceOverride,
-            packages: pkgList,
-            custom: customExtras.filter(
-              (e) => e.description.trim() !== "" || Number(e.value) > 0,
-            ),
-          },
+      const prevExtras = ((existingQuote as any)?.extras ?? {}) as any;
+      const payload: any = {
+        client_id: clientId,
+        package_id: pkgList[0]?.package_id ?? null,
+        event_date: form.event_date,
+        event_time: form.event_time || null,
+        event_address: form.event_address || null,
+        event_type: form.event_type || null,
+        adults: form.adults,
+        children_7_10: form.children_count,
+        children_0_6: 0,
+        has_grill: form.has_grill,
+        has_freezer: form.has_freezer,
+        extras: {
+          ...prevExtras,
+          child_price: form.child_price,
+          price_per_person_override: priceOverride,
+          entry_override: entryOverride,
+          balance_override: balanceOverride,
+          packages: pkgList,
+          custom: customExtras.filter(
+            (e) => e.description.trim() !== "" || Number(e.value) > 0,
+          ),
+        },
+        notes: form.notes || null,
+        total_value: breakdown.total,
+        entry_value: breakdown.entry,
+        balance_value: breakdown.balance,
+        valid_until: valid.toISOString().slice(0, 10),
+        payment_method: form.payment_method,
+      };
 
-          notes: form.notes || null,
-          total_value: breakdown.total,
-          entry_value: breakdown.entry,
-          balance_value: breakdown.balance,
-          valid_until: valid.toISOString().slice(0, 10),
-          status: "novo" as const,
-          payment_method: form.payment_method,
-        } as any)
-        .select()
-        .single();
-      if (error) throw error;
+      let data: any;
+      if (quoteId) {
+        // Completing / editing an existing quote (e.g. pre-orçamento from public form).
+        // Move it out of "novo" so it enters the pipeline as active.
+        const nextStatus = existingQuote?.status === "novo" ? "em_andamento" : existingQuote?.status;
+        const { data: upd, error } = await supabase
+          .from("quotes")
+          .update({ ...payload, status: nextStatus as any })
+          .eq("id", quoteId)
+          .select()
+          .single();
+        if (error) throw error;
+        data = upd;
+      } else {
+        const { data: ins, error } = await supabase
+          .from("quotes")
+          .insert({
+            ...payload,
+            owner_id: userRes.user.id,
+            status: "novo" as const,
+          } as any)
+          .select()
+          .single();
+        if (error) throw error;
+        data = ins;
+      }
 
       // When creating from a lead: convert the lead and auto-create the linked event.
       if (leadId && data?.id) {
