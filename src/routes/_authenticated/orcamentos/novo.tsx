@@ -387,9 +387,13 @@ function NewQuotePage() {
         <ArrowLeft className="size-3" /> Voltar
       </Link>
       <div>
-        <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">Novo orçamento</h1>
+        <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">
+          {quoteId ? "Completar orçamento" : "Novo orçamento"}
+        </h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Cálculo automático de valor total, entrada e saldo.
+          {quoteId
+            ? "Dados do solicitante preenchidos. Ajuste pacotes, preços e salve."
+            : "Cálculo automático de valor total, entrada e saldo."}
         </p>
       </div>
 
