@@ -26,6 +26,7 @@ export const Route = createFileRoute("/_authenticated/orcamentos/novo")({
   head: () => ({ meta: [{ title: "Novo orçamento — Meu Churras" }] }),
   validateSearch: (s: Record<string, unknown>) => ({
     leadId: typeof s.leadId === "string" ? s.leadId : undefined,
+    quoteId: typeof s.quoteId === "string" ? s.quoteId : undefined,
   }),
   component: NewQuotePage,
 });
@@ -44,7 +45,7 @@ const schema = z.object({
 function NewQuotePage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const { leadId } = Route.useSearch();
+  const { leadId, quoteId } = Route.useSearch();
   const { data: access } = useTenantAccess();
 
   const { data: lead } = useQuery({
@@ -52,6 +53,20 @@ function NewQuotePage() {
     enabled: !!leadId,
     queryFn: async () => {
       const { data, error } = await supabase.from("leads").select("*").eq("id", leadId!).maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: existingQuote } = useQuery({
+    queryKey: ["quote-prefill", quoteId],
+    enabled: !!quoteId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("quotes")
+        .select("*, clients(id, name, cpf, phone, whatsapp, email, address)")
+        .eq("id", quoteId!)
+        .maybeSingle();
       if (error) throw error;
       return data;
     },
@@ -156,12 +171,10 @@ function NewQuotePage() {
       const { data: userRes } = await supabase.auth.getUser();
       if (!userRes.user) throw new Error("Sessão expirada");
 
-      // Use selected client if any. Never auto-create a client from a lead here —
-      // client cadastro só acontece por ação explícita de conversão.
-      if (!form.client_id && !lead) {
+      if (!form.client_id && !lead && !existingQuote?.client_id) {
         throw new Error("Selecione um cliente");
       }
-      const clientId: string | null = form.client_id || null;
+      const clientId: string | null = form.client_id || (existingQuote?.client_id as string) || null;
 
       const valid = new Date();
       valid.setDate(valid.getDate() + 7);
@@ -176,43 +189,64 @@ function NewQuotePage() {
           price_per_person: Number(p!.price_per_person ?? 0),
         }));
 
-      const { data, error } = await supabase
-        .from("quotes")
-        .insert({
-          owner_id: userRes.user.id,
-          client_id: clientId,
-          package_id: pkgList[0]?.package_id ?? null,
-          event_date: form.event_date,
-          event_time: form.event_time || null,
-          event_address: form.event_address || null,
-          event_type: form.event_type || null,
-          adults: form.adults,
-          children_7_10: form.children_count,
-          children_0_6: 0,
-          has_grill: form.has_grill,
-          has_freezer: form.has_freezer,
-          extras: {
-            child_price: form.child_price,
-            price_per_person_override: priceOverride,
-            entry_override: entryOverride,
-            balance_override: balanceOverride,
-            packages: pkgList,
-            custom: customExtras.filter(
-              (e) => e.description.trim() !== "" || Number(e.value) > 0,
-            ),
-          },
+      const prevExtras = ((existingQuote as any)?.extras ?? {}) as any;
+      const payload: any = {
+        client_id: clientId,
+        package_id: pkgList[0]?.package_id ?? null,
+        event_date: form.event_date,
+        event_time: form.event_time || null,
+        event_address: form.event_address || null,
+        event_type: form.event_type || null,
+        adults: form.adults,
+        children_7_10: form.children_count,
+        children_0_6: 0,
+        has_grill: form.has_grill,
+        has_freezer: form.has_freezer,
+        extras: {
+          ...prevExtras,
+          child_price: form.child_price,
+          price_per_person_override: priceOverride,
+          entry_override: entryOverride,
+          balance_override: balanceOverride,
+          packages: pkgList,
+          custom: customExtras.filter(
+            (e) => e.description.trim() !== "" || Number(e.value) > 0,
+          ),
+        },
+        notes: form.notes || null,
+        total_value: breakdown.total,
+        entry_value: breakdown.entry,
+        balance_value: breakdown.balance,
+        valid_until: valid.toISOString().slice(0, 10),
+        payment_method: form.payment_method,
+      };
 
-          notes: form.notes || null,
-          total_value: breakdown.total,
-          entry_value: breakdown.entry,
-          balance_value: breakdown.balance,
-          valid_until: valid.toISOString().slice(0, 10),
-          status: "novo" as const,
-          payment_method: form.payment_method,
-        } as any)
-        .select()
-        .single();
-      if (error) throw error;
+      let data: any;
+      if (quoteId) {
+        // Completing / editing an existing quote (e.g. pre-orçamento from public form).
+        // Move it out of "novo" so it enters the pipeline as active.
+        const nextStatus = existingQuote?.status === "novo" ? "em_andamento" : existingQuote?.status;
+        const { data: upd, error } = await supabase
+          .from("quotes")
+          .update({ ...payload, status: nextStatus as any })
+          .eq("id", quoteId)
+          .select()
+          .single();
+        if (error) throw error;
+        data = upd;
+      } else {
+        const { data: ins, error } = await supabase
+          .from("quotes")
+          .insert({
+            ...payload,
+            owner_id: userRes.user.id,
+            status: "novo" as const,
+          } as any)
+          .select()
+          .single();
+        if (error) throw error;
+        data = ins;
+      }
 
       // When creating from a lead: convert the lead and auto-create the linked event.
       if (leadId && data?.id) {
@@ -262,7 +296,7 @@ function NewQuotePage() {
       qc.invalidateQueries({ queryKey: ["agenda"] });
       qc.invalidateQueries({ queryKey: ["clients"] });
       qc.invalidateQueries({ queryKey: ["clients-select-full"] });
-      toast.success(leadId ? "Orçamento criado e evento agendado!" : "Orçamento criado!");
+      toast.success(quoteId ? "Orçamento atualizado!" : leadId ? "Orçamento criado e evento agendado!" : "Orçamento criado!");
       navigate({ to: leadId ? "/agenda" : "/orcamentos" });
     },
     onError: (e: Error) => toast.error(e.message),
@@ -299,6 +333,47 @@ function NewQuotePage() {
     setPrefilled(true);
   }, [lead, packages, leadId, prefilled, navigate]);
 
+  // Prefill from an existing quote (e.g. pré-orçamento vindo do link público).
+  const [prefilledQuote, setPrefilledQuote] = useState(false);
+  useEffect(() => {
+    if (!quoteId || prefilledQuote || !existingQuote) return;
+    const q: any = existingQuote;
+    const extras: any = q.extras ?? {};
+    const requester: any = extras.requester ?? {};
+    // Packages: prefer extras.packages list; fallback to package_id
+    let lines: string[] = [];
+    if (Array.isArray(extras.packages) && extras.packages.length) {
+      lines = extras.packages.map((p: any) => p.package_id).filter(Boolean);
+    } else if (q.package_id) {
+      lines = [q.package_id];
+    }
+    if (lines.length === 0) lines = [""];
+    setPackageLines(lines);
+
+    setForm((f) => ({
+      ...f,
+      client_id: q.client_id ?? "",
+      event_date: q.event_date ?? f.event_date,
+      event_time: q.event_time ?? f.event_time,
+      event_address: q.event_address ?? f.event_address,
+      event_type: q.event_type ?? f.event_type,
+      adults: q.adults ?? f.adults,
+      children_count: (q.children_7_10 ?? 0) + (q.children_0_6 ?? 0),
+      child_price: Number(extras.child_price ?? 0),
+      notes: q.notes ?? requester.notes ?? f.notes,
+      has_grill: !!q.has_grill,
+      has_freezer: !!q.has_freezer,
+      payment_method: (q.payment_method ?? f.payment_method) as typeof f.payment_method,
+    }));
+
+    if (Array.isArray(extras.custom)) setCustomExtras(extras.custom);
+    if (extras.price_per_person_override != null) setPriceOverride(Number(extras.price_per_person_override));
+    if (extras.entry_override != null) setEntryOverride(Number(extras.entry_override));
+    if (extras.balance_override != null) setBalanceOverride(Number(extras.balance_override));
+
+    setPrefilledQuote(true);
+  }, [quoteId, existingQuote, prefilledQuote]);
+
 
 
 
@@ -312,9 +387,13 @@ function NewQuotePage() {
         <ArrowLeft className="size-3" /> Voltar
       </Link>
       <div>
-        <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">Novo orçamento</h1>
+        <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">
+          {quoteId ? "Completar orçamento" : "Novo orçamento"}
+        </h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Cálculo automático de valor total, entrada e saldo.
+          {quoteId
+            ? "Dados do solicitante preenchidos. Ajuste pacotes, preços e salve."
+            : "Cálculo automático de valor total, entrada e saldo."}
         </p>
       </div>
 
