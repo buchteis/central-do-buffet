@@ -171,19 +171,6 @@ function NewQuotePage() {
       const { data: userRes } = await supabase.auth.getUser();
       if (!userRes.user) throw new Error("Sessão expirada");
 
-      // Use selected client if any. Never auto-create a client from a lead here —
-      // client cadastro só acontece por ação explícita de conversão.
-      if (!form.client_id && !lead) {
-        throw new Error("Selecione um cliente");
-      }
-  const mut = useMutation({
-    mutationFn: async () => {
-      const parsed = schema.safeParse({ ...form, package_ids: packageLines.filter(Boolean) });
-      if (!parsed.success) throw new Error(parsed.error.issues[0].message);
-
-      const { data: userRes } = await supabase.auth.getUser();
-      if (!userRes.user) throw new Error("Sessão expirada");
-
       if (!form.client_id && !lead && !existingQuote?.client_id) {
         throw new Error("Selecione um cliente");
       }
