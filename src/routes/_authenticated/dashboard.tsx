@@ -209,7 +209,7 @@ function Dashboard() {
   const ganhosPrevisiveisQ = useDashboardQuery("ganhos-previsiveis", async () => {
     const [{ data: fechadosPagos }, { data: emAndamento }] = await Promise.all([
       supabase.from("quotes").select("total_value").eq("status", "fechado").eq("paid", true),
-      supabase.from("quotes").select("total_value").eq("status", "em_andamento").neq("status", QUOTE_ACTIVE_FILTER),
+      supabase.from("quotes").select("total_value").eq("status", "em_andamento"),
     ]);
     const a = (fechadosPagos ?? []).reduce((s, r: any) => s + Number(r.total_value ?? 0), 0);
     const b = (emAndamento ?? []).reduce((s, r: any) => s + Number(r.total_value ?? 0), 0);
