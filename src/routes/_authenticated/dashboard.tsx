@@ -45,12 +45,21 @@ function isoDate(d: Date) {
   return d.toISOString().slice(0, 10);
 }
 
+// Events considered "operational" — everything except cancelled.
+// Quotes considered "operational" — everything except cancelled.
+const EVENT_ACTIVE_FILTER = "cancelado";
+const QUOTE_ACTIVE_FILTER = "cancelado";
+
+function useDashboardQuery<T>(key: string, fn: () => Promise<T>) {
+  return useQuery({ queryKey: ["dashboard", key], queryFn: fn, staleTime: 15_000 });
+}
+
 function Dashboard() {
   const qc = useQueryClient();
 
   useEffect(() => {
     const invalidate = () => {
-      qc.invalidateQueries({ queryKey: ["dashboard-stats-v2"] });
+      qc.invalidateQueries({ queryKey: ["dashboard"] });
     };
     const channel = supabase
       .channel("dashboard-live")
@@ -60,114 +69,181 @@ function Dashboard() {
       .on("postgres_changes", { event: "*", schema: "public", table: "transactions" }, invalidate)
       .on("postgres_changes", { event: "*", schema: "public", table: "clients" }, invalidate)
       .on("postgres_changes", { event: "*", schema: "public", table: "leads" }, invalidate)
+      .on("postgres_changes", { event: "*", schema: "public", table: "event_staff" }, invalidate)
       .subscribe();
     return () => {
       supabase.removeChannel(channel);
     };
   }, [qc]);
 
-  const { data: stats } = useQuery({
-    queryKey: ["dashboard-stats-v2"],
-    queryFn: async () => {
-      const now = new Date();
-      const today = isoDate(now);
-      const dayOfWeek = now.getDay();
-      const weekStart = new Date(now);
-      weekStart.setDate(now.getDate() - dayOfWeek);
-      const weekEnd = new Date(weekStart);
-      weekEnd.setDate(weekStart.getDate() + 7);
-      const monthStart = isoDate(new Date(now.getFullYear(), now.getMonth(), 1));
-      const nextMonth = isoDate(new Date(now.getFullYear(), now.getMonth() + 1, 1));
-      const monthAgo = isoDate(new Date(now.getFullYear(), now.getMonth() - 1, now.getDate()));
-      const tomorrow = isoDate(new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1));
+  // Precompute date boundaries once per render.
+  const now = new Date();
+  const today = isoDate(now);
+  const dayOfWeek = now.getDay();
+  const weekStart = new Date(now);
+  weekStart.setDate(now.getDate() - dayOfWeek);
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekStart.getDate() + 7);
+  const weekStartISO = isoDate(weekStart);
+  const weekEndISO = isoDate(weekEnd);
+  const monthStart = isoDate(new Date(now.getFullYear(), now.getMonth(), 1));
+  const nextMonth = isoDate(new Date(now.getFullYear(), now.getMonth() + 1, 1));
+  const monthAgo = isoDate(new Date(now.getFullYear(), now.getMonth() - 1, now.getDate()));
+  const tomorrow = isoDate(new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1));
 
-      const [
-        evToday,
-        evWeek,
-        evMonth,
-        qPend,
-        qApr,
-        revPredicted,
-        revReceived,
-        txPending,
-        txOverdue,
-        clientsCount,
-        newClients,
-        staffToday,
-        employeesActive,
-        contractsPending,
-        upcoming,
-        alertsPay,
-        alertsEvTomorrow,
-        eventosConfirmados,
-        quotesNegociacao,
-      
-      ] = await Promise.all([
-        supabase.from("events").select("id", { count: "exact", head: true }).eq("event_date", today),
-        supabase.from("events").select("id", { count: "exact", head: true }).gte("event_date", isoDate(weekStart)).lt("event_date", isoDate(weekEnd)),
-        supabase.from("events").select("id", { count: "exact", head: true }).gte("event_date", monthStart).lt("event_date", nextMonth),
-        supabase.from("quotes").select("id", { count: "exact", head: true }).in("status", ["novo", "primeiro_contato", "visitado", "enviado", "negociacao", "aguardando"]),
-        supabase.from("quotes").select("id", { count: "exact", head: true }).eq("status", "aprovado"),
-        supabase.from("events").select("total_value").gte("event_date", monthStart).lt("event_date", nextMonth),
-        supabase.from("transactions").select("amount").eq("type", "entrada").eq("status", "pago").gte("paid_date", monthStart).lt("paid_date", nextMonth),
-        supabase.from("transactions").select("amount").eq("status", "pendente"),
-        supabase.from("transactions").select("id", { count: "exact", head: true }).eq("status", "pendente").lt("due_date", today),
-        supabase.from("clients").select("id", { count: "exact", head: true }),
-        supabase.from("clients").select("id", { count: "exact", head: true }).gte("created_at", monthAgo),
-        (async () => {
-          const { data: ids } = await supabase.from("events").select("id").eq("event_date", today);
-          const eventIds = (ids ?? []).map((r: any) => r.id);
-          if (eventIds.length === 0) return { data: [] as any[] };
-          const { data } = await supabase.from("event_staff").select("id").in("event_id", eventIds);
-          return { data: data ?? [] };
-        })(),
-        supabase.from("employees").select("id", { count: "exact", head: true }).eq("active", true),
-        supabase.from("contracts").select("id", { count: "exact", head: true }).in("status", ["rascunho", "enviado"]),
-        supabase.from("events").select("id, event_date, event_time, status, total_value, clients(name), packages(name)").gte("event_date", today).order("event_date").limit(6),
-        supabase.from("transactions").select("id, description, amount, due_date").eq("status", "pendente").lt("due_date", today).limit(5),
-        supabase.from("events").select("id, event_time, clients(name)").eq("event_date", tomorrow).limit(5),
-        supabase.from("quotes").select("total_value").eq("status", "fechado").eq("paid", true),
-        supabase.from("quotes").select("total_value").in("status", ["em_analise", "negociacao", "aguardando", "primeiro_contato", "visitado", "enviado", "em_andamento"]),
-      ]);
+  // === Independent per-indicator queries — each filters at the DB level. ===
 
-      const revenuePredicted = (revPredicted.data ?? []).reduce((s, r) => s + Number(r.total_value ?? 0), 0);
-      const revenueReceived = (revReceived.data ?? []).reduce((s, r) => s + Number(r.amount ?? 0), 0);
-      const toReceive = (txPending.data ?? []).reduce((s, r) => s + Number(r.amount ?? 0), 0);
-      const faturamentoConcluido = (eventosConfirmados.data ?? []).reduce((s, r: any) => s + Number(r.total_value ?? 0), 0);
-      const negociacaoVal = (quotesNegociacao.data ?? []).reduce((s, r: any) => s + Number(r.total_value ?? 0), 0);
-      const ganhosPrevisiveis = faturamentoConcluido + negociacaoVal;
-
-      return {
-        evToday: evToday.count ?? 0,
-        evWeek: evWeek.count ?? 0,
-        evMonth: evMonth.count ?? 0,
-        qPend: qPend.count ?? 0,
-        qApr: qApr.count ?? 0,
-        revenuePredicted,
-        revenueReceived,
-        toReceive,
-        ganhosPrevisiveis,
-        faturamentoConcluido,
-        clientsCount: clientsCount.count ?? 0,
-        newClients: newClients.count ?? 0,
-        staffToday: staffToday.data?.length ?? 0,
-        employeesActive: employeesActive.count ?? 0,
-        contractsPending: contractsPending.count ?? 0,
-        txOverdue: txOverdue.count ?? 0,
-        upcoming: upcoming.data ?? [],
-        alertsPay: alertsPay.data ?? [],
-        alertsEvTomorrow: alertsEvTomorrow.data ?? [],
-      };
-    },
+  const evToday = useDashboardQuery("ev-today", async () => {
+    const { count } = await supabase.from("events").select("id", { count: "exact", head: true })
+      .eq("event_date", today).neq("status", EVENT_ACTIVE_FILTER);
+    return count ?? 0;
   });
 
+  const evWeek = useDashboardQuery("ev-week", async () => {
+    const { count } = await supabase.from("events").select("id", { count: "exact", head: true })
+      .gte("event_date", weekStartISO).lt("event_date", weekEndISO).neq("status", EVENT_ACTIVE_FILTER);
+    return count ?? 0;
+  });
+
+  const evMonth = useDashboardQuery("ev-month", async () => {
+    const { count } = await supabase.from("events").select("id", { count: "exact", head: true })
+      .gte("event_date", monthStart).lt("event_date", nextMonth).neq("status", EVENT_ACTIVE_FILTER);
+    return count ?? 0;
+  });
+
+  const qPend = useDashboardQuery("q-pend", async () => {
+    const { count } = await supabase.from("quotes").select("id", { count: "exact", head: true })
+      .in("status", ["novo", "em_andamento"]);
+    return count ?? 0;
+  });
+
+  const qApr = useDashboardQuery("q-apr", async () => {
+    const { count } = await supabase.from("quotes").select("id", { count: "exact", head: true })
+      .eq("status", "fechado");
+    return count ?? 0;
+  });
+
+  const revenuePredicted = useDashboardQuery("rev-predicted", async () => {
+    const { data } = await supabase.from("events").select("total_value")
+      .gte("event_date", monthStart).lt("event_date", nextMonth).neq("status", EVENT_ACTIVE_FILTER);
+    return (data ?? []).reduce((s, r: any) => s + Number(r.total_value ?? 0), 0);
+  });
+
+  const revenueReceived = useDashboardQuery("rev-received", async () => {
+    const { data } = await supabase.from("transactions").select("amount")
+      .eq("type", "entrada").eq("status", "pago").gte("paid_date", monthStart).lt("paid_date", nextMonth);
+    return (data ?? []).reduce((s, r: any) => s + Number(r.amount ?? 0), 0);
+  });
+
+  const toReceive = useDashboardQuery("to-receive", async () => {
+    const { data } = await supabase.from("transactions").select("amount").eq("status", "pendente");
+    return (data ?? []).reduce((s, r: any) => s + Number(r.amount ?? 0), 0);
+  });
+
+  const txOverdue = useDashboardQuery("tx-overdue", async () => {
+    const { count } = await supabase.from("transactions").select("id", { count: "exact", head: true })
+      .eq("status", "pendente").lt("due_date", today);
+    return count ?? 0;
+  });
+
+  const clientsCount = useDashboardQuery("clients-count", async () => {
+    const { count } = await supabase.from("clients").select("id", { count: "exact", head: true });
+    return count ?? 0;
+  });
+
+  const newClients = useDashboardQuery("new-clients", async () => {
+    const { count } = await supabase.from("clients").select("id", { count: "exact", head: true })
+      .gte("created_at", monthAgo);
+    return count ?? 0;
+  });
+
+  const staffToday = useDashboardQuery("staff-today", async () => {
+    const { data: ids } = await supabase.from("events").select("id")
+      .eq("event_date", today).neq("status", EVENT_ACTIVE_FILTER);
+    const eventIds = (ids ?? []).map((r: any) => r.id);
+    if (eventIds.length === 0) return 0;
+    const { count } = await supabase.from("event_staff").select("id", { count: "exact", head: true })
+      .in("event_id", eventIds);
+    return count ?? 0;
+  });
+
+  const employeesActive = useDashboardQuery("employees-active", async () => {
+    const { count } = await supabase.from("employees").select("id", { count: "exact", head: true }).eq("active", true);
+    return count ?? 0;
+  });
+
+  const contractsPending = useDashboardQuery("contracts-pending", async () => {
+    const { count } = await supabase.from("contracts").select("id", { count: "exact", head: true })
+      .in("status", ["rascunho", "enviado"]);
+    return count ?? 0;
+  });
+
+  const upcoming = useDashboardQuery("upcoming", async () => {
+    const { data } = await supabase.from("events")
+      .select("id, event_date, event_time, status, total_value, clients(name), packages(name)")
+      .gte("event_date", today).neq("status", EVENT_ACTIVE_FILTER)
+      .order("event_date").limit(6);
+    return data ?? [];
+  });
+
+  const alertsPay = useDashboardQuery("alerts-pay", async () => {
+    const { data } = await supabase.from("transactions").select("id, description, amount, due_date")
+      .eq("status", "pendente").lt("due_date", today).limit(5);
+    return data ?? [];
+  });
+
+  const alertsEvTomorrow = useDashboardQuery("alerts-ev-tomorrow", async () => {
+    const { data } = await supabase.from("events").select("id, event_time, clients(name)")
+      .eq("event_date", tomorrow).neq("status", EVENT_ACTIVE_FILTER).limit(5);
+    return data ?? [];
+  });
+
+  // Faturamento concluído: quotes fechados e pagos.
+  const faturamentoConcluido = useDashboardQuery("fat-concluido", async () => {
+    const { data } = await supabase.from("quotes").select("total_value")
+      .eq("status", "fechado").eq("paid", true);
+    return (data ?? []).reduce((s, r: any) => s + Number(r.total_value ?? 0), 0);
+  });
+
+  // Ganhos previsíveis: fechado+pago + em andamento (não cancelados).
+  const ganhosPrevisiveisQ = useDashboardQuery("ganhos-previsiveis", async () => {
+    const [{ data: fechadosPagos }, { data: emAndamento }] = await Promise.all([
+      supabase.from("quotes").select("total_value").eq("status", "fechado").eq("paid", true),
+      supabase.from("quotes").select("total_value").eq("status", "em_andamento").neq("status", QUOTE_ACTIVE_FILTER),
+    ]);
+    const a = (fechadosPagos ?? []).reduce((s, r: any) => s + Number(r.total_value ?? 0), 0);
+    const b = (emAndamento ?? []).reduce((s, r: any) => s + Number(r.total_value ?? 0), 0);
+    return a + b;
+  });
+
+  const stats = {
+    evToday: evToday.data ?? 0,
+    evWeek: evWeek.data ?? 0,
+    evMonth: evMonth.data ?? 0,
+    qPend: qPend.data ?? 0,
+    qApr: qApr.data ?? 0,
+    revenuePredicted: revenuePredicted.data ?? 0,
+    revenueReceived: revenueReceived.data ?? 0,
+    toReceive: toReceive.data ?? 0,
+    ganhosPrevisiveis: ganhosPrevisiveisQ.data ?? 0,
+    faturamentoConcluido: faturamentoConcluido.data ?? 0,
+    clientsCount: clientsCount.data ?? 0,
+    newClients: newClients.data ?? 0,
+    staffToday: staffToday.data ?? 0,
+    employeesActive: employeesActive.data ?? 0,
+    contractsPending: contractsPending.data ?? 0,
+    txOverdue: txOverdue.data ?? 0,
+    upcoming: upcoming.data ?? [],
+    alertsPay: alertsPay.data ?? [],
+    alertsEvTomorrow: alertsEvTomorrow.data ?? [],
+  };
+
   const alerts: { icon: any; label: string; tone: string }[] = [];
-  if (stats) {
-    if (stats.txOverdue > 0) alerts.push({ icon: AlertTriangle, label: `${stats.txOverdue} pagamento(s) atrasado(s)`, tone: "destructive" });
-    if (stats.contractsPending > 0) alerts.push({ icon: FileText, label: `${stats.contractsPending} contrato(s) pendente(s)`, tone: "warning" });
-    if (stats.alertsEvTomorrow.length > 0) alerts.push({ icon: CalendarCheck, label: `${stats.alertsEvTomorrow.length} evento(s) amanhã`, tone: "info" });
-    if (stats.qPend > 0) alerts.push({ icon: Hourglass, label: `${stats.qPend} orçamento(s) aguardando resposta`, tone: "muted" });
-  }
+  if (stats.txOverdue > 0) alerts.push({ icon: AlertTriangle, label: `${stats.txOverdue} pagamento(s) atrasado(s)`, tone: "destructive" });
+  if (stats.contractsPending > 0) alerts.push({ icon: FileText, label: `${stats.contractsPending} contrato(s) pendente(s)`, tone: "warning" });
+  if (stats.alertsEvTomorrow.length > 0) alerts.push({ icon: CalendarCheck, label: `${stats.alertsEvTomorrow.length} evento(s) amanhã`, tone: "info" });
+  if (stats.qPend > 0) alerts.push({ icon: Hourglass, label: `${stats.qPend} orçamento(s) aguardando resposta`, tone: "muted" });
+
 
   return (
     <div className="space-y-6">
