@@ -123,11 +123,6 @@ function Dashboard() {
     return count ?? 0;
   });
 
-  const revenuePredicted = useDashboardQuery("rev-predicted", async () => {
-    const { data } = await supabase.from("events").select("total_value")
-      .gte("event_date", monthStart).lt("event_date", nextMonth).neq("status", EVENT_ACTIVE_FILTER);
-    return (data ?? []).reduce((s, r: any) => s + Number(r.total_value ?? 0), 0);
-  });
 
   const revenueReceived = useDashboardQuery("rev-received", async () => {
     const { data } = await supabase.from("transactions").select("amount")
