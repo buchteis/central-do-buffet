@@ -217,7 +217,7 @@ function Dashboard() {
     evMonth: evMonth.data ?? 0,
     qPend: qPend.data ?? 0,
     qApr: qApr.data ?? 0,
-    revenuePredicted: revenuePredicted.data ?? 0,
+    
     revenueReceived: revenueReceived.data ?? 0,
     toReceive: toReceive.data ?? 0,
     ganhosPrevisiveis: ganhosPrevisiveisQ.data ?? 0,
