@@ -299,7 +299,7 @@ function Dashboard() {
         <Kpi label="Eventos hoje" value={String(stats?.evToday ?? "—")} icon={Calendar} />
         <Kpi label="Eventos na semana" value={String(stats?.evWeek ?? "—")} icon={CalendarDays} />
         <Kpi label="Eventos no mês" value={String(stats?.evMonth ?? "—")} icon={CalendarCheck} />
-        <Kpi label="Receita prevista" value={brlCompact(stats?.revenuePredicted ?? 0)} icon={DollarSign} accent />
+        
         <Kpi label="Receita recebida" value={brlCompact(stats?.revenueReceived ?? 0)} icon={Wallet} />
         <Kpi label="A receber" value={brlCompact(stats?.toReceive ?? 0)} icon={Hourglass} tone={stats && stats.txOverdue > 0 ? "warn" : undefined} />
         <Kpi label="Orçamentos pendentes" value={String(stats?.qPend ?? "—")} icon={FileText} />
