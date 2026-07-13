@@ -123,11 +123,6 @@ function Dashboard() {
     return count ?? 0;
   });
 
-  const revenuePredicted = useDashboardQuery("rev-predicted", async () => {
-    const { data } = await supabase.from("events").select("total_value")
-      .gte("event_date", monthStart).lt("event_date", nextMonth).neq("status", EVENT_ACTIVE_FILTER);
-    return (data ?? []).reduce((s, r: any) => s + Number(r.total_value ?? 0), 0);
-  });
 
   const revenueReceived = useDashboardQuery("rev-received", async () => {
     const { data } = await supabase.from("transactions").select("amount")
@@ -222,7 +217,7 @@ function Dashboard() {
     evMonth: evMonth.data ?? 0,
     qPend: qPend.data ?? 0,
     qApr: qApr.data ?? 0,
-    revenuePredicted: revenuePredicted.data ?? 0,
+    
     revenueReceived: revenueReceived.data ?? 0,
     toReceive: toReceive.data ?? 0,
     ganhosPrevisiveis: ganhosPrevisiveisQ.data ?? 0,
@@ -304,7 +299,7 @@ function Dashboard() {
         <Kpi label="Eventos hoje" value={String(stats?.evToday ?? "—")} icon={Calendar} />
         <Kpi label="Eventos na semana" value={String(stats?.evWeek ?? "—")} icon={CalendarDays} />
         <Kpi label="Eventos no mês" value={String(stats?.evMonth ?? "—")} icon={CalendarCheck} />
-        <Kpi label="Receita prevista" value={brlCompact(stats?.revenuePredicted ?? 0)} icon={DollarSign} accent />
+        
         <Kpi label="Receita recebida" value={brlCompact(stats?.revenueReceived ?? 0)} icon={Wallet} />
         <Kpi label="A receber" value={brlCompact(stats?.toReceive ?? 0)} icon={Hourglass} tone={stats && stats.txOverdue > 0 ? "warn" : undefined} />
         <Kpi label="Orçamentos pendentes" value={String(stats?.qPend ?? "—")} icon={FileText} />
