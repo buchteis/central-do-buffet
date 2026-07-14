@@ -340,6 +340,9 @@ function NewQuotePage() {
   const [prefilledQuote, setPrefilledQuote] = useState(false);
   useEffect(() => {
     if (!quoteId || prefilledQuote || !existingQuote) return;
+    // Only prefill once reference lists are available so <Select> values map to items.
+    if (!packages || !clients) return;
+
     const q: any = existingQuote;
     const extras: any = q.extras ?? {};
     const requester: any = extras.requester ?? {};
