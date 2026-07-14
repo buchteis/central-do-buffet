@@ -307,6 +307,8 @@ function NewQuotePage() {
   const [prefilled, setPrefilled] = useState(false);
   useEffect(() => {
     if (!leadId || prefilled || !lead) return;
+    // Wait for reference lists so Select components can match ids to items.
+    if (!packages || !clients) return;
     if ((lead as any).converted_quote_id) {
       toast.info("Este lead já possui um orçamento vinculado.");
       navigate({ to: "/orcamentos" });
@@ -331,7 +333,8 @@ function NewQuotePage() {
       notes: (lead as any).notes ?? f.notes,
     }));
     setPrefilled(true);
-  }, [lead, packages, leadId, prefilled, navigate]);
+  }, [lead, packages, clients, leadId, prefilled, navigate]);
+
 
   // Prefill from an existing quote (e.g. pré-orçamento vindo do link público).
   const [prefilledQuote, setPrefilledQuote] = useState(false);
