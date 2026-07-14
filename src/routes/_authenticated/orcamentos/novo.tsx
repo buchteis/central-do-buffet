@@ -88,7 +88,7 @@ function NewQuotePage() {
     queryFn: async () => {
       const { data } = await supabase
         .from("packages")
-        .select("id, name, price_per_person")
+        .select("id, name, price_per_person, min_people, max_people")
         .eq("active", true)
         .order("name");
       return data ?? [];
