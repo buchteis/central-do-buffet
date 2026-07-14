@@ -88,7 +88,7 @@ function NewQuotePage() {
     queryFn: async () => {
       const { data } = await supabase
         .from("packages")
-        .select("id, name, price_per_person")
+        .select("id, name, price_per_person, min_people, max_people")
         .eq("active", true)
         .order("name");
       return data ?? [];
@@ -476,20 +476,41 @@ function NewQuotePage() {
                           <SelectValue placeholder="Selecione um pacote…" />
                         </SelectTrigger>
                         <SelectContent>
-                          {(packages ?? []).map((p) => (
-                            <SelectItem
-                              key={p.id}
-                              value={p.id}
-                              disabled={packageLines.includes(p.id) && p.id !== pid}
-                            >
-                              {p.name} · {brl(p.price_per_person)}/pessoa
-                            </SelectItem>
-                          ))}
-                          {(packages ?? []).length === 0 && (
-                            <div className="p-4 text-xs text-muted-foreground">
-                              Cadastre um pacote antes.
-                            </div>
-                          )}
+                          {(() => {
+                            const guests = (Number(form.adults) || 0) + (Number(form.children_count) || 0);
+                            const all = packages ?? [];
+                            const fits = (p: any) => {
+                              if (guests <= 0) return true;
+                              const min = p.min_people ?? 0;
+                              const max = p.max_people ?? Number.POSITIVE_INFINITY;
+                              return guests >= min && guests <= max;
+                            };
+                            const visible = all.filter((p: any) => fits(p) || p.id === pid);
+                            if (visible.length === 0) {
+                              return (
+                                <div className="p-4 text-xs text-muted-foreground">
+                                  {all.length === 0
+                                    ? "Cadastre um pacote antes."
+                                    : `Nenhum pacote cadastrado para ${guests} convidado(s).`}
+                                </div>
+                              );
+                            }
+                            return visible.map((p: any) => (
+                              <SelectItem
+                                key={p.id}
+                                value={p.id}
+                                disabled={packageLines.includes(p.id) && p.id !== pid}
+                              >
+                                {p.name} · {brl(p.price_per_person)}/pessoa
+                                {(p.min_people != null || p.max_people != null) && (
+                                  <span className="text-muted-foreground">
+                                    {" "}
+                                    ({p.min_people ?? 0}–{p.max_people ?? "∞"} pess.)
+                                  </span>
+                                )}
+                              </SelectItem>
+                            ));
+                          })()}
                         </SelectContent>
                       </Select>
                     </div>
