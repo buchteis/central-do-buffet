@@ -378,7 +378,8 @@ function NewQuotePage() {
     if (extras.balance_override != null) setBalanceOverride(Number(extras.balance_override));
 
     setPrefilledQuote(true);
-  }, [quoteId, existingQuote, prefilledQuote]);
+  }, [quoteId, existingQuote, prefilledQuote, packages, clients]);
+
 
 
 
