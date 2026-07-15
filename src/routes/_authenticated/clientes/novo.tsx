@@ -91,7 +91,25 @@ function NewClientPage() {
       <form onSubmit={onSubmit} className="bg-card border border-border rounded-2xl p-6 space-y-4">
         <Field label="Nome completo *" name="name" required />
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Field label="CPF" name="cpf" placeholder="000.000.000-00" />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="cpf">
+              CPF/CNPJ{" "}
+              {cpfKind && (
+                <span className="text-[10px] font-semibold text-primary uppercase ml-1">
+                  {cpfKind}
+                </span>
+              )}
+            </Label>
+            <Input
+              id="cpf"
+              name="cpf"
+              inputMode="numeric"
+              placeholder="CPF ou CNPJ"
+              value={cpf}
+              onChange={(e) => setCpf(maskCpfCnpj(e.target.value))}
+            />
+          </div>
           <Field label="Cidade" name="city" />
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
