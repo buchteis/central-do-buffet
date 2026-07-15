@@ -65,7 +65,7 @@ function EditClientPage() {
     if (!client) return;
     setForm({
       name: client.name ?? "",
-      cpf: client.cpf ?? "",
+      cpf: client.cpf ? maskCpfCnpj(client.cpf) : "",
       phone: client.phone ?? "",
       whatsapp: client.whatsapp ?? "",
       email: client.email ?? "",
