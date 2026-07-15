@@ -418,7 +418,7 @@ function NewQuotePage() {
               {lead && !form.client_id ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <Input readOnly value={(lead as any).name ?? ""} placeholder="Nome do solicitante" />
-                  <Input readOnly value={(lead as any).cpf ?? ""} placeholder="CPF" />
+                  <Input readOnly value={maskCpfCnpj((lead as any).cpf ?? "")} placeholder="CPF/CNPJ" />
                   <Input readOnly value={(lead as any).phone ?? ""} placeholder="Telefone" />
                   <Input readOnly value={(lead as any).email ?? ""} placeholder="E-mail" />
                 </div>
