@@ -405,6 +405,36 @@ function NewQuotePage() {
         </p>
       </div>
 
+      {quoteId && existingQuote && (() => {
+        const q: any = existingQuote;
+        const cli: any = q.clients ?? {};
+        const req: any = (q.extras as any)?.requester ?? {};
+        const rows: Array<[string, string]> = [
+          ["Nome", cli.name ?? req.name ?? "—"],
+          ["CPF/CNPJ", maskCpfCnpj(cli.cpf ?? req.cpf ?? "") || "—"],
+          ["Telefone", cli.phone ?? req.phone ?? "—"],
+          ["WhatsApp", cli.whatsapp ?? req.whatsapp ?? "—"],
+          ["E-mail", cli.email ?? req.email ?? "—"],
+          ["Endereço", cli.address ?? req.address ?? "—"],
+          ["Cidade", cli.city ?? req.city ?? "—"],
+        ];
+        return (
+          <div className="bg-muted/40 border border-border rounded-2xl p-4">
+            <div className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground mb-3">
+              Dados do solicitante (link público)
+            </div>
+            <dl className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2 text-sm">
+              {rows.map(([k, v]) => (
+                <div key={k} className="flex gap-2">
+                  <dt className="text-muted-foreground min-w-24">{k}:</dt>
+                  <dd className="font-medium break-all">{v || "—"}</dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+        );
+      })()}
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <form
           onSubmit={(e) => {
