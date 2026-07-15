@@ -35,7 +35,12 @@ const schema = z.object({
   name: z.string().trim().min(2, "Informe seu nome").max(100),
   whatsapp: z.string().trim().min(8, "WhatsApp inválido").max(20),
   email: z.string().trim().email("E-mail inválido").max(255).optional().or(z.literal("")),
-  cpf: z.string().trim().max(20).optional(),
+  cpf: z
+    .string()
+    .trim()
+    .max(20)
+    .optional()
+    .refine((v) => !v || isValidCpfCnpj(v), { message: "CPF/CNPJ inválido" }),
   city: z.string().trim().max(80).optional(),
   event_address: z.string().trim().max(200).optional(),
   event_date: z.string().min(1, "Data obrigatória"),
