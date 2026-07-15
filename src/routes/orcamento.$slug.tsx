@@ -55,6 +55,8 @@ const schema = z.object({
 function PublicQuoteForm() {
   const { slug } = Route.useParams();
   const [sent, setSent] = useState(false);
+  const [cpf, setCpf] = useState("");
+  const cpfKind = docKind(cpf);
 
   const { data: tenant, isLoading } = useQuery({
     queryKey: ["public-tenant", slug],
