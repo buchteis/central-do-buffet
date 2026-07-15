@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { X, Send, Search, Database, Globe, Loader2, Bot, Sparkles, ChevronDown, ChevronUp } from 'lucide-react';
+import { X, Send, Database, Globe, Loader2, Bot, Sparkles, ChevronDown, ChevronUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -50,7 +50,6 @@ Sou seu assistente virtual especializado em churrascos e eventos!
   // ==========================================
   const searchDatabase = async (query: string) => {
     const results = [];
-    const searchTerms = query.toLowerCase().split(' ');
 
     try {
       // 1. Buscar CLIENTES
@@ -64,7 +63,6 @@ Sou seu assistente virtual especializado em churrascos e eventos!
         results.push({
           type: 'clientes',
           title: '👤 Clientes encontrados',
-          emoji: '👤',
           data: clients.map(c => ({
             nome: c.name,
             telefone: c.phone || 'Não informado',
@@ -85,7 +83,6 @@ Sou seu assistente virtual especializado em churrascos e eventos!
         results.push({
           type: 'orcamentos',
           title: '📄 Orçamentos encontrados',
-          emoji: '📄',
           data: quotes.map(q => ({
             cliente: q.clients?.name || 'Não identificado',
             valor: `R$ ${Number(q.total_value).toFixed(2)}`,
@@ -106,7 +103,6 @@ Sou seu assistente virtual especializado em churrascos e eventos!
         results.push({
           type: 'eventos',
           title: '📅 Eventos encontrados',
-          emoji: '📅',
           data: events.map(e => ({
             cliente: e.clients?.name || 'Não identificado',
             data: e.event_date,
@@ -129,7 +125,6 @@ Sou seu assistente virtual especializado em churrascos e eventos!
         results.push({
           type: 'transacoes',
           title: '💰 Pagamentos Pendentes',
-          emoji: '💰',
           data: transactions.map(t => ({
             descricao: t.description || 'Sem descrição',
             valor: `R$ ${Number(t.amount).toFixed(2)}`,
@@ -176,6 +171,35 @@ Sou seu assistente virtual especializado em churrascos e eventos!
 • "Tendências de buffet"
 • "Dicas para eventos"`;
     }
+  };
+
+  // ==========================================
+  // 📊 FUNÇÃO: Formatar resultados do banco
+  // ==========================================
+  const formatDBResults = (results: any[]) => {
+    let output = '📊 **Resultados encontrados no sistema**\n\n';
+
+    results.forEach((section, index) => {
+      output += `### ${section.title}\n`;
+      output += `${'-'.repeat(40)}\n`;
+
+      section.data.forEach((item: any, i: number) => {
+        const fields = Object.entries(item);
+        const maxLength = Math.max(...fields.map(([key]) => key.length));
+        
+        fields.forEach(([key, value]) => {
+          const padding = ' '.repeat(maxLength - key.length + 2);
+          output += `**${key}:**${padding}${value}\n`;
+        });
+        
+        if (i < section.data.length - 1) output += '\n';
+      });
+
+      if (index < results.length - 1) output += '\n---\n\n';
+    });
+
+    output += '\n📌 *Posso ajudar com mais alguma informação?*';
+    return output;
   };
 
   // ==========================================
@@ -257,35 +281,6 @@ Ainda estou aprendendo sobre esse assunto específico.
   };
 
   // ==========================================
-  // 📊 FUNÇÃO: Formatar resultados do banco
-  // ==========================================
-  const formatDBResults = (results: any[]) => {
-    let output = '📊 **Resultados encontrados no sistema**\n\n';
-
-    results.forEach((section, index) => {
-      output += `### ${section.title}\n`;
-      output += `${'-'.repeat(40)}\n`;
-
-      section.data.forEach((item: any, i: number) => {
-        const fields = Object.entries(item);
-        const maxLength = Math.max(...fields.map(([key]) => key.length));
-        
-        fields.forEach(([key, value]) => {
-          const padding = ' '.repeat(maxLength - key.length + 2);
-          output += `**${key}:**${padding}${value}\n`;
-        });
-        
-        if (i < section.data.length - 1) output += '\n';
-      });
-
-      if (index < results.length - 1) output += '\n---\n\n';
-    });
-
-    output += '\n📌 *Posso ajudar com mais alguma informação?*';
-    return output;
-  };
-
-  // ==========================================
   // 💬 Enviar mensagem
   // ==========================================
   const sendMessage = async () => {
@@ -314,7 +309,7 @@ Ainda estou aprendendo sobre esse assunto específico.
       console.error('Erro:', error);
       setMessages(prev => [...prev, { 
         role: 'assistant', 
-        content: '❌ **Ops! Algo deu errado.** \n\nTente novamente ou recarregue a página. Se o problema persistir, entre em contato com o suporte.',
+        content: '❌ **Ops! Algo deu errado.** \n\nTente novamente ou recarregue a página.',
         type: 'general',
         timestamp: new Date()
       }]);
@@ -335,7 +330,7 @@ Ainda estou aprendendo sobre esse assunto específico.
   ];
 
   // ==========================================
-  // 🖥️ RENDER
+  // 🖥️ RENDER (Interface do Chat)
   // ==========================================
   return (
     <>
@@ -412,7 +407,7 @@ Ainda estou aprendendo sobre esse assunto específico.
               </div>
             </div>
 
-            {/* Filtros - só mostra se não estiver minimizado */}
+            {/* Filtros */}
             {!isMinimized && (
               <div className="flex gap-1 mt-3">
                 <button
@@ -452,7 +447,7 @@ Ainda estou aprendendo sobre esse assunto específico.
             )}
           </div>
 
-          {/* Messages - esconde se minimizado */}
+          {/* Messages */}
           {!isMinimized && (
             <>
               <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50/50 dark:bg-gray-800/30">
@@ -471,7 +466,6 @@ Ainda estou aprendendo sobre esse assunto específico.
                     {msg.type && msg.role === 'assistant' && (
                       <div className={cn(
                         "text-[10px] mt-1 font-medium",
-                        msg.role === 'user' ? "text-right" : "text-left",
                         msg.type === 'db' && "text-blue-500",
                         msg.type === 'web' && "text-emerald-500",
                         msg.type === 'general' && "text-gray-400"
@@ -495,7 +489,7 @@ Ainda estou aprendendo sobre esse assunto específico.
 
               {/* Sugestões rápidas */}
               <div className="px-4 py-2.5 border-t border-gray-200 dark:border-gray-700 bg-gray-50/80 dark:bg-gray-800/50">
-                <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600">
+                <div className="flex gap-2 overflow-x-auto pb-1">
                   {quickSuggestions.map((sug, i) => (
                     <button
                       key={i}
