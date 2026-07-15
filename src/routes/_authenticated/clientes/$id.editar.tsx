@@ -18,7 +18,13 @@ export const Route = createFileRoute("/_authenticated/clientes/$id/editar")({
 
 const schema = z.object({
   name: z.string().trim().min(2, "Nome obrigatório").max(120),
-  cpf: z.string().trim().max(20).optional().or(z.literal("")),
+  cpf: z
+    .string()
+    .trim()
+    .max(20)
+    .optional()
+    .or(z.literal(""))
+    .refine((v) => !v || isValidCpfCnpj(v), { message: "CPF/CNPJ inválido" }),
   phone: z.string().trim().max(30).optional().or(z.literal("")),
   whatsapp: z.string().trim().max(30).optional().or(z.literal("")),
   email: z.string().trim().email("E-mail inválido").max(150).optional().or(z.literal("")),
