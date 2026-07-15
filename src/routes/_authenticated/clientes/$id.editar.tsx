@@ -94,7 +94,8 @@ function EditClientPage() {
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    const parsed = schema.safeParse(form);
+    const normalized = { ...form, cpf: form.cpf ? onlyDigits(form.cpf) : "" };
+    const parsed = schema.safeParse(normalized);
     if (!parsed.success) return toast.error(parsed.error.issues[0].message);
     mut.mutate(parsed.data);
   }
