@@ -50,7 +50,6 @@ function isoDate(d: Date) {
   return d.toISOString().slice(0, 10);
 }
 
-// Status que devem ser excluídos das contagens
 const EXCLUDED_STATUSES = ["cancelado"];
 
 function useDashboardQuery<T>(key: string, fn: () => Promise<T>) {
@@ -86,7 +85,6 @@ function Dashboard() {
     };
   }, [qc]);
 
-  // Precompute date boundaries
   const now = new Date();
   const today = isoDate(now);
   const dayOfWeek = now.getDay();
@@ -101,14 +99,8 @@ function Dashboard() {
   const monthAgo = isoDate(new Date(now.getFullYear(), now.getMonth() - 1, now.getDate()));
   const tomorrow = isoDate(new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1));
 
-  // === Queries Otimizadas ===
-
   const eventsData = useDashboardQuery("events-data", async () => {
-    const { data } = await supabase
-      .from("events")
-      .select("id, event_date, status")
-      .not("status", "in", `("${EXCLUDED_STATUSES.join('","')}")`);
-    
+    const { data } = await supabase.from("events").select("id, event_date, status").not("status", "in", `("${EXCLUDED_STATUSES.join('","')}")`);
     const counts = { today: 0, week: 0, month: 0 };
     data?.forEach(event => {
       if (event.event_date === today) counts.today++;
@@ -122,17 +114,14 @@ function Dashboard() {
     const { data } = await supabase.from("quotes").select("id, status, total_value, paid");
     const pendentes = data?.filter(q => q.status === "novo" || q.status === "em_andamento").length || 0;
     const aprovados = data?.filter(q => q.status === "fechado").length || 0;
-    const concluidos = data?.filter(q => q.status === "fechado" && q.paid === true)
-      .reduce((sum, q) => sum + Number(q.total_value || 0), 0) || 0;
-    const previsiveis = data?.filter(q => (q.status === "fechado" && q.paid === true) || q.status === "em_andamento")
-      .reduce((sum, q) => sum + Number(q.total_value || 0), 0) || 0;
+    const concluidos = data?.filter(q => q.status === "fechado" && q.paid === true).reduce((sum, q) => sum + Number(q.total_value || 0), 0) || 0;
+    const previsiveis = data?.filter(q => (q.status === "fechado" && q.paid === true) || q.status === "em_andamento").reduce((sum, q) => sum + Number(q.total_value || 0), 0) || 0;
     return { pendentes, aprovados, concluidos, previsiveis };
   });
 
   const transactionsData = useDashboardQuery("transactions-data", async () => {
     const { data } = await supabase.from("transactions").select("id, amount, type, status, paid_date, due_date");
-    const recebido = data?.filter(t => t.type === "entrada" && t.status === "pago" && t.paid_date >= monthStart && t.paid_date < nextMonth)
-      .reduce((sum, t) => sum + Number(t.amount || 0), 0) || 0;
+    const recebido = data?.filter(t => t.type === "entrada" && t.status === "pago" && t.paid_date >= monthStart && t.paid_date < nextMonth).reduce((sum, t) => sum + Number(t.amount || 0), 0) || 0;
     const aReceber = data?.filter(t => t.status === "pendente").reduce((sum, t) => sum + Number(t.amount || 0), 0) || 0;
     const vencidos = data?.filter(t => t.status === "pendente" && t.due_date < today).length || 0;
     return { recebido, aReceber, vencidos };
