@@ -11,7 +11,7 @@ interface Message {
 }
 
 // 🔗 URL da sua IA (substitua pela real)
-const AI_API_URL = 'https://sua-ia-hospedada.com/api/chat';
+const AI_API_URL = 'https://minha-ia-d4nnoiycwgxyazwmmdfdha.streamlit.app/api/chat';
 
 export const Chatbot = () => {
   const [isOpen, setIsOpen] = useState(false);
