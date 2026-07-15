@@ -139,8 +139,21 @@ function EditClientPage() {
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label htmlFor="cpf">CPF</Label>
-            <Input id="cpf" value={form.cpf ?? ""} onChange={(e) => set("cpf", e.target.value)} />
+            <Label htmlFor="cpf">
+              CPF/CNPJ{" "}
+              {docKind(form.cpf ?? "") && (
+                <span className="text-[10px] font-semibold text-primary uppercase ml-1">
+                  {docKind(form.cpf ?? "")}
+                </span>
+              )}
+            </Label>
+            <Input
+              id="cpf"
+              inputMode="numeric"
+              placeholder="CPF ou CNPJ"
+              value={form.cpf ?? ""}
+              onChange={(e) => set("cpf", maskCpfCnpj(e.target.value))}
+            />
           </div>
           <div className="space-y-2">
             <Label htmlFor="city">Cidade</Label>
