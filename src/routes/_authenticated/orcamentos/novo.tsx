@@ -65,7 +65,7 @@ function NewQuotePage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("quotes")
-        .select("*, clients(id, name, cpf, phone, whatsapp, email, address)")
+        .select("*, clients(id, name, cpf, phone, whatsapp, email, address, city)")
         .eq("id", quoteId!)
         .maybeSingle();
       if (error) throw error;
