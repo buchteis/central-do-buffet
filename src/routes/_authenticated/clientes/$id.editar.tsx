@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { maskCpfCnpj, isValidCpfCnpj, onlyDigits, docKind } from "@/lib/doc";
 
 export const Route = createFileRoute("/_authenticated/clientes/$id/editar")({
   head: () => ({ meta: [{ title: "Editar cliente — Meu Churras" }] }),
@@ -17,7 +18,13 @@ export const Route = createFileRoute("/_authenticated/clientes/$id/editar")({
 
 const schema = z.object({
   name: z.string().trim().min(2, "Nome obrigatório").max(120),
-  cpf: z.string().trim().max(20).optional().or(z.literal("")),
+  cpf: z
+    .string()
+    .trim()
+    .max(20)
+    .optional()
+    .or(z.literal(""))
+    .refine((v) => !v || isValidCpfCnpj(v), { message: "CPF/CNPJ inválido" }),
   phone: z.string().trim().max(30).optional().or(z.literal("")),
   whatsapp: z.string().trim().max(30).optional().or(z.literal("")),
   email: z.string().trim().email("E-mail inválido").max(150).optional().or(z.literal("")),
@@ -58,7 +65,7 @@ function EditClientPage() {
     if (!client) return;
     setForm({
       name: client.name ?? "",
-      cpf: client.cpf ?? "",
+      cpf: client.cpf ? maskCpfCnpj(client.cpf) : "",
       phone: client.phone ?? "",
       whatsapp: client.whatsapp ?? "",
       email: client.email ?? "",
@@ -87,7 +94,8 @@ function EditClientPage() {
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    const parsed = schema.safeParse(form);
+    const normalized = { ...form, cpf: form.cpf ? onlyDigits(form.cpf) : "" };
+    const parsed = schema.safeParse(normalized);
     if (!parsed.success) return toast.error(parsed.error.issues[0].message);
     mut.mutate(parsed.data);
   }
@@ -131,8 +139,21 @@ function EditClientPage() {
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label htmlFor="cpf">CPF</Label>
-            <Input id="cpf" value={form.cpf ?? ""} onChange={(e) => set("cpf", e.target.value)} />
+            <Label htmlFor="cpf">
+              CPF/CNPJ{" "}
+              {docKind(form.cpf ?? "") && (
+                <span className="text-[10px] font-semibold text-primary uppercase ml-1">
+                  {docKind(form.cpf ?? "")}
+                </span>
+              )}
+            </Label>
+            <Input
+              id="cpf"
+              inputMode="numeric"
+              placeholder="CPF ou CNPJ"
+              value={form.cpf ?? ""}
+              onChange={(e) => set("cpf", maskCpfCnpj(e.target.value))}
+            />
           </div>
           <div className="space-y-2">
             <Label htmlFor="city">Cidade</Label>

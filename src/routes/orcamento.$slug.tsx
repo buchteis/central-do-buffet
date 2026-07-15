@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { maskCpfCnpj, isValidCpfCnpj, onlyDigits, docKind } from "@/lib/doc";
 import {
   Select,
   SelectContent,
@@ -34,7 +35,12 @@ const schema = z.object({
   name: z.string().trim().min(2, "Informe seu nome").max(100),
   whatsapp: z.string().trim().min(8, "WhatsApp inválido").max(20),
   email: z.string().trim().email("E-mail inválido").max(255).optional().or(z.literal("")),
-  cpf: z.string().trim().max(20).optional(),
+  cpf: z
+    .string()
+    .trim()
+    .max(20)
+    .optional()
+    .refine((v) => !v || isValidCpfCnpj(v), { message: "CPF/CNPJ inválido" }),
   city: z.string().trim().max(80).optional(),
   event_address: z.string().trim().max(200).optional(),
   event_date: z.string().min(1, "Data obrigatória"),
@@ -49,6 +55,8 @@ const schema = z.object({
 function PublicQuoteForm() {
   const { slug } = Route.useParams();
   const [sent, setSent] = useState(false);
+  const [cpf, setCpf] = useState("");
+  const cpfKind = docKind(cpf);
 
   const { data: tenant, isLoading } = useQuery({
     queryKey: ["public-tenant", slug],
@@ -141,6 +149,7 @@ function PublicQuoteForm() {
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const raw = Object.fromEntries(new FormData(e.currentTarget)) as any;
+    raw.cpf = cpf ? onlyDigits(cpf) : undefined;
     const parsed = schema.safeParse(raw);
     if (!parsed.success) {
       toast.error(parsed.error.issues[0].message);
@@ -172,7 +181,24 @@ function PublicQuoteForm() {
             <Field name="name" label="Seu nome *" required />
             <Field name="whatsapp" label="WhatsApp *" required placeholder="(11) 99999-9999" />
             <Field name="email" label="E-mail" type="email" />
-            <Field name="cpf" label="CPF" placeholder="000.000.000-00" />
+            <div className="space-y-2">
+              <Label htmlFor="cpf">
+                CPF/CNPJ{" "}
+                {cpfKind && (
+                  <span className="text-[10px] font-semibold text-primary uppercase ml-1">
+                    {cpfKind}
+                  </span>
+                )}
+              </Label>
+              <Input
+                id="cpf"
+                name="cpf"
+                inputMode="numeric"
+                placeholder="CPF ou CNPJ"
+                value={cpf}
+                onChange={(e) => setCpf(maskCpfCnpj(e.target.value))}
+              />
+            </div>
             <Field name="city" label="Cidade" />
             <Field name="event_type" label="Tipo do evento" placeholder="Aniversário, casamento…" />
           </div>

@@ -1,5 +1,6 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -8,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { maskCpfCnpj, isValidCpfCnpj, onlyDigits, docKind } from "@/lib/doc";
 
 export const Route = createFileRoute("/_authenticated/clientes/novo")({
   head: () => ({ meta: [{ title: "Novo cliente — Meu Churras" }] }),
@@ -16,7 +18,13 @@ export const Route = createFileRoute("/_authenticated/clientes/novo")({
 
 const schema = z.object({
   name: z.string().trim().min(2, "Nome obrigatório").max(120),
-  cpf: z.string().trim().max(20).optional().or(z.literal("")),
+  cpf: z
+    .string()
+    .trim()
+    .max(20)
+    .optional()
+    .or(z.literal(""))
+    .refine((v) => !v || isValidCpfCnpj(v), { message: "CPF/CNPJ inválido" }),
   phone: z.string().trim().max(30).optional().or(z.literal("")),
   whatsapp: z.string().trim().max(30).optional().or(z.literal("")),
   email: z.string().trim().email("E-mail inválido").max(150).optional().or(z.literal("")),
@@ -28,6 +36,7 @@ const schema = z.object({
 function NewClientPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const [cpf, setCpf] = useState("");
 
   const mut = useMutation({
     mutationFn: async (values: z.infer<typeof schema>) => {
@@ -54,11 +63,15 @@ function NewClientPage() {
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    const form = Object.fromEntries(new FormData(e.currentTarget));
+    const form = Object.fromEntries(new FormData(e.currentTarget)) as Record<string, string>;
+    // Store CPF/CNPJ as digits only for consistency.
+    form.cpf = cpf ? onlyDigits(cpf) : "";
     const parsed = schema.safeParse(form);
     if (!parsed.success) return toast.error(parsed.error.issues[0].message);
     mut.mutate(parsed.data);
   }
+
+  const cpfKind = docKind(cpf);
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
@@ -78,7 +91,24 @@ function NewClientPage() {
       <form onSubmit={onSubmit} className="bg-card border border-border rounded-2xl p-6 space-y-4">
         <Field label="Nome completo *" name="name" required />
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Field label="CPF" name="cpf" placeholder="000.000.000-00" />
+          <div className="space-y-2">
+            <Label htmlFor="cpf">
+              CPF/CNPJ{" "}
+              {cpfKind && (
+                <span className="text-[10px] font-semibold text-primary uppercase ml-1">
+                  {cpfKind}
+                </span>
+              )}
+            </Label>
+            <Input
+              id="cpf"
+              name="cpf"
+              inputMode="numeric"
+              placeholder="CPF ou CNPJ"
+              value={cpf}
+              onChange={(e) => setCpf(maskCpfCnpj(e.target.value))}
+            />
+          </div>
           <Field label="Cidade" name="city" />
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

@@ -21,6 +21,7 @@ import { calcQuote } from "@/lib/quote-calc";
 import { brl } from "@/lib/format";
 import { openQuotePdf } from "@/lib/quote-pdf";
 import { useTenantAccess } from "@/hooks/useTenantAccess";
+import { maskCpfCnpj } from "@/lib/doc";
 
 export const Route = createFileRoute("/_authenticated/orcamentos/novo")({
   head: () => ({ meta: [{ title: "Novo orçamento — Meu Churras" }] }),
@@ -64,7 +65,7 @@ function NewQuotePage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("quotes")
-        .select("*, clients(id, name, cpf, phone, whatsapp, email, address)")
+        .select("*, clients(id, name, cpf, phone, whatsapp, email, address, city)")
         .eq("id", quoteId!)
         .maybeSingle();
       if (error) throw error;
@@ -404,6 +405,36 @@ function NewQuotePage() {
         </p>
       </div>
 
+      {quoteId && existingQuote && (() => {
+        const q: any = existingQuote;
+        const cli: any = q.clients ?? {};
+        const req: any = (q.extras as any)?.requester ?? {};
+        const rows: Array<[string, string]> = [
+          ["Nome", cli.name ?? req.name ?? "—"],
+          ["CPF/CNPJ", maskCpfCnpj(cli.cpf ?? req.cpf ?? "") || "—"],
+          ["Telefone", cli.phone ?? req.phone ?? "—"],
+          ["WhatsApp", cli.whatsapp ?? req.whatsapp ?? "—"],
+          ["E-mail", cli.email ?? req.email ?? "—"],
+          ["Endereço", cli.address ?? req.address ?? "—"],
+          ["Cidade", cli.city ?? req.city ?? "—"],
+        ];
+        return (
+          <div className="bg-muted/40 border border-border rounded-2xl p-4">
+            <div className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground mb-3">
+              Dados do solicitante (link público)
+            </div>
+            <dl className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2 text-sm">
+              {rows.map(([k, v]) => (
+                <div key={k} className="flex gap-2">
+                  <dt className="text-muted-foreground min-w-24">{k}:</dt>
+                  <dd className="font-medium break-all">{v || "—"}</dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+        );
+      })()}
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <form
           onSubmit={(e) => {
@@ -418,7 +449,7 @@ function NewQuotePage() {
               {lead && !form.client_id ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <Input readOnly value={(lead as any).name ?? ""} placeholder="Nome do solicitante" />
-                  <Input readOnly value={(lead as any).cpf ?? ""} placeholder="CPF" />
+                  <Input readOnly value={maskCpfCnpj((lead as any).cpf ?? "")} placeholder="CPF/CNPJ" />
                   <Input readOnly value={(lead as any).phone ?? ""} placeholder="Telefone" />
                   <Input readOnly value={(lead as any).email ?? ""} placeholder="E-mail" />
                 </div>
