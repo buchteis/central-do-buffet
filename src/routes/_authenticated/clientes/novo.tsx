@@ -36,6 +36,7 @@ const schema = z.object({
 function NewClientPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const [cpf, setCpf] = useState("");
 
   const mut = useMutation({
     mutationFn: async (values: z.infer<typeof schema>) => {
@@ -62,11 +63,15 @@ function NewClientPage() {
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    const form = Object.fromEntries(new FormData(e.currentTarget));
+    const form = Object.fromEntries(new FormData(e.currentTarget)) as Record<string, string>;
+    // Store CPF/CNPJ as digits only for consistency.
+    form.cpf = cpf ? onlyDigits(cpf) : "";
     const parsed = schema.safeParse(form);
     if (!parsed.success) return toast.error(parsed.error.issues[0].message);
     mut.mutate(parsed.data);
   }
+
+  const cpfKind = docKind(cpf);
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
