@@ -17,6 +17,10 @@ import {
   UserCheck,
   Users,
   Wallet,
+  CreditCard,
+  Clock,
+  CheckCircle,
+  XCircle,
 } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
@@ -32,6 +36,7 @@ const statusStyles: Record<string, string> = {
   cancelado: "bg-destructive/10 text-destructive",
   realizado: "bg-slate-500/10 text-slate-600",
 };
+
 const statusLabels: Record<string, string> = {
   agendado: "Agendado",
   em_andamento: "Em andamento",
@@ -45,13 +50,16 @@ function isoDate(d: Date) {
   return d.toISOString().slice(0, 10);
 }
 
-// Events considered "operational" — everything except cancelled.
-// Quotes considered "operational" — everything except cancelled.
-const EVENT_ACTIVE_FILTER = "cancelado";
-const QUOTE_ACTIVE_FILTER = "cancelado";
+// Status que devem ser excluídos das contagens
+const EXCLUDED_STATUSES = ["cancelado"];
 
 function useDashboardQuery<T>(key: string, fn: () => Promise<T>) {
-  return useQuery({ queryKey: ["dashboard", key], queryFn: fn, staleTime: 15_000 });
+  return useQuery({ 
+    queryKey: ["dashboard", key], 
+    queryFn: fn, 
+    staleTime: 30_000, // Aumentado para reduzir chamadas
+    refetchOnWindowFocus: false,
+  });
 }
 
 function Dashboard() {
@@ -61,6 +69,7 @@ function Dashboard() {
     const invalidate = () => {
       qc.invalidateQueries({ queryKey: ["dashboard"] });
     };
+    
     const channel = supabase
       .channel("dashboard-live")
       .on("postgres_changes", { event: "*", schema: "public", table: "quotes" }, invalidate)
@@ -71,12 +80,13 @@ function Dashboard() {
       .on("postgres_changes", { event: "*", schema: "public", table: "leads" }, invalidate)
       .on("postgres_changes", { event: "*", schema: "public", table: "event_staff" }, invalidate)
       .subscribe();
+      
     return () => {
       supabase.removeChannel(channel);
     };
   }, [qc]);
 
-  // Precompute date boundaries once per render.
+  // Precompute date boundaries
   const now = new Date();
   const today = isoDate(now);
   const dayOfWeek = now.getDay();
@@ -91,161 +101,224 @@ function Dashboard() {
   const monthAgo = isoDate(new Date(now.getFullYear(), now.getMonth() - 1, now.getDate()));
   const tomorrow = isoDate(new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1));
 
-  // === Independent per-indicator queries — each filters at the DB level. ===
+  // === Queries Otimizadas ===
 
-  const evToday = useDashboardQuery("ev-today", async () => {
-    const { count } = await supabase.from("events").select("id", { count: "exact", head: true })
-      .eq("event_date", today).neq("status", EVENT_ACTIVE_FILTER);
-    return count ?? 0;
+  // Eventos - Combinados em uma única query
+  const eventsData = useDashboardQuery("events-data", async () => {
+    const { data } = await supabase
+      .from("events")
+      .select("id, event_date, status")
+      .not("status", "in", `("${EXCLUDED_STATUSES.join('","')}")`);
+    
+    const counts = {
+      today: 0,
+      week: 0,
+      month: 0,
+    };
+    
+    data?.forEach(event => {
+      if (event.event_date === today) counts.today++;
+      if (event.event_date >= weekStartISO && event.event_date < weekEndISO) counts.week++;
+      if (event.event_date >= monthStart && event.event_date < nextMonth) counts.month++;
+    });
+    
+    return counts;
   });
 
-  const evWeek = useDashboardQuery("ev-week", async () => {
-    const { count } = await supabase.from("events").select("id", { count: "exact", head: true })
-      .gte("event_date", weekStartISO).lt("event_date", weekEndISO).neq("status", EVENT_ACTIVE_FILTER);
-    return count ?? 0;
+  // Orçamentos - Combinados
+  const quotesData = useDashboardQuery("quotes-data", async () => {
+    const { data } = await supabase
+      .from("quotes")
+      .select("id, status, total_value, paid");
+    
+    const pendentes = data?.filter(q => q.status === "novo" || q.status === "em_andamento").length || 0;
+    const aprovados = data?.filter(q => q.status === "fechado").length || 0;
+    const concluidos = data?.filter(q => q.status === "fechado" && q.paid === true)
+      .reduce((sum, q) => sum + Number(q.total_value || 0), 0) || 0;
+    const previsiveis = data?.filter(q => q.status === "fechado" && q.paid === true || q.status === "em_andamento")
+      .reduce((sum, q) => sum + Number(q.total_value || 0), 0) || 0;
+    
+    return { pendentes, aprovados, concluidos, previsiveis };
   });
 
-  const evMonth = useDashboardQuery("ev-month", async () => {
-    const { count } = await supabase.from("events").select("id", { count: "exact", head: true })
-      .gte("event_date", monthStart).lt("event_date", nextMonth).neq("status", EVENT_ACTIVE_FILTER);
-    return count ?? 0;
+  // Transações
+  const transactionsData = useDashboardQuery("transactions-data", async () => {
+    const { data } = await supabase
+      .from("transactions")
+      .select("id, amount, type, status, paid_date, due_date");
+    
+    const recebido = data?.filter(t => 
+      t.type === "entrada" && 
+      t.status === "pago" && 
+      t.paid_date >= monthStart && 
+      t.paid_date < nextMonth
+    ).reduce((sum, t) => sum + Number(t.amount || 0), 0) || 0;
+    
+    const aReceber = data?.filter(t => t.status === "pendente")
+      .reduce((sum, t) => sum + Number(t.amount || 0), 0) || 0;
+    
+    const vencidos = data?.filter(t => 
+      t.status === "pendente" && 
+      t.due_date < today
+    ).length || 0;
+    
+    return { recebido, aReceber, vencidos };
   });
 
-  const qPend = useDashboardQuery("q-pend", async () => {
-    const { count } = await supabase.from("quotes").select("id", { count: "exact", head: true })
-      .in("status", ["novo", "em_andamento"]);
-    return count ?? 0;
-  });
-
-  const qApr = useDashboardQuery("q-apr", async () => {
-    const { count } = await supabase.from("quotes").select("id", { count: "exact", head: true })
-      .eq("status", "fechado");
-    return count ?? 0;
-  });
-
-
-  const revenueReceived = useDashboardQuery("rev-received", async () => {
-    const { data } = await supabase.from("transactions").select("amount")
-      .eq("type", "entrada").eq("status", "pago").gte("paid_date", monthStart).lt("paid_date", nextMonth);
-    return (data ?? []).reduce((s, r: any) => s + Number(r.amount ?? 0), 0);
-  });
-
-  const toReceive = useDashboardQuery("to-receive", async () => {
-    const { data } = await supabase.from("transactions").select("amount").eq("status", "pendente");
-    return (data ?? []).reduce((s, r: any) => s + Number(r.amount ?? 0), 0);
-  });
-
-  const txOverdue = useDashboardQuery("tx-overdue", async () => {
-    const { count } = await supabase.from("transactions").select("id", { count: "exact", head: true })
-      .eq("status", "pendente").lt("due_date", today);
-    return count ?? 0;
-  });
-
+  // Outras métricas
   const clientsCount = useDashboardQuery("clients-count", async () => {
-    const { count } = await supabase.from("clients").select("id", { count: "exact", head: true });
+    const { count } = await supabase
+      .from("clients")
+      .select("id", { count: "exact", head: true });
     return count ?? 0;
   });
 
   const newClients = useDashboardQuery("new-clients", async () => {
-    const { count } = await supabase.from("clients").select("id", { count: "exact", head: true })
+    const { count } = await supabase
+      .from("clients")
+      .select("id", { count: "exact", head: true })
       .gte("created_at", monthAgo);
     return count ?? 0;
   });
 
-  const staffToday = useDashboardQuery("staff-today", async () => {
-    const { data: ids } = await supabase.from("events").select("id")
-      .eq("event_date", today).neq("status", EVENT_ACTIVE_FILTER);
-    const eventIds = (ids ?? []).map((r: any) => r.id);
-    if (eventIds.length === 0) return 0;
-    const { count } = await supabase.from("event_staff").select("id", { count: "exact", head: true })
-      .in("event_id", eventIds);
-    return count ?? 0;
-  });
-
   const employeesActive = useDashboardQuery("employees-active", async () => {
-    const { count } = await supabase.from("employees").select("id", { count: "exact", head: true }).eq("active", true);
+    const { count } = await supabase
+      .from("employees")
+      .select("id", { count: "exact", head: true })
+      .eq("active", true);
     return count ?? 0;
   });
 
   const contractsPending = useDashboardQuery("contracts-pending", async () => {
-    const { count } = await supabase.from("contracts").select("id", { count: "exact", head: true })
+    const { count } = await supabase
+      .from("contracts")
+      .select("id", { count: "exact", head: true })
       .in("status", ["rascunho", "enviado"]);
     return count ?? 0;
   });
 
+  // Staff hoje
+  const staffToday = useDashboardQuery("staff-today", async () => {
+    const { data: events } = await supabase
+      .from("events")
+      .select("id")
+      .eq("event_date", today)
+      .not("status", "in", `("${EXCLUDED_STATUSES.join('","')}")`);
+    
+    if (!events || events.length === 0) return 0;
+    
+    const eventIds = events.map(e => e.id);
+    const { count } = await supabase
+      .from("event_staff")
+      .select("id", { count: "exact", head: true })
+      .in("event_id", eventIds);
+    
+    return count ?? 0;
+  });
+
+  // Próximos eventos
   const upcoming = useDashboardQuery("upcoming", async () => {
-    const { data } = await supabase.from("events")
-      .select("id, event_date, event_time, status, total_value, clients(name), packages(name)")
-      .gte("event_date", today).neq("status", EVENT_ACTIVE_FILTER)
-      .order("event_date").limit(6);
+    const { data } = await supabase
+      .from("events")
+      .select(`
+        id, 
+        event_date, 
+        event_time, 
+        status, 
+        total_value,
+        clients(name),
+        packages(name)
+      `)
+      .gte("event_date", today)
+      .not("status", "in", `("${EXCLUDED_STATUSES.join('","')}")`)
+      .order("event_date")
+      .limit(6);
+    
     return data ?? [];
   });
 
+  // Alertas
   const alertsPay = useDashboardQuery("alerts-pay", async () => {
-    const { data } = await supabase.from("transactions").select("id, description, amount, due_date")
-      .eq("status", "pendente").lt("due_date", today).limit(5);
+    const { data } = await supabase
+      .from("transactions")
+      .select("id, description, amount, due_date")
+      .eq("status", "pendente")
+      .lt("due_date", today)
+      .limit(5);
     return data ?? [];
   });
 
   const alertsEvTomorrow = useDashboardQuery("alerts-ev-tomorrow", async () => {
-    const { data } = await supabase.from("events").select("id, event_time, clients(name)")
-      .eq("event_date", tomorrow).neq("status", EVENT_ACTIVE_FILTER).limit(5);
+    const { data } = await supabase
+      .from("events")
+      .select("id, event_time, clients(name)")
+      .eq("event_date", tomorrow)
+      .not("status", "in", `("${EXCLUDED_STATUSES.join('","')}")`)
+      .limit(5);
     return data ?? [];
   });
 
-  // Faturamento concluído: quotes fechados e pagos.
-  const faturamentoConcluido = useDashboardQuery("fat-concluido", async () => {
-    const { data } = await supabase.from("quotes").select("total_value")
-      .eq("status", "fechado").eq("paid", true);
-    return (data ?? []).reduce((s, r: any) => s + Number(r.total_value ?? 0), 0);
-  });
-
-  // Ganhos previsíveis: fechado+pago + em andamento (não cancelados).
-  const ganhosPrevisiveisQ = useDashboardQuery("ganhos-previsiveis", async () => {
-    const [{ data: fechadosPagos }, { data: emAndamento }] = await Promise.all([
-      supabase.from("quotes").select("total_value").eq("status", "fechado").eq("paid", true),
-      supabase.from("quotes").select("total_value").eq("status", "em_andamento"),
-    ]);
-    const a = (fechadosPagos ?? []).reduce((s, r: any) => s + Number(r.total_value ?? 0), 0);
-    const b = (emAndamento ?? []).reduce((s, r: any) => s + Number(r.total_value ?? 0), 0);
-    return a + b;
-  });
-
+  // Construir objeto de stats
   const stats = {
-    evToday: evToday.data ?? 0,
-    evWeek: evWeek.data ?? 0,
-    evMonth: evMonth.data ?? 0,
-    qPend: qPend.data ?? 0,
-    qApr: qApr.data ?? 0,
-    
-    revenueReceived: revenueReceived.data ?? 0,
-    toReceive: toReceive.data ?? 0,
-    ganhosPrevisiveis: ganhosPrevisiveisQ.data ?? 0,
-    faturamentoConcluido: faturamentoConcluido.data ?? 0,
+    evToday: eventsData.data?.today ?? 0,
+    evWeek: eventsData.data?.week ?? 0,
+    evMonth: eventsData.data?.month ?? 0,
+    qPend: quotesData.data?.pendentes ?? 0,
+    qApr: quotesData.data?.aprovados ?? 0,
+    revenueReceived: transactionsData.data?.recebido ?? 0,
+    toReceive: transactionsData.data?.aReceber ?? 0,
+    txOverdue: transactionsData.data?.vencidos ?? 0,
+    faturamentoConcluido: quotesData.data?.concluidos ?? 0,
+    ganhosPrevisiveis: quotesData.data?.previsiveis ?? 0,
     clientsCount: clientsCount.data ?? 0,
     newClients: newClients.data ?? 0,
     staffToday: staffToday.data ?? 0,
     employeesActive: employeesActive.data ?? 0,
     contractsPending: contractsPending.data ?? 0,
-    txOverdue: txOverdue.data ?? 0,
     upcoming: upcoming.data ?? [],
     alertsPay: alertsPay.data ?? [],
     alertsEvTomorrow: alertsEvTomorrow.data ?? [],
   };
 
+  // Alertas
   const alerts: { icon: any; label: string; tone: string }[] = [];
-  if (stats.txOverdue > 0) alerts.push({ icon: AlertTriangle, label: `${stats.txOverdue} pagamento(s) atrasado(s)`, tone: "destructive" });
-  if (stats.contractsPending > 0) alerts.push({ icon: FileText, label: `${stats.contractsPending} contrato(s) pendente(s)`, tone: "warning" });
-  if (stats.alertsEvTomorrow.length > 0) alerts.push({ icon: CalendarCheck, label: `${stats.alertsEvTomorrow.length} evento(s) amanhã`, tone: "info" });
-  if (stats.qPend > 0) alerts.push({ icon: Hourglass, label: `${stats.qPend} orçamento(s) aguardando resposta`, tone: "muted" });
-
+  if (stats.txOverdue > 0) {
+    alerts.push({ 
+      icon: AlertTriangle, 
+      label: `${stats.txOverdue} pagamento(s) atrasado(s)`, 
+      tone: "destructive" 
+    });
+  }
+  if (stats.contractsPending > 0) {
+    alerts.push({ 
+      icon: FileText, 
+      label: `${stats.contractsPending} contrato(s) pendente(s)`, 
+      tone: "warning" 
+    });
+  }
+  if (stats.alertsEvTomorrow.length > 0) {
+    alerts.push({ 
+      icon: CalendarCheck, 
+      label: `${stats.alertsEvTomorrow.length} evento(s) amanhã`, 
+      tone: "info" 
+    });
+  }
+  if (stats.qPend > 0) {
+    alerts.push({ 
+      icon: Hourglass, 
+      label: `${stats.qPend} orçamento(s) aguardando resposta`, 
+      tone: "muted" 
+    });
+  }
 
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">Dashboard</h1>
-          <p className="text-sm text-muted-foreground mt-1">{formatDateFullBR(new Date())} · Central operacional</p>
+          <p className="text-sm text-muted-foreground mt-1">
+            {formatDateFullBR(new Date())} · Central operacional
+          </p>
         </div>
       </div>
 
@@ -266,27 +339,31 @@ function Dashboard() {
         </div>
       )}
 
-
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-background border border-emerald-500/20 rounded-2xl p-5 md:p-6 shadow-sm">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-widest">Faturamento concluído</span>
+            <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-widest">
+              Faturamento concluído
+            </span>
             <DollarSign className="size-5 text-emerald-600" />
           </div>
           <div className="mt-2 text-3xl md:text-4xl font-extrabold tracking-tighter text-emerald-700 font-mono">
-            {brl(stats?.faturamentoConcluido ?? 0)}
+            {brl(stats.faturamentoConcluido)}
           </div>
           <p className="text-xs text-muted-foreground mt-1">
             Soma dos orçamentos com status <strong>Fechado</strong> e marcados como <strong>Pago</strong>.
           </p>
         </div>
+        
         <div className="bg-gradient-to-br from-primary/10 via-primary/5 to-background border border-primary/20 rounded-2xl p-5 md:p-6 shadow-sm">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold text-primary uppercase tracking-widest">Ganhos previsíveis</span>
+            <span className="text-[10px] font-bold text-primary uppercase tracking-widest">
+              Ganhos previsíveis
+            </span>
             <DollarSign className="size-5 text-primary" />
           </div>
           <div className="mt-2 text-3xl md:text-4xl font-extrabold tracking-tighter text-primary font-mono">
-            {brl(stats?.ganhosPrevisiveis ?? 0)}
+            {brl(stats.ganhosPrevisiveis)}
           </div>
           <p className="text-xs text-muted-foreground mt-1">
             Concluído + orçamentos em andamento/negociação.
@@ -294,22 +371,73 @@ function Dashboard() {
         </div>
       </div>
 
-
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-        <Kpi label="Eventos hoje" value={String(stats?.evToday ?? "—")} icon={Calendar} />
-        <Kpi label="Eventos na semana" value={String(stats?.evWeek ?? "—")} icon={CalendarDays} />
-        <Kpi label="Eventos no mês" value={String(stats?.evMonth ?? "—")} icon={CalendarCheck} />
-        
-        <Kpi label="Receita recebida" value={brlCompact(stats?.revenueReceived ?? 0)} icon={Wallet} />
-        <Kpi label="A receber" value={brlCompact(stats?.toReceive ?? 0)} icon={Hourglass} tone={stats && stats.txOverdue > 0 ? "warn" : undefined} />
-        <Kpi label="Orçamentos pendentes" value={String(stats?.qPend ?? "—")} icon={FileText} />
-        <Kpi label="Orçamentos aprovados" value={String(stats?.qApr ?? "—")} icon={FileText} />
-        <Kpi label="Clientes ativos" value={String(stats?.clientsCount ?? "—")} icon={Users} />
-        <Kpi label="Novos clientes (30d)" value={String(stats?.newClients ?? "—")} icon={Users} />
-        <Kpi label="Escala hoje" value={String(stats?.staffToday ?? "—")} icon={UserCheck} />
-        <Kpi label="Funcionários ativos" value={String(stats?.employeesActive ?? "—")} icon={ShoppingCart} />
+        <Kpi 
+          label="Eventos hoje" 
+          value={String(stats.evToday)} 
+          icon={Calendar} 
+          accent 
+        />
+        <Kpi 
+          label="Eventos na semana" 
+          value={String(stats.evWeek)} 
+          icon={CalendarDays} 
+        />
+        <Kpi 
+          label="Eventos no mês" 
+          value={String(stats.evMonth)} 
+          icon={CalendarCheck} 
+        />
+        <Kpi 
+          label="Receita recebida" 
+          value={brlCompact(stats.revenueReceived)} 
+          icon={Wallet} 
+          accent 
+        />
+        <Kpi 
+          label="A receber" 
+          value={brlCompact(stats.toReceive)} 
+          icon={CreditCard} 
+          tone={stats.txOverdue > 0 ? "warn" : undefined}
+        />
+        <Kpi 
+          label="Orçamentos pendentes" 
+          value={String(stats.qPend)} 
+          icon={Clock} 
+        />
+        <Kpi 
+          label="Orçamentos aprovados" 
+          value={String(stats.qApr)} 
+          icon={CheckCircle} 
+        />
+        <Kpi 
+          label="Clientes ativos" 
+          value={String(stats.clientsCount)} 
+          icon={Users} 
+        />
+        <Kpi 
+          label="Novos clientes (30d)" 
+          value={String(stats.newClients)} 
+          icon={Users} 
+          accent 
+        />
+        <Kpi 
+          label="Escala hoje" 
+          value={String(stats.staffToday)} 
+          icon={UserCheck} 
+        />
+        <Kpi 
+          label="Funcionários ativos" 
+          value={String(stats.employeesActive)} 
+          icon={ShoppingCart} 
+        />
+        <Kpi 
+          label="Contratos pendentes" 
+          value={String(stats.contractsPending)} 
+          icon={FileText} 
+          tone={stats.contractsPending > 0 ? "warn" : undefined}
+        />
       </div>
-
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 bg-card rounded-2xl border border-border shadow-sm">
@@ -318,11 +446,15 @@ function Dashboard() {
               <h2 className="font-extrabold text-lg tracking-tight">Próximos eventos</h2>
               <p className="text-xs text-muted-foreground mt-0.5">Os 6 eventos mais próximos</p>
             </div>
-            <Link to="/agenda" className="text-xs font-bold text-primary hover:underline flex items-center gap-1">
+            <Link 
+              to="/agenda" 
+              className="text-xs font-bold text-primary hover:underline flex items-center gap-1"
+            >
               Ver agenda <ArrowRight className="size-3" />
             </Link>
           </div>
-          {stats?.upcoming && stats.upcoming.length > 0 ? (
+          
+          {stats.upcoming.length > 0 ? (
             <div className="overflow-x-auto">
               <table className="w-full text-left">
                 <thead>
@@ -337,10 +469,18 @@ function Dashboard() {
                 <tbody className="divide-y divide-border">
                   {stats.upcoming.map((e: any) => (
                     <tr key={e.id} className="hover:bg-muted/30 transition-colors">
-                      <td className="px-5 py-4 text-sm font-semibold">{e.clients?.name ?? "—"}</td>
-                      <td className="px-4 py-4 text-xs font-mono">{formatDateBR(e.event_date)}</td>
-                      <td className="px-4 py-4 hidden md:table-cell text-xs">{e.packages?.name ?? "—"}</td>
-                      <td className="px-4 py-4 text-sm font-mono text-right">{brl(e.total_value)}</td>
+                      <td className="px-5 py-4 text-sm font-semibold">
+                        {e.clients?.name ?? "—"}
+                      </td>
+                      <td className="px-4 py-4 text-xs font-mono">
+                        {formatDateBR(e.event_date)}
+                      </td>
+                      <td className="px-4 py-4 hidden md:table-cell text-xs">
+                        {e.packages?.name ?? "—"}
+                      </td>
+                      <td className="px-4 py-4 text-sm font-mono text-right">
+                        {brl(e.total_value)}
+                      </td>
                       <td className="px-4 py-4">
                         <span className={cn(
                           "px-2 py-1 text-[10px] rounded-full font-bold uppercase tracking-wider whitespace-nowrap",
@@ -355,7 +495,9 @@ function Dashboard() {
               </table>
             </div>
           ) : (
-            <div className="p-10 text-center text-sm text-muted-foreground">Nenhum evento próximo.</div>
+            <div className="p-10 text-center text-sm text-muted-foreground">
+              Nenhum evento próximo.
+            </div>
           )}
         </div>
 
@@ -365,27 +507,39 @@ function Dashboard() {
             <p className="text-xs text-muted-foreground mt-0.5">O que precisa da sua atenção</p>
           </div>
           <div className="divide-y divide-border">
-            {(stats?.alertsPay ?? []).map((t: any) => (
+            {stats.alertsPay.map((t: any) => (
               <div key={t.id} className="p-4 flex items-start gap-3">
                 <AlertTriangle className="size-4 text-destructive shrink-0 mt-0.5" />
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-semibold truncate">{t.description}</div>
-                  <div className="text-[11px] text-muted-foreground">Venceu em {formatDateBR(t.due_date)}</div>
+                  <div className="text-[11px] text-muted-foreground">
+                    Venceu em {formatDateBR(t.due_date)}
+                  </div>
                 </div>
-                <span className="text-xs font-mono font-bold text-destructive">{brl(t.amount)}</span>
+                <span className="text-xs font-mono font-bold text-destructive">
+                  {brl(t.amount)}
+                </span>
               </div>
             ))}
-            {(stats?.alertsEvTomorrow ?? []).map((e: any) => (
+            
+            {stats.alertsEvTomorrow.map((e: any) => (
               <div key={e.id} className="p-4 flex items-start gap-3">
                 <CalendarCheck className="size-4 text-info shrink-0 mt-0.5" />
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-semibold truncate">Evento amanhã — {e.clients?.name}</div>
-                  <div className="text-[11px] text-muted-foreground">{e.event_time?.slice(0, 5) ?? ""}</div>
+                  <div className="text-sm font-semibold truncate">
+                    Evento amanhã — {e.clients?.name}
+                  </div>
+                  <div className="text-[11px] text-muted-foreground">
+                    {e.event_time?.slice(0, 5) ?? ""}
+                  </div>
                 </div>
               </div>
             ))}
-            {(!stats?.alertsPay?.length && !stats?.alertsEvTomorrow?.length) && (
-              <div className="p-10 text-center text-xs text-muted-foreground">Nenhuma pendência. 🎉</div>
+            
+            {stats.alertsPay.length === 0 && stats.alertsEvTomorrow.length === 0 && (
+              <div className="p-10 text-center text-xs text-muted-foreground">
+                Nenhuma pendência. 🎉
+              </div>
             )}
           </div>
         </div>
@@ -394,17 +548,42 @@ function Dashboard() {
   );
 }
 
-function Kpi({ label, value, icon: Icon, accent, tone }: { label: string; value: string; icon: any; accent?: boolean; tone?: "warn" }) {
+function Kpi({ 
+  label, 
+  value, 
+  icon: Icon, 
+  accent, 
+  tone 
+}: { 
+  label: string; 
+  value: string; 
+  icon: any; 
+  accent?: boolean; 
+  tone?: "warn" 
+}) {
   return (
     <div className={cn(
-      "bg-card p-4 rounded-2xl border shadow-sm",
-      tone === "warn" ? "border-warning/40" : "border-border",
+      "bg-card p-4 rounded-2xl border shadow-sm transition-all",
+      tone === "warn" && "border-warning/40 bg-warning/5",
+      !tone && "border-border",
     )}>
       <div className="flex items-center justify-between">
-        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{label}</span>
-        <Icon className={cn("size-4", accent ? "text-primary" : "text-muted-foreground/70")} />
+        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+          {label}
+        </span>
+        <Icon className={cn(
+          "size-4", 
+          accent ? "text-primary" : "text-muted-foreground/70",
+          tone === "warn" && "text-warning"
+        )} />
       </div>
-      <div className={cn("mt-2 text-2xl font-extrabold tracking-tighter", accent && "text-primary")}>{value}</div>
+      <div className={cn(
+        "mt-2 text-2xl font-extrabold tracking-tighter",
+        accent && "text-primary",
+        tone === "warn" && "text-warning"
+      )}>
+        {value}
+      </div>
     </div>
   );
 }
