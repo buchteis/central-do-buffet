@@ -21,6 +21,7 @@ import { calcQuote } from "@/lib/quote-calc";
 import { brl } from "@/lib/format";
 import { openQuotePdf } from "@/lib/quote-pdf";
 import { useTenantAccess } from "@/hooks/useTenantAccess";
+import { maskCpfCnpj } from "@/lib/doc";
 
 export const Route = createFileRoute("/_authenticated/orcamentos/novo")({
   head: () => ({ meta: [{ title: "Novo orçamento — Meu Churras" }] }),
