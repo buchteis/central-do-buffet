@@ -22,7 +22,7 @@ import {
   CheckCircle,
   XCircle,
 } from "lucide-react";
-
+import { Chatbot } from '@/components/Chatbot';
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({ meta: [{ title: "Dashboard — Meu Churras" }] }),
   component: Dashboard,
@@ -545,6 +545,7 @@ function Dashboard() {
         </div>
       </div>
     </div>
+  <Chatbot /> 
   );
 }
 
