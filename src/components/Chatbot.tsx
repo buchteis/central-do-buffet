@@ -40,24 +40,21 @@ export const Chatbot = () => {
           zIndex: 9999,
           border: '1px solid #e5e7eb'
         }}>
-          <h3 style={{ fontWeight: 'bold', marginBottom: '10px' }}>🤖 Central do Buffet</h3>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+            <h3 style={{ fontWeight: 'bold', margin: 0 }}>🤖 Central do Buffet</h3>
+            <button 
+              onClick={() => setIsOpen(false)}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '18px' }}
+            >
+              ✕
+            </button>
+          </div>
           <p style={{ color: '#6b7280', fontSize: '14px' }}>
             Chatbot conectado! Em breve mais funcionalidades.
           </p>
-          <button
-            onClick={() => setIsOpen(false)}
-            style={{
-              marginTop: '20px',
-              background: '#ef4444',
-              color: 'white',
-              border: 'none',
-              padding: '8px 16px',
-              borderRadius: '8px',
-              cursor: 'pointer'
-            }}
-          >
-            Fechar
-          </button>
+          <div style={{ marginTop: '20px', padding: '10px', background: '#f3f4f6', borderRadius: '8px', fontSize: '12px' }}>
+            <strong>Dica:</strong> Você pode usar este chat para tirar dúvidas sobre seus eventos e orçamentos.
+          </div>
         </div>
       )}
     </>
