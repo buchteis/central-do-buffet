@@ -149,6 +149,7 @@ function PublicQuoteForm() {
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const raw = Object.fromEntries(new FormData(e.currentTarget)) as any;
+    raw.cpf = cpf ? onlyDigits(cpf) : undefined;
     const parsed = schema.safeParse(raw);
     if (!parsed.success) {
       toast.error(parsed.error.issues[0].message);
