@@ -181,7 +181,24 @@ function PublicQuoteForm() {
             <Field name="name" label="Seu nome *" required />
             <Field name="whatsapp" label="WhatsApp *" required placeholder="(11) 99999-9999" />
             <Field name="email" label="E-mail" type="email" />
-            <Field name="cpf" label="CPF" placeholder="000.000.000-00" />
+            <div className="space-y-2">
+              <Label htmlFor="cpf">
+                CPF/CNPJ{" "}
+                {cpfKind && (
+                  <span className="text-[10px] font-semibold text-primary uppercase ml-1">
+                    {cpfKind}
+                  </span>
+                )}
+              </Label>
+              <Input
+                id="cpf"
+                name="cpf"
+                inputMode="numeric"
+                placeholder="CPF ou CNPJ"
+                value={cpf}
+                onChange={(e) => setCpf(maskCpfCnpj(e.target.value))}
+              />
+            </div>
             <Field name="city" label="Cidade" />
             <Field name="event_type" label="Tipo do evento" placeholder="Aniversário, casamento…" />
           </div>
