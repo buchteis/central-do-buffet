@@ -5,7 +5,6 @@ export const Chatbot = () => {
 
   return (
     <>
-      {/* Botão flutuante */}
       <button
         onClick={() => setIsOpen(!isOpen)}
         style={{
@@ -27,7 +26,6 @@ export const Chatbot = () => {
         🤖
       </button>
 
-      {/* Janela do chat (simples) */}
       {isOpen && (
         <div style={{
           position: 'fixed',
