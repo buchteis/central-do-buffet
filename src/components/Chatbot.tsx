@@ -6,11 +6,11 @@ const AI_API_URL = 'https://minha-ia-d4nnoiycwgyxazwmmdfdha.streamlit.app/chat';
 
 export const Chatbot = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const [input, setInput] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const [messages, setMessages] = useState<{ role: string; content: string }[]>([
     { role: 'assistant', content: '🤖 Olá! Sou o assistente do Meu Churras! Como posso ajudar?' }
   ]);
-  const [input, setInput] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
 
   // 🔥 PEGA O ID DO BUFFET LOGADO
   const { data: access } = useTenantAccess();
@@ -18,10 +18,11 @@ export const Chatbot = () => {
 
   const sendMessage = async () => {
     if (!input.trim() || isLoading) return;
+
     if (!buffetId) {
-      setMessages(prev => [...prev, { 
-        role: 'assistant', 
-        content: '⚠️ Você precisa estar logado em um buffet para usar o assistente.' 
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        content: '⚠️ Você precisa estar logado em um buffet para usar o assistente.'
       }]);
       return;
     }
@@ -32,13 +33,12 @@ export const Chatbot = () => {
     setIsLoading(true);
 
     try {
-      // 🔥 ENVIA A PERGUNTA + ID DO BUFFET
       const response = await fetch(AI_API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           pergunta: userMessage,
-          buffet_id: buffetId  // ← ENVIA O ID DO BUFFET!
+          buffet_id: buffetId
         })
       });
 
@@ -48,9 +48,9 @@ export const Chatbot = () => {
       setMessages(prev => [...prev, { role: 'assistant', content: reply }]);
     } catch (error) {
       console.error('Erro ao chamar IA:', error);
-      setMessages(prev => [...prev, { 
-        role: 'assistant', 
-        content: '❌ Erro ao conectar com a IA. Tente novamente.' 
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        content: '❌ Erro ao conectar com a IA. Tente novamente.'
       }]);
     } finally {
       setIsLoading(false);
