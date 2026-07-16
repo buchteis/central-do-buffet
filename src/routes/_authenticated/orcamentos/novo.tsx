@@ -604,25 +604,57 @@ function NewQuotePage() {
             />
           </div>
 
+          {/* ⭐ SEÇÃO DE PREÇOS COM BREAKDOWN - SUBSTITUÍDA */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {/* Adultos */}
             <NumField
               label="Adultos"
               value={form.adults}
               onChange={(v) => setForm((f) => ({ ...f, adults: v }))}
             />
-            <div className="space-y-2">
-              <Label>Preço por pessoa (R$)</Label>
-              <Input
-                type="number"
-                min={0}
-                step="0.01"
-                value={effectivePrice}
-                onChange={(e) => setPriceOverride(Number(e.target.value) || 0)}
-              />
+            
+            {/* ⭐ BREAKDOWN DOS PACOTES - VISÍVEL APENAS PARA O DONO */}
+            <div className="space-y-2 md:col-span-1">
+              <Label>Composição do preço</Label>
+              <div className="space-y-1 p-3 bg-muted/20 rounded-lg border text-sm">
+                {selectedPackages.length > 0 ? (
+                  <>
+                    {selectedPackages.map((pkg) => (
+                      <div key={pkg.id} className="flex justify-between items-center">
+                        <span className="text-muted-foreground text-xs truncate max-w-[100px]">
+                          {pkg.name?.slice(0, 18)}
+                          {pkg.name?.length > 18 ? "…" : ""}
+                        </span>
+                        <span className="font-mono text-xs">
+                          R$ {Number(pkg.price_per_person || 0).toFixed(2)}
+                        </span>
+                      </div>
+                    ))}
+                    
+                    <div className="flex justify-between font-semibold pt-2 border-t text-sm">
+                      <span>Total / pessoa</span>
+                      <span className="text-primary font-mono">R$ {packagesSumPerPerson.toFixed(2)}</span>
+                    </div>
+                    
+                    <div className="flex justify-between bg-primary/5 p-2 rounded-lg mt-1 text-xs">
+                      <span className="text-muted-foreground">
+                        👥 {form.adults || 0} × R$ {packagesSumPerPerson.toFixed(2)}
+                      </span>
+                      <span className="font-bold font-mono text-primary">
+                        R$ {((form.adults || 0) * packagesSumPerPerson).toFixed(2)}
+                      </span>
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-muted-foreground text-xs">Nenhum pacote selecionado</p>
+                )}
+              </div>
               <p className="text-[10px] text-muted-foreground">
-                Edite livremente o valor por adulto.
+                💡 Valor calculado com base nos pacotes selecionados
               </p>
             </div>
+
+            {/* Crianças */}
             <NumField
               label="Nº de crianças"
               value={form.children_count}
