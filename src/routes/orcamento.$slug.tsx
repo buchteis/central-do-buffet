@@ -59,6 +59,9 @@ function PublicQuoteForm() {
   const [sent, setSent] = useState(false);
   const [cpf, setCpf] = useState("");
   const cpfKind = docKind(cpf);
+  
+  // 🆕 Estado para controlar o número de convidados
+  const [guestCount, setGuestCount] = useState<number | null>(null);
 
   // 🆕 Estado para múltiplos pacotes
   const [selectedPackages, setSelectedPackages] = useState<{ id: string; package_id: string }[]>([
@@ -114,16 +117,32 @@ function PublicQuoteForm() {
     },
   });
 
+  // 🔥 QUERY ATUALIZADA: Filtra pacotes por número de convidados
   const { data: packages } = useQuery({
-    queryKey: ["public-packages", tenant?.id],
+    queryKey: ["public-packages", tenant?.id, guestCount],
     enabled: !!tenant?.id,
     queryFn: async () => {
+      // Se não houver convidados, mostra todos
+      if (!guestCount || guestCount < 1) {
+        const { data } = await supabase
+          .from("packages")
+          .select("id, name, min_guests, max_guests")
+          .eq("tenant_id", tenant!.id)
+          .eq("active", true)
+          .order("name");
+        return data ?? [];
+      }
+
+      // Filtra pacotes que cabem no número de convidados
       const { data } = await supabase
         .from("packages")
-        .select("id, name")
+        .select("id, name, min_guests, max_guests")
         .eq("tenant_id", tenant!.id)
         .eq("active", true)
+        .lte("min_guests", guestCount)  // min_guests <= convidados
+        .gte("max_guests", guestCount)  // max_guests >= convidados
         .order("name");
+      
       return data ?? [];
     },
   });
@@ -282,11 +301,18 @@ function PublicQuoteForm() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Field name="event_date" label="Data do evento *" type="date" required />
             <Field name="event_time" label="Horário" type="time" />
-            <Field name="guest_count" label="Convidados *" type="number" required min={1} />
+            <Field 
+              name="guest_count" 
+              label="Convidados *" 
+              type="number" 
+              required 
+              min={1}
+              onChange={(e) => setGuestCount(Number(e.target.value))}
+            />
           </div>
 
-          {/* 🆕 NOVO BLOCO DE PACOTES COM MÚLTIPLOS SELECTS */}
-          {packages && packages.length > 0 && (
+          {/* 🆕 NOVO BLOCO DE PACOTES COM MÚLTIPLOS SELECTS E FILTRO POR CONVIDADOS */}
+          {packages && packages.length > 0 ? (
             <div className="space-y-4 p-4 bg-muted/30 rounded-xl border border-border">
               <div className="flex items-center justify-between">
                 <Label className="font-semibold">Pacotes desejados</Label>
@@ -314,7 +340,7 @@ function PublicQuoteForm() {
                       <SelectContent>
                         {packages.map((p) => (
                           <SelectItem key={p.id} value={p.id}>
-                            {p.name}
+                            {p.name} ({p.min_guests || 0} - {p.max_guests || 9999} pessoas)
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -332,8 +358,18 @@ function PublicQuoteForm() {
                 </div>
               ))}
 
-              <p className="text-[10px] text-muted-foreground">
-                💡 Selecione os pacotes que deseja incluir no seu orçamento.
+              {guestCount && guestCount > 0 && (
+                <p className="text-[10px] text-muted-foreground">
+                  💡 Mostrando pacotes disponíveis para <strong>{guestCount}</strong> convidados
+                </p>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-4 p-4 bg-muted/30 rounded-xl border border-border">
+              <p className="text-sm text-muted-foreground">
+                {guestCount && guestCount > 0 
+                  ? `⚠️ Nenhum pacote disponível para ${guestCount} convidados.` 
+                  : '📦 Digite o número de convidados para ver os pacotes disponíveis.'}
               </p>
             </div>
           )}
