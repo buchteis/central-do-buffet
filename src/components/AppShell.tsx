@@ -3,6 +3,7 @@ import { type ReactNode } from "react";
 import { setGlobalSearch, useGlobalSearch } from "@/lib/search-store";
 import {
   BarChart3,
+  Boxes,
   Calendar,
   FileSignature,
   FileText,
