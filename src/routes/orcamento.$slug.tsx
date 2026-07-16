@@ -86,6 +86,14 @@ function PublicQuoteForm() {
     },
   });
 
+  const fetchLogo = useServerFn(getPublicTenantLogo);
+  const { data: logo } = useQuery({
+    queryKey: ["public-tenant-logo", slug],
+    enabled: !!tenant?.id,
+    staleTime: 30 * 60 * 1000,
+    queryFn: () => fetchLogo({ data: { slug } }),
+  });
+
   const submit = useMutation({
     mutationFn: async (payload: z.infer<typeof schema>) => {
       if (!tenant?.slug) throw new Error("Buffet não encontrado");
