@@ -1,10 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { z } from "zod";
 import { toast } from "sonner";
 import { Flame, Send, CheckCircle2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { getPublicTenantLogo } from "@/lib/public-logo.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -84,6 +86,14 @@ function PublicQuoteForm() {
     },
   });
 
+  const fetchLogo = useServerFn(getPublicTenantLogo);
+  const { data: logo } = useQuery({
+    queryKey: ["public-tenant-logo", slug],
+    enabled: !!tenant?.id,
+    staleTime: 30 * 60 * 1000,
+    queryFn: () => fetchLogo({ data: { slug } }),
+  });
+
   const submit = useMutation({
     mutationFn: async (payload: z.infer<typeof schema>) => {
       if (!tenant?.slug) throw new Error("Buffet não encontrado");
@@ -161,10 +171,18 @@ function PublicQuoteForm() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-background py-8 px-4">
       <div className="max-w-2xl mx-auto">
-        <div className="flex items-center gap-3 mb-6 justify-center">
-          <div className="size-10 bg-primary rounded-xl flex items-center justify-center shadow-lg shadow-primary/20">
-            <Flame className="size-6 text-primary-foreground" />
-          </div>
+        <div className="flex flex-col items-center gap-3 mb-6 text-center">
+          {logo?.url ? (
+            <img
+              src={logo.url}
+              alt={`Logomarca ${tenant.name}`}
+              className="max-h-24 max-w-[220px] object-contain"
+            />
+          ) : (
+            <div className="size-12 bg-primary/10 rounded-xl flex items-center justify-center">
+              <Flame className="size-6 text-primary" />
+            </div>
+          )}
           <div>
             <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">
               Solicite seu orçamento
