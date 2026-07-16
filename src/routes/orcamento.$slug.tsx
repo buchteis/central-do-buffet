@@ -4,7 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { z } from "zod";
 import { toast } from "sonner";
-import { Flame, Send, CheckCircle2 } from "lucide-react";
+import { Flame, Send, CheckCircle2, Plus, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { getPublicTenantLogo } from "@/lib/public-logo.functions";
 import { Button } from "@/components/ui/button";
@@ -50,7 +50,7 @@ const schema = z.object({
   guest_count: z.coerce.number().int().min(1).max(9999),
   event_type: z.string().trim().max(80).optional(),
   package_desired: z.string().trim().max(120).optional(),
-  package_id: z.preprocess((v) => (v === "" || v == null ? undefined : v), z.string().uuid().optional()),
+  package_ids: z.array(z.string().uuid()).optional(),
   notes: z.string().trim().max(1000).optional(),
 });
 
@@ -59,6 +59,48 @@ function PublicQuoteForm() {
   const [sent, setSent] = useState(false);
   const [cpf, setCpf] = useState("");
   const cpfKind = docKind(cpf);
+
+  // 🆕 Estado para múltiplos pacotes
+  const [selectedPackages, setSelectedPackages] = useState<{ id: string; package_id: string }[]>([
+    {
+      id: crypto.randomUUID(),
+      package_id: "",
+    },
+  ]);
+
+  // 🆕 Função para adicionar pacote
+  function addPackage() {
+    setSelectedPackages((old) => [
+      ...old,
+      {
+        id: crypto.randomUUID(),
+        package_id: "",
+      },
+    ]);
+  }
+
+  // 🆕 Função para remover pacote
+  function removePackage(id: string) {
+    if (selectedPackages.length <= 1) {
+      toast.warning("Mantenha pelo menos um pacote");
+      return;
+    }
+    setSelectedPackages((old) => old.filter((p) => p.id !== id));
+  }
+
+  // 🆕 Função para atualizar pacote
+  function updatePackage(id: string, value: string) {
+    setSelectedPackages((old) =>
+      old.map((p) =>
+        p.id === id
+          ? {
+              ...p,
+              package_id: value,
+            }
+          : p
+      )
+    );
+  }
 
   const { data: tenant, isLoading } = useQuery({
     queryKey: ["public-tenant", slug],
@@ -97,6 +139,12 @@ function PublicQuoteForm() {
   const submit = useMutation({
     mutationFn: async (payload: z.infer<typeof schema>) => {
       if (!tenant?.slug) throw new Error("Buffet não encontrado");
+      
+      // 🆕 Extrair apenas os IDs dos pacotes selecionados (ignorando os vazios)
+      const packageIds = selectedPackages
+        .map((p) => p.package_id)
+        .filter((id) => id && id.trim() !== "");
+
       const { error } = await supabase.rpc("submit_public_quote", {
         p_slug: tenant.slug,
         p_name: payload.name,
@@ -109,7 +157,8 @@ function PublicQuoteForm() {
         p_event_time: payload.event_time || null,
         p_guest_count: payload.guest_count,
         p_event_type: payload.event_type || null,
-        p_package_id: payload.package_id || null,
+        p_package_id: packageIds.length > 0 ? packageIds[0] : null,
+        p_package_ids: packageIds,
         p_notes: payload.notes || null,
       } as any);
       if (error) throw error;
@@ -160,6 +209,13 @@ function PublicQuoteForm() {
     e.preventDefault();
     const raw = Object.fromEntries(new FormData(e.currentTarget)) as any;
     raw.cpf = cpf ? onlyDigits(cpf) : undefined;
+    
+    // 🆕 Adicionar os package_ids no payload
+    const packageIds = selectedPackages
+      .map((p) => p.package_id)
+      .filter((id) => id && id.trim() !== "");
+    raw.package_ids = packageIds;
+    
     const parsed = schema.safeParse(raw);
     if (!parsed.success) {
       toast.error(parsed.error.issues[0].message);
@@ -229,21 +285,56 @@ function PublicQuoteForm() {
             <Field name="guest_count" label="Convidados *" type="number" required min={1} />
           </div>
 
+          {/* 🆕 NOVO BLOCO DE PACOTES COM MÚLTIPLOS SELECTS */}
           {packages && packages.length > 0 && (
-            <div className="space-y-2">
-              <Label>Pacote desejado</Label>
-              <Select name="package_id">
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione um pacote (opcional)" />
-                </SelectTrigger>
-                <SelectContent>
-                  {packages.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {p.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="space-y-4 p-4 bg-muted/30 rounded-xl border border-border">
+              <div className="flex items-center justify-between">
+                <Label className="font-semibold">Pacotes desejados</Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={addPackage}
+                  className="h-8 gap-1 text-xs"
+                >
+                  <Plus className="size-3.5" /> Adicionar pacote
+                </Button>
+              </div>
+
+              {selectedPackages.map((pkg, index) => (
+                <div key={pkg.id} className="flex items-center gap-3 bg-background p-3 rounded-lg border">
+                  <div className="flex-1">
+                    <Select
+                      value={pkg.package_id}
+                      onValueChange={(value) => updatePackage(pkg.id, value)}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder={`Pacote ${index + 1}`} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {packages.map((p) => (
+                          <SelectItem key={p.id} value={p.id}>
+                            {p.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="size-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                    onClick={() => removePackage(pkg.id)}
+                  >
+                    <Trash2 className="size-4" />
+                  </Button>
+                </div>
+              ))}
+
+              <p className="text-[10px] text-muted-foreground">
+                💡 Selecione os pacotes que deseja incluir no seu orçamento.
+              </p>
             </div>
           )}
 
