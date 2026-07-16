@@ -4,7 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { z } from "zod";
 import { toast } from "sonner";
-import { Flame, Send, CheckCircle2, Plus, Trash2, Eye, EyeOff } from "lucide-react";
+import { Flame, Send, CheckCircle2, Plus, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { getPublicTenantLogo } from "@/lib/public-logo.functions";
 import { Button } from "@/components/ui/button";
@@ -19,7 +19,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/orcamento/$slug")({
   head: ({ params }) => ({
@@ -59,8 +58,7 @@ function PublicQuoteForm() {
   const [sent, setSent] = useState(false);
   const [cpf, setCpf] = useState("");
   const cpfKind = docKind(cpf);
-  const [guestCount, setGuestCount] = useState<number | null>(null);
-  const [showAllPackages, setShowAllPackages] = useState(false);
+  const [guestCount] = useState<number | null>(null);
 
   const [selectedPackages, setSelectedPackages] = useState<{ id: string; package_id: string }[]>([
     {
@@ -107,22 +105,18 @@ function PublicQuoteForm() {
     },
   });
 
+  // 🔥 QUERY SEM FILTRO - MOSTRA TODOS OS PACOTES
   const { data: packages } = useQuery({
-    queryKey: ["public-packages", tenant?.id, guestCount, showAllPackages],
+    queryKey: ["public-packages", tenant?.id],
     enabled: !!tenant?.id,
     queryFn: async () => {
-      let query = supabase
+      const { data } = await supabase
         .from("packages")
         .select("id, name, min_guests, max_guests, price_per_person")
         .eq("tenant_id", tenant!.id)
         .eq("active", true)
         .order("name");
 
-      if (!showAllPackages && guestCount && guestCount >= 1) {
-        query = query.lte("min_guests", guestCount).gte("max_guests", guestCount);
-      }
-
-      const { data } = await query;
       return data ?? [];
     },
   });
@@ -279,81 +273,52 @@ function PublicQuoteForm() {
               type="number"
               required
               min={1}
-              onChange={(e) => setGuestCount(Number(e.target.value))}
             />
           </div>
 
-          {packages && packages.length > 0 ? (
-            <div className="space-y-4 p-4 bg-muted/30 rounded-xl border border-border">
-              <div className="flex items-center justify-between flex-wrap gap-2">
-                <Label className="font-semibold">Pacotes desejados</Label>
-                <div className="flex items-center gap-2">
+          {/* ⭐ BLOCO DE PACOTES - SEM FILTRO */}
+          <div className="space-y-4 p-4 bg-muted/30 rounded-xl border border-border">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <Label className="font-semibold">Pacotes desejados</Label>
+              <Button type="button" variant="outline" size="sm" onClick={addPackage} className="h-8 gap-1 text-xs">
+                <Plus className="size-3.5" /> Adicionar pacote
+              </Button>
+            </div>
+
+            {packages && packages.length > 0 ? (
+              selectedPackages.map((pkg, index) => (
+                <div key={pkg.id} className="flex items-center gap-3 bg-background p-3 rounded-lg border">
+                  <div className="flex-1">
+                    <Select value={pkg.package_id} onValueChange={(value) => updatePackage(pkg.id, value)}>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder={`Pacote ${index + 1}`} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {packages.map((p) => (
+                          <SelectItem key={p.id} value={p.id}>
+                            {p.name} ({p.min_guests || 0} - {p.max_guests || 9999} pessoas)
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                   <Button
                     type="button"
                     variant="ghost"
-                    size="sm"
-                    onClick={() => setShowAllPackages(!showAllPackages)}
-                    className="h-8 gap-1 text-xs"
+                    size="icon"
+                    className="size-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                    onClick={() => removePackage(pkg.id)}
                   >
-                    {showAllPackages ? <><EyeOff className="size-3.5" /> Recomendados</> : <><Eye className="size-3.5" /> Ver todos</>}
-                  </Button>
-                  <Button type="button" variant="outline" size="sm" onClick={addPackage} className="h-8 gap-1 text-xs">
-                    <Plus className="size-3.5" /> Adicionar
+                    <Trash2 className="size-4" />
                   </Button>
                 </div>
-              </div>
-
-              {selectedPackages.map((pkg, index) => {
-                const selectedPackage = packages.find(p => p.id === pkg.package_id);
-                const isCompatible = selectedPackage && guestCount && guestCount >= 1
-                  ? selectedPackage.min_guests <= guestCount && selectedPackage.max_guests >= guestCount
-                  : true;
-
-                return (
-                  <div key={pkg.id} className="flex items-center gap-3 bg-background p-3 rounded-lg border">
-                    <div className="flex-1">
-                      <Select value={pkg.package_id} onValueChange={(value) => updatePackage(pkg.id, value)}>
-                        <SelectTrigger className={cn(
-                          "w-full",
-                          pkg.package_id && !isCompatible && !showAllPackages && "border-amber-400 bg-amber-50/50"
-                        )}>
-                          <SelectValue placeholder={`Pacote ${index + 1}`} />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {packages.map((p) => {
-                            const isCompatiblePkg = guestCount && guestCount >= 1
-                              ? p.min_guests <= guestCount && p.max_guests >= guestCount
-                              : true;
-                            return (
-                              <SelectItem key={p.id} value={p.id}>
-                                {p.name} ({p.min_guests || 0} - {p.max_guests || 9999} pessoas)
-                                {guestCount && guestCount >= 1 && !isCompatiblePkg && ' ⚠️'}
-                              </SelectItem>
-                            );
-                          })}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="size-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                      onClick={() => removePackage(pkg.id)}
-                    >
-                      <Trash2 className="size-4" />
-                    </Button>
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="p-4 bg-muted/30 rounded-xl border border-border text-center text-sm text-muted-foreground">
-              {guestCount && guestCount >= 1
-                ? `Nenhum pacote disponível para ${guestCount} convidados.`
-                : 'Digite o número de convidados para ver os pacotes disponíveis.'}
-            </div>
-          )}
+              ))
+            ) : (
+              <p className="text-sm text-muted-foreground text-center py-2">
+                Nenhum pacote cadastrado.
+              </p>
+            )}
+          </div>
 
           <div className="space-y-2">
             <Label htmlFor="notes">Observações</Label>
