@@ -51,7 +51,6 @@ function QuoteDetail() {
     );
   }
 
-  // Preparar dados para o Breakdown
   const packageDetails = quote.packages ? [quote.packages] : [];
   const guestCount = quote.guest_count || 0;
   const childrenCount = quote.children_count || 0;
@@ -59,7 +58,6 @@ function QuoteDetail() {
 
   return (
     <div className="space-y-6 p-4 md:p-6">
-      {/* Header */}
       <div className="flex items-center gap-4">
         <Link to="/dashboard/orcamentos" className="p-2 hover:bg-muted rounded-full">
           <ArrowLeft className="size-5" />
@@ -75,9 +73,7 @@ function QuoteDetail() {
         </Badge>
       </div>
 
-      {/* Grid de informações */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Cliente */}
         <Card>
           <CardHeader>
             <CardTitle className="text-sm font-medium flex items-center gap-2">
@@ -91,7 +87,6 @@ function QuoteDetail() {
           </CardContent>
         </Card>
 
-        {/* Evento */}
         <Card>
           <CardHeader>
             <CardTitle className="text-sm font-medium flex items-center gap-2">
@@ -108,7 +103,6 @@ function QuoteDetail() {
           </CardContent>
         </Card>
 
-        {/* Endereço */}
         <Card className="md:col-span-2">
           <CardHeader>
             <CardTitle className="text-sm font-medium flex items-center gap-2">
@@ -122,7 +116,6 @@ function QuoteDetail() {
         </Card>
       </div>
 
-      {/* Breakdown do Preço (APENAS ADMIN) */}
       <BreakdownOrcamento
         packages={packageDetails}
         guestCount={guestCount}
@@ -131,7 +124,6 @@ function QuoteDetail() {
         className="mt-4"
       />
 
-      {/* Observações */}
       {quote.notes && (
         <Card>
           <CardHeader>
