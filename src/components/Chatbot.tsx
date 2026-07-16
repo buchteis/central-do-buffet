@@ -1,112 +1,228 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState } from 'react';
+import { useTenantAccess } from "@/hooks/useTenantAccess";
 
-export const Chatbot = ({ stats }: { stats?: any }) => {
+// 🔗 URL da sua IA no Streamlit
+const AI_API_URL = 'https://minha-ia-d4nnoiycwgyxazwmmdfdha.streamlit.app/chat';
+
+export const Chatbot = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const [message, setMessage] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  
-  // Mudei a mensagem inicial para termos certeza que o código atualizou
-  const [messages, setMessages] = useState([
-    { text: "Olá! Eu sou o NOVO assistente do Meu Churras. Já carreguei seus dados e estou pronto!", isUser: false }
+  const [messages, setMessages] = useState<{ role: string; content: string }[]>([
+    { role: 'assistant', content: '🤖 Olá! Sou o assistente do Meu Churras! Como posso ajudar?' }
   ]);
-  
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const [input, setInput] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+  // 🔥 PEGA O ID DO BUFFET LOGADO
+  const { data: access } = useTenantAccess();
+  const buffetId = access?.tenant?.id;
+
+  const sendMessage = async () => {
+    if (!input.trim() || isLoading) return;
+    if (!buffetId) {
+      setMessages(prev => [...prev, { 
+        role: 'assistant', 
+        content: '⚠️ Você precisa estar logado em um buffet para usar o assistente.' 
+      }]);
+      return;
     }
-  }, [messages]);
 
-  const handleSend = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!message.trim() || isLoading) return;
-
-    const userText = message.toLowerCase();
-    setMessages(prev => [...prev, { text: message, isUser: true }]);
-    setMessage('');
+    const userMessage = input;
+    setMessages(prev => [...prev, { role: 'user', content: userMessage }]);
+    setInput('');
     setIsLoading(true);
 
-    // Lógica de resposta direta e obrigatória (Sem mensagens genéricas!)
-    setTimeout(() => {
-      let botResponse = "";
+    try {
+      // 🔥 ENVIA A PERGUNTA + ID DO BUFFET
+      const response = await fetch(AI_API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          pergunta: userMessage,
+          buffet_id: buffetId  // ← ENVIA O ID DO BUFFET!
+        })
+      });
 
-      if (userText.includes("evento") || userText.includes("hoje") || userText.includes("quantos")) {
-        const hoje = stats?.evToday || 0;
-        const mes = stats?.evMonth || 0;
-        botResponse = `Você tem ${hoje} evento(s) hoje e ${mes} agendado(s) para este mês.`;
-      } 
-      else if (userText.includes("faturamento") || userText.includes("dinheiro") || userText.includes("valor")) {
-        const fat = stats?.faturamentoConcluido || 0;
-        botResponse = `Seu faturamento concluído atual é de R$ ${fat.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}.`;
-      }
-      else if (userText.includes("cliente")) {
-        botResponse = `Sua base tem ${stats?.clientsCount || 0} clientes ativos.`;
-      }
-      else if (userText.includes("atraso") || userText.includes("pagamento")) {
-        botResponse = stats?.txOverdue > 0 
-          ? `Atenção: existem ${stats.txOverdue} pagamentos atrasados.` 
-          : "Não há pagamentos atrasados no momento.";
-      }
-      else {
-        botResponse = "Entendi. Posso te ajudar com informações sobre seus eventos, faturamento, clientes ou pendências financeiras. O que deseja saber?";
-      }
+      const data = await response.json();
+      const reply = data.resposta || data.response || data.answer || 'Desculpe, não entendi.';
 
-      setMessages(prev => [...prev, { text: botResponse, isUser: false }]);
+      setMessages(prev => [...prev, { role: 'assistant', content: reply }]);
+    } catch (error) {
+      console.error('Erro ao chamar IA:', error);
+      setMessages(prev => [...prev, { 
+        role: 'assistant', 
+        content: '❌ Erro ao conectar com a IA. Tente novamente.' 
+      }]);
+    } finally {
       setIsLoading(false);
-    }, 500);
+    }
   };
 
   return (
     <>
+      {/* Botão flutuante */}
       <button
         onClick={() => setIsOpen(!isOpen)}
         style={{
-          position: 'fixed', bottom: '20px', right: '20px', background: '#22c55e', color: 'white',
-          border: 'none', borderRadius: '50%', width: '60px', height: '60px', fontSize: '30px',
-          cursor: 'pointer', boxShadow: '0 4px 12px rgba(0,0,0,0.3)', zIndex: 9999,
-          display: 'flex', alignItems: 'center', justifyContent: 'center'
+          position: 'fixed',
+          bottom: '20px',
+          right: '20px',
+          zIndex: 9999,
+          background: '#22c55e',
+          color: 'white',
+          border: 'none',
+          borderRadius: '50%',
+          width: '60px',
+          height: '60px',
+          fontSize: '30px',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
         }}
       >
-        {isOpen ? '✕' : '🤖'}
+        🤖
       </button>
 
+      {/* Janela do chat */}
       {isOpen && (
-        <div style={{
-          position: 'fixed', bottom: '90px', right: '20px', width: '350px', height: '500px',
-          background: 'white', borderRadius: '16px', boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
-          display: 'flex', flexDirection: 'column', zIndex: 9999, border: '1px solid #e5e7eb', overflow: 'hidden'
-        }}>
-          <div style={{ padding: '15px 20px', background: '#22c55e', color: 'white' }}>
-            <h3 style={{ fontWeight: 'bold', margin: 0, fontSize: '16px' }}>🤖 Central do Buffet</h3>
-            <span style={{ fontSize: '10px', opacity: 0.9 }}>Dados Sincronizados</span>
+        <div
+          style={{
+            position: 'fixed',
+            bottom: '100px',
+            right: '20px',
+            zIndex: 9999,
+            width: '380px',
+            maxWidth: '90vw',
+            height: '500px',
+            maxHeight: '70vh',
+            background: 'white',
+            borderRadius: '16px',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.25)',
+            border: '1px solid #e5e7eb',
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden',
+          }}
+        >
+          {/* Header */}
+          <div
+            style={{
+              padding: '16px 20px',
+              background: '#f3f4f6',
+              borderBottom: '1px solid #e5e7eb',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+            }}
+          >
+            <span style={{ fontWeight: 'bold', fontSize: '16px' }}>🤖 Assistente Meu Churras</span>
+            <button
+              onClick={() => setIsOpen(false)}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                fontSize: '18px',
+                cursor: 'pointer',
+              }}
+            >
+              ✕
+            </button>
           </div>
 
-          <div ref={scrollRef} style={{ flex: 1, padding: '20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '10px', background: '#f9fafb' }}>
-            {messages.map((msg, i) => (
-              <div key={i} style={{
-                alignSelf: msg.isUser ? 'flex-end' : 'flex-start',
-                background: msg.isUser ? '#22c55e' : 'white',
-                color: msg.isUser ? 'white' : '#374151',
-                padding: '10px 14px', borderRadius: msg.isUser ? '15px 15px 2px 15px' : '15px 15px 15px 2px',
-                fontSize: '13px', maxWidth: '80%', boxShadow: '0 1px 2px rgba(0,0,0,0.05)', border: msg.isUser ? 'none' : '1px solid #e5e7eb'
-              }}>
-                {msg.text}
+          {/* Mensagens */}
+          <div
+            style={{
+              flex: 1,
+              padding: '16px 20px',
+              overflowY: 'auto',
+              background: '#f9fafb',
+            }}
+          >
+            {messages.map((msg, index) => (
+              <div
+                key={index}
+                style={{
+                  marginBottom: '12px',
+                  textAlign: msg.role === 'user' ? 'right' : 'left',
+                }}
+              >
+                <div
+                  style={{
+                    display: 'inline-block',
+                    padding: '10px 16px',
+                    borderRadius: '12px',
+                    maxWidth: '80%',
+                    background: msg.role === 'user' ? '#22c55e' : 'white',
+                    color: msg.role === 'user' ? 'white' : '#1f2937',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                    border: msg.role === 'assistant' ? '1px solid #e5e7eb' : 'none',
+                  }}
+                >
+                  {msg.content}
+                </div>
               </div>
             ))}
-            {isLoading && <div style={{ fontSize: '10px', color: '#6b7280' }}>Verificando...</div>}
+            {isLoading && (
+              <div style={{ textAlign: 'left', marginBottom: '12px' }}>
+                <div
+                  style={{
+                    display: 'inline-block',
+                    padding: '10px 16px',
+                    borderRadius: '12px',
+                    background: 'white',
+                    color: '#6b7280',
+                    border: '1px solid #e5e7eb',
+                  }}
+                >
+                  Digitando...
+                </div>
+              </div>
+            )}
           </div>
 
-          <form onSubmit={handleSend} style={{ padding: '15px', borderTop: '1px solid #e5e7eb', display: 'flex', gap: '10px', background: 'white' }}>
-            <input 
-              type="text" value={message} onChange={(e) => setMessage(e.target.value)}
-              placeholder="Pergunte sobre eventos ou faturamento..."
-              style={{ flex: 1, padding: '8px 12px', borderRadius: '20px', border: '1px solid #d1d5db', fontSize: '13px', outline: 'none' }}
+          {/* Input */}
+          <div
+            style={{
+              padding: '12px 16px',
+              borderTop: '1px solid #e5e7eb',
+              background: 'white',
+              display: 'flex',
+              gap: '8px',
+            }}
+          >
+            <input
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
+              placeholder="Digite sua mensagem..."
+              style={{
+                flex: 1,
+                padding: '10px 14px',
+                borderRadius: '8px',
+                border: '1px solid #d1d5db',
+                outline: 'none',
+                fontSize: '14px',
+              }}
+              disabled={isLoading}
             />
-            <button type="submit" style={{ background: '#22c55e', color: 'white', border: 'none', borderRadius: '50%', width: '32px', height: '32px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              ➤
+            <button
+              onClick={sendMessage}
+              disabled={isLoading || !input.trim()}
+              style={{
+                padding: '10px 18px',
+                background: '#22c55e',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontWeight: 'bold',
+                opacity: isLoading || !input.trim() ? 0.5 : 1,
+              }}
+            >
+              Enviar
             </button>
-          </form>
+          </div>
         </div>
       )}
     </>
