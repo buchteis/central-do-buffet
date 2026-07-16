@@ -3,6 +3,7 @@ import { type ReactNode } from "react";
 import { setGlobalSearch, useGlobalSearch } from "@/lib/search-store";
 import {
   BarChart3,
+  Boxes,
   Calendar,
   FileSignature,
   FileText,
@@ -32,6 +33,7 @@ const primary: NavItem[] = [
   { to: "/eventos", label: "Eventos", icon: Receipt },
   { to: "/contratos", label: "Contratos", icon: FileSignature },
   { to: "/pacotes", label: "Pacotes", icon: Package },
+  { to: "/estoque", label: "Estoque", icon: Boxes },
   { to: "/agenda", label: "Calendário", icon: Calendar },
   { to: "/clientes", label: "Clientes", icon: Users },
   { to: "/funcionarios", label: "Profissionais", icon: UserCog },
