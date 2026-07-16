@@ -121,9 +121,9 @@ function Dashboard() {
 
   const transactionsData = useDashboardQuery("transactions-data", async () => {
     const { data } = await supabase.from("transactions").select("id, amount, type, status, paid_date, due_date");
-    const recebido = data?.filter(t => t.type === "entrada" && t.status === "pago" && t.paid_date >= monthStart && t.paid_date < nextMonth).reduce((sum, t) => sum + Number(t.amount || 0), 0) || 0;
+    const recebido = data?.filter(t => t.type === "entrada" && t.status === "pago" && t.paid_date && t.paid_date >= monthStart && t.paid_date < nextMonth).reduce((sum, t) => sum + Number(t.amount || 0), 0) || 0;
     const aReceber = data?.filter(t => t.status === "pendente").reduce((sum, t) => sum + Number(t.amount || 0), 0) || 0;
-    const vencidos = data?.filter(t => t.status === "pendente" && t.due_date < today).length || 0;
+    const vencidos = data?.filter(t => t.status === "pendente" && t.due_date && t.due_date < today).length || 0;
     return { recebido, aReceber, vencidos };
   });
 
