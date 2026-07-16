@@ -208,6 +208,7 @@ function PackagesPage() {
                   />
                 </div>
               </div>
+              {editing && <PackageProductsEditor packageId={editing.id} />}
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setOpen(false)}>
                   Cancelar
