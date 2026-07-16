@@ -379,6 +379,45 @@ export type Database = {
           },
         ]
       }
+      event_stock_allocations: {
+        Row: {
+          consumed_qty: number
+          event_id: string
+          product_id: string
+          reserved_qty: number
+          updated_at: string
+        }
+        Insert: {
+          consumed_qty?: number
+          event_id: string
+          product_id: string
+          reserved_qty?: number
+          updated_at?: string
+        }
+        Update: {
+          consumed_qty?: number
+          event_id?: string
+          product_id?: string
+          reserved_qty?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_stock_allocations_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_stock_allocations_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "stock_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       events: {
         Row: {
           client_id: string | null
@@ -545,6 +584,48 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      package_products: {
+        Row: {
+          created_at: string
+          id: string
+          package_id: string
+          product_id: string
+          qty_fixed: number
+          qty_per_person: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          package_id: string
+          product_id: string
+          qty_fixed?: number
+          qty_per_person?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          package_id?: string
+          product_id?: string
+          qty_fixed?: number
+          qty_per_person?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "package_products_package_id_fkey"
+            columns: ["package_id"]
+            isOneToOne: false
+            referencedRelation: "packages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "package_products_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "stock_products"
             referencedColumns: ["id"]
           },
         ]
@@ -732,6 +813,162 @@ export type Database = {
           },
         ]
       }
+      stock_categories: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          owner_id: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          owner_id: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          owner_id?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_categories_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stock_movements: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          event_id: string | null
+          id: string
+          kind: string
+          notes: string | null
+          product_id: string
+          quantity: number
+          tenant_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          event_id?: string | null
+          id?: string
+          kind: string
+          notes?: string | null
+          product_id: string
+          quantity: number
+          tenant_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          event_id?: string | null
+          id?: string
+          kind?: string
+          notes?: string | null
+          product_id?: string
+          quantity?: number
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_movements_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_movements_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "stock_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_movements_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stock_products: {
+        Row: {
+          active: boolean
+          category_id: string | null
+          created_at: string
+          id: string
+          min_qty: number
+          name: string
+          notes: string | null
+          owner_id: string
+          physical_qty: number
+          reserved_qty: number
+          tenant_id: string
+          unit: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          category_id?: string | null
+          created_at?: string
+          id?: string
+          min_qty?: number
+          name: string
+          notes?: string | null
+          owner_id: string
+          physical_qty?: number
+          reserved_qty?: number
+          tenant_id: string
+          unit?: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          category_id?: string | null
+          created_at?: string
+          id?: string
+          min_qty?: number
+          name?: string
+          notes?: string | null
+          owner_id?: string
+          physical_qty?: number
+          reserved_qty?: number
+          tenant_id?: string
+          unit?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_products_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "stock_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_products_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tenants: {
         Row: {
           approved_at: string | null
@@ -900,6 +1137,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      return_event_stock: { Args: { _event_id: string }; Returns: undefined }
       slugify: { Args: { txt: string }; Returns: string }
       submit_public_quote: {
         Args: {
@@ -919,6 +1157,7 @@ export type Database = {
         }
         Returns: string
       }
+      sync_event_stock: { Args: { _event_id: string }; Returns: undefined }
       unaccent_string: { Args: { txt: string }; Returns: string }
     }
     Enums: {
