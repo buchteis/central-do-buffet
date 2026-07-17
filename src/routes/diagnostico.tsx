@@ -22,6 +22,93 @@ import {
 import { useState } from "react";
 import { brl } from "@/lib/format";
 
+// Função utilitária para concatenar classes CSS
+function cn(...classes: (string | boolean | undefined | null)[]) {
+  return classes.filter(Boolean).join(" ");
+}
+
+// Definições de tipos para maior segurança e clareza
+interface EventData {
+  id: string;
+  status: string;
+  event_date: string;
+  total_value: number;
+  clients?: { id: string } | null;
+  packages?: { id: string } | null;
+}
+
+interface TransactionData {
+  type: 'entrada' | 'saida';
+  status: 'pago' | 'pendente';
+  amount: number;
+  paid_date: string | null;
+  due_date: string | null;
+}
+
+interface QuoteData {
+  status: string;
+  paid: boolean;
+  total_value: number;
+}
+
+interface ClientData {
+  id: string;
+  created_at: string;
+}
+
+interface PackageData {
+  id: string;
+}
+
+interface EmployeeData {
+  id: string;
+  active: boolean;
+}
+
+interface DiagnosticoResults {
+  eventos: {
+    total: number;
+    porStatus: Record<string, number>;
+    hoje: number;
+    passado: number;
+    futuro: number;
+    faturamentoMes: number;
+    faturamentoTotal: number;
+  };
+  financeiro: {
+    entradaPaga: number;
+    entradaPendente: number;
+    saidaPaga: number;
+    saidaPendente: number;
+    saldo: number;
+    entradaPagaMes: number;
+    entradaPendenteVencidas: number;
+  };
+  clientes: {
+    total: number;
+    novos30d: number;
+  };
+  orcamentos: {
+    total: number;
+    pendentes: number;
+    aprovados: number;
+    pagos: number;
+    valorOrcamentosPendentes: number;
+    taxaConversao: number;
+  };
+  cadastros: {
+    pacotes: number;
+    funcionarios: number;
+    funcionariosAtivos: number;
+  };
+  integridade: {
+    eventosSemCliente: number;
+    eventosSemPacote: number;
+    totalEventos: number;
+    integridadePercentual: number;
+  };
+}
+
 export const Route = createFileRoute("/diagnostico")({
   head: () => ({ meta: [{ title: "Diagnóstico — Meu Churras" }] }),
   component: DiagnosticoPage,
@@ -29,197 +116,259 @@ export const Route = createFileRoute("/diagnostico")({
 
 function DiagnosticoPage() {
   const [refreshing, setRefreshing] = useState(false);
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<DiagnosticoResults | null>(null);
 
-  const { refetch, isLoading } = useQuery({
+  const { refetch, isLoading } = useQuery<DiagnosticoResults>({
     queryKey: ["diagnostico"],
     queryFn: async () => {
-      const results: any = {};
-
-      // ==========================================
-      // 1. EVENTOS
-      // ==========================================
-      const { data: events } = await supabase
-        .from("events")
-        .select("status, event_date, total_value");
+      const results: DiagnosticoResults = {
+        eventos: { total: 0, porStatus: {}, hoje: 0, passado: 0, futuro: 0, faturamentoMes: 0, faturamentoTotal: 0 },
+        financeiro: { entradaPaga: 0, entradaPendente: 0, saidaPaga: 0, saidaPendente: 0, saldo: 0, entradaPagaMes: 0, entradaPendenteVencidas: 0 },
+        clientes: { total: 0, novos30d: 0 },
+        orcamentos: { total: 0, pendentes: 0, aprovados: 0, pagos: 0, valorOrcamentosPendentes: 0, taxaConversao: 0 },
+        cadastros: { pacotes: 0, funcionarios: 0, funcionariosAtivos: 0 },
+        integridade: { eventosSemCliente: 0, eventosSemPacote: 0, totalEventos: 0, integridadePercentual: 100 },
+      };
 
       const now = new Date();
       const today = now.toISOString().slice(0, 10);
       const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
 
-      const statusCount: Record<string, number> = {};
-      let hoje = 0;
-      let passado = 0;
-      let futuro = 0;
-      let faturamentoMes = 0;
-      let faturamentoTotal = 0;
+      // ==========================================
+      // 1. EVENTOS
+      // ==========================================
+      try {
+        const { data: events, error } = await supabase
+          .from("events")
+          .select<EventData[]>("id, status, event_date, total_value");
 
-      const statusExcluidos = ["cancelado", "arquivado"];
+        if (error) throw error;
 
-      events?.forEach((e: any) => {
-        statusCount[e.status] = (statusCount[e.status] || 0) + 1;
-        const valor = Number(e.total_value) || 0;
+        if (events) {
+          const statusCount: Record<string, number> = {};
+          let hoje = 0;
+          let passado = 0;
+          let futuro = 0;
+          let faturamentoMes = 0;
+          let faturamentoTotal = 0;
 
-        if (e.status !== "cancelado") {
-          faturamentoTotal += valor;
-          if (e.event_date >= monthStart) {
-            faturamentoMes += valor;
-          }
+          const statusExcluidos = ["cancelado", "arquivado"];
+
+          events.forEach((e: EventData) => {
+            statusCount[e.status] = (statusCount[e.status] || 0) + 1;
+            const valor = Number(e.total_value) || 0;
+
+            // Correção: Usar statusExcluidos para consistência no faturamento
+            if (!statusExcluidos.includes(e.status)) {
+              faturamentoTotal += valor;
+              // Comparar datas como objetos Date para maior robustez
+              if (new Date(e.event_date) >= new Date(monthStart)) {
+                faturamentoMes += valor;
+              }
+            }
+
+            if (!statusExcluidos.includes(e.status)) {
+              if (e.event_date === today) hoje++;
+              else if (new Date(e.event_date) < new Date(today)) passado++; // Comparar datas como objetos Date
+              else futuro++;
+            }
+          });
+
+          results.eventos = {
+            total: events.length,
+            porStatus: statusCount,
+            hoje,
+            passado,
+            futuro,
+            faturamentoMes,
+            faturamentoTotal,
+          };
         }
-
-        if (!statusExcluidos.includes(e.status)) {
-          if (e.event_date === today) hoje++;
-          else if (e.event_date < today) passado++;
-          else futuro++;
-        }
-      });
-
-      results.eventos = {
-        total: events?.length || 0,
-        porStatus: statusCount,
-        hoje,
-        passado,
-        futuro,
-        faturamentoMes,
-        faturamentoTotal,
-      };
+      } catch (error) {
+        console.error("Erro ao buscar eventos:", error);
+        // Tratar erro, talvez definir valores padrão ou exibir mensagem ao usuário
+      }
 
       // ==========================================
       // 2. FINANCEIRO
       // ==========================================
-      const { data: transactions } = await supabase
-        .from("transactions")
-        .select("type, status, amount, paid_date, due_date");
+      try {
+        const { data: transactions, error } = await supabase
+          .from("transactions")
+          .select<TransactionData[]>("type, status, amount, paid_date, due_date");
 
-      let entradaPaga = 0;
-      let entradaPendente = 0;
-      let saidaPaga = 0;
-      let saidaPendente = 0;
-      let entradaPagaMes = 0;
-      let entradaPendenteVencidas = 0;
+        if (error) throw error;
 
-      transactions?.forEach((t: any) => {
-        const val = Number(t.amount) || 0;
-        if (t.type === "entrada" && t.status === "pago") {
-          entradaPaga += val;
-          if (t.paid_date && t.paid_date >= monthStart) entradaPagaMes += val;
+        if (transactions) {
+          let entradaPaga = 0;
+          let entradaPendente = 0;
+          let saidaPaga = 0;
+          let saidaPendente = 0;
+          let entradaPagaMes = 0;
+          let entradaPendenteVencidas = 0;
+
+          transactions.forEach((t: TransactionData) => {
+            const val = Number(t.amount) || 0;
+            if (t.type === "entrada" && t.status === "pago") {
+              entradaPaga += val;
+              if (t.paid_date && new Date(t.paid_date) >= new Date(monthStart)) entradaPagaMes += val;
+            }
+            if (t.type === "entrada" && t.status === "pendente") {
+              entradaPendente += val;
+              if (t.due_date && new Date(t.due_date) < new Date(today)) entradaPendenteVencidas += val;
+            }
+            if (t.type === "saida" && t.status === "pago") saidaPaga += val;
+            if (t.type === "saida" && t.status === "pendente") saidaPendente += val;
+          });
+
+          results.financeiro = {
+            entradaPaga,
+            entradaPendente,
+            saidaPaga,
+            saidaPendente,
+            saldo: entradaPaga - saidaPaga,
+            entradaPagaMes,
+            entradaPendenteVencidas,
+          };
         }
-        if (t.type === "entrada" && t.status === "pendente") {
-          entradaPendente += val;
-          if (t.due_date && t.due_date < today) entradaPendenteVencidas += val;
-        }
-        if (t.type === "saida" && t.status === "pago") saidaPaga += val;
-        if (t.type === "saida" && t.status === "pendente") saidaPendente += val;
-      });
-
-      results.financeiro = {
-        entradaPaga,
-        entradaPendente,
-        saidaPaga,
-        saidaPendente,
-        saldo: entradaPaga - saidaPaga,
-        entradaPagaMes,
-        entradaPendenteVencidas,
-      };
+      } catch (error) {
+        console.error("Erro ao buscar transações financeiras:", error);
+      }
 
       // ==========================================
       // 3. CLIENTES
       // ==========================================
-      const { count: totalClientes } = await supabase
-        .from("clients")
-        .select("id", { count: "exact", head: true });
+      try {
+        const { count: totalClientes, error: countError } = await supabase
+          .from("clients")
+          .select("id", { count: "exact", head: true });
 
-      const { data: clientesNovos } = await supabase
-        .from("clients")
-        .select("id")
-        .gte("created_at", new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString());
+        if (countError) throw countError;
 
-      results.clientes = {
-        total: totalClientes || 0,
-        novos30d: clientesNovos?.length || 0,
-      };
+        const { data: clientesNovos, error: novosError } = await supabase
+          .from("clients")
+          .select<ClientData[]>("id")
+          .gte("created_at", new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString());
+        
+        if (novosError) throw novosError;
+
+        results.clientes = {
+          total: totalClientes || 0,
+          novos30d: clientesNovos?.length || 0,
+        };
+      } catch (error) {
+        console.error("Erro ao buscar clientes:", error);
+      }
 
       // ==========================================
       // 4. ORÇAMENTOS
       // ==========================================
-      const { data: quotes } = await supabase
-        .from("quotes")
-        .select("status, paid, total_value");
+      try {
+        const { data: quotes, error } = await supabase
+          .from("quotes")
+          .select<QuoteData[]>("status, paid, total_value");
 
-      let qPendentes = 0;
-      let qAprovados = 0;
-      let qPagos = 0;
-      let valorOrcamentosPendentes = 0;
+        if (error) throw error;
 
-      quotes?.forEach((q: any) => {
-        if (q.status === "novo" || q.status === "em_andamento") {
-          qPendentes++;
-          valorOrcamentosPendentes += Number(q.total_value) || 0;
+        if (quotes) {
+          let qPendentes = 0;
+          let qAprovados = 0;
+          let qPagos = 0;
+          let valorOrcamentosPendentes = 0;
+
+          quotes.forEach((q: QuoteData) => {
+            if (q.status === "novo" || q.status === "em_andamento") {
+              qPendentes++;
+              valorOrcamentosPendentes += Number(q.total_value) || 0;
+            }
+            if (q.status === "fechado") qAprovados++;
+            if (q.paid === true) qPagos++;
+          });
+
+          results.orcamentos = {
+            total: quotes.length,
+            pendentes: qPendentes,
+            aprovados: qAprovados,
+            pagos: qPagos,
+            valorOrcamentosPendentes,
+            taxaConversao: quotes.length > 0 ? Math.round((qAprovados / quotes.length) * 100) : 0,
+          };
         }
-        if (q.status === "fechado") qAprovados++;
-        if (q.paid === true) qPagos++;
-      });
-
-      results.orcamentos = {
-        total: quotes?.length || 0,
-        pendentes: qPendentes,
-        aprovados: qAprovados,
-        pagos: qPagos,
-        valorOrcamentosPendentes,
-        taxaConversao: quotes?.length > 0 ? Math.round((qAprovados / quotes.length) * 100) : 0,
-      };
+      } catch (error) {
+        console.error("Erro ao buscar orçamentos:", error);
+      }
 
       // ==========================================
       // 5. PACOTES E FUNCIONÁRIOS
       // ==========================================
-      const { count: totalPacotes } = await supabase
-        .from("packages")
-        .select("id", { count: "exact", head: true });
+      try {
+        const { count: totalPacotes, error: pacotesError } = await supabase
+          .from("packages")
+          .select("id", { count: "exact", head: true });
+        if (pacotesError) throw pacotesError;
 
-      const { count: totalFuncionarios } = await supabase
-        .from("employees")
-        .select("id", { count: "exact", head: true });
+        const { count: totalFuncionarios, error: funcError } = await supabase
+          .from("employees")
+          .select("id", { count: "exact", head: true });
+        if (funcError) throw funcError;
 
-      const { count: funcionariosAtivos } = await supabase
-        .from("employees")
-        .select("id", { count: "exact", head: true })
-        .eq("active", true);
+        const { count: funcionariosAtivos, error: ativosError } = await supabase
+          .from("employees")
+          .select("id", { count: "exact", head: true })
+          .eq("active", true);
+        if (ativosError) throw ativosError;
 
-      results.cadastros = {
-        pacotes: totalPacotes || 0,
-        funcionarios: totalFuncionarios || 0,
-        funcionariosAtivos: funcionariosAtivos || 0,
-      };
+        results.cadastros = {
+          pacotes: totalPacotes || 0,
+          funcionarios: totalFuncionarios || 0,
+          funcionariosAtivos: funcionariosAtivos || 0,
+        };
+      } catch (error) {
+        console.error("Erro ao buscar pacotes/funcionários:", error);
+      }
 
       // ==========================================
       // 6. INTEGRIDADE
       // ==========================================
-      const { data: eventsWithClients } = await supabase
-        .from("events")
-        .select("id, clients(id)");
+      try {
+        const { data: eventsWithRelations, error } = await supabase
+          .from("events")
+          .select<EventData[]>("id, clients(id), packages(id)");
 
-      let eventosSemCliente = 0;
-      eventsWithClients?.forEach((e: any) => {
-        if (!e.clients) eventosSemCliente++;
-      });
+        if (error) throw error;
 
-      const { data: eventsWithPackages } = await supabase
-        .from("events")
-        .select("id, packages(id)");
+        if (eventsWithRelations) {
+          let eventosSemCliente = 0;
+          let eventosSemPacote = 0;
+          const eventosComProblemaUnico = new Set<string>(); // Para contar problemas únicos
 
-      let eventosSemPacote = 0;
-      eventsWithPackages?.forEach((e: any) => {
-        if (!e.packages) eventosSemPacote++;
-      });
+          eventsWithRelations.forEach((e: EventData) => {
+            if (!e.clients) {
+              eventosSemCliente++;
+              eventosComProblemaUnico.add(e.id);
+            }
+            if (!e.packages) {
+              eventosSemPacote++;
+              eventosComProblemaUnico.add(e.id);
+            }
+          });
 
-      results.integridade = {
-        eventosSemCliente,
-        eventosSemPacote,
-        totalEventos: eventsWithClients?.length || 0,
-        integridadePercentual: eventsWithClients?.length > 0
-          ? Math.round(((eventsWithClients.length - eventosSemCliente - eventosSemPacote) / eventsWithClients.length) * 100)
-          : 100,
-      };
+          const totalEventos = eventsWithRelations.length;
+          const eventosComProblemas = eventosComProblemaUnico.size;
+          const integridadePercentual = totalEventos > 0
+            ? Math.round(((totalEventos - eventosComProblemas) / totalEventos) * 100)
+            : 100;
+
+          results.integridade = {
+            eventosSemCliente,
+            eventosSemPacote,
+            totalEventos,
+            integridadePercentual,
+          };
+        }
+      } catch (error) {
+        console.error("Erro ao verificar integridade:", error);
+      }
 
       setData(results);
       return results;
@@ -264,7 +413,7 @@ function DiagnosticoPage() {
             <button
               onClick={handleRefresh}
               disabled={refreshing}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg flex items-center gap-2 hover:bg-blue-700 transition-all disabled:opacity-50 text-sm font-medium"
+              className={cn("px-4 py-2 bg-blue-600 text-white rounded-lg flex items-center gap-2 hover:bg-blue-700 transition-all disabled:opacity-50 text-sm font-medium", refreshing && "cursor-not-allowed")}
             >
               <RefreshCw className={cn("size-4", refreshing && "animate-spin")} />
               {refreshing ? "Atualizando..." : "Atualizar"}
@@ -444,8 +593,4 @@ function Stat({ label, value, icon: Icon, color }: { label: string; value: strin
       </div>
     </div>
   );
-}
-
-function cn(...classes: any[]) {
-  return classes.filter(Boolean).join(" ");
 }
