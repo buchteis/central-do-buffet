@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { Calendar as CalendarIcon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -18,6 +18,7 @@ const statusStyles: Record<string, string> = {
   cancelado: "bg-destructive/10 text-destructive",
   realizado: "bg-slate-500/10 text-slate-600",
 };
+
 const statusLabels: Record<string, string> = {
   agendado: "Agendado",
   em_andamento: "Em andamento",
@@ -42,13 +43,23 @@ function EventsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">Eventos</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          {data?.length ?? 0} evento(s) registrado(s)
-        </p>
+      {/* HEADER COM BOTÃO NOVO EVENTO */}
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">Eventos</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            {data?.length ?? 0} evento(s) registrado(s)
+          </p>
+        </div>
+        <Link to="/eventos/create">
+          <button className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-all shadow-sm hover:shadow-md flex items-center gap-2">
+            <span className="text-lg leading-none">+</span>
+            Novo Evento
+          </button>
+        </Link>
       </div>
 
+      {/* TABELA DE EVENTOS */}
       <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
         {isLoading ? (
           <div className="p-10 text-center text-sm text-muted-foreground">Carregando…</div>
