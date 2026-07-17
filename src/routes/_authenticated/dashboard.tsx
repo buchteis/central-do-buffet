@@ -130,20 +130,24 @@ function Dashboard() {
 
   const transactionsData = useDashboardQuery("transactions-data", async () => {
     const { data } = await supabase.from("transactions").select("id, amount, type, status, paid_date, due_date");
+
+    // RECEITA RECEBIDA: soma de TODAS as entradas pagas (sem filtro de data)
     const recebido =
       data
-        ?.filter(
-          (t) =>
-            t.type === "entrada" &&
-            t.status === "pago" &&
-            t.paid_date &&
-            t.paid_date >= monthStart &&
-            t.paid_date < nextMonth,
-        )
+        ?.filter((t) => t.type === "entrada" && t.status === "pago")
         .reduce((sum, t) => sum + Number(t.amount || 0), 0) || 0;
+
+    // A RECEBER: soma de TODAS as entradas pendentes
     const aReceber =
-      data?.filter((t) => t.status === "pendente").reduce((sum, t) => sum + Number(t.amount || 0), 0) || 0;
-    const vencidos = data?.filter((t) => t.status === "pendente" && t.due_date && t.due_date < today).length || 0;
+      data
+        ?.filter((t) => t.type === "entrada" && t.status === "pendente")
+        .reduce((sum, t) => sum + Number(t.amount || 0), 0) || 0;
+
+    // VENCIDOS: entradas pendentes com data de vencimento passada
+    const vencidos =
+      data?.filter((t) => t.type === "entrada" && t.status === "pendente" && t.due_date && t.due_date < today).length ||
+      0;
+
     return { recebido, aReceber, vencidos };
   });
 
@@ -204,6 +208,7 @@ function Dashboard() {
       .from("transactions")
       .select("id, description, amount, due_date")
       .eq("status", "pendente")
+      .eq("type", "entrada")
       .lt("due_date", today)
       .limit(5);
     return data ?? [];
@@ -279,48 +284,31 @@ function Dashboard() {
         </div>
       )}
 
-      {/* CARDS FATURAMENTO CONCLUÍDO E GANHOS PREVISÍVEIS REMOVIDOS */}
-      {/* 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-background border border-emerald-500/20 rounded-2xl p-5 md:p-6 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-widest">Faturamento concluído</span>
-            <DollarSign className="size-5 text-emerald-600" />
-          </div>
-          <div className="mt-2 text-3xl md:text-4xl font-extrabold tracking-tighter text-emerald-700 font-mono">
-            {brl(stats.faturamentoConcluido)}
-          </div>
-          <p className="text-xs text-muted-foreground mt-1">Soma dos orçamentos com status <strong>Fechado</strong> e marcados como <strong>Pago</strong>.</p>
-        </div>
-        <div className="bg-gradient-to-br from-primary/10 via-primary/5 to-background border border-primary/20 rounded-2xl p-5 md:p-6 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold text-primary uppercase tracking-widest">Ganhos previsíveis</span>
-            <DollarSign className="size-5 text-primary" />
-          </div>
-          <div className="mt-2 text-3xl md:text-4xl font-extrabold tracking-tighter text-primary font-mono">
-            {brl(stats.ganhosPrevisiveis)}
-          </div>
-          <p className="text-xs text-muted-foreground mt-1">Concluído + orçamentos em andamento/negociação.</p>
-        </div>
-      </div>
-      */}
-
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <Kpi label="Eventos hoje" value={String(stats.evToday)} icon={Calendar} accent />
         <Kpi label="Eventos na semana" value={String(stats.evWeek)} icon={CalendarDays} />
         <Kpi label="Eventos no mês" value={String(stats.evMonth)} icon={CalendarCheck} />
-        {/* KPI RECEITA RECEBIDA REMOVIDO */}
-        {/* <Kpi label="Receita recebida" value={brlCompact(stats.revenueReceived)} icon={Wallet} accent /> */}
         <Kpi
           label="A receber"
           value={brlCompact(stats.toReceive)}
           icon={CreditCard}
           tone={stats.txOverdue > 0 ? "warn" : undefined}
         />
-        <Kpi label="Orçamentos pendentes" value={String(stats.qPend)} icon={Clock} />
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <Kpi
+          label="Orçamentos pendentes"
+          value={String(stats.qPend)}
+          icon={Clock}
+          tone={stats.qPend > 0 ? "warn" : undefined}
+        />
         <Kpi label="Orçamentos aprovados" value={String(stats.qApr)} icon={CheckCircle} />
         <Kpi label="Clientes ativos" value={String(stats.clientsCount)} icon={Users} />
-        <Kpi label="Novos clientes (30d)" value={String(stats.newClients)} icon={Users} />
+        <Kpi label="Novos clientes (30d)" value={String(stats.newClients)} icon={UserCheck} />
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <Kpi label="Escala hoje" value={String(stats.staffToday)} icon={UserCheck} />
         <Kpi label="Funcionários ativos" value={String(stats.employeesActive)} icon={ShoppingCart} />
         <Kpi
@@ -329,6 +317,7 @@ function Dashboard() {
           icon={FileText}
           tone={stats.contractsPending > 0 ? "warn" : undefined}
         />
+        <Kpi label="Receita recebida" value={brlCompact(stats.revenueReceived)} icon={Wallet} accent />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
