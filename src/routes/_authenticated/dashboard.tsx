@@ -342,7 +342,7 @@ function Dashboard() {
           </div>
         </div>
       </div>
-      <Chatbot stats={stats} />
+      <Chatbot />
     </div>
   );
 }

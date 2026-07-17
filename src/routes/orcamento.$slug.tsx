@@ -112,7 +112,7 @@ function PublicQuoteForm() {
     queryFn: async () => {
       const { data } = await supabase
         .from("packages")
-        .select("id, name, min_guests, max_guests, price_per_person")
+        .select("id, name, min_people, max_people, price_per_person")
         .eq("tenant_id", tenant!.id)
         .eq("active", true)
         .order("name");
@@ -296,7 +296,7 @@ function PublicQuoteForm() {
                       <SelectContent>
                         {packages.map((p) => (
                           <SelectItem key={p.id} value={p.id}>
-                            {p.name} ({p.min_guests || 0} - {p.max_guests || 9999} pessoas)
+                            {p.name} ({(p as any).min_people || 0} - {(p as any).max_people || 9999} pessoas)
                           </SelectItem>
                         ))}
                       </SelectContent>
