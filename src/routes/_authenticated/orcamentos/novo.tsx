@@ -860,4 +860,32 @@ function NewQuotePage() {
                 type="number"
                 min={0}
                 step="0.01"
-                value={break
+                value={breakdown.entry}
+                onChange={(e) => {
+                  const v = e.target.value === "" ? null : Number(e.target.value);
+                  setEntryOverride(v);
+                }}
+                className="h-8 w-32 text-right font-mono"
+              />
+            </div>
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-muted-foreground shrink-0">Saldo</span>
+              <Input
+                type="number"
+                min={0}
+                step="0.01"
+                value={breakdown.balance}
+                onChange={(e) => {
+                  const v = e.target.value === "" ? null : Number(e.target.value);
+                  setBalanceOverride(v);
+                }}
+                className="h-8 w-32 text-right font-mono"
+              />
+            </div>
+          </div>
+        </aside>
+      </div>
+    </div>
+  );
+}
+
