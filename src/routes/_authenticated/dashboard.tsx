@@ -105,7 +105,7 @@ function Dashboard() {
   const monthAgo = isoDate(new Date(now.getFullYear(), now.getMonth() - 1, now.getDate()));
   const tomorrow = isoDate(new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1));
 
-  // ===== QUERIES (MESMAS DE ANTES) =====
+  // ===== QUERIES =====
   const eventsData = useDashboardQuery("events-data", async () => {
     const { data } = await supabase
       .from("events")
@@ -192,6 +192,12 @@ function Dashboard() {
     return count ?? 0;
   });
 
+  // 🆕 QUERY PARA PACOTES
+  const packagesCount = useDashboardQuery("packages-count", async () => {
+    const { count } = await supabase.from("packages").select("id", { count: "exact", head: true });
+    return count ?? 0;
+  });
+
   const upcoming = useDashboardQuery("upcoming", async () => {
     const { data } = await supabase
       .from("events")
@@ -241,6 +247,7 @@ function Dashboard() {
     staffToday: staffToday.data ?? 0,
     employeesActive: employeesActive.data ?? 0,
     contractsPending: contractsPending.data ?? 0,
+    packagesCount: packagesCount.data ?? 0, // 🆕 PACOTES
     upcoming: upcoming.data ?? [],
     alertsPay: alertsPay.data ?? [],
     alertsEvTomorrow: alertsEvTomorrow.data ?? [],
@@ -409,7 +416,8 @@ function Dashboard() {
             color="rose"
             subtitle="para assinar"
           />
-          <MetricCard label="Pacotes" value="—" icon={Package} color="gray" subtitle="em breve" />
+          {/* 🆕 PACOTES CORRIGIDO */}
+          <MetricCard label="Pacotes" value={stats.packagesCount} icon={Package} color="gray" subtitle="cadastrados" />
         </div>
       </section>
 
