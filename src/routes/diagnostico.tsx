@@ -22,50 +22,44 @@ import {
 import { useState } from "react";
 import { brl } from "@/lib/format";
 
-// Função utilitária para concatenar classes CSS
+/**
+ * Função utilitária para concatenação de classes CSS.
+ * Geralmente utilizada com Tailwind CSS.
+ */
 function cn(...classes: (string | boolean | undefined | null)[]) {
   return classes.filter(Boolean).join(" ");
 }
 
-// Definições de tipos para maior segurança e clareza
-interface EventData {
+/**
+ * Definições de Interface para os dados do Banco de Dados (Supabase)
+ */
+interface DBEvent {
   id: string;
   status: string;
   event_date: string;
-  total_value: number;
+  total_value: number | string | null;
   clients?: { id: string } | null;
   packages?: { id: string } | null;
 }
 
-interface TransactionData {
-  type: 'entrada' | 'saida';
-  status: 'pago' | 'pendente';
-  amount: number;
+interface DBTransaction {
+  type: string;
+  status: string;
+  amount: number | string | null;
   paid_date: string | null;
   due_date: string | null;
 }
 
-interface QuoteData {
+interface DBQuote {
   status: string;
   paid: boolean;
-  total_value: number;
+  total_value: number | string | null;
 }
 
-interface ClientData {
-  id: string;
-  created_at: string;
-}
-
-interface PackageData {
-  id: string;
-}
-
-interface EmployeeData {
-  id: string;
-  active: boolean;
-}
-
-interface DiagnosticoResults {
+/**
+ * Estrutura de dados do Diagnóstico
+ */
+interface DiagnosticoData {
   eventos: {
     total: number;
     porStatus: Record<string, number>;
@@ -116,12 +110,12 @@ export const Route = createFileRoute("/diagnostico")({
 
 function DiagnosticoPage() {
   const [refreshing, setRefreshing] = useState(false);
-  const [data, setData] = useState<DiagnosticoResults | null>(null);
 
-  const { refetch, isLoading } = useQuery<DiagnosticoResults>({
+  // Hook do TanStack Query para gerenciar o estado dos dados e o carregamento
+  const { data, refetch, isLoading } = useQuery<DiagnosticoData>({
     queryKey: ["diagnostico"],
     queryFn: async () => {
-      const results: DiagnosticoResults = {
+      const results: DiagnosticoData = {
         eventos: { total: 0, porStatus: {}, hoje: 0, passado: 0, futuro: 0, faturamentoMes: 0, faturamentoTotal: 0 },
         financeiro: { entradaPaga: 0, entradaPendente: 0, saidaPaga: 0, saidaPendente: 0, saldo: 0, entradaPagaMes: 0, entradaPendenteVencidas: 0 },
         clientes: { total: 0, novos30d: 0 },
@@ -134,243 +128,125 @@ function DiagnosticoPage() {
       const today = now.toISOString().slice(0, 10);
       const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
 
-      // ==========================================
       // 1. EVENTOS
-      // ==========================================
-      try {
-        const { data: events, error } = await supabase
-          .from("events")
-          .select<EventData[]>("id, status, event_date, total_value");
+      const { data: events } = await supabase
+        .from("events")
+        .select("status, event_date, total_value");
 
-        if (error) throw error;
+      if (events) {
+        const statusExcluidos = ["cancelado", "arquivado"];
+        events.forEach((e: any) => {
+          const dbEvent = e as DBEvent;
+          results.eventos.porStatus[dbEvent.status] = (results.eventos.porStatus[dbEvent.status] || 0) + 1;
+          const valor = Number(dbEvent.total_value) || 0;
 
-        if (events) {
-          const statusCount: Record<string, number> = {};
-          let hoje = 0;
-          let passado = 0;
-          let futuro = 0;
-          let faturamentoMes = 0;
-          let faturamentoTotal = 0;
-
-          const statusExcluidos = ["cancelado", "arquivado"];
-
-          events.forEach((e: EventData) => {
-            statusCount[e.status] = (statusCount[e.status] || 0) + 1;
-            const valor = Number(e.total_value) || 0;
-
-            // Correção: Usar statusExcluidos para consistência no faturamento
-            if (!statusExcluidos.includes(e.status)) {
-              faturamentoTotal += valor;
-              // Comparar datas como objetos Date para maior robustez
-              if (new Date(e.event_date) >= new Date(monthStart)) {
-                faturamentoMes += valor;
-              }
+          if (dbEvent.status !== "cancelado") {
+            results.eventos.faturamentoTotal += valor;
+            if (dbEvent.event_date >= monthStart) {
+              results.eventos.faturamentoMes += valor;
             }
+          }
 
-            if (!statusExcluidos.includes(e.status)) {
-              if (e.event_date === today) hoje++;
-              else if (new Date(e.event_date) < new Date(today)) passado++; // Comparar datas como objetos Date
-              else futuro++;
-            }
-          });
-
-          results.eventos = {
-            total: events.length,
-            porStatus: statusCount,
-            hoje,
-            passado,
-            futuro,
-            faturamentoMes,
-            faturamentoTotal,
-          };
-        }
-      } catch (error) {
-        console.error("Erro ao buscar eventos:", error);
-        // Tratar erro, talvez definir valores padrão ou exibir mensagem ao usuário
+          if (!statusExcluidos.includes(dbEvent.status)) {
+            if (dbEvent.event_date === today) results.eventos.hoje++;
+            else if (dbEvent.event_date < today) results.eventos.passado++;
+            else results.eventos.futuro++;
+          }
+        });
+        results.eventos.total = events.length;
       }
 
-      // ==========================================
       // 2. FINANCEIRO
-      // ==========================================
-      try {
-        const { data: transactions, error } = await supabase
-          .from("transactions")
-          .select<TransactionData[]>("type, status, amount, paid_date, due_date");
+      const { data: transactions } = await supabase
+        .from("transactions")
+        .select("type, status, amount, paid_date, due_date");
 
-        if (error) throw error;
-
-        if (transactions) {
-          let entradaPaga = 0;
-          let entradaPendente = 0;
-          let saidaPaga = 0;
-          let saidaPendente = 0;
-          let entradaPagaMes = 0;
-          let entradaPendenteVencidas = 0;
-
-          transactions.forEach((t: TransactionData) => {
-            const val = Number(t.amount) || 0;
-            if (t.type === "entrada" && t.status === "pago") {
-              entradaPaga += val;
-              if (t.paid_date && new Date(t.paid_date) >= new Date(monthStart)) entradaPagaMes += val;
-            }
-            if (t.type === "entrada" && t.status === "pendente") {
-              entradaPendente += val;
-              if (t.due_date && new Date(t.due_date) < new Date(today)) entradaPendenteVencidas += val;
-            }
-            if (t.type === "saida" && t.status === "pago") saidaPaga += val;
-            if (t.type === "saida" && t.status === "pendente") saidaPendente += val;
-          });
-
-          results.financeiro = {
-            entradaPaga,
-            entradaPendente,
-            saidaPaga,
-            saidaPendente,
-            saldo: entradaPaga - saidaPaga,
-            entradaPagaMes,
-            entradaPendenteVencidas,
-          };
-        }
-      } catch (error) {
-        console.error("Erro ao buscar transações financeiras:", error);
+      if (transactions) {
+        transactions.forEach((t: any) => {
+          const dbTrans = t as DBTransaction;
+          const val = Number(dbTrans.amount) || 0;
+          if (dbTrans.type === "entrada" && dbTrans.status === "pago") {
+            results.financeiro.entradaPaga += val;
+            if (dbTrans.paid_date && dbTrans.paid_date >= monthStart) results.financeiro.entradaPagaMes += val;
+          }
+          if (dbTrans.type === "entrada" && dbTrans.status === "pendente") {
+            results.financeiro.entradaPendente += val;
+            if (dbTrans.due_date && dbTrans.due_date < today) results.financeiro.entradaPendenteVencidas += val;
+          }
+          if (dbTrans.type === "saida" && dbTrans.status === "pago") results.financeiro.saidaPaga += val;
+          if (dbTrans.type === "saida" && dbTrans.status === "pendente") results.financeiro.saidaPendente += val;
+        });
+        results.financeiro.saldo = results.financeiro.entradaPaga - results.financeiro.saidaPaga;
       }
 
-      // ==========================================
       // 3. CLIENTES
-      // ==========================================
-      try {
-        const { count: totalClientes, error: countError } = await supabase
-          .from("clients")
-          .select("id", { count: "exact", head: true });
+      const { count: totalClientes } = await supabase
+        .from("clients")
+        .select("id", { count: "exact", head: true });
 
-        if (countError) throw countError;
+      const { data: clientesNovos } = await supabase
+        .from("clients")
+        .select("id")
+        .gte("created_at", new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString());
 
-        const { data: clientesNovos, error: novosError } = await supabase
-          .from("clients")
-          .select<ClientData[]>("id")
-          .gte("created_at", new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString());
-        
-        if (novosError) throw novosError;
+      results.clientes.total = totalClientes || 0;
+      results.clientes.novos30d = clientesNovos?.length || 0;
 
-        results.clientes = {
-          total: totalClientes || 0,
-          novos30d: clientesNovos?.length || 0,
-        };
-      } catch (error) {
-        console.error("Erro ao buscar clientes:", error);
-      }
-
-      // ==========================================
       // 4. ORÇAMENTOS
-      // ==========================================
-      try {
-        const { data: quotes, error } = await supabase
-          .from("quotes")
-          .select<QuoteData[]>("status, paid, total_value");
+      const { data: quotes } = await supabase
+        .from("quotes")
+        .select("status, paid, total_value");
 
-        if (error) throw error;
-
-        if (quotes) {
-          let qPendentes = 0;
-          let qAprovados = 0;
-          let qPagos = 0;
-          let valorOrcamentosPendentes = 0;
-
-          quotes.forEach((q: QuoteData) => {
-            if (q.status === "novo" || q.status === "em_andamento") {
-              qPendentes++;
-              valorOrcamentosPendentes += Number(q.total_value) || 0;
-            }
-            if (q.status === "fechado") qAprovados++;
-            if (q.paid === true) qPagos++;
-          });
-
-          results.orcamentos = {
-            total: quotes.length,
-            pendentes: qPendentes,
-            aprovados: qAprovados,
-            pagos: qPagos,
-            valorOrcamentosPendentes,
-            taxaConversao: quotes.length > 0 ? Math.round((qAprovados / quotes.length) * 100) : 0,
-          };
-        }
-      } catch (error) {
-        console.error("Erro ao buscar orçamentos:", error);
+      if (quotes) {
+        quotes.forEach((q: any) => {
+          const dbQuote = q as DBQuote;
+          if (dbQuote.status === "novo" || dbQuote.status === "em_andamento") {
+            results.orcamentos.pendentes++;
+            results.orcamentos.valorOrcamentosPendentes += Number(dbQuote.total_value) || 0;
+          }
+          if (dbQuote.status === "fechado") results.orcamentos.aprovados++;
+          if (dbQuote.paid === true) results.orcamentos.pagos++;
+        });
+        results.orcamentos.total = quotes.length;
+        results.orcamentos.taxaConversao = quotes.length > 0 ? Math.round((results.orcamentos.aprovados / quotes.length) * 100) : 0;
       }
 
-      // ==========================================
       // 5. PACOTES E FUNCIONÁRIOS
-      // ==========================================
-      try {
-        const { count: totalPacotes, error: pacotesError } = await supabase
-          .from("packages")
-          .select("id", { count: "exact", head: true });
-        if (pacotesError) throw pacotesError;
+      const { count: totalPacotes } = await supabase.from("packages").select("id", { count: "exact", head: true });
+      const { count: totalFuncionarios } = await supabase.from("employees").select("id", { count: "exact", head: true });
+      const { count: funcionariosAtivos } = await supabase.from("employees").select("id", { count: "exact", head: true }).eq("active", true);
 
-        const { count: totalFuncionarios, error: funcError } = await supabase
-          .from("employees")
-          .select("id", { count: "exact", head: true });
-        if (funcError) throw funcError;
+      results.cadastros.pacotes = totalPacotes || 0;
+      results.cadastros.funcionarios = totalFuncionarios || 0;
+      results.cadastros.funcionariosAtivos = funcionariosAtivos || 0;
 
-        const { count: funcionariosAtivos, error: ativosError } = await supabase
-          .from("employees")
-          .select("id", { count: "exact", head: true })
-          .eq("active", true);
-        if (ativosError) throw ativosError;
-
-        results.cadastros = {
-          pacotes: totalPacotes || 0,
-          funcionarios: totalFuncionarios || 0,
-          funcionariosAtivos: funcionariosAtivos || 0,
-        };
-      } catch (error) {
-        console.error("Erro ao buscar pacotes/funcionários:", error);
-      }
-
-      // ==========================================
       // 6. INTEGRIDADE
-      // ==========================================
-      try {
-        const { data: eventsWithRelations, error } = await supabase
-          .from("events")
-          .select<EventData[]>("id, clients(id), packages(id)");
+      const { data: eventsWithClients } = await supabase.from("events").select("id, clients(id)");
+      const { data: eventsWithPackages } = await supabase.from("events").select("id, packages(id)");
 
-        if (error) throw error;
+      if (eventsWithClients) {
+        const idsComProblema = new Set<string>();
+        
+        eventsWithClients.forEach((e: any) => {
+          if (!e.clients) {
+            results.integridade.eventosSemCliente++;
+            idsComProblema.add(e.id);
+          }
+        });
 
-        if (eventsWithRelations) {
-          let eventosSemCliente = 0;
-          let eventosSemPacote = 0;
-          const eventosComProblemaUnico = new Set<string>(); // Para contar problemas únicos
+        eventsWithPackages?.forEach((e: any) => {
+          if (!e.packages) {
+            results.integridade.eventosSemPacote++;
+            idsComProblema.add(e.id);
+          }
+        });
 
-          eventsWithRelations.forEach((e: EventData) => {
-            if (!e.clients) {
-              eventosSemCliente++;
-              eventosComProblemaUnico.add(e.id);
-            }
-            if (!e.packages) {
-              eventosSemPacote++;
-              eventosComProblemaUnico.add(e.id);
-            }
-          });
-
-          const totalEventos = eventsWithRelations.length;
-          const eventosComProblemas = eventosComProblemaUnico.size;
-          const integridadePercentual = totalEventos > 0
-            ? Math.round(((totalEventos - eventosComProblemas) / totalEventos) * 100)
-            : 100;
-
-          results.integridade = {
-            eventosSemCliente,
-            eventosSemPacote,
-            totalEventos,
-            integridadePercentual,
-          };
-        }
-      } catch (error) {
-        console.error("Erro ao verificar integridade:", error);
+        results.integridade.totalEventos = eventsWithClients.length;
+        results.integridade.integridadePercentual = eventsWithClients.length > 0
+          ? Math.round(((eventsWithClients.length - idsComProblema.size) / eventsWithClients.length) * 100)
+          : 100;
       }
 
-      setData(results);
       return results;
     },
   });
@@ -413,7 +289,7 @@ function DiagnosticoPage() {
             <button
               onClick={handleRefresh}
               disabled={refreshing}
-              className={cn("px-4 py-2 bg-blue-600 text-white rounded-lg flex items-center gap-2 hover:bg-blue-700 transition-all disabled:opacity-50 text-sm font-medium", refreshing && "cursor-not-allowed")}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg flex items-center gap-2 hover:bg-blue-700 transition-all disabled:opacity-50 text-sm font-medium"
             >
               <RefreshCw className={cn("size-4", refreshing && "animate-spin")} />
               {refreshing ? "Atualizando..." : "Atualizar"}
@@ -423,12 +299,12 @@ function DiagnosticoPage() {
 
         {/* CARDS DE RESUMO */}
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-          <AdminCard title="Eventos" value={data?.eventos?.total || 0} icon={Calendar} color="blue" />
-          <AdminCard title="Clientes" value={data?.clientes?.total || 0} icon={Users} color="green" />
-          <AdminCard title="Orçamentos" value={data?.orcamentos?.total || 0} icon={FileText} color="amber" />
-          <AdminCard title="Saldo" value={brl(data?.financeiro?.saldo || 0)} icon={DollarSign} color="emerald" />
-          <AdminCard title="Pacotes" value={data?.cadastros?.pacotes || 0} icon={Package} color="purple" />
-          <AdminCard title="Funcionários" value={data?.cadastros?.funcionarios || 0} icon={UserCog} color="violet" />
+          <AdminCard title="Eventos" value={data?.eventos?.total ?? 0} icon={Calendar} color="blue" />
+          <AdminCard title="Clientes" value={data?.clientes?.total ?? 0} icon={Users} color="green" />
+          <AdminCard title="Orçamentos" value={data?.orcamentos?.total ?? 0} icon={FileText} color="amber" />
+          <AdminCard title="Saldo" value={brl(data?.financeiro?.saldo ?? 0)} icon={DollarSign} color="emerald" />
+          <AdminCard title="Pacotes" value={data?.cadastros?.pacotes ?? 0} icon={Package} color="purple" />
+          <AdminCard title="Funcionários" value={data?.cadastros?.funcionarios ?? 0} icon={UserCog} color="violet" />
         </div>
 
         {/* LINHA 1: EVENTOS + FINANCEIRO */}
@@ -439,10 +315,10 @@ function DiagnosticoPage() {
               Eventos
             </h3>
             <div className="grid grid-cols-2 gap-4">
-              <Stat label="Hoje" value={data?.eventos?.hoje || 0} icon={Clock} color="blue" />
-              <Stat label="Futuros" value={data?.eventos?.futuro || 0} icon={TrendingUp} color="green" />
-              <Stat label="Passados" value={data?.eventos?.passado || 0} icon={TrendingDown} color="amber" />
-              <Stat label="Faturamento (mês)" value={brl(data?.eventos?.faturamentoMes || 0)} icon={DollarSign} color="emerald" />
+              <Stat label="Hoje" value={data?.eventos?.hoje ?? 0} icon={Clock} color="blue" />
+              <Stat label="Futuros" value={data?.eventos?.futuro ?? 0} icon={TrendingUp} color="green" />
+              <Stat label="Passados" value={data?.eventos?.passado ?? 0} icon={TrendingDown} color="amber" />
+              <Stat label="Faturamento (mês)" value={brl(data?.eventos?.faturamentoMes ?? 0)} icon={DollarSign} color="emerald" />
             </div>
             <div className="mt-4 pt-4 border-t border-slate-100">
               <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Distribuição por status</h4>
@@ -462,15 +338,15 @@ function DiagnosticoPage() {
               Financeiro
             </h3>
             <div className="grid grid-cols-2 gap-4">
-              <Stat label="Receita recebida" value={brl(data?.financeiro?.entradaPaga || 0)} icon={TrendingUp} color="emerald" />
-              <Stat label="A receber" value={brl(data?.financeiro?.entradaPendente || 0)} icon={Clock} color="amber" />
-              <Stat label="Despesas pagas" value={brl(data?.financeiro?.saidaPaga || 0)} icon={TrendingDown} color="rose" />
-              <Stat label="Saldo" value={brl(data?.financeiro?.saldo || 0)} icon={DollarSign} color="blue" />
+              <Stat label="Receita recebida" value={brl(data?.financeiro?.entradaPaga ?? 0)} icon={TrendingUp} color="emerald" />
+              <Stat label="A receber" value={brl(data?.financeiro?.entradaPendente ?? 0)} icon={Clock} color="amber" />
+              <Stat label="Despesas pagas" value={brl(data?.financeiro?.saidaPaga ?? 0)} icon={TrendingDown} color="rose" />
+              <Stat label="Saldo" value={brl(data?.financeiro?.saldo ?? 0)} icon={DollarSign} color="blue" />
             </div>
-            {data?.financeiro?.entradaPendenteVencidas > 0 && (
+            {(data?.financeiro?.entradaPendenteVencidas ?? 0) > 0 && (
               <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-xl flex items-center gap-2 text-sm text-red-700">
                 <AlertCircle className="size-5" />
-                <span>{brl(data.financeiro.entradaPendenteVencidas)} em pagamentos vencidos</span>
+                <span>{brl(data!.financeiro.entradaPendenteVencidas)} em pagamentos vencidos</span>
               </div>
             )}
           </div>
@@ -484,10 +360,10 @@ function DiagnosticoPage() {
               Orçamentos
             </h3>
             <div className="space-y-3">
-              <Stat label="Pendentes" value={data?.orcamentos?.pendentes || 0} icon={Clock} color="amber" />
-              <Stat label="Aprovados" value={data?.orcamentos?.aprovados || 0} icon={CheckCircle} color="green" />
-              <Stat label="Convertidos" value={`${data?.orcamentos?.taxaConversao || 0}%`} icon={TrendingUp} color="blue" />
-              <Stat label="Valor pendente" value={brl(data?.orcamentos?.valorOrcamentosPendentes || 0)} icon={DollarSign} color="amber" />
+              <Stat label="Pendentes" value={data?.orcamentos?.pendentes ?? 0} icon={Clock} color="amber" />
+              <Stat label="Aprovados" value={data?.orcamentos?.aprovados ?? 0} icon={CheckCircle} color="green" />
+              <Stat label="Convertidos" value={`${data?.orcamentos?.taxaConversao ?? 0}%`} icon={TrendingUp} color="blue" />
+              <Stat label="Valor pendente" value={brl(data?.orcamentos?.valorOrcamentosPendentes ?? 0)} icon={DollarSign} color="amber" />
             </div>
           </div>
 
@@ -497,8 +373,8 @@ function DiagnosticoPage() {
               Clientes
             </h3>
             <div className="space-y-3">
-              <Stat label="Total" value={data?.clientes?.total || 0} icon={Users} color="blue" />
-              <Stat label="Novos (30d)" value={data?.clientes?.novos30d || 0} icon={TrendingUp} color="green" />
+              <Stat label="Total" value={data?.clientes?.total ?? 0} icon={Users} color="blue" />
+              <Stat label="Novos (30d)" value={data?.clientes?.novos30d ?? 0} icon={TrendingUp} color="green" />
             </div>
           </div>
 
@@ -510,21 +386,21 @@ function DiagnosticoPage() {
             <div className="space-y-3">
               <Stat
                 label="Integridade geral"
-                value={`${data?.integridade?.integridadePercentual || 0}%`}
+                value={`${data?.integridade?.integridadePercentual ?? 0}%`}
                 icon={ShieldCheck}
-                color={data?.integridade?.integridadePercentual >= 90 ? "green" : "red"}
+                color={(data?.integridade?.integridadePercentual ?? 0) >= 90 ? "green" : "red"}
               />
               <Stat
                 label="Eventos sem cliente"
-                value={data?.integridade?.eventosSemCliente || 0}
+                value={data?.integridade?.eventosSemCliente ?? 0}
                 icon={AlertTriangle}
-                color={data?.integridade?.eventosSemCliente > 0 ? "red" : "green"}
+                color={(data?.integridade?.eventosSemCliente ?? 0) > 0 ? "red" : "green"}
               />
               <Stat
                 label="Eventos sem pacote"
-                value={data?.integridade?.eventosSemPacote || 0}
+                value={data?.integridade?.eventosSemPacote ?? 0}
                 icon={AlertTriangle}
-                color={data?.integridade?.eventosSemPacote > 0 ? "red" : "green"}
+                color={(data?.integridade?.eventosSemPacote ?? 0) > 0 ? "red" : "green"}
               />
             </div>
           </div>
@@ -534,9 +410,9 @@ function DiagnosticoPage() {
         <div className="text-center text-xs text-muted-foreground border-t border-slate-200 pt-6">
           <p>Diagnóstico · Meu Churras · {new Date().toLocaleDateString()}</p>
           <p className="mt-1">
-            {data?.integridade?.integridadePercentual >= 90 ? (
+            {(data?.integridade?.integridadePercentual ?? 0) >= 90 ? (
               <span className="text-emerald-600">✅ Sistema saudável</span>
-            ) : data?.integridade?.integridadePercentual >= 70 ? (
+            ) : (data?.integridade?.integridadePercentual ?? 0) >= 70 ? (
               <span className="text-amber-600">⚠️ Algumas correções são recomendadas</span>
             ) : (
               <span className="text-red-600">🔴 Ações corretivas necessárias</span>
@@ -553,7 +429,7 @@ function DiagnosticoPage() {
 // ==========================================
 
 function AdminCard({ title, value, icon: Icon, color }: { title: string; value: string | number; icon: any; color: string }) {
-  const colors = {
+  const colors: Record<string, string> = {
     blue: "bg-blue-50 text-blue-700",
     green: "bg-green-50 text-green-700",
     amber: "bg-amber-50 text-amber-700",
@@ -564,7 +440,7 @@ function AdminCard({ title, value, icon: Icon, color }: { title: string; value: 
   };
 
   return (
-    <div className={cn("rounded-xl p-4 border text-center", colors[color as keyof typeof colors] || "bg-slate-50 text-slate-700")}>
+    <div className={cn("rounded-xl p-4 border text-center", colors[color] || "bg-slate-50 text-slate-700")}>
       <Icon className="size-5 mx-auto mb-1 opacity-80" />
       <div className="text-2xl font-extrabold tracking-tighter">{value}</div>
       <div className="text-[10px] font-bold uppercase tracking-widest opacity-70">{title}</div>
@@ -573,7 +449,7 @@ function AdminCard({ title, value, icon: Icon, color }: { title: string; value: 
 }
 
 function Stat({ label, value, icon: Icon, color }: { label: string; value: string | number; icon: any; color: string }) {
-  const colors = {
+  const colors: Record<string, string> = {
     blue: "text-blue-700 bg-blue-50",
     green: "text-green-700 bg-green-50",
     amber: "text-amber-700 bg-amber-50",
@@ -585,7 +461,7 @@ function Stat({ label, value, icon: Icon, color }: { label: string; value: strin
   };
 
   return (
-    <div className={cn("flex items-center gap-3 p-3 rounded-xl border", colors[color as keyof typeof colors] || "bg-slate-50 text-slate-700")}>
+    <div className={cn("flex items-center gap-3 p-3 rounded-xl border", colors[color] || "bg-slate-50 text-slate-700")}>
       <Icon className="size-5 shrink-0" />
       <div className="flex-1 min-w-0">
         <div className="text-xs font-medium opacity-80">{label}</div>
