@@ -109,7 +109,6 @@ function NewClientPage() {
           <Label htmlFor="notes">Observações</Label>
           <Textarea id="notes" name="notes" rows={3} />
         </div>
-
         {/* E-mail do Google Agenda */}
         <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
           <div className="flex items-start gap-3">
