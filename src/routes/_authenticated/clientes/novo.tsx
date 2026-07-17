@@ -111,7 +111,7 @@ function NewClientPage() {
         </div>
 
         {/* E-mail do Google Agenda */}
-        <div className="bg-blue-50 border-blue-200 rounded-xl p-4">
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
           <div className="flex items-start gap-3">
             <Calendar className="size-5 text-blue-600 shrink-0 mt-0.5" />
             <div className="flex-1">
