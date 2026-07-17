@@ -21,7 +21,7 @@ import {
   Clock,
   CheckCircle,
 } from "lucide-react";
-import { Chatbot } from '@/components/Chatbot';
+import { Chatbot } from "@/components/Chatbot";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({ meta: [{ title: "Dashboard — Meu Churras" }] }),
@@ -53,10 +53,10 @@ function isoDate(d: Date) {
 const EXCLUDED_STATUSES = ["cancelado"];
 
 function useDashboardQuery<T>(key: string, fn: () => Promise<T>) {
-  return useQuery({ 
-    queryKey: ["dashboard", key], 
-    queryFn: fn, 
-    staleTime: 30_000, 
+  return useQuery({
+    queryKey: ["dashboard", key],
+    queryFn: fn,
+    staleTime: 30_000,
     refetchOnWindowFocus: false,
   });
 }
@@ -68,7 +68,7 @@ function Dashboard() {
     const invalidate = () => {
       qc.invalidateQueries({ queryKey: ["dashboard"] });
     };
-    
+
     const channel = supabase
       .channel("dashboard-live")
       .on("postgres_changes", { event: "*", schema: "public", table: "quotes" }, invalidate)
@@ -79,7 +79,7 @@ function Dashboard() {
       .on("postgres_changes", { event: "*", schema: "public", table: "leads" }, invalidate)
       .on("postgres_changes", { event: "*", schema: "public", table: "event_staff" }, invalidate)
       .subscribe();
-      
+
     return () => {
       supabase.removeChannel(channel);
     };
@@ -100,9 +100,12 @@ function Dashboard() {
   const tomorrow = isoDate(new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1));
 
   const eventsData = useDashboardQuery("events-data", async () => {
-    const { data } = await supabase.from("events").select("id, event_date, status").not("status", "in", `("${EXCLUDED_STATUSES.join('","')}")`);
+    const { data } = await supabase
+      .from("events")
+      .select("id, event_date, status")
+      .not("status", "in", `("${EXCLUDED_STATUSES.join('","')}")`);
     const counts = { today: 0, week: 0, month: 0 };
-    data?.forEach(event => {
+    data?.forEach((event) => {
       if (event.event_date === today) counts.today++;
       if (event.event_date >= weekStartISO && event.event_date < weekEndISO) counts.week++;
       if (event.event_date >= monthStart && event.event_date < nextMonth) counts.month++;
@@ -112,18 +115,35 @@ function Dashboard() {
 
   const quotesData = useDashboardQuery("quotes-data", async () => {
     const { data } = await supabase.from("quotes").select("id, status, total_value, paid");
-    const pendentes = data?.filter(q => q.status === "novo" || q.status === "em_andamento").length || 0;
-    const aprovados = data?.filter(q => q.status === "fechado").length || 0;
-    const concluidos = data?.filter(q => q.status === "fechado" && q.paid === true).reduce((sum, q) => sum + Number(q.total_value || 0), 0) || 0;
-    const previsiveis = data?.filter(q => (q.status === "fechado" && q.paid === true) || q.status === "em_andamento").reduce((sum, q) => sum + Number(q.total_value || 0), 0) || 0;
+    const pendentes = data?.filter((q) => q.status === "novo" || q.status === "em_andamento").length || 0;
+    const aprovados = data?.filter((q) => q.status === "fechado").length || 0;
+    const concluidos =
+      data
+        ?.filter((q) => q.status === "fechado" && q.paid === true)
+        .reduce((sum, q) => sum + Number(q.total_value || 0), 0) || 0;
+    const previsiveis =
+      data
+        ?.filter((q) => (q.status === "fechado" && q.paid === true) || q.status === "em_andamento")
+        .reduce((sum, q) => sum + Number(q.total_value || 0), 0) || 0;
     return { pendentes, aprovados, concluidos, previsiveis };
   });
 
   const transactionsData = useDashboardQuery("transactions-data", async () => {
     const { data } = await supabase.from("transactions").select("id, amount, type, status, paid_date, due_date");
-    const recebido = data?.filter(t => t.type === "entrada" && t.status === "pago" && t.paid_date && t.paid_date >= monthStart && t.paid_date < nextMonth).reduce((sum, t) => sum + Number(t.amount || 0), 0) || 0;
-    const aReceber = data?.filter(t => t.status === "pendente").reduce((sum, t) => sum + Number(t.amount || 0), 0) || 0;
-    const vencidos = data?.filter(t => t.status === "pendente" && t.due_date && t.due_date < today).length || 0;
+    const recebido =
+      data
+        ?.filter(
+          (t) =>
+            t.type === "entrada" &&
+            t.status === "pago" &&
+            t.paid_date &&
+            t.paid_date >= monthStart &&
+            t.paid_date < nextMonth,
+        )
+        .reduce((sum, t) => sum + Number(t.amount || 0), 0) || 0;
+    const aReceber =
+      data?.filter((t) => t.status === "pendente").reduce((sum, t) => sum + Number(t.amount || 0), 0) || 0;
+    const vencidos = data?.filter((t) => t.status === "pendente" && t.due_date && t.due_date < today).length || 0;
     return { recebido, aReceber, vencidos };
   });
 
@@ -133,7 +153,10 @@ function Dashboard() {
   });
 
   const newClients = useDashboardQuery("new-clients", async () => {
-    const { count } = await supabase.from("clients").select("id", { count: "exact", head: true }).gte("created_at", monthAgo);
+    const { count } = await supabase
+      .from("clients")
+      .select("id", { count: "exact", head: true })
+      .gte("created_at", monthAgo);
     return count ?? 0;
   });
 
@@ -143,30 +166,56 @@ function Dashboard() {
   });
 
   const contractsPending = useDashboardQuery("contracts-pending", async () => {
-    const { count } = await supabase.from("contracts").select("id", { count: "exact", head: true }).in("status", ["rascunho", "enviado"]);
+    const { count } = await supabase
+      .from("contracts")
+      .select("id", { count: "exact", head: true })
+      .in("status", ["rascunho", "enviado"]);
     return count ?? 0;
   });
 
   const staffToday = useDashboardQuery("staff-today", async () => {
-    const { data: events } = await supabase.from("events").select("id").eq("event_date", today).not("status", "in", `("${EXCLUDED_STATUSES.join('","')}")`);
+    const { data: events } = await supabase
+      .from("events")
+      .select("id")
+      .eq("event_date", today)
+      .not("status", "in", `("${EXCLUDED_STATUSES.join('","')}")`);
     if (!events || events.length === 0) return 0;
-    const eventIds = events.map(e => e.id);
-    const { count } = await supabase.from("event_staff").select("id", { count: "exact", head: true }).in("event_id", eventIds);
+    const eventIds = events.map((e) => e.id);
+    const { count } = await supabase
+      .from("event_staff")
+      .select("id", { count: "exact", head: true })
+      .in("event_id", eventIds);
     return count ?? 0;
   });
 
   const upcoming = useDashboardQuery("upcoming", async () => {
-    const { data } = await supabase.from("events").select("id, event_date, event_time, status, total_value, clients(name), packages(name)").gte("event_date", today).not("status", "in", `("${EXCLUDED_STATUSES.join('","')}")`).order("event_date").limit(6);
+    const { data } = await supabase
+      .from("events")
+      .select("id, event_date, event_time, status, total_value, clients(name), packages(name)")
+      .gte("event_date", today)
+      .not("status", "in", `("${EXCLUDED_STATUSES.join('","')}")`)
+      .order("event_date")
+      .limit(6);
     return data ?? [];
   });
 
   const alertsPay = useDashboardQuery("alerts-pay", async () => {
-    const { data } = await supabase.from("transactions").select("id, description, amount, due_date").eq("status", "pendente").lt("due_date", today).limit(5);
+    const { data } = await supabase
+      .from("transactions")
+      .select("id, description, amount, due_date")
+      .eq("status", "pendente")
+      .lt("due_date", today)
+      .limit(5);
     return data ?? [];
   });
 
   const alertsEvTomorrow = useDashboardQuery("alerts-ev-tomorrow", async () => {
-    const { data } = await supabase.from("events").select("id, event_time, clients(name)").eq("event_date", tomorrow).not("status", "in", `("${EXCLUDED_STATUSES.join('","')}")`).limit(5);
+    const { data } = await supabase
+      .from("events")
+      .select("id, event_time, clients(name)")
+      .eq("event_date", tomorrow)
+      .not("status", "in", `("${EXCLUDED_STATUSES.join('","')}")`)
+      .limit(5);
     return data ?? [];
   });
 
@@ -192,10 +241,14 @@ function Dashboard() {
   };
 
   const alerts: { icon: any; label: string; tone: string }[] = [];
-  if (stats.txOverdue > 0) alerts.push({ icon: AlertTriangle, label: `${stats.txOverdue} pagamento(s) atrasado(s)`, tone: "destructive" });
-  if (stats.contractsPending > 0) alerts.push({ icon: FileText, label: `${stats.contractsPending} contrato(s) pendente(s)`, tone: "warning" });
-  if (stats.alertsEvTomorrow.length > 0) alerts.push({ icon: CalendarCheck, label: `${stats.alertsEvTomorrow.length} evento(s) amanhã`, tone: "info" });
-  if (stats.qPend > 0) alerts.push({ icon: Hourglass, label: `${stats.qPend} orçamento(s) aguardando resposta`, tone: "muted" });
+  if (stats.txOverdue > 0)
+    alerts.push({ icon: AlertTriangle, label: `${stats.txOverdue} pagamento(s) atrasado(s)`, tone: "destructive" });
+  if (stats.contractsPending > 0)
+    alerts.push({ icon: FileText, label: `${stats.contractsPending} contrato(s) pendente(s)`, tone: "warning" });
+  if (stats.alertsEvTomorrow.length > 0)
+    alerts.push({ icon: CalendarCheck, label: `${stats.alertsEvTomorrow.length} evento(s) amanhã`, tone: "info" });
+  if (stats.qPend > 0)
+    alerts.push({ icon: Hourglass, label: `${stats.qPend} orçamento(s) aguardando resposta`, tone: "muted" });
 
   return (
     <div className="space-y-6">
@@ -209,13 +262,16 @@ function Dashboard() {
       {alerts.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
           {alerts.map((a, i) => (
-            <div key={i} className={cn(
-              "flex items-center gap-3 p-3 rounded-xl border text-xs font-semibold",
-              a.tone === "destructive" && "border-destructive/30 bg-destructive/5 text-destructive",
-              a.tone === "warning" && "border-warning/30 bg-warning/10 text-warning-foreground",
-              a.tone === "info" && "border-info/30 bg-info/10 text-info",
-              a.tone === "muted" && "border-border bg-muted/30",
-            )}>
+            <div
+              key={i}
+              className={cn(
+                "flex items-center gap-3 p-3 rounded-xl border text-xs font-semibold",
+                a.tone === "destructive" && "border-destructive/30 bg-destructive/5 text-destructive",
+                a.tone === "warning" && "border-warning/30 bg-warning/10 text-warning-foreground",
+                a.tone === "info" && "border-info/30 bg-info/10 text-info",
+                a.tone === "muted" && "border-border bg-muted/30",
+              )}
+            >
               <a.icon className="size-4 shrink-0" />
               <span>{a.label}</span>
             </div>
@@ -223,6 +279,8 @@ function Dashboard() {
         </div>
       )}
 
+      {/* CARDS FATURAMENTO CONCLUÍDO E GANHOS PREVISÍVEIS REMOVIDOS */}
+      {/* 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-background border border-emerald-500/20 rounded-2xl p-5 md:p-6 shadow-sm">
           <div className="flex items-center justify-between">
@@ -234,7 +292,6 @@ function Dashboard() {
           </div>
           <p className="text-xs text-muted-foreground mt-1">Soma dos orçamentos com status <strong>Fechado</strong> e marcados como <strong>Pago</strong>.</p>
         </div>
-        
         <div className="bg-gradient-to-br from-primary/10 via-primary/5 to-background border border-primary/20 rounded-2xl p-5 md:p-6 shadow-sm">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-bold text-primary uppercase tracking-widest">Ganhos previsíveis</span>
@@ -246,20 +303,32 @@ function Dashboard() {
           <p className="text-xs text-muted-foreground mt-1">Concluído + orçamentos em andamento/negociação.</p>
         </div>
       </div>
+      */}
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
         <Kpi label="Eventos hoje" value={String(stats.evToday)} icon={Calendar} accent />
         <Kpi label="Eventos na semana" value={String(stats.evWeek)} icon={CalendarDays} />
         <Kpi label="Eventos no mês" value={String(stats.evMonth)} icon={CalendarCheck} />
-        <Kpi label="Receita recebida" value={brlCompact(stats.revenueReceived)} icon={Wallet} accent />
-        <Kpi label="A receber" value={brlCompact(stats.toReceive)} icon={CreditCard} tone={stats.txOverdue > 0 ? "warn" : undefined} />
+        {/* KPI RECEITA RECEBIDA REMOVIDO */}
+        {/* <Kpi label="Receita recebida" value={brlCompact(stats.revenueReceived)} icon={Wallet} accent /> */}
+        <Kpi
+          label="A receber"
+          value={brlCompact(stats.toReceive)}
+          icon={CreditCard}
+          tone={stats.txOverdue > 0 ? "warn" : undefined}
+        />
         <Kpi label="Orçamentos pendentes" value={String(stats.qPend)} icon={Clock} />
         <Kpi label="Orçamentos aprovados" value={String(stats.qApr)} icon={CheckCircle} />
         <Kpi label="Clientes ativos" value={String(stats.clientsCount)} icon={Users} />
         <Kpi label="Novos clientes (30d)" value={String(stats.newClients)} icon={Users} />
         <Kpi label="Escala hoje" value={String(stats.staffToday)} icon={UserCheck} />
         <Kpi label="Funcionários ativos" value={String(stats.employeesActive)} icon={ShoppingCart} />
-        <Kpi label="Contratos pendentes" value={String(stats.contractsPending)} icon={FileText} tone={stats.contractsPending > 0 ? "warn" : undefined} />
+        <Kpi
+          label="Contratos pendentes"
+          value={String(stats.contractsPending)}
+          icon={FileText}
+          tone={stats.contractsPending > 0 ? "warn" : undefined}
+        />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -273,7 +342,7 @@ function Dashboard() {
               Ver agenda <ArrowRight className="size-3" />
             </Link>
           </div>
-          
+
           {stats.upcoming.length > 0 ? (
             <div className="overflow-x-auto">
               <table className="w-full text-left">
@@ -294,10 +363,12 @@ function Dashboard() {
                       <td className="px-4 py-4 hidden md:table-cell text-xs">{e.packages?.name ?? "—"}</td>
                       <td className="px-4 py-4 text-sm font-mono text-right">{brl(e.total_value)}</td>
                       <td className="px-4 py-4">
-                        <span className={cn(
-                          "px-2 py-1 text-[10px] rounded-full font-bold uppercase tracking-wider whitespace-nowrap",
-                          statusStyles[e.status] ?? "bg-muted text-muted-foreground",
-                        )}>
+                        <span
+                          className={cn(
+                            "px-2 py-1 text-[10px] rounded-full font-bold uppercase tracking-wider whitespace-nowrap",
+                            statusStyles[e.status] ?? "bg-muted text-muted-foreground",
+                          )}
+                        >
                           {statusLabels[e.status] ?? e.status}
                         </span>
                       </td>
@@ -347,18 +418,46 @@ function Dashboard() {
   );
 }
 
-function Kpi({ label, value, icon: Icon, accent, tone }: { label: string; value: string; icon: any; accent?: boolean; tone?: "warn" }) {
+function Kpi({
+  label,
+  value,
+  icon: Icon,
+  accent,
+  tone,
+}: {
+  label: string;
+  value: string;
+  icon: any;
+  accent?: boolean;
+  tone?: "warn";
+}) {
   return (
-    <div className={cn(
-      "bg-card p-4 rounded-2xl border shadow-sm transition-all",
-      tone === "warn" && "border-warning/40 bg-warning/5",
-      !tone && "border-border",
-    )}>
+    <div
+      className={cn(
+        "bg-card p-4 rounded-2xl border shadow-sm transition-all",
+        tone === "warn" && "border-warning/40 bg-warning/5",
+        !tone && "border-border",
+      )}
+    >
       <div className="flex items-center justify-between">
         <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{label}</span>
-        <Icon className={cn("size-4", accent ? "text-primary" : "text-muted-foreground/70", tone === "warn" && "text-warning")} />
+        <Icon
+          className={cn(
+            "size-4",
+            accent ? "text-primary" : "text-muted-foreground/70",
+            tone === "warn" && "text-warning",
+          )}
+        />
       </div>
-      <div className={cn("mt-2 text-2xl font-extrabold tracking-tighter", accent && "text-primary", tone === "warn" && "text-warning")}>{value}</div>
+      <div
+        className={cn(
+          "mt-2 text-2xl font-extrabold tracking-tighter",
+          accent && "text-primary",
+          tone === "warn" && "text-warning",
+        )}
+      >
+        {value}
+      </div>
     </div>
   );
 }
