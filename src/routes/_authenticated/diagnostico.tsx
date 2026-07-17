@@ -16,8 +16,6 @@ import {
   TrendingDown,
   Clock,
   AlertCircle,
-  BarChart3,
-  Settings,
   ShieldCheck,
   Database,
 } from "lucide-react";
@@ -25,7 +23,7 @@ import { useState } from "react";
 import { brl } from "@/lib/format";
 
 export const Route = createFileRoute("/_authenticated/diagnostico")({
-  head: () => ({ meta: [{ title: "Painel Administrativo — Meu Churras" }] }),
+  head: () => ({ meta: [{ title: "Diagnóstico — Meu Churras" }] }),
   component: DiagnosticoPage,
 });
 
@@ -41,9 +39,7 @@ function DiagnosticoPage() {
       // ==========================================
       // 1. EVENTOS
       // ==========================================
-      const { data: events } = await supabase
-        .from("events")
-        .select("status, event_date, total_value");
+      const { data: events } = await supabase.from("events").select("status, event_date, total_value");
 
       const now = new Date();
       const today = now.toISOString().slice(0, 10);
@@ -127,9 +123,7 @@ function DiagnosticoPage() {
       // ==========================================
       // 3. CLIENTES
       // ==========================================
-      const { count: totalClientes } = await supabase
-        .from("clients")
-        .select("id", { count: "exact", head: true });
+      const { count: totalClientes } = await supabase.from("clients").select("id", { count: "exact", head: true });
 
       const { data: clientesNovos } = await supabase
         .from("clients")
@@ -144,9 +138,7 @@ function DiagnosticoPage() {
       // ==========================================
       // 4. ORÇAMENTOS
       // ==========================================
-      const { data: quotes } = await supabase
-        .from("quotes")
-        .select("status, paid, total_value");
+      const { data: quotes } = await supabase.from("quotes").select("status, paid, total_value");
 
       let qPendentes = 0;
       let qAprovados = 0;
@@ -174,9 +166,7 @@ function DiagnosticoPage() {
       // ==========================================
       // 5. PACOTES E FUNCIONÁRIOS
       // ==========================================
-      const { count: totalPacotes } = await supabase
-        .from("packages")
-        .select("id", { count: "exact", head: true });
+      const { count: totalPacotes } = await supabase.from("packages").select("id", { count: "exact", head: true });
 
       const { count: totalFuncionarios } = await supabase
         .from("employees")
@@ -196,18 +186,14 @@ function DiagnosticoPage() {
       // ==========================================
       // 6. INTEGRIDADE
       // ==========================================
-      const { data: eventsWithClients } = await supabase
-        .from("events")
-        .select("id, clients(id)");
+      const { data: eventsWithClients } = await supabase.from("events").select("id, clients(id)");
 
       let eventosSemCliente = 0;
       eventsWithClients?.forEach((e: any) => {
         if (!e.clients) eventosSemCliente++;
       });
 
-      const { data: eventsWithPackages } = await supabase
-        .from("events")
-        .select("id, packages(id)");
+      const { data: eventsWithPackages } = await supabase.from("events").select("id, packages(id)");
 
       let eventosSemPacote = 0;
       eventsWithPackages?.forEach((e: any) => {
@@ -218,9 +204,12 @@ function DiagnosticoPage() {
         eventosSemCliente,
         eventosSemPacote,
         totalEventos: eventsWithClients?.length || 0,
-        integridadePercentual: eventsWithClients?.length > 0
-          ? Math.round(((eventsWithClients.length - eventosSemCliente - eventosSemPacote) / eventsWithClients.length) * 100)
-          : 100,
+        integridadePercentual:
+          eventsWithClients?.length > 0
+            ? Math.round(
+                ((eventsWithClients.length - eventosSemCliente - eventosSemPacote) / eventsWithClients.length) * 100,
+              )
+            : 100,
       };
 
       setData(results);
@@ -253,16 +242,12 @@ function DiagnosticoPage() {
           <div>
             <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-slate-800 flex items-center gap-3">
               <ShieldCheck className="size-8 text-blue-600" />
-              Painel Administrativo
+              Diagnóstico do Sistema
             </h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              Visão completa da saúde e desempenho do sistema
-            </p>
+            <p className="text-sm text-muted-foreground mt-1">Verificação completa da saúde e desempenho do sistema</p>
           </div>
           <div className="flex items-center gap-3">
-            <span className="text-xs text-muted-foreground">
-              Última atualização: {new Date().toLocaleTimeString()}
-            </span>
+            <span className="text-xs text-muted-foreground">Última atualização: {new Date().toLocaleTimeString()}</span>
             <button
               onClick={handleRefresh}
               disabled={refreshing}
@@ -276,42 +261,12 @@ function DiagnosticoPage() {
 
         {/* CARDS DE RESUMO */}
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-          <AdminCard
-            title="Eventos"
-            value={data?.eventos?.total || 0}
-            icon={Calendar}
-            color="blue"
-          />
-          <AdminCard
-            title="Clientes"
-            value={data?.clientes?.total || 0}
-            icon={Users}
-            color="green"
-          />
-          <AdminCard
-            title="Orçamentos"
-            value={data?.orcamentos?.total || 0}
-            icon={FileText}
-            color="amber"
-          />
-          <AdminCard
-            title="Saldo"
-            value={brl(data?.financeiro?.saldo || 0)}
-            icon={DollarSign}
-            color="emerald"
-          />
-          <AdminCard
-            title="Pacotes"
-            value={data?.cadastros?.pacotes || 0}
-            icon={Package}
-            color="purple"
-          />
-          <AdminCard
-            title="Funcionários"
-            value={data?.cadastros?.funcionarios || 0}
-            icon={UserCog}
-            color="violet"
-          />
+          <AdminCard title="Eventos" value={data?.eventos?.total || 0} icon={Calendar} color="blue" />
+          <AdminCard title="Clientes" value={data?.clientes?.total || 0} icon={Users} color="green" />
+          <AdminCard title="Orçamentos" value={data?.orcamentos?.total || 0} icon={FileText} color="amber" />
+          <AdminCard title="Saldo" value={brl(data?.financeiro?.saldo || 0)} icon={DollarSign} color="emerald" />
+          <AdminCard title="Pacotes" value={data?.cadastros?.pacotes || 0} icon={Package} color="purple" />
+          <AdminCard title="Funcionários" value={data?.cadastros?.funcionarios || 0} icon={UserCog} color="violet" />
         </div>
 
         {/* LINHA 1: EVENTOS + FINANCEIRO */}
@@ -325,16 +280,24 @@ function DiagnosticoPage() {
               <Stat label="Hoje" value={data?.eventos?.hoje || 0} icon={Clock} color="blue" />
               <Stat label="Futuros" value={data?.eventos?.futuro || 0} icon={TrendingUp} color="green" />
               <Stat label="Passados" value={data?.eventos?.passado || 0} icon={TrendingDown} color="amber" />
-              <Stat label="Faturamento (mês)" value={brl(data?.eventos?.faturamentoMes || 0)} icon={DollarSign} color="emerald" />
+              <Stat
+                label="Faturamento (mês)"
+                value={brl(data?.eventos?.faturamentoMes || 0)}
+                icon={DollarSign}
+                color="emerald"
+              />
             </div>
             <div className="mt-4 pt-4 border-t border-slate-100">
-              <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Distribuição por status</h4>
+              <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                Distribuição por status
+              </h4>
               <div className="flex flex-wrap gap-2">
-                {data?.eventos?.porStatus && Object.entries(data.eventos.porStatus).map(([status, count]) => (
-                  <span key={status} className="px-3 py-1 bg-slate-100 rounded-full text-xs font-medium">
-                    {status}: {count}
-                  </span>
-                ))}
+                {data?.eventos?.porStatus &&
+                  Object.entries(data.eventos.porStatus).map(([status, count]) => (
+                    <span key={status} className="px-3 py-1 bg-slate-100 rounded-full text-xs font-medium">
+                      {status}: {count}
+                    </span>
+                  ))}
               </div>
             </div>
           </div>
@@ -345,9 +308,19 @@ function DiagnosticoPage() {
               Financeiro
             </h3>
             <div className="grid grid-cols-2 gap-4">
-              <Stat label="Receita recebida" value={brl(data?.financeiro?.entradaPaga || 0)} icon={TrendingUp} color="emerald" />
+              <Stat
+                label="Receita recebida"
+                value={brl(data?.financeiro?.entradaPaga || 0)}
+                icon={TrendingUp}
+                color="emerald"
+              />
               <Stat label="A receber" value={brl(data?.financeiro?.entradaPendente || 0)} icon={Clock} color="amber" />
-              <Stat label="Despesas pagas" value={brl(data?.financeiro?.saidaPaga || 0)} icon={TrendingDown} color="rose" />
+              <Stat
+                label="Despesas pagas"
+                value={brl(data?.financeiro?.saidaPaga || 0)}
+                icon={TrendingDown}
+                color="rose"
+              />
               <Stat label="Saldo" value={brl(data?.financeiro?.saldo || 0)} icon={DollarSign} color="blue" />
             </div>
             {data?.financeiro?.entradaPendenteVencidas > 0 && (
@@ -369,8 +342,18 @@ function DiagnosticoPage() {
             <div className="space-y-3">
               <Stat label="Pendentes" value={data?.orcamentos?.pendentes || 0} icon={Clock} color="amber" />
               <Stat label="Aprovados" value={data?.orcamentos?.aprovados || 0} icon={CheckCircle} color="green" />
-              <Stat label="Convertidos" value={`${data?.orcamentos?.taxaConversao || 0}%`} icon={TrendingUp} color="blue" />
-              <Stat label="Valor pendente" value={brl(data?.orcamentos?.valorOrcamentosPendentes || 0)} icon={DollarSign} color="amber" />
+              <Stat
+                label="Convertidos"
+                value={`${data?.orcamentos?.taxaConversao || 0}%`}
+                icon={TrendingUp}
+                color="blue"
+              />
+              <Stat
+                label="Valor pendente"
+                value={brl(data?.orcamentos?.valorOrcamentosPendentes || 0)}
+                icon={DollarSign}
+                color="amber"
+              />
             </div>
           </div>
 
@@ -415,7 +398,7 @@ function DiagnosticoPage() {
 
         {/* RODAPÉ */}
         <div className="text-center text-xs text-muted-foreground border-t border-slate-200 pt-6">
-          <p>Dashboard Administrativo · Meu Churras · {new Date().toLocaleDateString()}</p>
+          <p>Diagnóstico · Meu Churras · {new Date().toLocaleDateString()}</p>
           <p className="mt-1">
             {data?.integridade?.integridadePercentual >= 90 ? (
               <span className="text-emerald-600">✅ Sistema saudável</span>
@@ -435,7 +418,17 @@ function DiagnosticoPage() {
 // COMPONENTES AUXILIARES
 // ==========================================
 
-function AdminCard({ title, value, icon: Icon, color }: { title: string; value: string | number; icon: any; color: string }) {
+function AdminCard({
+  title,
+  value,
+  icon: Icon,
+  color,
+}: {
+  title: string;
+  value: string | number;
+  icon: any;
+  color: string;
+}) {
   const colors = {
     blue: "bg-blue-50 text-blue-700",
     green: "bg-green-50 text-green-700",
@@ -447,7 +440,12 @@ function AdminCard({ title, value, icon: Icon, color }: { title: string; value: 
   };
 
   return (
-    <div className={cn("rounded-xl p-4 border text-center", colors[color as keyof typeof colors] || "bg-slate-50 text-slate-700")}>
+    <div
+      className={cn(
+        "rounded-xl p-4 border text-center",
+        colors[color as keyof typeof colors] || "bg-slate-50 text-slate-700",
+      )}
+    >
       <Icon className="size-5 mx-auto mb-1 opacity-80" />
       <div className="text-2xl font-extrabold tracking-tighter">{value}</div>
       <div className="text-[10px] font-bold uppercase tracking-widest opacity-70">{title}</div>
@@ -455,7 +453,17 @@ function AdminCard({ title, value, icon: Icon, color }: { title: string; value: 
   );
 }
 
-function Stat({ label, value, icon: Icon, color }: { label: string; value: string | number; icon: any; color: string }) {
+function Stat({
+  label,
+  value,
+  icon: Icon,
+  color,
+}: {
+  label: string;
+  value: string | number;
+  icon: any;
+  color: string;
+}) {
   const colors = {
     blue: "text-blue-700 bg-blue-50",
     green: "text-green-700 bg-green-50",
@@ -468,7 +476,12 @@ function Stat({ label, value, icon: Icon, color }: { label: string; value: strin
   };
 
   return (
-    <div className={cn("flex items-center gap-3 p-3 rounded-xl border", colors[color as keyof typeof colors] || "bg-slate-50 text-slate-700")}>
+    <div
+      className={cn(
+        "flex items-center gap-3 p-3 rounded-xl border",
+        colors[color as keyof typeof colors] || "bg-slate-50 text-slate-700",
+      )}
+    >
       <Icon className="size-5 shrink-0" />
       <div className="flex-1 min-w-0">
         <div className="text-xs font-medium opacity-80">{label}</div>
