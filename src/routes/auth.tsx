@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Flame } from "lucide-react";
+import { Building2, Utensils } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
@@ -13,8 +13,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 export const Route = createFileRoute("/auth")({
   head: () => ({
     meta: [
-      { title: "Entrar — Meu Churras" },
-      { name: "description", content: "Acesse sua conta do Meu Churras." },
+      { title: "Central do Buffet — Login" },
+      { name: "description", content: "Acesse sua conta da Central do Buffet." },
     ],
   }),
   component: AuthPage,
@@ -72,7 +72,7 @@ function AuthPage() {
       }
       return toast.error(error.message);
     }
-    toast.success("Bem-vindo!");
+    toast.success("Bem-vindo à Central do Buffet!");
     navigate({ to: "/dashboard", replace: true });
   }
 
@@ -99,7 +99,7 @@ function AuthPage() {
     setLoading(false);
     if (error) return toast.error(error.message);
     if (signUpData.session) {
-      toast.success("Conta criada. Você já está conectado!");
+      toast.success("Conta criada! Você já está conectado!");
       navigate({ to: "/dashboard", replace: true });
     } else {
       toast.success("Conta criada! Confira seu e-mail para confirmar o cadastro antes de entrar.", {
@@ -107,7 +107,6 @@ function AuthPage() {
       });
     }
   }
-
 
   async function handleGoogle() {
     setLoading(true);
@@ -127,41 +126,43 @@ function AuthPage() {
 
   return (
     <div className="min-h-screen grid lg:grid-cols-2 bg-background">
-      <div className="hidden lg:flex flex-col justify-between p-12 bg-gradient-to-br from-primary/10 via-background to-background border-r border-border">
+      {/* LADO ESQUERDO - IDENTIDADE VISUAL */}
+      <div className="hidden lg:flex flex-col justify-between p-12 bg-gradient-to-br from-blue-600 via-teal-500 to-emerald-400 text-white border-r border-border">
         <div className="flex items-center gap-3">
-          <div className="size-10 bg-primary rounded-xl flex items-center justify-center shadow-lg shadow-primary/20">
-            <Flame className="size-6 text-primary-foreground" />
+          <div className="size-10 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center shadow-lg shadow-black/20">
+            <Building2 className="size-6 text-white" />
           </div>
           <div className="flex flex-col">
-            <span className="font-extrabold text-xl tracking-tight">Meu Churras</span>
-            <span className="text-[10px] text-muted-foreground font-mono uppercase">
+            <span className="font-extrabold text-xl tracking-tight">Central do Buffet</span>
+            <span className="text-[10px] font-mono uppercase opacity-80">
               Gestão de buffet
             </span>
           </div>
         </div>
         <div className="max-w-md">
           <h1 className="text-4xl font-extrabold tracking-tight leading-tight">
-            Sua operação de churrasco, <span className="text-primary">no controle</span>.
+            Sua operação de churrasco, <span className="text-white/90">no controle</span>.
           </h1>
-          <p className="mt-4 text-muted-foreground">
+          <p className="mt-4 text-white/80">
             Clientes, orçamentos, agenda, eventos e pacotes — tudo em um só lugar. Feito para
             substituir planilhas e grupos de WhatsApp.
           </p>
         </div>
-        <p className="text-xs text-muted-foreground">© Meu Churras</p>
+        <p className="text-xs text-white/60">© 2026 Central do Buffet</p>
       </div>
 
+      {/* LADO DIREITO - FORMULÁRIO */}
       <div className="flex items-center justify-center p-6 md:p-12">
         <div className="w-full max-w-md">
           <div className="lg:hidden flex items-center gap-3 mb-8">
-            <div className="size-9 bg-primary rounded-xl flex items-center justify-center">
-              <Flame className="size-5 text-primary-foreground" />
+            <div className="size-9 bg-gradient-to-br from-blue-600 to-teal-500 rounded-xl flex items-center justify-center">
+              <Building2 className="size-5 text-white" />
             </div>
-            <span className="font-extrabold text-lg tracking-tight">Meu Churras</span>
+            <span className="font-extrabold text-lg tracking-tight">Central do Buffet</span>
           </div>
 
           <Tabs defaultValue="signin" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
+            <TabsList className="grid w-full grid-cols-2 bg-slate-100">
               <TabsTrigger value="signin">Entrar</TabsTrigger>
               <TabsTrigger value="signup">Criar conta</TabsTrigger>
             </TabsList>
@@ -170,7 +171,7 @@ function AuthPage() {
               <form onSubmit={handleSignIn} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="si-email">E-mail</Label>
-                  <Input id="si-email" name="email" type="email" required autoComplete="email" />
+                  <Input id="si-email" name="email" type="email" required autoComplete="email" className="focus:ring-blue-500" />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="si-password">Senha</Label>
@@ -180,9 +181,10 @@ function AuthPage() {
                     type="password"
                     required
                     autoComplete="current-password"
+                    className="focus:ring-blue-500"
                   />
                 </div>
-                <Button type="submit" className="w-full" disabled={loading}>
+                <Button type="submit" className="w-full bg-gradient-to-r from-blue-600 to-teal-500 hover:from-blue-700 hover:to-teal-600" disabled={loading}>
                   {loading ? "Entrando…" : "Entrar"}
                 </Button>
               </form>
@@ -212,7 +214,7 @@ function AuthPage() {
               <form onSubmit={handleSignUp} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="su-name">Seu nome</Label>
-                  <Input id="su-name" name="fullName" required />
+                  <Input id="su-name" name="fullName" required className="focus:ring-blue-500" />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="su-business">Nome do buffet</Label>
@@ -221,11 +223,12 @@ function AuthPage() {
                     name="businessName"
                     placeholder="Ex.: Buffet Brasa Real"
                     required
+                    className="focus:ring-blue-500"
                   />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="su-email">E-mail</Label>
-                  <Input id="su-email" name="email" type="email" required autoComplete="email" />
+                  <Input id="su-email" name="email" type="email" required autoComplete="email" className="focus:ring-blue-500" />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="su-password">Senha</Label>
@@ -236,9 +239,10 @@ function AuthPage() {
                     required
                     minLength={6}
                     autoComplete="new-password"
+                    className="focus:ring-blue-500"
                   />
                 </div>
-                <Button type="submit" className="w-full" disabled={loading}>
+                <Button type="submit" className="w-full bg-gradient-to-r from-blue-600 to-teal-500 hover:from-blue-700 hover:to-teal-600" disabled={loading}>
                   {loading ? "Criando…" : "Criar conta"}
                 </Button>
               </form>
