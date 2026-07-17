@@ -1,288 +1,594 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { Building2, Utensils } from "lucide-react";
-import { toast } from "sonner";
-import { z } from "zod";
-import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meu Churras - Gestão de Buffet</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
 
-export const Route = createFileRoute("/auth")({
-  head: () => ({
-    meta: [
-      { title: "Central do Buffet — Login" },
-      { name: "description", content: "Acesse sua conta da Central do Buffet." },
-    ],
-  }),
-  component: AuthPage,
-});
+        :root {
+            --primary-orange: #FF6B35;
+            --primary-orange-dark: #E55A2B;
+            --primary-orange-light: #FFB366;
+            --text-dark: #1A1A1A;
+            --text-light: #666666;
+            --bg-light: #F8F9FA;
+            --bg-white: #FFFFFF;
+            --border-color: #E0E0E0;
+            --success: #10B981;
+            --warning: #F59E0B;
+            --error: #EF4444;
+            --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
+            --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
+        }
 
-const signInSchema = z.object({
-  email: z.string().trim().email("E-mail inválido").max(255),
-  password: z.string().min(6, "Mínimo 6 caracteres").max(72),
-});
-const signUpSchema = signInSchema.extend({
-  fullName: z.string().trim().min(2, "Informe seu nome").max(100),
-  businessName: z.string().trim().min(2, "Informe o nome do buffet").max(100),
-});
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+            background-color: var(--bg-light);
+            color: var(--text-dark);
+            line-height: 1.6;
+        }
 
-function AuthPage() {
-  const navigate = useNavigate();
-  const [loading, setLoading] = useState(false);
+        .container {
+            display: flex;
+            height: 100vh;
+        }
 
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session) navigate({ to: "/dashboard", replace: true });
-    });
-  }, [navigate]);
+        /* ===== SIDEBAR ===== */
+        .sidebar {
+            width: 260px;
+            background-color: var(--bg-white);
+            border-right: 1px solid var(--border-color);
+            padding: 24px 16px;
+            overflow-y: auto;
+            box-shadow: var(--shadow-sm);
+        }
 
-  async function handleSignIn(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const form = new FormData(e.currentTarget);
-    const parsed = signInSchema.safeParse(Object.fromEntries(form));
-    if (!parsed.success) {
-      toast.error(parsed.error.issues[0].message);
-      return;
-    }
-    setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword(parsed.data);
-    setLoading(false);
-    if (error) {
-      const msg = error.message?.toLowerCase() ?? "";
-      if (msg.includes("email not confirmed") || msg.includes("not confirmed")) {
-        toast.error("E-mail ainda não confirmado.", {
-          action: {
-            label: "Reenviar e-mail",
-            onClick: async () => {
-              const { error: rErr } = await supabase.auth.resend({
-                type: "signup",
-                email: parsed.data.email,
-                options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
-              });
-              if (rErr) toast.error(rErr.message);
-              else toast.success("Novo link enviado. Verifique seu e-mail.");
-            },
-          },
-          duration: 10000,
-        });
-        return;
-      }
-      return toast.error(error.message);
-    }
-    toast.success("Bem-vindo à Central do Buffet!");
-    navigate({ to: "/dashboard", replace: true });
-  }
+        .sidebar-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 32px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--border-color);
+        }
 
-  async function handleSignUp(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const form = new FormData(e.currentTarget);
-    const parsed = signUpSchema.safeParse(Object.fromEntries(form));
-    if (!parsed.success) {
-      toast.error(parsed.error.issues[0].message);
-      return;
-    }
-    setLoading(true);
-    const { data: signUpData, error } = await supabase.auth.signUp({
-      email: parsed.data.email,
-      password: parsed.data.password,
-      options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
-        data: {
-          full_name: parsed.data.fullName,
-          business_name: parsed.data.businessName,
-        },
-      },
-    });
-    setLoading(false);
-    if (error) return toast.error(error.message);
-    if (signUpData.session) {
-      toast.success("Conta criada! Você já está conectado!");
-      navigate({ to: "/dashboard", replace: true });
-    } else {
-      toast.success("Conta criada! Confira seu e-mail para confirmar o cadastro antes de entrar.", {
-        duration: 10000,
-      });
-    }
-  }
+        .sidebar-logo {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, var(--primary-orange), var(--primary-orange-dark));
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 20px;
+        }
 
-  async function handleGoogle() {
-    setLoading(true);
-    const result = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin,
-    });
-    if (result.error) {
-      setLoading(false);
-      toast.error("Não foi possível entrar com Google.");
-      return;
-    }
-    if (!result.redirected) {
-      setLoading(false);
-      navigate({ to: "/dashboard", replace: true });
-    }
-  }
+        .sidebar-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-dark);
+        }
 
-  return (
-    <div className="min-h-screen grid lg:grid-cols-2 bg-background">
-      {/* LADO ESQUERDO - IDENTIDADE VISUAL */}
-      <div className="hidden lg:flex flex-col justify-between p-12 bg-gradient-to-br from-blue-600 via-teal-500 to-emerald-400 text-white border-r border-border">
-        <div className="flex items-center gap-3">
-          <div className="size-10 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center shadow-lg shadow-black/20">
-            <Building2 className="size-6 text-white" />
-          </div>
-          <div className="flex flex-col">
-            <span className="font-extrabold text-xl tracking-tight">Central do Buffet</span>
-            <span className="text-[10px] font-mono uppercase opacity-80">
-              Gestão de buffet
-            </span>
-          </div>
-        </div>
-        <div className="max-w-md">
-          <h1 className="text-4xl font-extrabold tracking-tight leading-tight">
-            Sua operação de churrasco, <span className="text-white/90">no controle</span>.
-          </h1>
-          <p className="mt-4 text-white/80">
-            Clientes, orçamentos, agenda, eventos e pacotes — tudo em um só lugar. Feito para
-            substituir planilhas e grupos de WhatsApp.
-          </p>
-        </div>
-        <p className="text-xs text-white/60">© 2026 Central do Buffet</p>
-      </div>
+        .sidebar-subtitle {
+            font-size: 11px;
+            color: var(--text-light);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
 
-      {/* LADO DIREITO - FORMULÁRIO */}
-      <div className="flex items-center justify-center p-6 md:p-12">
-        <div className="w-full max-w-md">
-          <div className="lg:hidden flex items-center gap-3 mb-8">
-            <div className="size-9 bg-gradient-to-br from-blue-600 to-teal-500 rounded-xl flex items-center justify-center">
-              <Building2 className="size-5 text-white" />
+        .nav-section {
+            margin-bottom: 24px;
+        }
+
+        .nav-section-title {
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--text-light);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 12px;
+            padding: 0 8px;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 12px;
+            margin-bottom: 4px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            color: var(--text-light);
+            font-size: 14px;
+            text-decoration: none;
+        }
+
+        .nav-item:hover {
+            background-color: var(--bg-light);
+            color: var(--primary-orange);
+        }
+
+        .nav-item.active {
+            background-color: rgba(255, 107, 53, 0.1);
+            color: var(--primary-orange);
+            font-weight: 500;
+        }
+
+        .nav-icon {
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* ===== MAIN CONTENT ===== */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* ===== TOP BAR ===== */
+        .top-bar {
+            background-color: var(--bg-white);
+            border-bottom: 1px solid var(--border-color);
+            padding: 16px 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .search-container {
+            flex: 1;
+            max-width: 400px;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 10px 16px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 14px;
+            background-color: var(--bg-light);
+            transition: all 0.3s ease;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: var(--primary-orange);
+            background-color: var(--bg-white);
+            box-shadow: 0 0 0 3px rgba(255, 107, 53, 0.1);
+        }
+
+        .top-bar-actions {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .btn {
+            padding: 10px 16px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background-color: var(--primary-orange);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: var(--primary-orange-dark);
+            box-shadow: var(--shadow-md);
+        }
+
+        .btn-secondary {
+            background-color: var(--bg-light);
+            color: var(--text-dark);
+            border: 1px solid var(--border-color);
+        }
+
+        .btn-secondary:hover {
+            background-color: var(--border-color);
+        }
+
+        /* ===== CONTENT AREA ===== */
+        .content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 32px;
+        }
+
+        /* ===== HEADER SECTION ===== */
+        .header-section {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+
+        .buffet-name {
+            font-size: 32px;
+            font-weight: 700;
+            color: var(--text-dark);
+            margin-bottom: 8px;
+            letter-spacing: -0.5px;
+        }
+
+        .buffet-subtitle {
+            font-size: 14px;
+            color: var(--text-light);
+            margin-bottom: 16px;
+        }
+
+        .stats-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 32px;
+        }
+
+        .stat-card {
+            background-color: var(--bg-white);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: var(--shadow-sm);
+            border: 1px solid var(--border-color);
+            transition: all 0.3s ease;
+        }
+
+        .stat-card:hover {
+            box-shadow: var(--shadow-md);
+            border-color: var(--primary-orange);
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: var(--text-light);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        .stat-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--text-dark);
+        }
+
+        .stat-change {
+            font-size: 12px;
+            color: var(--success);
+            margin-top: 8px;
+        }
+
+        /* ===== FILTERS & ACTIONS ===== */
+        .filters-section {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        .filter-group {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .filter-btn {
+            padding: 8px 16px;
+            border: 1px solid var(--border-color);
+            background-color: var(--bg-white);
+            border-radius: 6px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            color: var(--text-dark);
+        }
+
+        .filter-btn:hover {
+            border-color: var(--primary-orange);
+            color: var(--primary-orange);
+        }
+
+        .filter-btn.active {
+            background-color: var(--primary-orange);
+            color: white;
+            border-color: var(--primary-orange);
+        }
+
+        /* ===== TABLE ===== */
+        .table-container {
+            background-color: var(--bg-white);
+            border-radius: 12px;
+            box-shadow: var(--shadow-sm);
+            border: 1px solid var(--border-color);
+            overflow: hidden;
+        }
+
+        .table-header {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1.2fr 1fr 1fr 1fr 0.8fr;
+            gap: 16px;
+            padding: 16px 24px;
+            background-color: var(--bg-light);
+            border-bottom: 1px solid var(--border-color);
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--text-light);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .table-body {
+            max-height: 600px;
+            overflow-y: auto;
+        }
+
+        .table-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1.2fr 1fr 1fr 1fr 0.8fr;
+            gap: 16px;
+            padding: 16px 24px;
+            border-bottom: 1px solid var(--border-color);
+            align-items: center;
+            transition: all 0.3s ease;
+        }
+
+        .table-row:hover {
+            background-color: var(--bg-light);
+        }
+
+        .table-row:last-child {
+            border-bottom: none;
+        }
+
+        .table-cell {
+            font-size: 14px;
+            color: var(--text-dark);
+        }
+
+        .table-cell.text-muted {
+            color: var(--text-light);
+        }
+
+        .table-cell.text-right {
+            text-align: right;
+        }
+
+        .table-cell.text-center {
+            text-align: center;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .badge-success {
+            background-color: rgba(16, 185, 129, 0.1);
+            color: var(--success);
+        }
+
+        .badge-warning {
+            background-color: rgba(245, 158, 11, 0.1);
+            color: var(--warning);
+        }
+
+        .badge-error {
+            background-color: rgba(239, 68, 68, 0.1);
+            color: var(--error);
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+        }
+
+        .action-btn {
+            width: 32px;
+            height: 32px;
+            border: none;
+            background-color: transparent;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            color: var(--text-light);
+            font-size: 16px;
+        }
+
+        .action-btn:hover {
+            background-color: var(--bg-light);
+            color: var(--primary-orange);
+        }
+
+        .action-btn.delete:hover {
+            background-color: rgba(239, 68, 68, 0.1);
+            color: var(--error);
+        }
+
+        /* ===== SCROLLBAR ===== */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-light);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--text-light);
+        }
+
+        /* ===== RESPONSIVE ===== */
+        @media (max-width: 1024px) {
+            .sidebar {
+                width: 200px;
+            }
+
+            .table-header,
+            .table-row {
+                grid-template-columns: 1fr 1fr 1fr 1fr 1fr 0.8fr;
+                gap: 12px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                flex-direction: column;
+            }
+
+            .sidebar {
+                width: 100%;
+                height: auto;
+                border-right: none;
+                border-bottom: 1px solid var(--border-color);
+                padding: 16px;
+                display: flex;
+                gap: 24px;
+            }
+
+            .sidebar-header {
+                margin-bottom: 0;
+                padding-bottom: 0;
+                border-bottom: none;
+            }
+
+            .nav-section {
+                display: flex;
+                gap: 16px;
+                margin-bottom: 0;
+            }
+
+            .nav-section-title {
+                display: none;
+            }
+
+            .content {
+                padding: 16px;
+            }
+
+            .buffet-name {
+                font-size: 24px;
+            }
+
+            .table-header,
+            .table-row {
+                grid-template-columns: 1fr 1fr 1fr;
+                gap: 8px;
+            }
+
+            .stats-container {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- SIDEBAR -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-logo">🔥</div>
+                <div>
+                    <div class="sidebar-title">Meu Churras</div>
+                    <div class="sidebar-subtitle">Gestão de Buffet</div>
+                </div>
             </div>
-            <span className="font-extrabold text-lg tracking-tight">Central do Buffet</span>
-          </div>
 
-          <Tabs defaultValue="signin" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 bg-slate-100">
-              <TabsTrigger value="signin">Entrar</TabsTrigger>
-              <TabsTrigger value="signup">Criar conta</TabsTrigger>
-            </TabsList>
+            <nav class="nav-section">
+                <a href="#" class="nav-item active">
+                    <span class="nav-icon">📊</span>
+                    <span>Dashboard</span>
+                </a>
+                <a href="#" class="nav-item">
+                    <span class="nav-icon">📋</span>
+                    <span>Orçamentos</span>
+                </a>
+                <a href="#" class="nav-item">
+                    <span class="nav-icon">📅</span>
+                    <span>Eventos</span>
+                </a>
+                <a href="#" class="nav-item">
+                    <span class="nav-icon">📝</span>
+                    <span>Contratos</span>
+                </a>
+                <a href="#" class="nav-item">
+                    <span class="nav-icon">🎁</span>
+                    <span>Pacotes</span>
+                </a>
+                <a href="#" class="nav-item">
+                    <span class="nav-icon">📦</span>
+                    <span>Estoque</span>
+                </a>
+                <a href="#" class="nav-item">
+                    <span class="nav-icon">👥</span>
+                    <span>Clientes</span>
+                </a>
+                <a href="#" class="nav-item">
+                    <span class="nav-icon">💼</span>
+                    <span>Profissionais</span>
+                </a>
+            </nav>
 
-            <TabsContent value="signin" className="space-y-4 mt-6">
-              <form onSubmit={handleSignIn} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="si-email">E-mail</Label>
-                  <Input id="si-email" name="email" type="email" required autoComplete="email" className="focus:ring-blue-500" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="si-password">Senha</Label>
-                  <Input
-                    id="si-password"
-                    name="password"
-                    type="password"
-                    required
-                    autoComplete="current-password"
-                    className="focus:ring-blue-500"
-                  />
-                </div>
-                <Button type="submit" className="w-full bg-gradient-to-r from-blue-600 to-teal-500 hover:from-blue-700 hover:to-teal-600" disabled={loading}>
-                  {loading ? "Entrando…" : "Entrar"}
-                </Button>
-              </form>
-              <div className="relative py-2">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-border" />
-                </div>
-                <div className="relative flex justify-center text-[10px] uppercase">
-                  <span className="bg-background px-2 text-muted-foreground tracking-widest">
-                    ou continue com
-                  </span>
-                </div>
-              </div>
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full"
-                onClick={handleGoogle}
-                disabled={loading}
-              >
-                <GoogleIcon />
-                Google
-              </Button>
-            </TabsContent>
+            <div class="nav-section">
+                <div class="nav-section-title">Administração</div>
+                <a href="#" class="nav-item">
+                    <span class="nav-icon">⚙️</span>
+                    <span>Configurações</span>
+                </a>
+                <a href="#" class="nav-item">
+                    <span class="nav-icon">👑</span>
+                    <span>Super Admin</span>
+                </a>
+            </div>
+        </aside>
 
-            <TabsContent value="signup" className="space-y-4 mt-6">
-              <form onSubmit={handleSignUp} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="su-name">Seu nome</Label>
-                  <Input id="su-name" name="fullName" required className="focus:ring-blue-500" />
+        <!-- MAIN CONTENT -->
+        <div class="main-content">
+            <!-- TOP BAR -->
+            <header class="top-bar">
+                <div class="search-container">
+                    <input type="text" class="search-input" placeholder="🔍 Buscar cliente, orçamento...">
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="su-business">Nome do buffet</Label>
-                  <Input
-                    id="su-business"
-                    name="businessName"
-                    placeholder="Ex.: Buffet Brasa Real"
-                    required
-                    className="focus:ring-blue-500"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="su-email">E-mail</Label>
-                  <Input id="su-email" name="email" type="email" required autoComplete="email" className="focus:ring-blue-500" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="su-password">Senha</Label>
-                  <Input
-                    id="su-password"
-                    name="password"
-                    type="password"
-                    required
-                    minLength={6}
-                    autoComplete="new-password"
-                    className="focus:ring-blue-500"
-                  />
-                </div>
-                <Button type="submit" className="w-full bg-gradient-to-r from-blue-600 to-teal-500 hover:from-blue-700 hover:to-teal-600" disabled={loading}>
-                  {loading ? "Criando…" : "Criar conta"}
-                </Button>
-              </form>
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full"
-                onClick={handleGoogle}
-                disabled={loading}
-              >
-                <GoogleIcon />
-                Continuar com Google
-              </Button>
-            </TabsContent>
-          </Tabs>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function GoogleIcon() {
-  return (
-    <svg viewBox="0 0 24 24" className="size-4 mr-2" aria-hidden>
-      <path
-        fill="#4285F4"
-        d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-      />
-      <path
-        fill="#34A853"
-        d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.99.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-      />
-      <path
-        fill="#FBBC05"
-        d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
-      />
-      <path
-        fill="#EA4335"
-        d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84C6.71 7.31 9.14 5.38 12 5.38z"
-      />
-    </svg>
-  );
-}
+                <div class="top-bar-actions">
+                    <button class="btn btn-secondary">📋 Copiar link</button>
+                    <button class="btn btn-primary">+ Novo Orçamento</button>
+(Content truncated due to size limit. Use line ranges to read remaining content)
