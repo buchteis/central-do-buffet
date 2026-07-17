@@ -110,7 +110,6 @@ function NewClientPage() {
           <Textarea id="notes" name="notes" rows={3} />
         </div>
 
-        {/* E-mail do Google Agenda */}
         <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
           <div className="flex items-start gap-3">
             <Calendar className="size-5 text-blue-600 shrink-0 mt-0.5" />
