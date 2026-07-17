@@ -21,10 +21,7 @@ import {
   Clock,
   CheckCircle,
   Package,
-  Boxes,
   TrendingUp,
-  TrendingDown,
-  BarChart3,
   Building2,
 } from "lucide-react";
 import { Chatbot } from "@/components/Chatbot";
@@ -380,15 +377,16 @@ function Dashboard() {
         </div>
       </section>
 
-      {/* ===== LINHA 4: STAFF E CONTRATOS ===== */}
+      {/* ===== LINHA 4: OPERACIONAL ===== */}
       <section>
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-lg font-bold text-slate-700 flex items-center gap-2">
             <Building2 className="size-5 text-violet-600" />
             Operacional
           </h2>
+          {/* ✅ CORRIGIDO: /funcionarios em vez de /profissionais */}
           <Link
-            to="/profissionais"
+            to="/funcionarios"
             className="text-xs font-medium text-violet-600 hover:underline flex items-center gap-1"
           >
             Ver equipe <ArrowRight className="size-3" />
@@ -416,7 +414,7 @@ function Dashboard() {
             color="rose"
             subtitle="para assinar"
           />
-          {/* 🆕 PACOTES CORRIGIDO */}
+          {/* ✅ CORRIGIDO: Pacotes mostrando número real */}
           <MetricCard label="Pacotes" value={stats.packagesCount} icon={Package} color="gray" subtitle="cadastrados" />
         </div>
       </section>
