@@ -20,6 +20,12 @@ import {
   CreditCard,
   Clock,
   CheckCircle,
+  Package,
+  Boxes,
+  TrendingUp,
+  TrendingDown,
+  BarChart3,
+  Building2,
 } from "lucide-react";
 import { Chatbot } from "@/components/Chatbot";
 
@@ -29,12 +35,12 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
 });
 
 const statusStyles: Record<string, string> = {
-  agendado: "bg-info/10 text-info",
-  em_andamento: "bg-primary/10 text-primary",
-  pago: "bg-success/10 text-success",
-  concluido: "bg-muted text-muted-foreground",
-  cancelado: "bg-destructive/10 text-destructive",
-  realizado: "bg-slate-500/10 text-slate-600",
+  agendado: "bg-blue-100 text-blue-800",
+  em_andamento: "bg-amber-100 text-amber-800",
+  pago: "bg-green-100 text-green-800",
+  concluido: "bg-gray-100 text-gray-800",
+  cancelado: "bg-red-100 text-red-800",
+  realizado: "bg-purple-100 text-purple-800",
 };
 
 const statusLabels: Record<string, string> = {
@@ -99,6 +105,7 @@ function Dashboard() {
   const monthAgo = isoDate(new Date(now.getFullYear(), now.getMonth() - 1, now.getDate()));
   const tomorrow = isoDate(new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1));
 
+  // ===== QUERIES (MESMAS DE ANTES) =====
   const eventsData = useDashboardQuery("events-data", async () => {
     const { data } = await supabase
       .from("events")
@@ -130,24 +137,17 @@ function Dashboard() {
 
   const transactionsData = useDashboardQuery("transactions-data", async () => {
     const { data } = await supabase.from("transactions").select("id, amount, type, status, paid_date, due_date");
-
-    // RECEITA RECEBIDA: soma de TODAS as entradas pagas (sem filtro de data)
     const recebido =
       data
         ?.filter((t) => t.type === "entrada" && t.status === "pago")
         .reduce((sum, t) => sum + Number(t.amount || 0), 0) || 0;
-
-    // A RECEBER: soma de TODAS as entradas pendentes
     const aReceber =
       data
         ?.filter((t) => t.type === "entrada" && t.status === "pendente")
         .reduce((sum, t) => sum + Number(t.amount || 0), 0) || 0;
-
-    // VENCIDOS: entradas pendentes com data de vencimento passada
     const vencidos =
       data?.filter((t) => t.type === "entrada" && t.status === "pendente" && t.due_date && t.due_date < today).length ||
       0;
-
     return { recebido, aReceber, vencidos };
   });
 
@@ -224,6 +224,7 @@ function Dashboard() {
     return data ?? [];
   });
 
+  // ===== CONSOLIDAÇÃO DOS DADOS =====
   const stats = {
     evToday: eventsData.data?.today ?? 0,
     evWeek: eventsData.data?.week ?? 0,
@@ -245,6 +246,7 @@ function Dashboard() {
     alertsEvTomorrow: alertsEvTomorrow.data ?? [],
   };
 
+  // ===== ALERTAS =====
   const alerts: { icon: any; label: string; tone: string }[] = [];
   if (stats.txOverdue > 0)
     alerts.push({ icon: AlertTriangle, label: `${stats.txOverdue} pagamento(s) atrasado(s)`, tone: "destructive" });
@@ -256,78 +258,173 @@ function Dashboard() {
     alerts.push({ icon: Hourglass, label: `${stats.qPend} orçamento(s) aguardando resposta`, tone: "muted" });
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8 p-4 md:p-6 bg-slate-50/50 min-h-screen">
+      {/* Cabeçalho */}
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">Dashboard</h1>
-          <p className="text-sm text-muted-foreground mt-1">{formatDateFullBR(new Date())} · Central operacional</p>
+          <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-slate-800">Dashboard</h1>
+          <p className="text-sm text-muted-foreground mt-1 flex items-center gap-2">
+            <Calendar className="size-4" />
+            {formatDateFullBR(new Date())} · Central operacional
+          </p>
+        </div>
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-green-100 text-green-800 text-xs font-medium">
+            <span className="size-2 rounded-full bg-green-500 animate-pulse" />
+            Ao vivo
+          </span>
         </div>
       </div>
 
+      {/* Alertas */}
       {alerts.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
           {alerts.map((a, i) => (
             <div
               key={i}
               className={cn(
-                "flex items-center gap-3 p-3 rounded-xl border text-xs font-semibold",
-                a.tone === "destructive" && "border-destructive/30 bg-destructive/5 text-destructive",
-                a.tone === "warning" && "border-warning/30 bg-warning/10 text-warning-foreground",
-                a.tone === "info" && "border-info/30 bg-info/10 text-info",
-                a.tone === "muted" && "border-border bg-muted/30",
+                "flex items-center gap-3 p-3 rounded-xl border text-sm font-medium shadow-sm",
+                a.tone === "destructive" && "border-red-200 bg-red-50 text-red-700",
+                a.tone === "warning" && "border-amber-200 bg-amber-50 text-amber-700",
+                a.tone === "info" && "border-blue-200 bg-blue-50 text-blue-700",
+                a.tone === "muted" && "border-gray-200 bg-gray-50 text-gray-700",
               )}
             >
-              <a.icon className="size-4 shrink-0" />
+              <a.icon className="size-5 shrink-0" />
               <span>{a.label}</span>
             </div>
           ))}
         </div>
       )}
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Kpi label="Eventos hoje" value={String(stats.evToday)} icon={Calendar} accent />
-        <Kpi label="Eventos na semana" value={String(stats.evWeek)} icon={CalendarDays} />
-        <Kpi label="Eventos no mês" value={String(stats.evMonth)} icon={CalendarCheck} />
-        <Kpi
-          label="A receber"
-          value={brlCompact(stats.toReceive)}
-          icon={CreditCard}
-          tone={stats.txOverdue > 0 ? "warn" : undefined}
-        />
-      </div>
+      {/* ===== LINHA 1: EVENTOS ===== */}
+      <section>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-lg font-bold text-slate-700 flex items-center gap-2">
+            <Calendar className="size-5 text-blue-600" />
+            Eventos
+          </h2>
+          <Link to="/agenda" className="text-xs font-medium text-blue-600 hover:underline flex items-center gap-1">
+            Ver agenda <ArrowRight className="size-3" />
+          </Link>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <MetricCard label="Hoje" value={stats.evToday} icon={Calendar} color="blue" subtitle="eventos" />
+          <MetricCard label="Semana" value={stats.evWeek} icon={CalendarDays} color="indigo" subtitle="eventos" />
+          <MetricCard label="Mês" value={stats.evMonth} icon={CalendarCheck} color="purple" subtitle="eventos" />
+          <MetricCard
+            label="A receber"
+            value={brlCompact(stats.toReceive)}
+            icon={CreditCard}
+            color="emerald"
+            subtitle={stats.txOverdue > 0 ? `${stats.txOverdue} atrasados` : "em dia"}
+          />
+        </div>
+      </section>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Kpi
-          label="Orçamentos pendentes"
-          value={String(stats.qPend)}
-          icon={Clock}
-          tone={stats.qPend > 0 ? "warn" : undefined}
-        />
-        <Kpi label="Orçamentos aprovados" value={String(stats.qApr)} icon={CheckCircle} />
-        <Kpi label="Clientes ativos" value={String(stats.clientsCount)} icon={Users} />
-        <Kpi label="Novos clientes (30d)" value={String(stats.newClients)} icon={UserCheck} />
-      </div>
+      {/* ===== LINHA 2: FINANCEIRO ===== */}
+      <section>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-lg font-bold text-slate-700 flex items-center gap-2">
+            <DollarSign className="size-5 text-emerald-600" />
+            Financeiro
+          </h2>
+          <Link
+            to="/financeiro"
+            className="text-xs font-medium text-emerald-600 hover:underline flex items-center gap-1"
+          >
+            Ver extrato <ArrowRight className="size-3" />
+          </Link>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <FinanceCard label="Receita recebida" value={brl(stats.revenueReceived)} icon={TrendingUp} color="emerald" />
+          <FinanceCard label="A receber" value={brl(stats.toReceive)} icon={Clock} color="amber" />
+          <FinanceCard
+            label="Saldo atual"
+            value={brl(stats.revenueReceived - stats.toReceive)}
+            icon={Wallet}
+            color="sky"
+          />
+        </div>
+      </section>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Kpi label="Escala hoje" value={String(stats.staffToday)} icon={UserCheck} />
-        <Kpi label="Funcionários ativos" value={String(stats.employeesActive)} icon={ShoppingCart} />
-        <Kpi
-          label="Contratos pendentes"
-          value={String(stats.contractsPending)}
-          icon={FileText}
-          tone={stats.contractsPending > 0 ? "warn" : undefined}
-        />
-        <Kpi label="Receita recebida" value={brlCompact(stats.revenueReceived)} icon={Wallet} accent />
-      </div>
+      {/* ===== LINHA 3: ORÇAMENTOS E CLIENTES ===== */}
+      <section>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-lg font-bold text-slate-700 flex items-center gap-2">
+            <FileText className="size-5 text-amber-600" />
+            Orçamentos e Clientes
+          </h2>
+          <Link to="/orcamentos" className="text-xs font-medium text-amber-600 hover:underline flex items-center gap-1">
+            Ver orçamentos <ArrowRight className="size-3" />
+          </Link>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <MetricCard label="Pendentes" value={stats.qPend} icon={Clock} color="orange" subtitle="orçamentos" />
+          <MetricCard label="Aprovados" value={stats.qApr} icon={CheckCircle} color="green" subtitle="orçamentos" />
+          <MetricCard
+            label="Clientes ativos"
+            value={stats.clientsCount}
+            icon={Users}
+            color="cyan"
+            subtitle="cadastrados"
+          />
+          <MetricCard label="Novos (30d)" value={stats.newClients} icon={UserCheck} color="teal" subtitle="clientes" />
+        </div>
+      </section>
 
+      {/* ===== LINHA 4: STAFF E CONTRATOS ===== */}
+      <section>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-lg font-bold text-slate-700 flex items-center gap-2">
+            <Building2 className="size-5 text-violet-600" />
+            Operacional
+          </h2>
+          <Link
+            to="/profissionais"
+            className="text-xs font-medium text-violet-600 hover:underline flex items-center gap-1"
+          >
+            Ver equipe <ArrowRight className="size-3" />
+          </Link>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <MetricCard
+            label="Escala hoje"
+            value={stats.staffToday}
+            icon={Users}
+            color="violet"
+            subtitle="profissionais"
+          />
+          <MetricCard
+            label="Funcionários ativos"
+            value={stats.employeesActive}
+            icon={UserCheck}
+            color="fuchsia"
+            subtitle="colaboradores"
+          />
+          <MetricCard
+            label="Contratos pendentes"
+            value={stats.contractsPending}
+            icon={FileText}
+            color="rose"
+            subtitle="para assinar"
+          />
+          <MetricCard label="Pacotes" value="—" icon={Package} color="gray" subtitle="em breve" />
+        </div>
+      </section>
+
+      {/* ===== PRÓXIMOS EVENTOS ===== */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 bg-card rounded-2xl border border-border shadow-sm">
-          <div className="p-5 md:p-6 border-b border-border flex justify-between items-center">
+        <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+          <div className="p-5 md:p-6 border-b border-slate-100 flex justify-between items-center">
             <div>
-              <h2 className="font-extrabold text-lg tracking-tight">Próximos eventos</h2>
+              <h2 className="font-extrabold text-lg tracking-tight text-slate-800 flex items-center gap-2">
+                <Calendar className="size-5 text-blue-600" />
+                Próximos eventos
+              </h2>
               <p className="text-xs text-muted-foreground mt-0.5">Os 6 eventos mais próximos</p>
             </div>
-            <Link to="/agenda" className="text-xs font-bold text-primary hover:underline flex items-center gap-1">
+            <Link to="/agenda" className="text-xs font-bold text-blue-600 hover:underline flex items-center gap-1">
               Ver agenda <ArrowRight className="size-3" />
             </Link>
           </div>
@@ -336,7 +433,7 @@ function Dashboard() {
             <div className="overflow-x-auto">
               <table className="w-full text-left">
                 <thead>
-                  <tr className="text-[10px] uppercase tracking-widest text-muted-foreground border-b border-border bg-muted/30">
+                  <tr className="text-[10px] uppercase tracking-widest text-slate-500 border-b border-slate-100 bg-slate-50/50">
                     <th className="px-5 py-3 font-bold">Cliente</th>
                     <th className="px-4 py-3 font-bold">Data</th>
                     <th className="px-4 py-3 font-bold hidden md:table-cell">Pacote</th>
@@ -344,18 +441,20 @@ function Dashboard() {
                     <th className="px-4 py-3 font-bold">Status</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-border">
+                <tbody className="divide-y divide-slate-100">
                   {stats.upcoming.map((e: any) => (
-                    <tr key={e.id} className="hover:bg-muted/30 transition-colors">
-                      <td className="px-5 py-4 text-sm font-semibold">{e.clients?.name ?? "—"}</td>
-                      <td className="px-4 py-4 text-xs font-mono">{formatDateBR(e.event_date)}</td>
-                      <td className="px-4 py-4 hidden md:table-cell text-xs">{e.packages?.name ?? "—"}</td>
-                      <td className="px-4 py-4 text-sm font-mono text-right">{brl(e.total_value)}</td>
+                    <tr key={e.id} className="hover:bg-slate-50/70 transition-colors">
+                      <td className="px-5 py-4 text-sm font-semibold text-slate-700">{e.clients?.name ?? "—"}</td>
+                      <td className="px-4 py-4 text-xs font-mono text-slate-600">{formatDateBR(e.event_date)}</td>
+                      <td className="px-4 py-4 hidden md:table-cell text-xs text-slate-600">
+                        {e.packages?.name ?? "—"}
+                      </td>
+                      <td className="px-4 py-4 text-sm font-mono text-right text-slate-700">{brl(e.total_value)}</td>
                       <td className="px-4 py-4">
                         <span
                           className={cn(
                             "px-2 py-1 text-[10px] rounded-full font-bold uppercase tracking-wider whitespace-nowrap",
-                            statusStyles[e.status] ?? "bg-muted text-muted-foreground",
+                            statusStyles[e.status] ?? "bg-gray-100 text-gray-800",
                           )}
                         >
                           {statusLabels[e.status] ?? e.status}
@@ -371,27 +470,31 @@ function Dashboard() {
           )}
         </div>
 
-        <div className="bg-card rounded-2xl border border-border shadow-sm">
-          <div className="p-5 md:p-6 border-b border-border">
-            <h2 className="font-extrabold text-lg tracking-tight">Pendências</h2>
+        {/* ===== PENDÊNCIAS ===== */}
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+          <div className="p-5 md:p-6 border-b border-slate-100">
+            <h2 className="font-extrabold text-lg tracking-tight text-slate-800 flex items-center gap-2">
+              <AlertTriangle className="size-5 text-amber-600" />
+              Pendências
+            </h2>
             <p className="text-xs text-muted-foreground mt-0.5">O que precisa da sua atenção</p>
           </div>
-          <div className="divide-y divide-border">
+          <div className="divide-y divide-slate-100">
             {stats.alertsPay.map((t: any) => (
               <div key={t.id} className="p-4 flex items-start gap-3">
-                <AlertTriangle className="size-4 text-destructive shrink-0 mt-0.5" />
+                <AlertTriangle className="size-4 text-red-500 shrink-0 mt-0.5" />
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-semibold truncate">{t.description}</div>
+                  <div className="text-sm font-semibold text-slate-700 truncate">{t.description}</div>
                   <div className="text-[11px] text-muted-foreground">Venceu em {formatDateBR(t.due_date)}</div>
                 </div>
-                <span className="text-xs font-mono font-bold text-destructive">{brl(t.amount)}</span>
+                <span className="text-xs font-mono font-bold text-red-600">{brl(t.amount)}</span>
               </div>
             ))}
             {stats.alertsEvTomorrow.map((e: any) => (
               <div key={e.id} className="p-4 flex items-start gap-3">
-                <CalendarCheck className="size-4 text-info shrink-0 mt-0.5" />
+                <CalendarCheck className="size-4 text-blue-500 shrink-0 mt-0.5" />
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-semibold truncate">Evento amanhã — {e.clients?.name}</div>
+                  <div className="text-sm font-semibold text-slate-700 truncate">Evento amanhã — {e.clients?.name}</div>
                   <div className="text-[11px] text-muted-foreground">{e.event_time?.slice(0, 5) ?? ""}</div>
                 </div>
               </div>
@@ -402,51 +505,117 @@ function Dashboard() {
           </div>
         </div>
       </div>
+
       <Chatbot />
     </div>
   );
 }
 
-function Kpi({
+// ===== COMPONENTES AUXILIARES =====
+
+function MetricCard({
   label,
   value,
   icon: Icon,
-  accent,
-  tone,
+  color,
+  subtitle,
+}: {
+  label: string;
+  value: string | number;
+  icon: any;
+  color:
+    | "blue"
+    | "indigo"
+    | "purple"
+    | "emerald"
+    | "orange"
+    | "green"
+    | "cyan"
+    | "teal"
+    | "violet"
+    | "fuchsia"
+    | "rose"
+    | "gray"
+    | "sky"
+    | "amber";
+  subtitle?: string;
+}) {
+  const colorClasses = {
+    blue: "bg-blue-50 text-blue-700 border-blue-200",
+    indigo: "bg-indigo-50 text-indigo-700 border-indigo-200",
+    purple: "bg-purple-50 text-purple-700 border-purple-200",
+    emerald: "bg-emerald-50 text-emerald-700 border-emerald-200",
+    orange: "bg-orange-50 text-orange-700 border-orange-200",
+    green: "bg-green-50 text-green-700 border-green-200",
+    cyan: "bg-cyan-50 text-cyan-700 border-cyan-200",
+    teal: "bg-teal-50 text-teal-700 border-teal-200",
+    violet: "bg-violet-50 text-violet-700 border-violet-200",
+    fuchsia: "bg-fuchsia-50 text-fuchsia-700 border-fuchsia-200",
+    rose: "bg-rose-50 text-rose-700 border-rose-200",
+    gray: "bg-gray-50 text-gray-700 border-gray-200",
+    sky: "bg-sky-50 text-sky-700 border-sky-200",
+    amber: "bg-amber-50 text-amber-700 border-amber-200",
+  };
+
+  const iconColor = {
+    blue: "text-blue-600",
+    indigo: "text-indigo-600",
+    purple: "text-purple-600",
+    emerald: "text-emerald-600",
+    orange: "text-orange-600",
+    green: "text-green-600",
+    cyan: "text-cyan-600",
+    teal: "text-teal-600",
+    violet: "text-violet-600",
+    fuchsia: "text-fuchsia-600",
+    rose: "text-rose-600",
+    gray: "text-gray-600",
+    sky: "text-sky-600",
+    amber: "text-amber-600",
+  };
+
+  return (
+    <div className={cn("rounded-xl border p-4 shadow-sm transition-all hover:shadow-md", colorClasses[color])}>
+      <div className="flex items-center justify-between">
+        <span className="text-[10px] font-bold uppercase tracking-widest opacity-80">{label}</span>
+        <Icon className={cn("size-5", iconColor[color])} />
+      </div>
+      <div className="mt-2 text-2xl font-extrabold tracking-tighter">{value}</div>
+      {subtitle && <div className="text-[10px] font-medium opacity-70 mt-1">{subtitle}</div>}
+    </div>
+  );
+}
+
+function FinanceCard({
+  label,
+  value,
+  icon: Icon,
+  color,
 }: {
   label: string;
   value: string;
   icon: any;
-  accent?: boolean;
-  tone?: "warn";
+  color: "emerald" | "amber" | "sky";
 }) {
+  const colors = {
+    emerald: "bg-gradient-to-br from-emerald-50 to-emerald-100/60 border-emerald-200 text-emerald-800",
+    amber: "bg-gradient-to-br from-amber-50 to-amber-100/60 border-amber-200 text-amber-800",
+    sky: "bg-gradient-to-br from-sky-50 to-sky-100/60 border-sky-200 text-sky-800",
+  };
+
+  const iconColors = {
+    emerald: "text-emerald-600",
+    amber: "text-amber-600",
+    sky: "text-sky-600",
+  };
+
   return (
-    <div
-      className={cn(
-        "bg-card p-4 rounded-2xl border shadow-sm transition-all",
-        tone === "warn" && "border-warning/40 bg-warning/5",
-        !tone && "border-border",
-      )}
-    >
+    <div className={cn("rounded-xl border p-5 shadow-sm transition-all hover:shadow-md", colors[color])}>
       <div className="flex items-center justify-between">
-        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{label}</span>
-        <Icon
-          className={cn(
-            "size-4",
-            accent ? "text-primary" : "text-muted-foreground/70",
-            tone === "warn" && "text-warning",
-          )}
-        />
+        <span className="text-[10px] font-bold uppercase tracking-widest opacity-80">{label}</span>
+        <Icon className={cn("size-5", iconColors[color])} />
       </div>
-      <div
-        className={cn(
-          "mt-2 text-2xl font-extrabold tracking-tighter",
-          accent && "text-primary",
-          tone === "warn" && "text-warning",
-        )}
-      >
-        {value}
-      </div>
+      <div className="mt-2 text-2xl md:text-3xl font-extrabold tracking-tighter">{value}</div>
     </div>
   );
 }
