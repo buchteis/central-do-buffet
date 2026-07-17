@@ -22,17 +22,15 @@ import {
 import { useState } from "react";
 import { brl } from "@/lib/format";
 
-/**
- * Função utilitária para concatenação de classes CSS.
- * Geralmente utilizada com Tailwind CSS.
- */
+// Função utilitária para concatenação de classes CSS
 function cn(...classes: (string | boolean | undefined | null)[]) {
   return classes.filter(Boolean).join(" ");
 }
 
-/**
- * Definições de Interface para os dados do Banco de Dados (Supabase)
- */
+// ==========================================
+// INTERFACES CONSOLIDADAS (Sem duplicações)
+// ==========================================
+
 interface DBEvent {
   id: string;
   status: string;
@@ -56,10 +54,7 @@ interface DBQuote {
   total_value: number | string | null;
 }
 
-/**
- * Estrutura de dados do Diagnóstico
- */
-interface DiagnosticoData {
+interface DiagnosticoResults {
   eventos: {
     total: number;
     porStatus: Record<string, number>;
@@ -103,6 +98,10 @@ interface DiagnosticoData {
   };
 }
 
+// ==========================================
+// ROTA E COMPONENTE PRINCIPAL
+// ==========================================
+
 export const Route = createFileRoute("/diagnostico")({
   head: () => ({ meta: [{ title: "Diagnóstico — Meu Churras" }] }),
   component: DiagnosticoPage,
@@ -111,11 +110,10 @@ export const Route = createFileRoute("/diagnostico")({
 function DiagnosticoPage() {
   const [refreshing, setRefreshing] = useState(false);
 
-  // Hook do TanStack Query para gerenciar o estado dos dados e o carregamento
-  const { data, refetch, isLoading } = useQuery<DiagnosticoData>({
+  const { data, refetch, isLoading } = useQuery<DiagnosticoResults>({
     queryKey: ["diagnostico"],
     queryFn: async () => {
-      const results: DiagnosticoData = {
+      const results: DiagnosticoResults = {
         eventos: { total: 0, porStatus: {}, hoje: 0, passado: 0, futuro: 0, faturamentoMes: 0, faturamentoTotal: 0 },
         financeiro: { entradaPaga: 0, entradaPendente: 0, saidaPaga: 0, saidaPendente: 0, saldo: 0, entradaPagaMes: 0, entradaPendenteVencidas: 0 },
         clientes: { total: 0, novos30d: 0 },
@@ -136,20 +134,20 @@ function DiagnosticoPage() {
       if (events) {
         const statusExcluidos = ["cancelado", "arquivado"];
         events.forEach((e: any) => {
-          const dbEvent = e as DBEvent;
-          results.eventos.porStatus[dbEvent.status] = (results.eventos.porStatus[dbEvent.status] || 0) + 1;
-          const valor = Number(dbEvent.total_value) || 0;
+          const event = e as DBEvent;
+          results.eventos.porStatus[event.status] = (results.eventos.porStatus[event.status] || 0) + 1;
+          const valor = Number(event.total_value) || 0;
 
-          if (dbEvent.status !== "cancelado") {
+          if (event.status !== "cancelado") {
             results.eventos.faturamentoTotal += valor;
-            if (dbEvent.event_date >= monthStart) {
+            if (event.event_date >= monthStart) {
               results.eventos.faturamentoMes += valor;
             }
           }
 
-          if (!statusExcluidos.includes(dbEvent.status)) {
-            if (dbEvent.event_date === today) results.eventos.hoje++;
-            else if (dbEvent.event_date < today) results.eventos.passado++;
+          if (!statusExcluidos.includes(event.status)) {
+            if (event.event_date === today) results.eventos.hoje++;
+            else if (event.event_date < today) results.eventos.passado++;
             else results.eventos.futuro++;
           }
         });
@@ -163,49 +161,41 @@ function DiagnosticoPage() {
 
       if (transactions) {
         transactions.forEach((t: any) => {
-          const dbTrans = t as DBTransaction;
-          const val = Number(dbTrans.amount) || 0;
-          if (dbTrans.type === "entrada" && dbTrans.status === "pago") {
+          const trans = t as DBTransaction;
+          const val = Number(trans.amount) || 0;
+          if (trans.type === "entrada" && trans.status === "pago") {
             results.financeiro.entradaPaga += val;
-            if (dbTrans.paid_date && dbTrans.paid_date >= monthStart) results.financeiro.entradaPagaMes += val;
+            if (trans.paid_date && trans.paid_date >= monthStart) results.financeiro.entradaPagaMes += val;
           }
-          if (dbTrans.type === "entrada" && dbTrans.status === "pendente") {
+          if (trans.type === "entrada" && trans.status === "pendente") {
             results.financeiro.entradaPendente += val;
-            if (dbTrans.due_date && dbTrans.due_date < today) results.financeiro.entradaPendenteVencidas += val;
+            if (trans.due_date && trans.due_date < today) results.financeiro.entradaPendenteVencidas += val;
           }
-          if (dbTrans.type === "saida" && dbTrans.status === "pago") results.financeiro.saidaPaga += val;
-          if (dbTrans.type === "saida" && dbTrans.status === "pendente") results.financeiro.saidaPendente += val;
+          if (trans.type === "saida" && trans.status === "pago") results.financeiro.saidaPaga += val;
+          if (trans.type === "saida" && trans.status === "pendente") results.financeiro.saidaPendente += val;
         });
         results.financeiro.saldo = results.financeiro.entradaPaga - results.financeiro.saidaPaga;
       }
 
       // 3. CLIENTES
-      const { count: totalClientes } = await supabase
-        .from("clients")
-        .select("id", { count: "exact", head: true });
-
-      const { data: clientesNovos } = await supabase
-        .from("clients")
-        .select("id")
-        .gte("created_at", new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString());
+      const { count: totalClientes } = await supabase.from("clients").select("id", { count: "exact", head: true });
+      const { data: clientesNovos } = await supabase.from("clients").select("id").gte("created_at", new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString());
 
       results.clientes.total = totalClientes || 0;
       results.clientes.novos30d = clientesNovos?.length || 0;
 
       // 4. ORÇAMENTOS
-      const { data: quotes } = await supabase
-        .from("quotes")
-        .select("status, paid, total_value");
+      const { data: quotes } = await supabase.from("quotes").select("status, paid, total_value");
 
       if (quotes) {
         quotes.forEach((q: any) => {
-          const dbQuote = q as DBQuote;
-          if (dbQuote.status === "novo" || dbQuote.status === "em_andamento") {
+          const quote = q as DBQuote;
+          if (quote.status === "novo" || quote.status === "em_andamento") {
             results.orcamentos.pendentes++;
-            results.orcamentos.valorOrcamentosPendentes += Number(dbQuote.total_value) || 0;
+            results.orcamentos.valorOrcamentosPendentes += Number(quote.total_value) || 0;
           }
-          if (dbQuote.status === "fechado") results.orcamentos.aprovados++;
-          if (dbQuote.paid === true) results.orcamentos.pagos++;
+          if (quote.status === "fechado") results.orcamentos.aprovados++;
+          if (quote.paid === true) results.orcamentos.pagos++;
         });
         results.orcamentos.total = quotes.length;
         results.orcamentos.taxaConversao = quotes.length > 0 ? Math.round((results.orcamentos.aprovados / quotes.length) * 100) : 0;
@@ -226,21 +216,18 @@ function DiagnosticoPage() {
 
       if (eventsWithClients) {
         const idsComProblema = new Set<string>();
-        
         eventsWithClients.forEach((e: any) => {
           if (!e.clients) {
             results.integridade.eventosSemCliente++;
             idsComProblema.add(e.id);
           }
         });
-
         eventsWithPackages?.forEach((e: any) => {
           if (!e.packages) {
             results.integridade.eventosSemPacote++;
             idsComProblema.add(e.id);
           }
         });
-
         results.integridade.totalEventos = eventsWithClients.length;
         results.integridade.integridadePercentual = eventsWithClients.length > 0
           ? Math.round(((eventsWithClients.length - idsComProblema.size) / eventsWithClients.length) * 100)
@@ -299,12 +286,12 @@ function DiagnosticoPage() {
 
         {/* CARDS DE RESUMO */}
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-          <AdminCard title="Eventos" value={data?.eventos?.total ?? 0} icon={Calendar} color="blue" />
-          <AdminCard title="Clientes" value={data?.clientes?.total ?? 0} icon={Users} color="green" />
-          <AdminCard title="Orçamentos" value={data?.orcamentos?.total ?? 0} icon={FileText} color="amber" />
-          <AdminCard title="Saldo" value={brl(data?.financeiro?.saldo ?? 0)} icon={DollarSign} color="emerald" />
-          <AdminCard title="Pacotes" value={data?.cadastros?.pacotes ?? 0} icon={Package} color="purple" />
-          <AdminCard title="Funcionários" value={data?.cadastros?.funcionarios ?? 0} icon={UserCog} color="violet" />
+          <AdminCard title="Eventos" value={data?.eventos.total ?? 0} icon={Calendar} color="blue" />
+          <AdminCard title="Clientes" value={data?.clientes.total ?? 0} icon={Users} color="green" />
+          <AdminCard title="Orçamentos" value={data?.orcamentos.total ?? 0} icon={FileText} color="amber" />
+          <AdminCard title="Saldo" value={brl(data?.financeiro.saldo ?? 0)} icon={DollarSign} color="emerald" />
+          <AdminCard title="Pacotes" value={data?.cadastros.pacotes ?? 0} icon={Package} color="purple" />
+          <AdminCard title="Funcionários" value={data?.cadastros.funcionarios ?? 0} icon={UserCog} color="violet" />
         </div>
 
         {/* LINHA 1: EVENTOS + FINANCEIRO */}
@@ -315,15 +302,15 @@ function DiagnosticoPage() {
               Eventos
             </h3>
             <div className="grid grid-cols-2 gap-4">
-              <Stat label="Hoje" value={data?.eventos?.hoje ?? 0} icon={Clock} color="blue" />
-              <Stat label="Futuros" value={data?.eventos?.futuro ?? 0} icon={TrendingUp} color="green" />
-              <Stat label="Passados" value={data?.eventos?.passado ?? 0} icon={TrendingDown} color="amber" />
-              <Stat label="Faturamento (mês)" value={brl(data?.eventos?.faturamentoMes ?? 0)} icon={DollarSign} color="emerald" />
+              <Stat label="Hoje" value={data?.eventos.hoje ?? 0} icon={Clock} color="blue" />
+              <Stat label="Futuros" value={data?.eventos.futuro ?? 0} icon={TrendingUp} color="green" />
+              <Stat label="Passados" value={data?.eventos.passado ?? 0} icon={TrendingDown} color="amber" />
+              <Stat label="Faturamento (mês)" value={brl(data?.eventos.faturamentoMes ?? 0)} icon={DollarSign} color="emerald" />
             </div>
             <div className="mt-4 pt-4 border-t border-slate-100">
               <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Distribuição por status</h4>
               <div className="flex flex-wrap gap-2">
-                {data?.eventos?.porStatus && Object.entries(data.eventos.porStatus).map(([status, count]) => (
+                {data?.eventos.porStatus && Object.entries(data.eventos.porStatus).map(([status, count]) => (
                   <span key={status} className="px-3 py-1 bg-slate-100 rounded-full text-xs font-medium">
                     {status}: {count}
                   </span>
@@ -338,12 +325,12 @@ function DiagnosticoPage() {
               Financeiro
             </h3>
             <div className="grid grid-cols-2 gap-4">
-              <Stat label="Receita recebida" value={brl(data?.financeiro?.entradaPaga ?? 0)} icon={TrendingUp} color="emerald" />
-              <Stat label="A receber" value={brl(data?.financeiro?.entradaPendente ?? 0)} icon={Clock} color="amber" />
-              <Stat label="Despesas pagas" value={brl(data?.financeiro?.saidaPaga ?? 0)} icon={TrendingDown} color="rose" />
-              <Stat label="Saldo" value={brl(data?.financeiro?.saldo ?? 0)} icon={DollarSign} color="blue" />
+              <Stat label="Receita recebida" value={brl(data?.financeiro.entradaPaga ?? 0)} icon={TrendingUp} color="emerald" />
+              <Stat label="A receber" value={brl(data?.financeiro.entradaPendente ?? 0)} icon={Clock} color="amber" />
+              <Stat label="Despesas pagas" value={brl(data?.financeiro.saidaPaga ?? 0)} icon={TrendingDown} color="rose" />
+              <Stat label="Saldo" value={brl(data?.financeiro.saldo ?? 0)} icon={DollarSign} color="blue" />
             </div>
-            {(data?.financeiro?.entradaPendenteVencidas ?? 0) > 0 && (
+            {(data?.financeiro.entradaPendenteVencidas ?? 0) > 0 && (
               <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-xl flex items-center gap-2 text-sm text-red-700">
                 <AlertCircle className="size-5" />
                 <span>{brl(data!.financeiro.entradaPendenteVencidas)} em pagamentos vencidos</span>
@@ -360,10 +347,10 @@ function DiagnosticoPage() {
               Orçamentos
             </h3>
             <div className="space-y-3">
-              <Stat label="Pendentes" value={data?.orcamentos?.pendentes ?? 0} icon={Clock} color="amber" />
-              <Stat label="Aprovados" value={data?.orcamentos?.aprovados ?? 0} icon={CheckCircle} color="green" />
-              <Stat label="Convertidos" value={`${data?.orcamentos?.taxaConversao ?? 0}%`} icon={TrendingUp} color="blue" />
-              <Stat label="Valor pendente" value={brl(data?.orcamentos?.valorOrcamentosPendentes ?? 0)} icon={DollarSign} color="amber" />
+              <Stat label="Pendentes" value={data?.orcamentos.pendentes ?? 0} icon={Clock} color="amber" />
+              <Stat label="Aprovados" value={data?.orcamentos.aprovados ?? 0} icon={CheckCircle} color="green" />
+              <Stat label="Convertidos" value={`${data?.orcamentos.taxaConversao ?? 0}%`} icon={TrendingUp} color="blue" />
+              <Stat label="Valor pendente" value={brl(data?.orcamentos.valorOrcamentosPendentes ?? 0)} icon={DollarSign} color="amber" />
             </div>
           </div>
 
@@ -373,8 +360,8 @@ function DiagnosticoPage() {
               Clientes
             </h3>
             <div className="space-y-3">
-              <Stat label="Total" value={data?.clientes?.total ?? 0} icon={Users} color="blue" />
-              <Stat label="Novos (30d)" value={data?.clientes?.novos30d ?? 0} icon={TrendingUp} color="green" />
+              <Stat label="Total" value={data?.clientes.total ?? 0} icon={Users} color="blue" />
+              <Stat label="Novos (30d)" value={data?.clientes.novos30d ?? 0} icon={TrendingUp} color="green" />
             </div>
           </div>
 
@@ -386,21 +373,21 @@ function DiagnosticoPage() {
             <div className="space-y-3">
               <Stat
                 label="Integridade geral"
-                value={`${data?.integridade?.integridadePercentual ?? 0}%`}
+                value={`${data?.integridade.integridadePercentual ?? 0}%`}
                 icon={ShieldCheck}
-                color={(data?.integridade?.integridadePercentual ?? 0) >= 90 ? "green" : "red"}
+                color={(data?.integridade.integridadePercentual ?? 0) >= 90 ? "green" : "red"}
               />
               <Stat
                 label="Eventos sem cliente"
-                value={data?.integridade?.eventosSemCliente ?? 0}
+                value={data?.integridade.eventosSemCliente ?? 0}
                 icon={AlertTriangle}
-                color={(data?.integridade?.eventosSemCliente ?? 0) > 0 ? "red" : "green"}
+                color={(data?.integridade.eventosSemCliente ?? 0) > 0 ? "red" : "green"}
               />
               <Stat
                 label="Eventos sem pacote"
-                value={data?.integridade?.eventosSemPacote ?? 0}
+                value={data?.integridade.eventosSemPacote ?? 0}
                 icon={AlertTriangle}
-                color={(data?.integridade?.eventosSemPacote ?? 0) > 0 ? "red" : "green"}
+                color={(data?.integridade.eventosSemPacote ?? 0) > 0 ? "red" : "green"}
               />
             </div>
           </div>
@@ -410,9 +397,9 @@ function DiagnosticoPage() {
         <div className="text-center text-xs text-muted-foreground border-t border-slate-200 pt-6">
           <p>Diagnóstico · Meu Churras · {new Date().toLocaleDateString()}</p>
           <p className="mt-1">
-            {(data?.integridade?.integridadePercentual ?? 0) >= 90 ? (
+            {(data?.integridade.integridadePercentual ?? 0) >= 90 ? (
               <span className="text-emerald-600">✅ Sistema saudável</span>
-            ) : (data?.integridade?.integridadePercentual ?? 0) >= 70 ? (
+            ) : (data?.integridade.integridadePercentual ?? 0) >= 70 ? (
               <span className="text-amber-600">⚠️ Algumas correções são recomendadas</span>
             ) : (
               <span className="text-red-600">🔴 Ações corretivas necessárias</span>
