@@ -55,7 +55,7 @@ async function buildContext(supabase: any, userId: string) {
       .order("name"),
     supabase
       .from("packages")
-      .select("id, name, price_per_person, min_guests, max_guests, active")
+      .select("id, name, price_per_person, min_people, max_people, active")
       .eq("tenant_id", tid),
     supabase.from("package_products").select("package_id, product_id, qty_per_person, qty_fixed"),
     supabase
@@ -117,8 +117,8 @@ async function buildContext(supabase: any, userId: string) {
     return {
       nome: p.name,
       preco_por_pessoa: Number(p.price_per_person),
-      min_convidados: p.min_guests,
-      max_convidados: p.max_guests,
+      min_convidados: p.min_people,
+      max_convidados: p.max_people,
       ativo: p.active,
       produtos_consumidos: prods,
     };
