@@ -203,11 +203,13 @@ function DiagnosticoPage() {
       results.integridade = {
         eventosSemCliente,
         eventosSemPacote,
-        totalEventos: eventsWithClients?.length || 0,
+        totalEventos: eventsWithClients?.length ?? 0,
         integridadePercentual:
-          eventsWithClients?.length > 0
+          (eventsWithClients?.length ?? 0) > 0
             ? Math.round(
-                ((eventsWithClients.length - eventosSemCliente - eventosSemPacote) / eventsWithClients.length) * 100,
+                (((eventsWithClients?.length ?? 0) - eventosSemCliente - eventosSemPacote) /
+                  (eventsWithClients?.length ?? 1)) *
+                  100,
               )
             : 100,
       };
