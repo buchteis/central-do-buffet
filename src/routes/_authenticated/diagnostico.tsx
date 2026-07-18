@@ -160,7 +160,7 @@ function DiagnosticoPage() {
         aprovados: qAprovados,
         pagos: qPagos,
         valorOrcamentosPendentes,
-        taxaConversao: quotes?.length > 0 ? Math.round((qAprovados / quotes.length) * 100) : 0,
+        taxaConversao: (quotes?.length ?? 0) > 0 ? Math.round((qAprovados / (quotes?.length ?? 1)) * 100) : 0,
       };
 
       // ==========================================
@@ -203,11 +203,13 @@ function DiagnosticoPage() {
       results.integridade = {
         eventosSemCliente,
         eventosSemPacote,
-        totalEventos: eventsWithClients?.length || 0,
+        totalEventos: eventsWithClients?.length ?? 0,
         integridadePercentual:
-          eventsWithClients?.length > 0
+          (eventsWithClients?.length ?? 0) > 0
             ? Math.round(
-                ((eventsWithClients.length - eventosSemCliente - eventosSemPacote) / eventsWithClients.length) * 100,
+                (((eventsWithClients?.length ?? 0) - eventosSemCliente - eventosSemPacote) /
+                  (eventsWithClients?.length ?? 1)) *
+                  100,
               )
             : 100,
       };
@@ -295,7 +297,7 @@ function DiagnosticoPage() {
                 {data?.eventos?.porStatus &&
                   Object.entries(data.eventos.porStatus).map(([status, count]) => (
                     <span key={status} className="px-3 py-1 bg-slate-100 rounded-full text-xs font-medium">
-                      {status}: {count}
+                      {status}: {String(count)}
                     </span>
                   ))}
               </div>
