@@ -297,7 +297,7 @@ function DiagnosticoPage() {
                 {data?.eventos?.porStatus &&
                   Object.entries(data.eventos.porStatus).map(([status, count]) => (
                     <span key={status} className="px-3 py-1 bg-slate-100 rounded-full text-xs font-medium">
-                      {status}: {count}
+                      {status}: {String(count)}
                     </span>
                   ))}
               </div>
