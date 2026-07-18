@@ -160,7 +160,7 @@ function DiagnosticoPage() {
         aprovados: qAprovados,
         pagos: qPagos,
         valorOrcamentosPendentes,
-        taxaConversao: quotes?.length > 0 ? Math.round((qAprovados / quotes.length) * 100) : 0,
+        taxaConversao: (quotes?.length ?? 0) > 0 ? Math.round((qAprovados / (quotes?.length ?? 1)) * 100) : 0,
       };
 
       // ==========================================
