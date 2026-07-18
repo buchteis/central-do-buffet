@@ -25,7 +25,6 @@ const schema = z.object({
   address: z.string().trim().max(200).optional().or(z.literal("")),
   city: z.string().trim().max(80).optional().or(z.literal("")),
   notes: z.string().trim().max(1000).optional().or(z.literal("")),
-  google_calendar_email: z.string().trim().email("E-mail inválido").max(150).optional().or(z.literal("")),
 });
 
 function NewClientPage() {
