@@ -109,27 +109,6 @@ function NewClientPage() {
           <Textarea id="notes" name="notes" rows={3} />
         </div>
 
-        {/* E-mail do Google Agenda */}
-        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-          <div className="flex items-start gap-3">
-            <Calendar className="size-5 text-blue-600 shrink-0 mt-0.5" />
-            <div className="flex-1">
-              <Label htmlFor="google_calendar_email" className="text-sm font-medium text-slate-700">
-                E-mail do Google Agenda <span className="text-blue-500 text-xs">(opcional)</span>
-              </Label>
-              <Input
-                id="google_calendar_email"
-                name="google_calendar_email"
-                type="email"
-                placeholder="seu.google@email.com"
-                className="mt-1 border-blue-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-              />
-              <p className="text-xs text-blue-600 mt-1">
-                Se preenchido, os eventos serão sincronizados com o Google Agenda.
-              </p>
-            </div>
-          </div>
-        </div>
 
         <div className="flex justify-end gap-2 pt-2">
           <Button type="button" variant="outline" onClick={() => navigate({ to: "/clientes" })}>
