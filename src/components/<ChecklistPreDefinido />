@@ -1,0 +1,379 @@
+import { useState, useEffect } from "react";
+import { 
+  Users, 
+  Send, 
+  MapPin, 
+  Calendar, 
+  Plus, 
+  Trash2, 
+  CheckCircle2, 
+  Circle, 
+  GlassWater,
+  Utensils,
+  Clock,
+  Briefcase
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { toast } from "sonner";
+
+export type EventType = 
+  | "casamento" 
+  | "aniversario" 
+  | "empresarial" 
+  | "churrasco" 
+  | "coffeebreak" 
+  | "infantil" 
+  | "formatura";
+
+interface ChecklistItem {
+  id: string;
+  title: string;
+  quantity: string;
+  category: "loucas" | "equipamentos" | "insumos" | "cronograma";
+  completed: boolean;
+}
+
+// -------------------------------------------------------------
+// GERADOR DE MODELOS PRÉ-DEFINIDOS COM CÁLCULO PROPORCIONAL
+// -------------------------------------------------------------
+function generateTemplateItems(type: EventType, guests: number): ChecklistItem[] {
+  const g = Math.max(1, guests);
+
+  switch (type) {
+    case "casamento":
+      return [
+        { id: "1", title: "Pratos Rasos de Porcelana", quantity: `${Math.ceil(g * 1.1)} un`, category: "loucas", completed: false },
+        { id: "2", title: "Pratos de Sobremesa", quantity: `${Math.ceil(g * 1.1)} un`, category: "loucas", completed: false },
+        { id: "3", title: "Garfos e Facas de Inox (Refeição)", quantity: `${Math.ceil(g * 1.1)} pares`, category: "loucas", completed: false },
+        { id: "4", title: "Taças de Água/Suco", quantity: `${Math.ceil(g * 1.25)} un`, category: "loucas", completed: false },
+        { id: "5", title: "Taças de Vinho / Espumante", quantity: `${Math.ceil(g * 1.2)} un`, category: "loucas", completed: false },
+        { id: "6", title: "Guardanapos de Tecido", quantity: `${Math.ceil(g * 1.05)} un`, category: "loucas", completed: false },
+        { id: "7", title: "Réchauds Banho-Maria de Inox", quantity: `${Math.max(2, Math.ceil(g / 45))} jogos`, category: "equipamentos", completed: false },
+        { id: "8", title: "Bandejas para Garçons (Serviço de Passa-Açúcar)", quantity: `${Math.max(2, Math.ceil(g / 20))} un`, category: "equipamentos", completed: false },
+        { id: "9", title: "Samovar / Garrafa Térmica para Café de Encerramento", quantity: "2 un", category: "equipamentos", completed: false },
+        { id: "10", title: "Espátula e Faca para o Bolo dos Noivos", quantity: "1 jogo", category: "equipamentos", completed: false },
+        { id: "11", title: "Chegada no local e montagem da mesa posta (3h antes)", quantity: "Horário rígido", category: "cronograma", completed: false },
+        { id: "12", title: "Serviço de Coquetel de Entrada & Finger Foods", quantity: "45 min", category: "cronograma", completed: false },
+        { id: "13", title: "Abertura do Buffet Quente / Jantar dos Noivos", quantity: "1h30", category: "cronograma", completed: false },
+      ];
+
+    case "aniversario":
+      return [
+        { id: "1", title: "Pratos de Refeição / Sobremesa", quantity: `${Math.ceil(g * 1.15)} un`, category: "loucas", completed: false },
+        { id: "2", title: "Talheres de Inox / Descartáveis Premium", quantity: `${Math.ceil(g * 1.15)} pares`, category: "loucas", completed: false },
+        { id: "3", title: "Copos para Refrigerante e Cerveja", quantity: `${Math.ceil(g * 2.0)} un`, category: "loucas", completed: false },
+        { id: "4", title: "Pratinhos e Garfinhos para o Bolo", quantity: `${Math.ceil(g * 1.1)} un`, category: "loucas", completed: false },
+        { id: "5", title: "Réchauds com Álcool Gel", quantity: `${Math.max(1, Math.ceil(g / 50))} jogos`, category: "equipamentos", completed: false },
+        { id: "6", title: "Caixas Térmicas / Cooler para Cerveja e Refrigerante", quantity: `${Math.max(1, Math.ceil(g / 40))} un`, category: "equipamentos", completed: false },
+        { id: "7", title: "Guardanapos de Papel Folha Dupla", quantity: `${Math.ceil(g * 4)} un`, category: "insumos", completed: false },
+        { id: "8", title: "Gelo em Escama / Cubo", quantity: `${Math.ceil(g * 0.8)} kg`, category: "insumos", completed: false },
+        { id: "9", title: "Organização da mesa do bolo e parabéns", quantity: "Etapa final", category: "cronograma", completed: false },
+      ];
+
+    case "empresarial":
+      return [
+        { id: "1", title: "Pratos para Almoço Executivo / Finger Food", quantity: `${Math.ceil(g * 1.1)} un`, category: "loucas", completed: false },
+        { id: "2", title: "Talheres e Guardanapos Embalados Individualmente", quantity: `${Math.ceil(g * 1.1)} kits`, category: "loucas", completed: false },
+        { id: "3", title: "Copos Térmicos / Taças de Água e Suco", quantity: `${Math.ceil(g * 1.5)} un`, category: "loucas", completed: false },
+        { id: "4", title: "Réchauds Elétricos / Revestidos para Auditório", quantity: `${Math.max(1, Math.ceil(g / 50))} un`, category: "equipamentos", completed: false },
+        { id: "5", title: "Lixeiras de Inox para Descarte Discreto", quantity: "3 un", category: "equipamentos", completed: false },
+        { id: "6", title: "Placas com Identificação das Opções (Vegetariano / Sem Glúten)", quantity: "1 kit", category: "insumos", completed: false },
+        { id: "7", title: "Montagem silenciosa antes do intervalo dos congressistas", quantity: "30 min antes", category: "cronograma", completed: false },
+      ];
+
+    case "churrasco":
+      return [
+        { id: "1", title: "Carnes Nobres (Picanha, Ancho, Fraldinha)", quantity: `${(g * 0.35).toFixed(1)} kg`, category: "insumos", completed: false },
+        { id: "2", title: "Linguiça Toscana / Pão de Alho / Coração", quantity: `${(g * 0.20).toFixed(1)} kg`, category: "insumos", completed: false },
+        { id: "3", title: "Carvão Vegetal em Sacos", quantity: `${Math.ceil(g / 10)} sacos`, category: "insumos", completed: false },
+        { id: "4", title: "Pratos de Melamina / Porcelana", quantity: `${Math.ceil(g * 1.1)} un`, category: "loucas", completed: false },
+        { id: "5", title: "Facas e Garfos de Churrasco", quantity: `${Math.ceil(g * 1.1)} pares`, category: "loucas", completed: false },
+        { id: "6", title: "Tábuas de Corte Profissionais & Facas do Churrasqueiro", quantity: "2 jogos", category: "equipamentos", completed: false },
+        { id: "7", title: "Grelhas e Espetos sob medida", quantity: "1 kit", category: "equipamentos", completed: false },
+        { id: "8", title: "Acender o fogo e preparar o braseiro", quantity: "1h30 antes", category: "cronograma", completed: false },
+      ];
+
+    case "coffeebreak":
+      return [
+        { id: "1", title: "Xícaras de Café / Copos Descartáveis para Bebida Quente", quantity: `${Math.ceil(g * 1.5)} un`, category: "loucas", completed: false },
+        { id: "2", title: "Copos para Suco e Água", quantity: `${Math.ceil(g * 1.5)} un`, category: "loucas", completed: false },
+        { id: "3", title: "Pratinhos para Salgados / Mini Sanduíches", quantity: `${Math.ceil(g * 1.2)} un`, category: "loucas", completed: false },
+        { id: "4", title: "Garrafas Térmicas / Samovares de Café e Chá", quantity: `${Math.max(2, Math.ceil(g / 30))} un`, category: "equipamentos", completed: false },
+        { id: "5", title: "Jarras de Vidro / Acrílico para Sucos", quantity: `${Math.max(2, Math.ceil(g / 25))} un`, category: "equipamentos", completed: false },
+        { id: "6", title: "Guardanapos e Porta-Sachês (Açúcar/Adoçante/Mexedores)", quantity: `${Math.ceil(g * 3)} kits`, category: "insumos", completed: false },
+        { id: "7", title: "Montagem da Mesa e Aquece de Bebidas", quantity: "40 min antes", category: "cronograma", completed: false },
+      ];
+
+    case "infantil":
+      return [
+        { id: "1", title: "Copos de Acrílico Colorido / Plástico Resistente", quantity: `${Math.ceil(g * 2.0)} un`, category: "loucas", completed: false },
+        { id: "2", title: "Pratinhos Descartáveis para Salgadinhos e Doces", quantity: `${Math.ceil(g * 2.0)} un`, category: "loucas", completed: false },
+        { id: "3", title: "Bandejas para Garçons Servirem Coxinhas/Pipoca", quantity: `${Math.max(2, Math.ceil(g / 15))} un`, category: "equipamentos", completed: false },
+        { id: "4", title: "Panela Elétrica / Molheira para Cachorro-Quente", quantity: "1 a 2 un", category: "equipamentos", completed: false },
+        { id: "5", title: "Guardanapos Infantis e Canudos", quantity: `${Math.ceil(g * 5)} un`, category: "insumos", completed: false },
+        { id: "6", title: "Reposição constante de bebidas e salgados nas mesas", category: "Durante o evento", category: "cronograma", completed: false },
+      ];
+
+    case "formatura":
+      return [
+        { id: "1", title: "Taças de Espumante para Brinde dos Formandos", quantity: `${Math.ceil(g * 1.3)} un`, category: "loucas", completed: false },
+        { id: "2", title: "Pratos e Talheres Finos para Jantar", quantity: `${Math.ceil(g * 1.1)} kits`, category: "loucas", completed: false },
+        { id: "3", title: "Réchauds duplos com Pistas Quentes", quantity: `${Math.max(2, Math.ceil(g / 40))} jogos`, category: "equipamentos", completed: false },
+        { id: "4", title: "Baldes de Gelo para Bebidas nas Mesas VIP", quantity: `${Math.ceil(g / 10)} un`, category: "equipamentos", completed: false },
+        { id: "5", title: "Bandejas e Panos de Serviço Limpos", quantity: `${Math.max(3, Math.ceil(g / 15))} un`, category: "equipamentos", completed: false },
+        { id: "6", title: "Organização do brinde coletivo e abertura do jantar", category: "Segundo horário", category: "cronograma", completed: false },
+      ];
+
+    default:
+      return [];
+  }
+}
+
+export function ChecklistPreDefinido() {
+  const [eventType, setEventType] = useState<EventType>("casamento");
+  const [guestCount, setGuestCount] = useState<number>(100);
+  const [eventName, setEventName] = useState("Casamento de Lucas e Beatriz");
+  const [eventDate, setEventDate] = useState("25/08/2026");
+  const [eventTime, setEventTime] = useState("18:00");
+  const [eventAddress, setEventAddress] = useState("Espaço Cristal - Av. Raja Gabaglia, 2000, BH");
+  const [staffPhone, setStaffPhone] = useState("31999998888");
+  const [staffName, setStaffName] = useState("Carlos (Maître/Churrasqueiro)");
+
+  const [items, setItems] = useState<ChecklistItem[]>([]);
+  const [newItemTitle, setNewItemTitle] = useState("");
+  const [newItemQty, setNewItemQty] = useState("");
+  const [newItemCat, setNewItemCat] = useState<ChecklistItem["category"]>("loucas");
+
+  // Recalcula a lista automaticamente quando muda o tipo de evento ou o nº de convidados
+  useEffect(() => {
+    setItems(generateTemplateItems(eventType, guestCount));
+  }, [eventType, guestCount]);
+
+  const toggleItem = (id: string) => {
+    setItems((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, completed: !item.completed } : item))
+    );
+  };
+
+  const addItem = () => {
+    if (!newItemTitle.trim()) return;
+    setItems((prev) => [
+      ...prev,
+      {
+        id: Date.now().toString(),
+        title: newItemTitle,
+        quantity: newItemQty || "1 un",
+        category: newItemCat,
+        completed: false,
+      },
+    ]);
+    setNewItemTitle("");
+    setNewItemQty("");
+    toast.success("Item adicionado ao checklist!");
+  };
+
+  const removeItem = (id: string) => {
+    setItems((prev) => prev.filter((i) => i.id !== id));
+  };
+
+  // Envio formatado para o WhatsApp do funcionário
+  const sendToWhatsApp = () => {
+    const cleanPhone = staffPhone.replace(/\D/g, "");
+    if (!cleanPhone) {
+      toast.error("Insira o número de telefone do funcionário!");
+      return;
+    }
+
+    const uncompleted = items.filter((i) => !i.completed);
+    const checklistSummary = uncompleted
+      .map((i) => `▪️ [ ] *${i.title}* (${i.quantity})`)
+      .join("\n");
+
+    const text = `📋 *CHECKLIST & ESCALA DE EVENTO — MEU CHURRAS*
+----------------------------------------
+Olá *${staffName}*! Confira os detalhes do evento:
+
+📌 *Evento:* ${eventName}
+🎉 *Modalidade:* ${eventType.toUpperCase()}
+👥 *Convidados:* ${guestCount} pessoas
+📅 *Data:* ${eventDate} às ${eventTime}
+📍 *Endereço:* ${eventAddress}
+
+📦 *MATERIAIS E UTENSÍLIOS A SEPARAR:*
+${checklistSummary}
+
+Por favor, confirme a recepção desta mensagem! 👍`;
+
+    window.open(`https://wa.me/55${cleanPhone}?text=${encodeURIComponent(text)}`, "_blank");
+    toast.success("Escala e Checklist enviados pelo WhatsApp!");
+  };
+
+  return (
+    <div className="space-y-6 max-w-4xl mx-auto p-4 md:p-6 bg-card rounded-2xl border border-border shadow-sm">
+      {/* Seleção do Tipo de Evento */}
+      <div className="space-y-3 border-b border-border pb-4">
+        <label className="text-xs font-extrabold uppercase tracking-widest text-muted-foreground block">
+          1. Selecione o Tipo de Evento (Pré-definição Automática)
+        </label>
+        <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-1.5">
+          {[
+            { id: "casamento", label: "Casamento" },
+            { id: "aniversario", label: "Aniversário" },
+            { id: "empresarial", label: "Empresarial" },
+            { id: "churrasco", label: "Churrasco" },
+            { id: "coffeebreak", label: "Coffee Break" },
+            { id: "infantil", label: "Infantil" },
+            { id: "formatura", label: "Formatura" },
+          ].map((t) => (
+            <button
+              key={t.id}
+              onClick={() => setEventType(t.id as EventType)}
+              className={cn(
+                "py-2 px-2 text-xs font-bold rounded-xl border transition-all text-center capitalize",
+                eventType === t.id
+                  ? "bg-primary text-primary-foreground border-primary shadow-md"
+                  : "border-border hover:bg-muted text-muted-foreground"
+              )}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Dados Principais do Evento */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 bg-muted/40 p-3 rounded-xl border border-border">
+        <div>
+          <label className="text-[10px] font-bold text-muted-foreground uppercase block mb-1">Nome do Evento</label>
+          <input
+            value={eventName}
+            onChange={(e) => setEventName(e.target.value)}
+            className="w-full h-9 px-3 text-xs bg-background border border-border rounded-lg outline-none font-semibold"
+          />
+        </div>
+        <div>
+          <label className="text-[10px] font-bold text-muted-foreground uppercase block mb-1">Nº de Convidados</label>
+          <input
+            type="number"
+            value={guestCount}
+            onChange={(e) => setGuestCount(Number(e.target.value) || 0)}
+            className="w-full h-9 px-3 text-xs bg-background border border-border rounded-lg outline-none font-extrabold text-primary"
+          />
+        </div>
+        <div>
+          <label className="text-[10px] font-bold text-muted-foreground uppercase block mb-1">Data & Horário</label>
+          <div className="flex gap-1">
+            <input
+              value={eventDate}
+              onChange={(e) => setEventDate(e.target.value)}
+              className="w-1/2 h-9 px-2 text-xs bg-background border border-border rounded-lg outline-none"
+            />
+            <input
+              value={eventTime}
+              onChange={(e) => setEventTime(e.target.value)}
+              className="w-1/2 h-9 px-2 text-xs bg-background border border-border rounded-lg outline-none"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Adicionar / Editar Item Manual */}
+      <div className="flex flex-wrap md:flex-nowrap gap-2 bg-background p-2 rounded-xl border border-border">
+        <input
+          placeholder="Adicionar item customizado..."
+          value={newItemTitle}
+          onChange={(e) => setNewItemTitle(e.target.value)}
+          className="flex-1 h-9 px-3 text-xs bg-transparent border-none outline-none"
+        />
+        <input
+          placeholder="Qtd (ex: 50 un)"
+          value={newItemQty}
+          onChange={(e) => setNewItemQty(e.target.value)}
+          className="w-28 h-9 px-3 text-xs bg-muted rounded-lg border border-border outline-none"
+        />
+        <select
+          value={newItemCat}
+          onChange={(e) => setNewItemCat(e.target.value as any)}
+          className="h-9 px-3 text-xs bg-muted rounded-lg border border-border font-medium outline-none cursor-pointer"
+        >
+          <option value="loucas">Louças/Utensílios</option>
+          <option value="equipamentos">Equipamentos</option>
+          <option value="insumos">Insumos/Consumíveis</option>
+          <option value="cronograma">Cronograma</option>
+        </select>
+        <button
+          onClick={addItem}
+          className="h-9 px-4 rounded-lg bg-primary text-primary-foreground text-xs font-bold flex items-center gap-1 hover:opacity-90"
+        >
+          <Plus className="size-4" /> Adicionar
+        </button>
+      </div>
+
+      {/* Lista de Itens do Checklist */}
+      <div className="space-y-2">
+        <div className="flex justify-between items-center text-xs font-bold">
+          <span className="text-muted-foreground uppercase tracking-wider text-[11px]">
+            Itens Pré-Definidos ({items.length})
+          </span>
+          <span className="text-primary font-mono">{items.filter((i) => i.completed).length} concluídos</span>
+        </div>
+
+        <div className="divide-y divide-border border border-border rounded-xl bg-background overflow-hidden">
+          {items.map((item) => (
+            <div
+              key={item.id}
+              onClick={() => toggleItem(item.id)}
+              className={cn(
+                "p-3 flex items-center justify-between gap-3 cursor-pointer transition-colors text-xs",
+                item.completed ? "bg-muted/30 text-muted-foreground line-through" : "hover:bg-muted/20"
+              )}
+            >
+              <div className="flex items-center gap-2.5">
+                {item.completed ? (
+                  <CheckCircle2 className="size-4 text-emerald-600 shrink-0" />
+                ) : (
+                  <Circle className="size-4 text-muted-foreground shrink-0" />
+                )}
+                <span className="font-semibold text-foreground">{item.title}</span>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <span className="text-[11px] font-extrabold bg-primary/10 text-primary px-2.5 py-0.5 rounded-full">
+                  {item.quantity}
+                </span>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    removeItem(item.id);
+                  }}
+                  className="text-muted-foreground hover:text-rose-600 p-1"
+                >
+                  <Trash2 className="size-3.5" />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Painel de Envio via WhatsApp */}
+      <div className="bg-emerald-500/10 border border-emerald-500/20 p-4 rounded-xl space-y-3">
+        <div className="text-xs font-bold text-emerald-800 flex items-center gap-1.5">
+          <Send className="size-4 text-emerald-600" /> Enviar Escala & Checklist para o Funcionário
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+          <input
+            placeholder="Nome do Funcionário"
+            value={staffName}
+            onChange={(e) => setStaffName(e.target.value)}
+            className="h-9 px-3 text-xs bg-background border border-border rounded-lg outline-none"
+          />
+          <input
+            placeholder="WhatsApp (ex: 31999998888)"
+            value={staffPhone}
+            onChange={(e) => setStaffPhone(e.target.value)}
+            className="h-9 px-3 text-xs bg-background border border-border rounded-lg outline-none"
+          />
+          <button
+            onClick={sendToWhatsApp}
+            className="h-9 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold flex items-center 
