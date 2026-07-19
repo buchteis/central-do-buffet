@@ -1,9 +1,35 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { Calendar as CalendarIcon } from "lucide-react";
+import { Calendar as CalendarIcon, CalendarPlus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { brl, formatDateBR } from "@/lib/format";
 import { cn } from "@/lib/utils";
+
+// Gera link do Google Agenda pré-preenchido (sem necessidade de OAuth).
+// Cada evento fechado/pago vira um aviso na agenda do dono do buffet.
+function googleCalendarUrl(e: any): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const toGCal = (d: Date) =>
+    `${d.getUTCFullYear()}${pad(d.getUTCMonth() + 1)}${pad(d.getUTCDate())}T${pad(d.getUTCHours())}${pad(d.getUTCMinutes())}00Z`;
+  const [y, m, day] = String(e.event_date).split("-").map(Number);
+  const [hh, mm] = String(e.event_time ?? "18:00").split(":").map(Number);
+  const start = new Date(Date.UTC(y, (m ?? 1) - 1, day ?? 1, (hh ?? 18) - 3, mm ?? 0)); // horário BR (UTC-3)
+  const end = new Date(start.getTime() + 4 * 60 * 60 * 1000); // 4h de duração padrão
+  const title = `Evento — ${e.clients?.name ?? "Cliente"}${e.packages?.name ? ` (${e.packages.name})` : ""}`;
+  const details = [
+    e.notes ? `Observações: ${e.notes}` : null,
+    e.guest_count ? `Convidados: ${e.guest_count}` : null,
+    e.total_value ? `Valor: ${brl(e.total_value)}` : null,
+  ].filter(Boolean).join("\n");
+  const params = new URLSearchParams({
+    action: "TEMPLATE",
+    text: title,
+    dates: `${toGCal(start)}/${toGCal(end)}`,
+    details,
+    location: e.event_address ?? "",
+  });
+  return `https://calendar.google.com/calendar/render?${params.toString()}`;
+}
 
 export const Route = createFileRoute("/_authenticated/eventos/")({
   head: () => ({ meta: [{ title: "Eventos — Meu Churras" }] }),
