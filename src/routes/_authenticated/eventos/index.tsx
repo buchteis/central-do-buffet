@@ -107,10 +107,13 @@ function EventsPage() {
                   <th className="px-4 py-3 font-bold hidden md:table-cell">Pacote</th>
                   <th className="px-4 py-3 font-bold text-right">Valor</th>
                   <th className="px-4 py-3 font-bold">Status</th>
+                  <th className="px-4 py-3 font-bold text-right">Agenda</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {data!.map((e: any) => (
+                {data!.map((e: any) => {
+                  const canSchedule = e.status !== "cancelado";
+                  return (
                   <tr key={e.id} className="hover:bg-muted/30 transition-colors">
                     <td className="px-5 py-4 text-sm font-semibold">
                       {e.clients?.name ?? "—"}
