@@ -155,3 +155,13 @@
 @utility animate-reveal {
   animation: slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
+
+@keyframes float {
+  0%, 100% { transform: translate3d(0, 0, 0) rotate(0deg); }
+  50% { transform: translate3d(0, -22px, 0) rotate(6deg); }
+}
+
+@keyframes wiggle {
+  0%, 100% { transform: rotate(-4deg); }
+  50% { transform: rotate(6deg); }
+}
