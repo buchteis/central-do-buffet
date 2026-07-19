@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { Plus, TrendingUp, TrendingDown, Wallet, Construction } from "lucide-react";
+import { Plus, TrendingUp, TrendingDown, Wallet, Construction, Pencil, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { brl, formatDateBR } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -36,7 +36,9 @@ const statusStyles: Record<string, string> = {
 };
 
 function FinanceiroPage() {
-  const [open, setOpen] = useState(false);
+  const qc = useQueryClient();
+  const [openDialog, setOpenDialog] = useState(false);
+  const [editingTx, setEditingTx] = useState<any | null>(null);
   const [filter, setFilter] = useState<"todos" | "entrada" | "saida">("todos");
 
   const { data: txs } = useQuery({
@@ -50,12 +52,38 @@ function FinanceiroPage() {
     },
   });
 
-  // Exclui transações vinculadas a eventos cancelados
-  const active = (txs ?? []).filter((t: any) => t.events?.status !== "cancelado" && t.status !== "cancelado");
+  // Mutation para Excluir Transação
+  const deleteMut = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("transactions").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["transactions"] });
+      toast.success("Transação excluída com sucesso");
+    },
+    onError: (e: any) => toast.error(`Erro ao excluir: ${e.message}`),
+  });
 
+  const handleDelete = (id: string, description: string) => {
+    if (confirm(`Tem certeza que deseja excluir "${description}"?`)) {
+      deleteMut.mutate(id);
+    }
+  };
+
+  const handleEdit = (tx: any) => {
+    setEditingTx(tx);
+    setOpenDialog(true);
+  };
+
+  const handleNew = () => {
+    setEditingTx(null);
+    setOpenDialog(true);
+  };
+
+  const active = (txs ?? []).filter((t: any) => t.events?.status !== "cancelado" && t.status !== "cancelado");
   const filtered = active.filter((t) => (filter === "todos" ? true : t.type === filter));
 
-  // CORREÇÃO BUG 1: Ajustado cálculo das pendências (Entrada - Saída)
   const totals = active.reduce(
     (acc, t) => {
       const v = Number(t.amount ?? 0);
@@ -77,7 +105,7 @@ function FinanceiroPage() {
           <p className="text-sm text-muted-foreground mt-1">Fluxo de caixa, contas a pagar e a receber</p>
         </div>
         <button
-          onClick={() => setOpen(true)}
+          onClick={handleNew}
           className="inline-flex items-center gap-1 h-9 px-4 rounded-full bg-primary text-primary-foreground text-xs font-bold shadow-lg shadow-primary/20"
         >
           <Plus className="size-4" /> Nova transação
@@ -115,6 +143,7 @@ function FinanceiroPage() {
               <th className="px-4 py-3 font-bold">Método</th>
               <th className="px-4 py-3 font-bold">Status</th>
               <th className="px-4 py-3 font-bold text-right">Valor</th>
+              <th className="px-4 py-3 font-bold text-center">Ações</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
@@ -143,11 +172,29 @@ function FinanceiroPage() {
                 >
                   {t.type === "entrada" ? "+" : "-"} {brl(t.amount)}
                 </td>
+                <td className="px-4 py-4 text-center">
+                  <div className="flex items-center justify-center gap-2">
+                    <button
+                      onClick={() => handleEdit(t)}
+                      title="Editar"
+                      className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground"
+                    >
+                      <Pencil className="size-4" />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(t.id, t.description)}
+                      title="Excluir"
+                      className="p-1.5 rounded-lg hover:bg-rose-500/10 text-muted-foreground hover:text-rose-600"
+                    >
+                      <Trash2 className="size-4" />
+                    </button>
+                  </div>
+                </td>
               </tr>
             ))}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={5} className="p-10 text-center text-sm text-muted-foreground">
+                <td colSpan={6} className="p-10 text-center text-sm text-muted-foreground">
                   Nenhuma transação registrada.
                 </td>
               </tr>
@@ -156,7 +203,7 @@ function FinanceiroPage() {
         </table>
       </div>
 
-      {open && <NewTxDialog onClose={() => setOpen(false)} />}
+      {openDialog && <TxDialog initialData={editingTx} onClose={() => setOpenDialog(false)} />}
     </div>
   );
 }
@@ -179,27 +226,26 @@ function Card({ icon: Icon, label, value, tone }: { icon: any; label: string; va
   );
 }
 
-function NewTxDialog({ onClose }: { onClose: () => void }) {
+function TxDialog({ initialData, onClose }: { initialData?: any; onClose: () => void }) {
   const qc = useQueryClient();
-
-  // CORREÇÃO BUG 2: Data no fuso horário local correto
   const todayLocal = new Date().toLocaleDateString("sv-SE");
 
   const [form, setForm] = useState({
-    type: "entrada" as "entrada" | "saida",
-    description: "",
-    amount: "",
-    method: "pix",
-    status: "pendente",
-    due_date: todayLocal,
-    category: "",
+    type: initialData?.type ?? "entrada",
+    description: initialData?.description ?? "",
+    amount: initialData?.amount ?? "",
+    method: initialData?.method ?? "pix",
+    status: initialData?.status ?? "pendente",
+    due_date: initialData?.due_date ?? todayLocal,
+    category: initialData?.category ?? "",
   });
 
   const mut = useMutation({
     mutationFn: async () => {
       const { data: u } = await supabase.auth.getUser();
       if (!u.user) throw new Error("Sem sessão");
-      const { error } = await supabase.from("transactions").insert({
+
+      const payload = {
         owner_id: u.user.id,
         type: form.type as any,
         description: form.description,
@@ -209,12 +255,21 @@ function NewTxDialog({ onClose }: { onClose: () => void }) {
         due_date: form.due_date,
         category: form.category || null,
         paid_date: form.status === "pago" ? form.due_date : null,
-      });
-      if (error) throw error;
+      };
+
+      if (initialData?.id) {
+        // Atualiza transação existente
+        const { error } = await supabase.from("transactions").update(payload).eq("id", initialData.id);
+        if (error) throw error;
+      } else {
+        // Cria nova transação
+        const { error } = await supabase.from("transactions").insert(payload);
+        if (error) throw error;
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["transactions"] });
-      toast.success("Transação registrada");
+      toast.success(initialData?.id ? "Transação atualizada" : "Transação registrada");
       onClose();
     },
     onError: (e: any) => toast.error(e.message),
@@ -225,12 +280,11 @@ function NewTxDialog({ onClose }: { onClose: () => void }) {
       className="fixed inset-0 z-50 bg-background/60 backdrop-blur-sm flex items-center justify-center p-4"
       onClick={onClose}
     >
-      {/* CORREÇÃO BUG 3: Suporte a telas pequenas com max-h e overflow-y-auto */}
       <div
         onClick={(e) => e.stopPropagation()}
         className="bg-card border border-border rounded-2xl p-6 w-full max-w-md space-y-3 max-h-[90vh] overflow-y-auto"
       >
-        <h3 className="text-lg font-extrabold">Nova transação</h3>
+        <h3 className="text-lg font-extrabold">{initialData?.id ? "Editar transação" : "Nova transação"}</h3>
         <div className="grid grid-cols-2 gap-2">
           <button
             onClick={() => setForm({ ...form, type: "entrada" })}
