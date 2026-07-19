@@ -73,10 +73,6 @@ function PublicQuoteForm() {
   }
 
   function removePackage(id: string) {
-    if (selectedPackages.length <= 1) {
-      toast.warning("Mantenha pelo menos um pacote");
-      return;
-    }
     setSelectedPackages((old) => old.filter((p) => p.id !== id));
   }
 
