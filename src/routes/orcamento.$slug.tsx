@@ -60,12 +60,7 @@ function PublicQuoteForm() {
   const cpfKind = docKind(cpf);
   const [guestCount] = useState<number | null>(null);
 
-  const [selectedPackages, setSelectedPackages] = useState<{ id: string; package_id: string }[]>([
-    {
-      id: crypto.randomUUID(),
-      package_id: "",
-    },
-  ]);
+  const [selectedPackages, setSelectedPackages] = useState<{ id: string; package_id: string }[]>([]);
 
   function addPackage() {
     setSelectedPackages((old) => [
