@@ -42,14 +42,20 @@ function FinanceiroPage() {
   const { data: txs } = useQuery({
     queryKey: ["transactions"],
     queryFn: async () => {
-      const { data } = await supabase.from("transactions").select("*, events(clients(name))").order("due_date", { ascending: false });
+      const { data } = await supabase
+        .from("transactions")
+        .select("*, events(status, clients(name))")
+        .order("due_date", { ascending: false });
       return data ?? [];
     },
   });
 
-  const filtered = (txs ?? []).filter((t) => filter === "todos" ? true : t.type === filter);
+  // Exclui transações vinculadas a eventos cancelados (não entram em contagem nem lista)
+  const active = (txs ?? []).filter((t: any) => t.events?.status !== "cancelado" && t.status !== "cancelado");
 
-  const totals = (txs ?? []).reduce(
+  const filtered = active.filter((t) => filter === "todos" ? true : t.type === filter);
+
+  const totals = active.reduce(
     (acc, t) => {
       const v = Number(t.amount ?? 0);
       if (t.type === "entrada" && t.status === "pago") acc.entradas += v;

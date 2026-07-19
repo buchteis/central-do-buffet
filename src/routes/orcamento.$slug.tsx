@@ -60,12 +60,7 @@ function PublicQuoteForm() {
   const cpfKind = docKind(cpf);
   const [guestCount] = useState<number | null>(null);
 
-  const [selectedPackages, setSelectedPackages] = useState<{ id: string; package_id: string }[]>([
-    {
-      id: crypto.randomUUID(),
-      package_id: "",
-    },
-  ]);
+  const [selectedPackages, setSelectedPackages] = useState<{ id: string; package_id: string }[]>([]);
 
   function addPackage() {
     setSelectedPackages((old) => [
@@ -78,10 +73,6 @@ function PublicQuoteForm() {
   }
 
   function removePackage(id: string) {
-    if (selectedPackages.length <= 1) {
-      toast.warning("Mantenha pelo menos um pacote");
-      return;
-    }
     setSelectedPackages((old) => old.filter((p) => p.id !== id));
   }
 
@@ -276,10 +267,15 @@ function PublicQuoteForm() {
             />
           </div>
 
-          {/* ⭐ BLOCO DE PACOTES - SEM FILTRO */}
+          {/* Pacotes — opcional */}
           <div className="space-y-4 p-4 bg-muted/30 rounded-xl border border-border">
             <div className="flex items-center justify-between flex-wrap gap-2">
-              <Label className="font-semibold">Pacotes desejados</Label>
+              <div>
+                <Label className="font-semibold">Pacotes desejados</Label>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  Opcional — deixe em branco se preferir que o buffet monte uma proposta personalizada.
+                </p>
+              </div>
               <Button type="button" variant="outline" size="sm" onClick={addPackage} className="h-8 gap-1 text-xs">
                 <Plus className="size-3.5" /> Adicionar pacote
               </Button>

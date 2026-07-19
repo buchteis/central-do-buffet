@@ -1,9 +1,35 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { Calendar as CalendarIcon } from "lucide-react";
+import { Calendar as CalendarIcon, CalendarPlus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { brl, formatDateBR } from "@/lib/format";
 import { cn } from "@/lib/utils";
+
+// Gera link do Google Agenda pré-preenchido (sem necessidade de OAuth).
+// Cada evento fechado/pago vira um aviso na agenda do dono do buffet.
+function googleCalendarUrl(e: any): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const toGCal = (d: Date) =>
+    `${d.getUTCFullYear()}${pad(d.getUTCMonth() + 1)}${pad(d.getUTCDate())}T${pad(d.getUTCHours())}${pad(d.getUTCMinutes())}00Z`;
+  const [y, m, day] = String(e.event_date).split("-").map(Number);
+  const [hh, mm] = String(e.event_time ?? "18:00").split(":").map(Number);
+  const start = new Date(Date.UTC(y, (m ?? 1) - 1, day ?? 1, (hh ?? 18) - 3, mm ?? 0)); // horário BR (UTC-3)
+  const end = new Date(start.getTime() + 4 * 60 * 60 * 1000); // 4h de duração padrão
+  const title = `Evento — ${e.clients?.name ?? "Cliente"}${e.packages?.name ? ` (${e.packages.name})` : ""}`;
+  const details = [
+    e.notes ? `Observações: ${e.notes}` : null,
+    e.guest_count ? `Convidados: ${e.guest_count}` : null,
+    e.total_value ? `Valor: ${brl(e.total_value)}` : null,
+  ].filter(Boolean).join("\n");
+  const params = new URLSearchParams({
+    action: "TEMPLATE",
+    text: title,
+    dates: `${toGCal(start)}/${toGCal(end)}`,
+    details,
+    location: e.event_address ?? "",
+  });
+  return `https://calendar.google.com/calendar/render?${params.toString()}`;
+}
 
 export const Route = createFileRoute("/_authenticated/eventos/")({
   head: () => ({ meta: [{ title: "Eventos — Meu Churras" }] }),
@@ -81,10 +107,13 @@ function EventsPage() {
                   <th className="px-4 py-3 font-bold hidden md:table-cell">Pacote</th>
                   <th className="px-4 py-3 font-bold text-right">Valor</th>
                   <th className="px-4 py-3 font-bold">Status</th>
+                  <th className="px-4 py-3 font-bold text-right">Agenda</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {data!.map((e: any) => (
+                {data!.map((e: any) => {
+                  const canSchedule = e.status !== "cancelado";
+                  return (
                   <tr key={e.id} className="hover:bg-muted/30 transition-colors">
                     <td className="px-5 py-4 text-sm font-semibold">
                       {e.clients?.name ?? "—"}
@@ -106,8 +135,24 @@ function EventsPage() {
                         {statusLabels[e.status] ?? e.status}
                       </span>
                     </td>
+                    <td className="px-4 py-4 text-right">
+                      {canSchedule ? (
+                        <a
+                          href={googleCalendarUrl(e)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title="Adicionar aviso deste evento no Google Agenda"
+                          className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold rounded-full bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                        >
+                          <CalendarPlus className="size-3.5" /> Google Agenda
+                        </a>
+                      ) : (
+                        <span className="text-[11px] text-muted-foreground">—</span>
+                      )}
+                    </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
