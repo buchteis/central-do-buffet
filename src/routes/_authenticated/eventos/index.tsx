@@ -135,8 +135,24 @@ function EventsPage() {
                         {statusLabels[e.status] ?? e.status}
                       </span>
                     </td>
+                    <td className="px-4 py-4 text-right">
+                      {canSchedule ? (
+                        <a
+                          href={googleCalendarUrl(e)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title="Adicionar aviso deste evento no Google Agenda"
+                          className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold rounded-full bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                        >
+                          <CalendarPlus className="size-3.5" /> Google Agenda
+                        </a>
+                      ) : (
+                        <span className="text-[11px] text-muted-foreground">—</span>
+                      )}
+                    </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
