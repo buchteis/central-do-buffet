@@ -50,17 +50,20 @@ function FinanceiroPage() {
     },
   });
 
-  // Exclui transações vinculadas a eventos cancelados (não entram em contagem nem lista)
+  // Exclui transações vinculadas a eventos cancelados
   const active = (txs ?? []).filter((t: any) => t.events?.status !== "cancelado" && t.status !== "cancelado");
 
-  const filtered = active.filter((t) => filter === "todos" ? true : t.type === filter);
+  const filtered = active.filter((t) => (filter === "todos" ? true : t.type === filter));
 
+  // CORREÇÃO BUG 1: Ajustado cálculo das pendências (Entrada - Saída)
   const totals = active.reduce(
     (acc, t) => {
       const v = Number(t.amount ?? 0);
       if (t.type === "entrada" && t.status === "pago") acc.entradas += v;
       if (t.type === "saida" && t.status === "pago") acc.saidas += v;
-      if (t.status === "pendente") acc.pendentes += v;
+      if (t.status === "pendente") {
+        acc.pendentes += t.type === "entrada" ? v : -v;
+      }
       return acc;
     },
     { entradas: 0, saidas: 0, pendentes: 0 },
@@ -73,7 +76,10 @@ function FinanceiroPage() {
           <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">Financeiro</h1>
           <p className="text-sm text-muted-foreground mt-1">Fluxo de caixa, contas a pagar e a receber</p>
         </div>
-        <button onClick={() => setOpen(true)} className="inline-flex items-center gap-1 h-9 px-4 rounded-full bg-primary text-primary-foreground text-xs font-bold shadow-lg shadow-primary/20">
+        <button
+          onClick={() => setOpen(true)}
+          className="inline-flex items-center gap-1 h-9 px-4 rounded-full bg-primary text-primary-foreground text-xs font-bold shadow-lg shadow-primary/20"
+        >
           <Plus className="size-4" /> Nova transação
         </button>
       </div>
@@ -82,12 +88,19 @@ function FinanceiroPage() {
         <Card icon={TrendingUp} label="Entradas (pagas)" value={brl(totals.entradas)} tone="emerald" />
         <Card icon={TrendingDown} label="Saídas (pagas)" value={brl(totals.saidas)} tone="rose" />
         <Card icon={Wallet} label="Saldo" value={brl(totals.entradas - totals.saidas)} tone="primary" />
-        <Card icon={Wallet} label="Pendente" value={brl(totals.pendentes)} tone="amber" />
+        <Card icon={Wallet} label="Pendente Líquido" value={brl(totals.pendentes)} tone="amber" />
       </div>
 
       <div className="flex gap-2">
-        {(["todos","entrada","saida"] as const).map((f) => (
-          <button key={f} onClick={() => setFilter(f)} className={cn("px-3 py-1.5 text-xs font-bold rounded-full border", filter === f ? "bg-primary text-primary-foreground border-primary" : "border-border")}>
+        {(["todos", "entrada", "saida"] as const).map((f) => (
+          <button
+            key={f}
+            onClick={() => setFilter(f)}
+            className={cn(
+              "px-3 py-1.5 text-xs font-bold rounded-full border",
+              filter === f ? "bg-primary text-primary-foreground border-primary" : "border-border",
+            )}
+          >
             {f === "todos" ? "Todos" : f === "entrada" ? "Entradas" : "Saídas"}
           </button>
         ))}
@@ -109,20 +122,35 @@ function FinanceiroPage() {
               <tr key={t.id} className="hover:bg-muted/30">
                 <td className="px-5 py-4">
                   <div className="text-sm font-semibold">{t.description}</div>
-                  {t.events?.clients?.name && <div className="text-[11px] text-muted-foreground">{t.events.clients.name}</div>}
+                  {t.events?.clients?.name && (
+                    <div className="text-[11px] text-muted-foreground">{t.events.clients.name}</div>
+                  )}
                 </td>
                 <td className="px-4 py-4 text-xs font-mono">{formatDateBR(t.due_date)}</td>
                 <td className="px-4 py-4 text-xs uppercase">{t.method}</td>
                 <td className="px-4 py-4">
-                  <span className={cn("px-2 py-1 text-[10px] rounded-full font-bold uppercase", statusStyles[t.status])}>{t.status}</span>
+                  <span
+                    className={cn("px-2 py-1 text-[10px] rounded-full font-bold uppercase", statusStyles[t.status])}
+                  >
+                    {t.status}
+                  </span>
                 </td>
-                <td className={cn("px-4 py-4 text-sm font-mono text-right font-bold", t.type === "entrada" ? "text-emerald-600" : "text-rose-600")}>
+                <td
+                  className={cn(
+                    "px-4 py-4 text-sm font-mono text-right font-bold",
+                    t.type === "entrada" ? "text-emerald-600" : "text-rose-600",
+                  )}
+                >
                   {t.type === "entrada" ? "+" : "-"} {brl(t.amount)}
                 </td>
               </tr>
             ))}
             {filtered.length === 0 && (
-              <tr><td colSpan={5} className="p-10 text-center text-sm text-muted-foreground">Nenhuma transação registrada.</td></tr>
+              <tr>
+                <td colSpan={5} className="p-10 text-center text-sm text-muted-foreground">
+                  Nenhuma transação registrada.
+                </td>
+              </tr>
             )}
           </tbody>
         </table>
@@ -153,15 +181,20 @@ function Card({ icon: Icon, label, value, tone }: { icon: any; label: string; va
 
 function NewTxDialog({ onClose }: { onClose: () => void }) {
   const qc = useQueryClient();
+
+  // CORREÇÃO BUG 2: Data no fuso horário local correto
+  const todayLocal = new Date().toLocaleDateString("sv-SE");
+
   const [form, setForm] = useState({
     type: "entrada" as "entrada" | "saida",
     description: "",
     amount: "",
     method: "pix",
     status: "pendente",
-    due_date: new Date().toISOString().slice(0, 10),
+    due_date: todayLocal,
     category: "",
   });
+
   const mut = useMutation({
     mutationFn: async () => {
       const { data: u } = await supabase.auth.getUser();
@@ -186,31 +219,100 @@ function NewTxDialog({ onClose }: { onClose: () => void }) {
     },
     onError: (e: any) => toast.error(e.message),
   });
+
   return (
-    <div className="fixed inset-0 z-50 bg-background/60 backdrop-blur-sm flex items-center justify-center p-4" onClick={onClose}>
-      <div onClick={(e) => e.stopPropagation()} className="bg-card border border-border rounded-2xl p-6 w-full max-w-md space-y-3">
+    <div
+      className="fixed inset-0 z-50 bg-background/60 backdrop-blur-sm flex items-center justify-center p-4"
+      onClick={onClose}
+    >
+      {/* CORREÇÃO BUG 3: Suporte a telas pequenas com max-h e overflow-y-auto */}
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="bg-card border border-border rounded-2xl p-6 w-full max-w-md space-y-3 max-h-[90vh] overflow-y-auto"
+      >
         <h3 className="text-lg font-extrabold">Nova transação</h3>
         <div className="grid grid-cols-2 gap-2">
-          <button onClick={() => setForm({ ...form, type: "entrada" })} className={cn("h-10 rounded-lg text-sm font-bold border", form.type === "entrada" ? "bg-emerald-500 text-white border-emerald-500" : "border-border")}>Entrada</button>
-          <button onClick={() => setForm({ ...form, type: "saida" })} className={cn("h-10 rounded-lg text-sm font-bold border", form.type === "saida" ? "bg-rose-500 text-white border-rose-500" : "border-border")}>Saída</button>
+          <button
+            onClick={() => setForm({ ...form, type: "entrada" })}
+            className={cn(
+              "h-10 rounded-lg text-sm font-bold border",
+              form.type === "entrada" ? "bg-emerald-500 text-white border-emerald-500" : "border-border",
+            )}
+          >
+            Entrada
+          </button>
+          <button
+            onClick={() => setForm({ ...form, type: "saida" })}
+            className={cn(
+              "h-10 rounded-lg text-sm font-bold border",
+              form.type === "saida" ? "bg-rose-500 text-white border-rose-500" : "border-border",
+            )}
+          >
+            Saída
+          </button>
         </div>
-        <input placeholder="Descrição" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="w-full h-10 px-3 border border-border rounded-lg bg-background text-sm" />
-        <input placeholder="Categoria (ex: Carnes, Bebidas)" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className="w-full h-10 px-3 border border-border rounded-lg bg-background text-sm" />
+        <input
+          placeholder="Descrição"
+          value={form.description}
+          onChange={(e) => setForm({ ...form, description: e.target.value })}
+          className="w-full h-10 px-3 border border-border rounded-lg bg-background text-sm"
+        />
+        <input
+          placeholder="Categoria (ex: Carnes, Bebidas)"
+          value={form.category}
+          onChange={(e) => setForm({ ...form, category: e.target.value })}
+          className="w-full h-10 px-3 border border-border rounded-lg bg-background text-sm"
+        />
         <div className="grid grid-cols-2 gap-2">
-          <input type="number" placeholder="Valor" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} className="h-10 px-3 border border-border rounded-lg bg-background text-sm" />
-          <input type="date" value={form.due_date} onChange={(e) => setForm({ ...form, due_date: e.target.value })} className="h-10 px-3 border border-border rounded-lg bg-background text-sm" />
+          <input
+            type="number"
+            placeholder="Valor"
+            value={form.amount}
+            onChange={(e) => setForm({ ...form, amount: e.target.value })}
+            className="h-10 px-3 border border-border rounded-lg bg-background text-sm"
+          />
+          <input
+            type="date"
+            value={form.due_date}
+            onChange={(e) => setForm({ ...form, due_date: e.target.value })}
+            className="h-10 px-3 border border-border rounded-lg bg-background text-sm"
+          />
         </div>
         <div className="grid grid-cols-2 gap-2">
-          <select value={form.method} onChange={(e) => setForm({ ...form, method: e.target.value })} className="h-10 px-3 border border-border rounded-lg bg-background text-sm">
-            <option value="pix">PIX</option><option value="dinheiro">Dinheiro</option><option value="cartao">Cartão</option><option value="boleto">Boleto</option><option value="transferencia">Transferência</option><option value="outro">Outro</option>
+          <select
+            value={form.method}
+            onChange={(e) => setForm({ ...form, method: e.target.value })}
+            className="h-10 px-3 border border-border rounded-lg bg-background text-sm"
+          >
+            <option value="pix">PIX</option>
+            <option value="dinheiro">Dinheiro</option>
+            <option value="cartao">Cartão</option>
+            <option value="boleto">Boleto</option>
+            <option value="transferencia">Transferência</option>
+            <option value="outro">Outro</option>
           </select>
-          <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })} className="h-10 px-3 border border-border rounded-lg bg-background text-sm">
-            <option value="pendente">Pendente</option><option value="pago">Pago</option><option value="atrasado">Atrasado</option><option value="cancelado">Cancelado</option>
+          <select
+            value={form.status}
+            onChange={(e) => setForm({ ...form, status: e.target.value })}
+            className="h-10 px-3 border border-border rounded-lg bg-background text-sm"
+          >
+            <option value="pendente">Pendente</option>
+            <option value="pago">Pago</option>
+            <option value="atrasado">Atrasado</option>
+            <option value="cancelado">Cancelado</option>
           </select>
         </div>
         <div className="flex gap-2 pt-2">
-          <button onClick={onClose} className="flex-1 h-10 rounded-lg border border-border text-sm font-bold">Cancelar</button>
-          <button disabled={!form.description || !form.amount || mut.isPending} onClick={() => mut.mutate()} className="flex-1 h-10 rounded-lg bg-primary text-primary-foreground text-sm font-bold disabled:opacity-50">Salvar</button>
+          <button onClick={onClose} className="flex-1 h-10 rounded-lg border border-border text-sm font-bold">
+            Cancelar
+          </button>
+          <button
+            disabled={!form.description || !form.amount || mut.isPending}
+            onClick={() => mut.mutate()}
+            className="flex-1 h-10 rounded-lg bg-primary text-primary-foreground text-sm font-bold disabled:opacity-50"
+          >
+            Salvar
+          </button>
         </div>
       </div>
     </div>
