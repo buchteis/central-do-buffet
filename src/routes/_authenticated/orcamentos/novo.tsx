@@ -1,3 +1,4 @@
+import { ChecklistPreDefinido } from "@/components/ChecklistPreDefinido";
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
@@ -10,13 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { calcQuote } from "@/lib/quote-calc";
 import { brl } from "@/lib/format";
 import { openQuotePdf } from "@/lib/quote-pdf";
@@ -32,16 +27,16 @@ export const Route = createFileRoute("/_authenticated/orcamentos/novo")({
   component: NewQuotePage,
 });
 
-
-const schema = z.object({
-  client_id: z.string().uuid().optional().or(z.literal("")),
-  package_ids: z.array(z.string().uuid()).min(1, "Selecione ao menos um pacote"),
-  event_date: z.string().min(1, "Data obrigatória"),
-  adults: z.number().int().min(0).max(9999),
-  children_count: z.number().int().min(0).max(9999),
-  child_price: z.number().min(0).max(999999),
-}).passthrough();
-
+const schema = z
+  .object({
+    client_id: z.string().uuid().optional().or(z.literal("")),
+    package_ids: z.array(z.string().uuid()).min(1, "Selecione ao menos um pacote"),
+    event_date: z.string().min(1, "Data obrigatória"),
+    adults: z.number().int().min(0).max(9999),
+    children_count: z.number().int().min(0).max(9999),
+    child_price: z.number().min(0).max(999999),
+  })
+  .passthrough();
 
 function NewQuotePage() {
   const navigate = useNavigate();
@@ -73,14 +68,10 @@ function NewQuotePage() {
     },
   });
 
-
   const { data: clients } = useQuery({
     queryKey: ["clients-select-full"],
     queryFn: async () => {
-      const { data } = await supabase
-        .from("clients")
-        .select("id, name, cpf, address, phone, email")
-        .order("name");
+      const { data } = await supabase.from("clients").select("id, name, cpf, address, phone, email").order("name");
       return data ?? [];
     },
   });
@@ -103,7 +94,6 @@ function NewQuotePage() {
     },
   });
 
-
   const [form, setForm] = useState({
     client_id: "",
     event_date: "",
@@ -120,9 +110,7 @@ function NewQuotePage() {
   });
   // Multiple packages support: list of selected package ids (empty string = "pick one" row).
   const [packageLines, setPackageLines] = useState<string[]>([""]);
-  const [customExtras, setCustomExtras] = useState<
-    { description: string; value: number }[]
-  >([]);
+  const [customExtras, setCustomExtras] = useState<{ description: string; value: number }[]>([]);
 
   // Manual overrides — administrator has total freedom to edit price per person (sum),
   // entry (50%) and balance directly. `null` means "use auto value".
@@ -132,16 +120,15 @@ function NewQuotePage() {
 
   const selectedPackages = useMemo(
     () =>
-      packageLines
-        .map((id) => (packages ?? []).find((p) => p.id === id))
-        .filter(Boolean) as { id: string; name: string; price_per_person: number }[],
+      packageLines.map((id) => (packages ?? []).find((p) => p.id === id)).filter(Boolean) as {
+        id: string;
+        name: string;
+        price_per_person: number;
+      }[],
     [packageLines, packages],
   );
   const primaryPackage = selectedPackages[0];
-  const packagesSumPerPerson = selectedPackages.reduce(
-    (s, p) => s + Number(p.price_per_person ?? 0),
-    0,
-  );
+  const packagesSumPerPerson = selectedPackages.reduce((s, p) => s + Number(p.price_per_person ?? 0), 0);
   const effectivePrice = priceOverride ?? packagesSumPerPerson;
 
   const autoBreakdown = useMemo(
@@ -158,11 +145,9 @@ function NewQuotePage() {
 
   const breakdown = useMemo(() => {
     const entry = entryOverride ?? autoBreakdown.entry;
-    const balance =
-      balanceOverride ?? Math.round((autoBreakdown.total - entry) * 100) / 100;
+    const balance = balanceOverride ?? Math.round((autoBreakdown.total - entry) * 100) / 100;
     return { ...autoBreakdown, entry, balance };
   }, [autoBreakdown, entryOverride, balanceOverride]);
-
 
   const mut = useMutation({
     mutationFn: async () => {
@@ -210,9 +195,7 @@ function NewQuotePage() {
           entry_override: entryOverride,
           balance_override: balanceOverride,
           packages: pkgList,
-          custom: customExtras.filter(
-            (e) => e.description.trim() !== "" || Number(e.value) > 0,
-          ),
+          custom: customExtras.filter((e) => e.description.trim() !== "" || Number(e.value) > 0),
         },
         notes: form.notes || null,
         total_value: breakdown.total,
@@ -257,8 +240,7 @@ function NewQuotePage() {
             .update({ status: "convertido" as any, converted_quote_id: data.id } as any)
             .eq("id", leadId);
 
-          const guestCount =
-            (Number(form.adults) || 0) + (Number(form.children_count) || 0);
+          const guestCount = (Number(form.adults) || 0) + (Number(form.children_count) || 0);
 
           const { data: existingEvent } = await supabase
             .from("events")
@@ -297,12 +279,13 @@ function NewQuotePage() {
       qc.invalidateQueries({ queryKey: ["agenda"] });
       qc.invalidateQueries({ queryKey: ["clients"] });
       qc.invalidateQueries({ queryKey: ["clients-select-full"] });
-      toast.success(quoteId ? "Orçamento atualizado!" : leadId ? "Orçamento criado e evento agendado!" : "Orçamento criado!");
+      toast.success(
+        quoteId ? "Orçamento atualizado!" : leadId ? "Orçamento criado e evento agendado!" : "Orçamento criado!",
+      );
       navigate({ to: leadId ? "/agenda" : "/orcamentos" });
     },
     onError: (e: Error) => toast.error(e.message),
   });
-
 
   // Prefill from lead when data arrives (only once). Never creates a client here.
   const [prefilled, setPrefilled] = useState(false);
@@ -318,7 +301,9 @@ function NewQuotePage() {
     // Resolve package: prefer package_id from lead; otherwise match by name (package_desired)
     let pkgId: string = (lead as any).package_id ?? "";
     if (!pkgId && (lead as any).package_desired && packages?.length) {
-      const target = String((lead as any).package_desired).trim().toLowerCase();
+      const target = String((lead as any).package_desired)
+        .trim()
+        .toLowerCase();
       const match = packages.find((p) => p.name.trim().toLowerCase() === target);
       if (match) pkgId = match.id;
     }
@@ -335,7 +320,6 @@ function NewQuotePage() {
     }));
     setPrefilled(true);
   }, [lead, packages, clients, leadId, prefilled, navigate]);
-
 
   // Prefill from an existing quote (e.g. pré-orçamento vindo do link público).
   const [prefilledQuote, setPrefilledQuote] = useState(false);
@@ -381,11 +365,6 @@ function NewQuotePage() {
     setPrefilledQuote(true);
   }, [quoteId, existingQuote, prefilledQuote, packages, clients]);
 
-
-
-
-
-
   return (
     <div className="max-w-5xl mx-auto space-y-6">
       <Link
@@ -405,35 +384,37 @@ function NewQuotePage() {
         </p>
       </div>
 
-      {quoteId && existingQuote && (() => {
-        const q: any = existingQuote;
-        const cli: any = q.clients ?? {};
-        const req: any = (q.extras as any)?.requester ?? {};
-        const rows: Array<[string, string]> = [
-          ["Nome", cli.name ?? req.name ?? "—"],
-          ["CPF/CNPJ", maskCpfCnpj(cli.cpf ?? req.cpf ?? "") || "—"],
-          ["Telefone", cli.phone ?? req.phone ?? "—"],
-          ["WhatsApp", cli.whatsapp ?? req.whatsapp ?? "—"],
-          ["E-mail", cli.email ?? req.email ?? "—"],
-          ["Endereço", cli.address ?? req.address ?? "—"],
-          ["Cidade", cli.city ?? req.city ?? "—"],
-        ];
-        return (
-          <div className="bg-muted/40 border border-border rounded-2xl p-4">
-            <div className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground mb-3">
-              Dados do solicitante (link público)
+      {quoteId &&
+        existingQuote &&
+        (() => {
+          const q: any = existingQuote;
+          const cli: any = q.clients ?? {};
+          const req: any = (q.extras as any)?.requester ?? {};
+          const rows: Array<[string, string]> = [
+            ["Nome", cli.name ?? req.name ?? "—"],
+            ["CPF/CNPJ", maskCpfCnpj(cli.cpf ?? req.cpf ?? "") || "—"],
+            ["Telefone", cli.phone ?? req.phone ?? "—"],
+            ["WhatsApp", cli.whatsapp ?? req.whatsapp ?? "—"],
+            ["E-mail", cli.email ?? req.email ?? "—"],
+            ["Endereço", cli.address ?? req.address ?? "—"],
+            ["Cidade", cli.city ?? req.city ?? "—"],
+          ];
+          return (
+            <div className="bg-muted/40 border border-border rounded-2xl p-4">
+              <div className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground mb-3">
+                Dados do solicitante (link público)
+              </div>
+              <dl className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2 text-sm">
+                {rows.map(([k, v]) => (
+                  <div key={k} className="flex gap-2">
+                    <dt className="text-muted-foreground min-w-24">{k}:</dt>
+                    <dd className="font-medium break-all">{v || "—"}</dd>
+                  </div>
+                ))}
+              </dl>
             </div>
-            <dl className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2 text-sm">
-              {rows.map(([k, v]) => (
-                <div key={k} className="flex gap-2">
-                  <dt className="text-muted-foreground min-w-24">{k}:</dt>
-                  <dd className="font-medium break-all">{v || "—"}</dd>
-                </div>
-              ))}
-            </dl>
-          </div>
-        );
-      })()}
+          );
+        })()}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <form
@@ -454,10 +435,7 @@ function NewQuotePage() {
                   <Input readOnly value={(lead as any).email ?? ""} placeholder="E-mail" />
                 </div>
               ) : (
-                <Select
-                  value={form.client_id}
-                  onValueChange={(v) => setForm((f) => ({ ...f, client_id: v }))}
-                >
+                <Select value={form.client_id} onValueChange={(v) => setForm((f) => ({ ...f, client_id: v }))}>
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione…" />
                   </SelectTrigger>
@@ -468,15 +446,12 @@ function NewQuotePage() {
                       </SelectItem>
                     ))}
                     {(clients ?? []).length === 0 && (
-                      <div className="p-4 text-xs text-muted-foreground">
-                        Cadastre um cliente antes.
-                      </div>
+                      <div className="p-4 text-xs text-muted-foreground">Cadastre um cliente antes.</div>
                     )}
                   </SelectContent>
                 </Select>
               )}
             </div>
-
 
             <div className="space-y-2 md:col-span-2">
               <div className="flex items-center justify-between">
@@ -497,11 +472,7 @@ function NewQuotePage() {
                     <div className="flex-1">
                       <Select
                         value={pid}
-                        onValueChange={(v) =>
-                          setPackageLines((arr) =>
-                            arr.map((x, idx) => (idx === i ? v : x)),
-                          )
-                        }
+                        onValueChange={(v) => setPackageLines((arr) => arr.map((x, idx) => (idx === i ? v : x)))}
                       >
                         <SelectTrigger>
                           <SelectValue placeholder="Selecione um pacote…" />
@@ -550,9 +521,7 @@ function NewQuotePage() {
                         type="button"
                         variant="ghost"
                         size="icon"
-                        onClick={() =>
-                          setPackageLines((arr) => arr.filter((_, idx) => idx !== i))
-                        }
+                        onClick={() => setPackageLines((arr) => arr.filter((_, idx) => idx !== i))}
                         aria-label="Remover pacote"
                       >
                         <Trash2 className="size-4" />
@@ -605,11 +574,7 @@ function NewQuotePage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <NumField
-              label="Adultos"
-              value={form.adults}
-              onChange={(v) => setForm((f) => ({ ...f, adults: v }))}
-            />
+            <NumField label="Adultos" value={form.adults} onChange={(v) => setForm((f) => ({ ...f, adults: v }))} />
             <div className="space-y-2">
               <Label>Preço por pessoa (R$)</Label>
               <Input
@@ -619,9 +584,7 @@ function NewQuotePage() {
                 value={effectivePrice}
                 onChange={(e) => setPriceOverride(Number(e.target.value) || 0)}
               />
-              <p className="text-[10px] text-muted-foreground">
-                Edite livremente o valor por adulto.
-              </p>
+              <p className="text-[10px] text-muted-foreground">Edite livremente o valor por adulto.</p>
             </div>
             <NumField
               label="Nº de crianças"
@@ -635,7 +598,6 @@ function NewQuotePage() {
               step="0.01"
             />
           </div>
-
 
           <div className="grid grid-cols-2 gap-3 pt-2">
             <ToggleRow
@@ -657,16 +619,15 @@ function NewQuotePage() {
                 type="button"
                 variant="outline"
                 size="sm"
-                onClick={() =>
-                  setCustomExtras((arr) => [...arr, { description: "", value: 0 }])
-                }
+                onClick={() => setCustomExtras((arr) => [...arr, { description: "", value: 0 }])}
               >
                 <Plus className="size-3.5" /> Adicionar
               </Button>
             </div>
             {customExtras.length === 0 && (
               <p className="text-xs text-muted-foreground">
-                Nenhum acréscimo. Clique em "Adicionar" para incluir itens extras (ex.: taxa de deslocamento, decoração).
+                Nenhum acréscimo. Clique em "Adicionar" para incluir itens extras (ex.: taxa de deslocamento,
+                decoração).
               </p>
             )}
             {customExtras.map((ex, i) => (
@@ -678,9 +639,7 @@ function NewQuotePage() {
                     placeholder="Ex.: Taxa de deslocamento"
                     onChange={(e) =>
                       setCustomExtras((arr) =>
-                        arr.map((it, idx) =>
-                          idx === i ? { ...it, description: e.target.value } : it,
-                        ),
+                        arr.map((it, idx) => (idx === i ? { ...it, description: e.target.value } : it)),
                       )
                     }
                   />
@@ -694,11 +653,7 @@ function NewQuotePage() {
                     value={ex.value}
                     onChange={(e) =>
                       setCustomExtras((arr) =>
-                        arr.map((it, idx) =>
-                          idx === i
-                            ? { ...it, value: Number(e.target.value) || 0 }
-                            : it,
-                        ),
+                        arr.map((it, idx) => (idx === i ? { ...it, value: Number(e.target.value) || 0 } : it)),
                       )
                     }
                   />
@@ -707,16 +662,13 @@ function NewQuotePage() {
                   type="button"
                   variant="ghost"
                   size="icon"
-                  onClick={() =>
-                    setCustomExtras((arr) => arr.filter((_, idx) => idx !== i))
-                  }
+                  onClick={() => setCustomExtras((arr) => arr.filter((_, idx) => idx !== i))}
                 >
                   <Trash2 className="size-4" />
                 </Button>
               </div>
             ))}
           </div>
-
 
           <div className="space-y-2">
             <Label>Forma de pagamento *</Label>
@@ -740,19 +692,11 @@ function NewQuotePage() {
 
           <div className="space-y-2">
             <Label>Observações</Label>
-            <Textarea
-              rows={3}
-              value={form.notes}
-              onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
-            />
+            <Textarea rows={3} value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} />
           </div>
 
           <div className="flex flex-wrap justify-end gap-2 pt-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => navigate({ to: "/orcamentos" })}
-            >
+            <Button type="button" variant="outline" onClick={() => navigate({ to: "/orcamentos" })}>
               Cancelar
             </Button>
             <Button
@@ -782,7 +726,11 @@ function NewQuotePage() {
                   }
                   await openQuotePdf({
                     issuedAt: new Date(),
-                    validUntil: (() => { const d = new Date(); d.setDate(d.getDate() + 7); return d; })(),
+                    validUntil: (() => {
+                      const d = new Date();
+                      d.setDate(d.getDate() + 7);
+                      return d;
+                    })(),
                     client: clientForPdf,
 
                     event: {
@@ -799,9 +747,7 @@ function NewQuotePage() {
                     },
 
                     childPrice: form.child_price,
-                    extras: customExtras.filter(
-                      (e) => e.description.trim() !== "" || Number(e.value) > 0,
-                    ),
+                    extras: customExtras.filter((e) => e.description.trim() !== "" || Number(e.value) > 0),
                     breakdown,
                     paymentMethod: form.payment_method,
                     notes: form.notes,
@@ -820,17 +766,12 @@ function NewQuotePage() {
               {mut.isPending ? "Salvando…" : "Salvar orçamento"}
             </Button>
           </div>
-
         </form>
 
         <aside className="bg-card border border-border rounded-2xl p-6 space-y-4 h-fit sticky top-20">
           <div>
-            <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">
-              Resumo
-            </div>
-            <div className="text-xs text-muted-foreground mt-1">
-              Cálculo automático em tempo real
-            </div>
+            <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">Resumo</div>
+            <div className="text-xs text-muted-foreground mt-1">Cálculo automático em tempo real</div>
           </div>
 
           <SummaryRow label="Adultos" value={brl(breakdown.adultsSubtotal)} />
@@ -845,12 +786,8 @@ function NewQuotePage() {
           <div className="h-px bg-border" />
 
           <div className="flex justify-between items-baseline">
-            <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-              Total
-            </span>
-            <span className="text-2xl font-extrabold text-primary font-mono">
-              {brl(breakdown.total)}
-            </span>
+            <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Total</span>
+            <span className="text-2xl font-extrabold text-primary font-mono">{brl(breakdown.total)}</span>
           </div>
 
           <div className="pt-2 space-y-2 text-xs">
@@ -889,7 +826,6 @@ function NewQuotePage() {
   );
 }
 
-
 function NumField({
   label,
   value,
@@ -904,34 +840,15 @@ function NumField({
   return (
     <div className="space-y-2">
       <Label>{label}</Label>
-      <Input
-        type="number"
-        min={0}
-        step={step}
-        value={value}
-        onChange={(e) => onChange(Number(e.target.value) || 0)}
-      />
+      <Input type="number" min={0} step={step} value={value} onChange={(e) => onChange(Number(e.target.value) || 0)} />
     </div>
   );
 }
 
-function ToggleRow({
-  label,
-  checked,
-  onChange,
-}: {
-  label: string;
-  checked: boolean;
-  onChange: (v: boolean) => void;
-}) {
+function ToggleRow({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
   return (
     <label className="flex items-center gap-2 border border-border rounded-lg px-3 py-2 cursor-pointer hover:bg-muted/40">
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={(e) => onChange(e.target.checked)}
-        className="size-4"
-      />
+      <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} className="size-4" />
       <span className="text-sm">{label}</span>
     </label>
   );
