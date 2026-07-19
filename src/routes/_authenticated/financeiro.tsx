@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
-import { Plus, TrendingUp, TrendingDown, Wallet, Construction, Pencil, Trash2 } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Plus, TrendingUp, TrendingDown, Wallet, Construction, Pencil, Trash2, Calendar } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { brl, formatDateBR } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -35,11 +35,14 @@ const statusStyles: Record<string, string> = {
   cancelado: "bg-muted text-muted-foreground",
 };
 
+type PeriodFilter = "todos" | "dia" | "semana" | "mes" | "ano";
+
 function FinanceiroPage() {
   const qc = useQueryClient();
   const [openDialog, setOpenDialog] = useState(false);
   const [editingTx, setEditingTx] = useState<any | null>(null);
   const [filter, setFilter] = useState<"todos" | "entrada" | "saida">("todos");
+  const [period, setPeriod] = useState<PeriodFilter>("todos");
 
   const { data: txs } = useQuery({
     queryKey: ["transactions"],
@@ -52,7 +55,6 @@ function FinanceiroPage() {
     },
   });
 
-  // Mutation para Excluir Transação
   const deleteMut = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase.from("transactions").delete().eq("id", id);
@@ -81,10 +83,53 @@ function FinanceiroPage() {
     setOpenDialog(true);
   };
 
+  // Exclui transações vinculadas a eventos cancelados
   const active = (txs ?? []).filter((t: any) => t.events?.status !== "cancelado" && t.status !== "cancelado");
-  const filtered = active.filter((t) => (filter === "todos" ? true : t.type === filter));
 
-  const totals = active.reduce(
+  // Filtro de Data (Dia, Semana, Mês, Ano)
+  const filterByPeriod = (t: any) => {
+    if (period === "todos") return true;
+    if (!t.due_date) return false;
+
+    const txDate = new Date(t.due_date + "T00:00:00");
+    const now = new Date();
+
+    if (period === "dia") {
+      return (
+        txDate.getDate() === now.getDate() &&
+        txDate.getMonth() === now.getMonth() &&
+        txDate.getFullYear() === now.getFullYear()
+      );
+    }
+
+    if (period === "semana") {
+      const startOfWeek = new Date(now);
+      startOfWeek.setDate(now.getDate() - now.getDay());
+      startOfWeek.setHours(0, 0, 0, 0);
+
+      const endOfWeek = new Date(startOfWeek);
+      endOfWeek.setDate(startOfWeek.getDate() + 6);
+      endOfWeek.setHours(23, 59, 59, 999);
+
+      return txDate >= startOfWeek && txDate <= endOfWeek;
+    }
+
+    if (period === "mes") {
+      return txDate.getMonth() === now.getMonth() && txDate.getFullYear() === now.getFullYear();
+    }
+
+    if (period === "ano") {
+      return txDate.getFullYear() === now.getFullYear();
+    }
+
+    return true;
+  };
+
+  const periodFiltered = active.filter(filterByPeriod);
+  const filtered = periodFiltered.filter((t) => (filter === "todos" ? true : t.type === filter));
+
+  // Totais considerando o período selecionado
+  const totals = periodFiltered.reduce(
     (acc, t) => {
       const v = Number(t.amount ?? 0);
       if (t.type === "entrada" && t.status === "pago") acc.entradas += v;
@@ -119,19 +164,42 @@ function FinanceiroPage() {
         <Card icon={Wallet} label="Pendente Líquido" value={brl(totals.pendentes)} tone="amber" />
       </div>
 
-      <div className="flex gap-2">
-        {(["todos", "entrada", "saida"] as const).map((f) => (
-          <button
-            key={f}
-            onClick={() => setFilter(f)}
-            className={cn(
-              "px-3 py-1.5 text-xs font-bold rounded-full border",
-              filter === f ? "bg-primary text-primary-foreground border-primary" : "border-border",
-            )}
-          >
-            {f === "todos" ? "Todos" : f === "entrada" ? "Entradas" : "Saídas"}
-          </button>
-        ))}
+      {/* Bar de Filtros: Tipo + Período */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        {/* Filtro por Tipo */}
+        <div className="flex gap-2">
+          {(["todos", "entrada", "saida"] as const).map((f) => (
+            <button
+              key={f}
+              onClick={() => setFilter(f)}
+              className={cn(
+                "px-3 py-1.5 text-xs font-bold rounded-full border transition-colors",
+                filter === f ? "bg-primary text-primary-foreground border-primary" : "border-border hover:bg-muted",
+              )}
+            >
+              {f === "todos" ? "Todos" : f === "entrada" ? "Entradas" : "Saídas"}
+            </button>
+          ))}
+        </div>
+
+        {/* Filtro por Período */}
+        <div className="flex items-center gap-1 bg-muted/50 p-1 rounded-full border border-border">
+          <Calendar className="size-3.5 ml-2 text-muted-foreground" />
+          {(["todos", "dia", "semana", "mes", "ano"] as const).map((p) => (
+            <button
+              key={p}
+              onClick={() => setPeriod(p)}
+              className={cn(
+                "px-3 py-1 text-xs font-semibold rounded-full capitalize transition-colors",
+                period === p
+                  ? "bg-background text-foreground shadow-sm font-bold"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {p === "todos" ? "Tudo" : p === "mes" ? "Mês" : p}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
@@ -159,7 +227,10 @@ function FinanceiroPage() {
                 <td className="px-4 py-4 text-xs uppercase">{t.method}</td>
                 <td className="px-4 py-4">
                   <span
-                    className={cn("px-2 py-1 text-[10px] rounded-full font-bold uppercase", statusStyles[t.status])}
+                    className={cn(
+                      "px-2 py-1 text-[10px] rounded-full font-bold uppercase",
+                      statusStyles[t.status?.toLowerCase()],
+                    )}
                   >
                     {t.status}
                   </span>
@@ -195,7 +266,7 @@ function FinanceiroPage() {
             {filtered.length === 0 && (
               <tr>
                 <td colSpan={6} className="p-10 text-center text-sm text-muted-foreground">
-                  Nenhuma transação registrada.
+                  Nenhuma transação registrada neste período.
                 </td>
               </tr>
             )}
@@ -231,14 +302,39 @@ function TxDialog({ initialData, onClose }: { initialData?: any; onClose: () => 
   const todayLocal = new Date().toLocaleDateString("sv-SE");
 
   const [form, setForm] = useState({
-    type: initialData?.type ?? "entrada",
-    description: initialData?.description ?? "",
-    amount: initialData?.amount ?? "",
-    method: initialData?.method ?? "pix",
-    status: initialData?.status ?? "pendente",
-    due_date: initialData?.due_date ?? todayLocal,
-    category: initialData?.category ?? "",
+    type: "entrada" as "entrada" | "saida",
+    description: "",
+    amount: "",
+    method: "pix",
+    status: "pendente",
+    due_date: todayLocal,
+    category: "",
   });
+
+  // Garante que o formulário atualize corretamente ao abrir para editar ou criar
+  useEffect(() => {
+    if (initialData) {
+      setForm({
+        type: initialData.type ?? "entrada",
+        description: initialData.description ?? "",
+        amount: initialData.amount ? String(initialData.amount) : "",
+        method: initialData.method?.toLowerCase() ?? "pix",
+        status: initialData.status?.toLowerCase() ?? "pendente",
+        due_date: initialData.due_date ?? todayLocal,
+        category: initialData.category ?? "",
+      });
+    } else {
+      setForm({
+        type: "entrada",
+        description: "",
+        amount: "",
+        method: "pix",
+        status: "pendente",
+        due_date: todayLocal,
+        category: "",
+      });
+    }
+  }, [initialData]);
 
   const mut = useMutation({
     mutationFn: async () => {
@@ -258,11 +354,9 @@ function TxDialog({ initialData, onClose }: { initialData?: any; onClose: () => 
       };
 
       if (initialData?.id) {
-        // Atualiza transação existente
         const { error } = await supabase.from("transactions").update(payload).eq("id", initialData.id);
         if (error) throw error;
       } else {
-        // Cria nova transação
         const { error } = await supabase.from("transactions").insert(payload);
         if (error) throw error;
       }
@@ -285,26 +379,30 @@ function TxDialog({ initialData, onClose }: { initialData?: any; onClose: () => 
         className="bg-card border border-border rounded-2xl p-6 w-full max-w-md space-y-3 max-h-[90vh] overflow-y-auto"
       >
         <h3 className="text-lg font-extrabold">{initialData?.id ? "Editar transação" : "Nova transação"}</h3>
+
         <div className="grid grid-cols-2 gap-2">
           <button
-            onClick={() => setForm({ ...form, type: "entrada" })}
+            type="button"
+            onClick={() => setForm((prev) => ({ ...prev, type: "entrada" }))}
             className={cn(
-              "h-10 rounded-lg text-sm font-bold border",
+              "h-10 rounded-lg text-sm font-bold border transition-colors",
               form.type === "entrada" ? "bg-emerald-500 text-white border-emerald-500" : "border-border",
             )}
           >
             Entrada
           </button>
           <button
-            onClick={() => setForm({ ...form, type: "saida" })}
+            type="button"
+            onClick={() => setForm((prev) => ({ ...prev, type: "saida" }))}
             className={cn(
-              "h-10 rounded-lg text-sm font-bold border",
+              "h-10 rounded-lg text-sm font-bold border transition-colors",
               form.type === "saida" ? "bg-rose-500 text-white border-rose-500" : "border-border",
             )}
           >
             Saída
           </button>
         </div>
+
         <input
           placeholder="Descrição"
           value={form.description}
@@ -317,9 +415,11 @@ function TxDialog({ initialData, onClose }: { initialData?: any; onClose: () => 
           onChange={(e) => setForm({ ...form, category: e.target.value })}
           className="w-full h-10 px-3 border border-border rounded-lg bg-background text-sm"
         />
+
         <div className="grid grid-cols-2 gap-2">
           <input
             type="number"
+            step="0.01"
             placeholder="Valor"
             value={form.amount}
             onChange={(e) => setForm({ ...form, amount: e.target.value })}
@@ -332,11 +432,12 @@ function TxDialog({ initialData, onClose }: { initialData?: any; onClose: () => 
             className="h-10 px-3 border border-border rounded-lg bg-background text-sm"
           />
         </div>
+
         <div className="grid grid-cols-2 gap-2">
           <select
             value={form.method}
-            onChange={(e) => setForm({ ...form, method: e.target.value })}
-            className="h-10 px-3 border border-border rounded-lg bg-background text-sm"
+            onChange={(e) => setForm((prev) => ({ ...prev, method: e.target.value }))}
+            className="h-10 px-3 border border-border rounded-lg bg-background text-sm cursor-pointer"
           >
             <option value="pix">PIX</option>
             <option value="dinheiro">Dinheiro</option>
@@ -345,10 +446,11 @@ function TxDialog({ initialData, onClose }: { initialData?: any; onClose: () => 
             <option value="transferencia">Transferência</option>
             <option value="outro">Outro</option>
           </select>
+
           <select
             value={form.status}
-            onChange={(e) => setForm({ ...form, status: e.target.value })}
-            className="h-10 px-3 border border-border rounded-lg bg-background text-sm"
+            onChange={(e) => setForm((prev) => ({ ...prev, status: e.target.value }))}
+            className="h-10 px-3 border border-border rounded-lg bg-background text-sm cursor-pointer"
           >
             <option value="pendente">Pendente</option>
             <option value="pago">Pago</option>
@@ -356,11 +458,17 @@ function TxDialog({ initialData, onClose }: { initialData?: any; onClose: () => 
             <option value="cancelado">Cancelado</option>
           </select>
         </div>
+
         <div className="flex gap-2 pt-2">
-          <button onClick={onClose} className="flex-1 h-10 rounded-lg border border-border text-sm font-bold">
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex-1 h-10 rounded-lg border border-border text-sm font-bold"
+          >
             Cancelar
           </button>
           <button
+            type="button"
             disabled={!form.description || !form.amount || mut.isPending}
             onClick={() => mut.mutate()}
             className="flex-1 h-10 rounded-lg bg-primary text-primary-foreground text-sm font-bold disabled:opacity-50"
