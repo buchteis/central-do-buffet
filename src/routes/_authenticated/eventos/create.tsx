@@ -6,6 +6,7 @@ import { brl } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { ArrowLeft } from "lucide-react";
+import { ChecklistPreDefinido } from "@/components/ChecklistPreDefinido";
 
 type EventStatus =
   | "agendado"
