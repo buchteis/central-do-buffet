@@ -768,6 +768,27 @@ function NewQuotePage() {
           </div>
         </form>
 
+        <div className="lg:col-span-2">
+          <ChecklistPreDefinido
+            guests={(Number(form.adults) || 0) + (Number(form.children_count) || 0)}
+            eventName={form.event_type || null}
+            clientName={
+              (clients ?? []).find((c: any) => c.id === form.client_id)?.name ??
+              (lead as any)?.name ??
+              null
+            }
+            eventDate={form.event_date || null}
+            eventTime={form.event_time || null}
+            eventAddress={form.event_address || null}
+            phone={
+              (clients ?? []).find((c: any) => c.id === form.client_id)?.phone ??
+              (lead as any)?.phone ??
+              (lead as any)?.whatsapp ??
+              null
+            }
+          />
+        </div>
+
         <aside className="bg-card border border-border rounded-2xl p-6 space-y-4 h-fit sticky top-20">
           <div>
             <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">Resumo</div>
