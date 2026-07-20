@@ -6,6 +6,7 @@ import { brl } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { ArrowLeft } from "lucide-react";
+import { ChecklistPreDefinido } from "@/components/ChecklistPreDefinido";
 
 type EventStatus =
   | "agendado"
@@ -250,6 +251,14 @@ function CreateEventPage() {
           </button>
         </div>
       </form>
+
+      <ChecklistPreDefinido
+        guests={Number(formData.guest_count) || 0}
+        clientName={clients?.find((c) => c.id === formData.client_id)?.name ?? null}
+        eventDate={formData.event_date || null}
+        eventTime={formData.event_time || null}
+        eventAddress={formData.event_address || null}
+      />
     </div>
   );
 }
