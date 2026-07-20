@@ -1,10 +1,11 @@
-import { useMemo, useState } from "react";
-import { ClipboardCheck, Send, Copy } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { ClipboardCheck, Send, Copy, Plus, Trash2, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import { waLink } from "@/lib/whatsapp";
 import { copyToClipboard } from "@/lib/clipboard";
 import { formatDateFullBR } from "@/lib/format";
 import { cn } from "@/lib/utils";
+
 
 export type ChecklistTemplateKey =
   | "casamento"
@@ -189,15 +190,33 @@ export function ChecklistPreDefinido({
     [templateKey],
   );
 
-  const items = useMemo(
-    () =>
-      template.items.map((rule) => ({
-        label: rule.label,
-        unit: rule.unit,
-        qty: computeQuantity(rule, guests),
-      })),
-    [template, guests],
-  );
+  type EditableItem = { id: string; label: string; qty: number; unit?: string };
+
+  const buildItems = (tpl: Template, g: number): EditableItem[] =>
+    tpl.items.map((rule, idx) => ({
+      id: `${tpl.key}-${idx}-${rule.label}`,
+      label: rule.label,
+      unit: rule.unit,
+      qty: computeQuantity(rule, g),
+    }));
+
+  const [items, setItems] = useState<EditableItem[]>(() => buildItems(template, guests));
+
+  // Recalculate when template or guest count changes
+  useEffect(() => {
+    setItems(buildItems(template, guests));
+  }, [template, guests]);
+
+  const updateItem = (id: string, patch: Partial<EditableItem>) => {
+    setItems((prev) => prev.map((i) => (i.id === id ? { ...i, ...patch } : i)));
+  };
+  const removeItem = (id: string) => setItems((prev) => prev.filter((i) => i.id !== id));
+  const addItem = () =>
+    setItems((prev) => [
+      ...prev,
+      { id: `custom-${Date.now()}`, label: "Novo item", qty: 1, unit: "un" },
+    ]);
+  const resetItems = () => setItems(buildItems(template, guests));
 
   const message = useMemo(() => {
     const lines: string[] = [];
@@ -223,7 +242,7 @@ export function ChecklistPreDefinido({
         <div>
           <div className="text-sm font-bold">Checklist pré-definido</div>
           <div className="text-xs text-muted-foreground">
-            Itens recalculados automaticamente para {guests || 0} convidados
+            Itens recalculados automaticamente para {guests || 0} convidados — edite nome e quantidade livremente
           </div>
         </div>
       </div>
@@ -247,14 +266,62 @@ export function ChecklistPreDefinido({
         ))}
       </div>
 
-      <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
+      <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 text-sm">
         {items.map((i) => (
-          <li key={i.label} className="flex items-center justify-between border-b border-dashed border-border/60 py-1">
-            <span className="text-slate-700">{i.label}</span>
-            <span className="font-mono font-semibold">{formatQty(i.qty, i.unit)}</span>
+          <li
+            key={i.id}
+            className="flex items-center gap-2 border-b border-dashed border-border/60 py-1"
+          >
+            <input
+              type="text"
+              value={i.label}
+              onChange={(e) => updateItem(i.id, { label: e.target.value })}
+              className="flex-1 min-w-0 bg-transparent px-1 py-0.5 rounded outline-none text-slate-700 focus:bg-muted/60 focus:ring-1 focus:ring-primary/30"
+            />
+            <input
+              type="number"
+              step="0.1"
+              min="0"
+              value={i.qty}
+              onChange={(e) => updateItem(i.id, { qty: Number(e.target.value) || 0 })}
+              className="w-20 text-right bg-transparent px-1 py-0.5 rounded font-mono font-semibold outline-none focus:bg-muted/60 focus:ring-1 focus:ring-primary/30"
+            />
+            <input
+              type="text"
+              value={i.unit ?? ""}
+              onChange={(e) => updateItem(i.id, { unit: e.target.value || undefined })}
+              placeholder="un"
+              className="w-12 text-xs bg-transparent px-1 py-0.5 rounded outline-none text-muted-foreground focus:bg-muted/60 focus:ring-1 focus:ring-primary/30"
+            />
+            <button
+              type="button"
+              onClick={() => removeItem(i.id)}
+              className="text-muted-foreground hover:text-destructive transition-colors"
+              title="Remover item"
+            >
+              <Trash2 className="size-4" />
+            </button>
           </li>
         ))}
       </ul>
+
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={addItem}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dashed border-border text-xs font-medium hover:bg-muted transition-colors"
+        >
+          <Plus className="size-3.5" /> Adicionar item
+        </button>
+        <button
+          type="button"
+          onClick={resetItems}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border text-xs font-medium hover:bg-muted transition-colors"
+        >
+          <RotateCcw className="size-3.5" /> Restaurar padrão
+        </button>
+      </div>
+
 
       <div className="space-y-2 pt-2 border-t border-border">
         <label className="text-xs font-medium text-muted-foreground">
