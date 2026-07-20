@@ -1,10 +1,11 @@
-import { useMemo, useState } from "react";
-import { ClipboardCheck, Send, Copy } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { ClipboardCheck, Send, Copy, Plus, Trash2, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import { waLink } from "@/lib/whatsapp";
 import { copyToClipboard } from "@/lib/clipboard";
 import { formatDateFullBR } from "@/lib/format";
 import { cn } from "@/lib/utils";
+
 
 export type ChecklistTemplateKey =
   | "casamento"
