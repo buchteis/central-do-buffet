@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { ClipboardCheck, Send, Copy } from "lucide-react";
 import { toast } from "sonner";
 import { waLink } from "@/lib/whatsapp";
-import { copyText } from "@/lib/clipboard";
+import { copyToClipboard } from "@/lib/clipboard";
 import { formatDateFullBR } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
