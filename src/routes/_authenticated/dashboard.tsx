@@ -132,20 +132,30 @@ function Dashboard() {
     return { pendentes, aprovados, concluidos, previsiveis };
   });
 
+  // ✅ CORRIGIDO: Agora calcula entradas pagas, despesas pagas e a receber
   const transactionsData = useDashboardQuery("transactions-data", async () => {
     const { data } = await supabase.from("transactions").select("id, amount, type, status, paid_date, due_date");
+
     const recebido =
       data
         ?.filter((t) => t.type === "entrada" && t.status === "pago")
         .reduce((sum, t) => sum + Number(t.amount || 0), 0) || 0;
+
+    const despesasPagas =
+      data
+        ?.filter((t) => t.type === "saida" && t.status === "pago")
+        .reduce((sum, t) => sum + Number(t.amount || 0), 0) || 0;
+
     const aReceber =
       data
         ?.filter((t) => t.type === "entrada" && t.status === "pendente")
         .reduce((sum, t) => sum + Number(t.amount || 0), 0) || 0;
+
     const vencidos =
       data?.filter((t) => t.type === "entrada" && t.status === "pendente" && t.due_date && t.due_date < today).length ||
       0;
-    return { recebido, aReceber, vencidos };
+
+    return { recebido, despesasPagas, aReceber, vencidos };
   });
 
   const clientsCount = useDashboardQuery("clients-count", async () => {
@@ -189,7 +199,6 @@ function Dashboard() {
     return count ?? 0;
   });
 
-  // 🆕 QUERY PARA PACOTES
   const packagesCount = useDashboardQuery("packages-count", async () => {
     const { count } = await supabase.from("packages").select("id", { count: "exact", head: true });
     return count ?? 0;
@@ -235,6 +244,7 @@ function Dashboard() {
     qPend: quotesData.data?.pendentes ?? 0,
     qApr: quotesData.data?.aprovados ?? 0,
     revenueReceived: transactionsData.data?.recebido ?? 0,
+    despesasPagas: transactionsData.data?.despesasPagas ?? 0, // ✅ ADICIONADO
     toReceive: transactionsData.data?.aReceber ?? 0,
     txOverdue: transactionsData.data?.vencidos ?? 0,
     faturamentoConcluido: quotesData.data?.concluidos ?? 0,
@@ -244,7 +254,7 @@ function Dashboard() {
     staffToday: staffToday.data ?? 0,
     employeesActive: employeesActive.data ?? 0,
     contractsPending: contractsPending.data ?? 0,
-    packagesCount: packagesCount.data ?? 0, // 🆕 PACOTES
+    packagesCount: packagesCount.data ?? 0,
     upcoming: upcoming.data ?? [],
     alertsPay: alertsPay.data ?? [],
     alertsEvTomorrow: alertsEvTomorrow.data ?? [],
@@ -343,9 +353,10 @@ function Dashboard() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <FinanceCard label="Receita recebida" value={brl(stats.revenueReceived)} icon={TrendingUp} color="emerald" />
           <FinanceCard label="A receber" value={brl(stats.toReceive)} icon={Clock} color="amber" />
+          {/* ✅ CORRIGIDO: Saldo atual = Receita Recebida - Despesas Pagas */}
           <FinanceCard
             label="Saldo atual"
-            value={brl(stats.revenueReceived - stats.toReceive)}
+            value={brl(stats.revenueReceived - stats.despesasPagas)}
             icon={Wallet}
             color="sky"
           />
@@ -384,7 +395,6 @@ function Dashboard() {
             <Building2 className="size-5 text-violet-600" />
             Operacional
           </h2>
-          {/* ✅ CORRIGIDO: /funcionarios em vez de /profissionais */}
           <Link
             to="/funcionarios"
             className="text-xs font-medium text-violet-600 hover:underline flex items-center gap-1"
@@ -414,7 +424,6 @@ function Dashboard() {
             color="rose"
             subtitle="para assinar"
           />
-          {/* ✅ CORRIGIDO: Pacotes mostrando número real */}
           <MetricCard label="Pacotes" value={stats.packagesCount} icon={Package} color="gray" subtitle="cadastrados" />
         </div>
       </section>
@@ -476,38 +485,39 @@ function Dashboard() {
           )}
         </div>
 
-        {/* ===== PENDÊNCIAS ===== */}
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="p-5 md:p-6 border-b border-slate-100">
-            <h2 className="font-extrabold text-lg tracking-tight text-slate-800 flex items-center gap-2">
-              <AlertTriangle className="size-5 text-amber-600" />
-              Pendências
-            </h2>
-            <p className="text-xs text-muted-foreground mt-0.5">O que precisa da sua atenção</p>
+        {/* ===== PENDÊNCIAS / ALERTAS ===== */}
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col justify-between">
+          <div>
+            <div className="p-5 md:p-6 border-b border-slate-100">
+              <h2 className="font-extrabold text-lg tracking-tight text-slate-800 flex items-center gap-2">
+                <AlertTriangle className="size-5 text-amber-600" />
+                Atenção / Pendências
+              </h2>
+              <p className="text-xs text-muted-foreground mt-0.5">Ações prioritárias para o seu dia</p>
+            </div>
+            <div className="p-5 space-y-4">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-slate-600">Pagamentos em atraso:</span>
+                <span className="font-bold text-red-600">{stats.txOverdue}</span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-slate-600">Contratos p/ assinar:</span>
+                <span className="font-bold text-amber-600">{stats.contractsPending}</span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-slate-600">Orçamentos pendentes:</span>
+                <span className="font-bold text-blue-600">{stats.qPend}</span>
+              </div>
+            </div>
           </div>
-          <div className="divide-y divide-slate-100">
-            {stats.alertsPay.map((t: any) => (
-              <div key={t.id} className="p-4 flex items-start gap-3">
-                <AlertTriangle className="size-4 text-red-500 shrink-0 mt-0.5" />
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-semibold text-slate-700 truncate">{t.description}</div>
-                  <div className="text-[11px] text-muted-foreground">Venceu em {formatDateBR(t.due_date)}</div>
-                </div>
-                <span className="text-xs font-mono font-bold text-red-600">{brl(t.amount)}</span>
-              </div>
-            ))}
-            {stats.alertsEvTomorrow.map((e: any) => (
-              <div key={e.id} className="p-4 flex items-start gap-3">
-                <CalendarCheck className="size-4 text-blue-500 shrink-0 mt-0.5" />
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-semibold text-slate-700 truncate">Evento amanhã — {e.clients?.name}</div>
-                  <div className="text-[11px] text-muted-foreground">{e.event_time?.slice(0, 5) ?? ""}</div>
-                </div>
-              </div>
-            ))}
-            {stats.alertsPay.length === 0 && stats.alertsEvTomorrow.length === 0 && (
-              <div className="p-10 text-center text-xs text-muted-foreground">Nenhuma pendência. 🎉</div>
-            )}
+
+          <div className="p-4 bg-slate-50 border-t border-slate-100">
+            <Link
+              to="/financeiro"
+              className="w-full py-2.5 px-4 bg-white border border-slate-200 hover:bg-slate-100 rounded-xl text-xs font-bold text-slate-700 flex items-center justify-center gap-2 transition-colors shadow-sm"
+            >
+              Ir para gestão financeira <ArrowRight className="size-3.5" />
+            </Link>
           </div>
         </div>
       </div>
@@ -517,111 +527,35 @@ function Dashboard() {
   );
 }
 
-// ===== COMPONENTES AUXILIARES =====
-
-function MetricCard({
-  label,
-  value,
-  icon: Icon,
-  color,
-  subtitle,
-}: {
-  label: string;
-  value: string | number;
-  icon: any;
-  color:
-    | "blue"
-    | "indigo"
-    | "purple"
-    | "emerald"
-    | "orange"
-    | "green"
-    | "cyan"
-    | "teal"
-    | "violet"
-    | "fuchsia"
-    | "rose"
-    | "gray"
-    | "sky"
-    | "amber";
-  subtitle?: string;
-}) {
-  const colorClasses = {
-    blue: "bg-blue-50 text-blue-700 border-blue-200",
-    indigo: "bg-indigo-50 text-indigo-700 border-indigo-200",
-    purple: "bg-purple-50 text-purple-700 border-purple-200",
-    emerald: "bg-emerald-50 text-emerald-700 border-emerald-200",
-    orange: "bg-orange-50 text-orange-700 border-orange-200",
-    green: "bg-green-50 text-green-700 border-green-200",
-    cyan: "bg-cyan-50 text-cyan-700 border-cyan-200",
-    teal: "bg-teal-50 text-teal-700 border-teal-200",
-    violet: "bg-violet-50 text-violet-700 border-violet-200",
-    fuchsia: "bg-fuchsia-50 text-fuchsia-700 border-fuchsia-200",
-    rose: "bg-rose-50 text-rose-700 border-rose-200",
-    gray: "bg-gray-50 text-gray-700 border-gray-200",
-    sky: "bg-sky-50 text-sky-700 border-sky-200",
-    amber: "bg-amber-50 text-amber-700 border-amber-200",
-  };
-
-  const iconColor = {
-    blue: "text-blue-600",
-    indigo: "text-indigo-600",
-    purple: "text-purple-600",
-    emerald: "text-emerald-600",
-    orange: "text-orange-600",
-    green: "text-green-600",
-    cyan: "text-cyan-600",
-    teal: "text-teal-600",
-    violet: "text-violet-600",
-    fuchsia: "text-fuchsia-600",
-    rose: "text-rose-600",
-    gray: "text-gray-600",
-    sky: "text-sky-600",
-    amber: "text-amber-600",
-  };
-
+// Componente Auxiliar para Cards Métricos
+function MetricCard({ label, value, icon: Icon, color, subtitle }: any) {
   return (
-    <div className={cn("rounded-xl border p-4 shadow-sm transition-all hover:shadow-md", colorClasses[color])}>
+    <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-2">
       <div className="flex items-center justify-between">
-        <span className="text-[10px] font-bold uppercase tracking-widest opacity-80">{label}</span>
-        <Icon className={cn("size-5", iconColor[color])} />
+        <span className="text-xs font-bold uppercase tracking-wider text-slate-500">{label}</span>
+        <div className={cn("p-2 rounded-xl text-white", `bg-${color}-500`)}>
+          <Icon className="size-4" />
+        </div>
       </div>
-      <div className="mt-2 text-2xl font-extrabold tracking-tighter">{value}</div>
-      {subtitle && <div className="text-[10px] font-medium opacity-70 mt-1">{subtitle}</div>}
+      <div>
+        <div className="text-2xl font-black tracking-tight text-slate-800">{value}</div>
+        {subtitle && <p className="text-[11px] text-muted-foreground mt-0.5">{subtitle}</p>}
+      </div>
     </div>
   );
 }
 
-function FinanceCard({
-  label,
-  value,
-  icon: Icon,
-  color,
-}: {
-  label: string;
-  value: string;
-  icon: any;
-  color: "emerald" | "amber" | "sky";
-}) {
-  const colors = {
-    emerald: "bg-gradient-to-br from-emerald-50 to-emerald-100/60 border-emerald-200 text-emerald-800",
-    amber: "bg-gradient-to-br from-amber-50 to-amber-100/60 border-amber-200 text-amber-800",
-    sky: "bg-gradient-to-br from-sky-50 to-sky-100/60 border-sky-200 text-sky-800",
-  };
-
-  const iconColors = {
-    emerald: "text-emerald-600",
-    amber: "text-amber-600",
-    sky: "text-sky-600",
-  };
-
+// Componente Auxiliar para Cards Financeiros
+function FinanceCard({ label, value, icon: Icon, color }: any) {
   return (
-    <div className={cn("rounded-xl border p-5 shadow-sm transition-all hover:shadow-md", colors[color])}>
-      <div className="flex items-center justify-between">
-        <span className="text-[10px] font-bold uppercase tracking-widest opacity-80">{label}</span>
-        <Icon className={cn("size-5", iconColors[color])} />
+    <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+      <div className="space-y-1">
+        <span className="text-xs font-bold uppercase tracking-wider text-slate-500">{label}</span>
+        <div className="text-2xl font-black tracking-tight text-slate-800">{value}</div>
       </div>
-      <div className="mt-2 text-2xl md:text-3xl font-extrabold tracking-tighter">{value}</div>
+      <div className={cn("p-3 rounded-2xl text-white", `bg-${color}-500`)}>
+        <Icon className="size-6" />
+      </div>
     </div>
   );
 }
