@@ -271,7 +271,7 @@ export function ChecklistPreDefinido({
           <button
             type="button"
             onClick={async () => {
-              const ok = await copyText(message);
+              const ok = await copyToClipboard(message);
               if (ok) toast.success("Checklist copiado");
               else toast.error("Falha ao copiar");
             }}
