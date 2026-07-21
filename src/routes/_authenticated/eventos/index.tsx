@@ -1,9 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
-import { Calendar as CalendarIcon, CalendarPlus } from "lucide-react";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
+import { Calendar as CalendarIcon, CalendarPlus, XCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { brl, formatDateBR } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 // Gera link do Google Agenda pré-preenchido (sem necessidade de OAuth).
 // Cada evento fechado/pago vira um aviso na agenda do dono do buffet.
@@ -55,6 +56,7 @@ const statusLabels: Record<string, string> = {
 };
 
 function EventsPage() {
+  const qc = useQueryClient();
   const { data, isLoading } = useQuery({
     queryKey: ["events"],
     queryFn: async () => {
@@ -65,6 +67,19 @@ function EventsPage() {
       if (error) throw error;
       return data ?? [];
     },
+  });
+
+  const cancelEvent = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("events").update({ status: "cancelado" }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Evento cancelado. Estoque devolvido automaticamente.");
+      qc.invalidateQueries({ queryKey: ["events"] });
+      qc.invalidateQueries({ queryKey: ["dashboard"] });
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Erro ao cancelar evento"),
   });
 
   return (
@@ -107,12 +122,13 @@ function EventsPage() {
                   <th className="px-4 py-3 font-bold hidden md:table-cell">Pacote</th>
                   <th className="px-4 py-3 font-bold text-right">Valor</th>
                   <th className="px-4 py-3 font-bold">Status</th>
-                  <th className="px-4 py-3 font-bold text-right">Agenda</th>
+                  <th className="px-4 py-3 font-bold text-right">Ações</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
                 {data!.map((e: any) => {
                   const canSchedule = e.status !== "cancelado";
+                  const canCancel = e.status !== "cancelado" && e.status !== "concluido" && e.status !== "realizado";
                   return (
                   <tr key={e.id} className="hover:bg-muted/30 transition-colors">
                     <td className="px-5 py-4 text-sm font-semibold">
@@ -136,19 +152,36 @@ function EventsPage() {
                       </span>
                     </td>
                     <td className="px-4 py-4 text-right">
-                      {canSchedule ? (
-                        <a
-                          href={googleCalendarUrl(e)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          title="Adicionar aviso deste evento no Google Agenda"
-                          className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold rounded-full bg-blue-600 text-white hover:bg-blue-700 transition-colors"
-                        >
-                          <CalendarPlus className="size-3.5" /> Google Agenda
-                        </a>
-                      ) : (
-                        <span className="text-[11px] text-muted-foreground">—</span>
-                      )}
+                      <div className="inline-flex items-center gap-2 justify-end">
+                        {canSchedule && (
+                          <a
+                            href={googleCalendarUrl(e)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            title="Adicionar aviso deste evento no Google Agenda"
+                            className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold rounded-full bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                          >
+                            <CalendarPlus className="size-3.5" /> Agenda
+                          </a>
+                        )}
+                        {canCancel && (
+                          <button
+                            onClick={() => {
+                              if (confirm(`Cancelar o evento de ${e.clients?.name ?? "cliente"}? O estoque reservado voltará automaticamente.`)) {
+                                cancelEvent.mutate(e.id);
+                              }
+                            }}
+                            disabled={cancelEvent.isPending}
+                            title="Cancelar evento"
+                            className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold rounded-full bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors disabled:opacity-50"
+                          >
+                            <XCircle className="size-3.5" /> Cancelar
+                          </button>
+                        )}
+                        {!canSchedule && !canCancel && (
+                          <span className="text-[11px] text-muted-foreground">—</span>
+                        )}
+                      </div>
                     </td>
                   </tr>
                   );
