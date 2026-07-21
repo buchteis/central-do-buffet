@@ -143,19 +143,57 @@ function CreateEventPage() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">Pacote</label>
-          <select
-            value={formData.package_id}
-            onChange={(e) => setFormData({ ...formData, package_id: e.target.value })}
-            className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all"
-          >
-            <option value="">Selecione um pacote</option>
-            {packages?.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name} — {brl(p.price_per_person)}/pessoa
-              </option>
+          <div className="flex items-center justify-between mb-1">
+            <label className="block text-sm font-medium text-slate-700">Pacotes</label>
+            <button
+              type="button"
+              onClick={() => setPackageLines((l) => [...l, ""])}
+              disabled={!packages || packages.length === 0}
+              className="inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700 disabled:opacity-50"
+            >
+              <Plus className="size-3.5" /> Adicionar pacote
+            </button>
+          </div>
+          <div className="space-y-2">
+            {packageLines.map((pid, i) => (
+              <div key={i} className="flex gap-2 items-start">
+                <select
+                  value={pid}
+                  onChange={(e) =>
+                    setPackageLines((arr) => arr.map((x, idx) => (idx === i ? e.target.value : x)))
+                  }
+                  className="flex-1 px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all"
+                >
+                  <option value="">Selecione um pacote</option>
+                  {packages?.map((p) => (
+                    <option
+                      key={p.id}
+                      value={p.id}
+                      disabled={packageLines.includes(p.id) && p.id !== pid}
+                    >
+                      {p.name} — {brl(p.price_per_person)}/pessoa
+                    </option>
+                  ))}
+                </select>
+                {packageLines.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => setPackageLines((arr) => arr.filter((_, idx) => idx !== i))}
+                    className="p-3 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors"
+                    aria-label="Remover pacote"
+                  >
+                    <Trash2 className="size-4" />
+                  </button>
+                )}
+              </div>
             ))}
-          </select>
+          </div>
+          {selectedPackages.length > 1 && (
+            <p className="text-[11px] text-muted-foreground mt-1">
+              {selectedPackages.length} pacotes combinados —{" "}
+              {brl(selectedPackages.reduce((s, p) => s + Number(p.price_per_person || 0), 0))}/pessoa
+            </p>
+          )}
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
