@@ -53,7 +53,9 @@ function isoDate(d: Date) {
   return d.toISOString().slice(0, 10);
 }
 
-const EXCLUDED_STATUSES = ["cancelado"];
+// Cards de "Eventos" mostram apenas eventos ativos — realizados/concluídos/cancelados
+// permanecem visíveis nas telas de Eventos, Orçamentos e Agenda, mas saem dos contadores.
+const EXCLUDED_STATUSES = ["cancelado", "realizado", "concluido"];
 
 function useDashboardQuery<T>(key: string, fn: () => Promise<T>) {
   return useQuery({
