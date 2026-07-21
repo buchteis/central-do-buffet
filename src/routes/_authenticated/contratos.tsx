@@ -230,8 +230,6 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
   const [clientId, setClientId] = useState("");
   const [title, setTitle] = useState("Contrato de prestação de serviços");
   const [formaPagamento, setFormaPagamento] = useState<"PIX" | "Dados Bancários" | "Dinheiro">("PIX");
-
-  // ⬇️ NOVOS ESTADOS PARA PACOTE E CARDÁPIO (MODO EM BRANCO)
   const [packageName, setPackageName] = useState("");
   const [menuDescription, setMenuDescription] = useState("");
 
@@ -287,15 +285,12 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
     if (pm === "PIX" || pm === "Dados Bancários" || pm === "Dinheiro") {
       setFormaPagamento(pm);
     }
-
-    // ⬇️ PREENCHE OS CAMPOS DE PACOTE E CARDÁPIO QUANDO SELECIONAR ORÇAMENTO
     if (q) {
       setPackageName(q.package_name ?? "");
       setMenuDescription(q.menu_description ?? "");
     }
   }, [source, refId, quotes]);
 
-  // ⬇️ QUANDO SELECIONAR EVENTO, PREENCHE PACOTE E CARDÁPIO
   useEffect(() => {
     if (source !== "event" || !refId) return;
     const ev: any = (events ?? []).find((x: any) => x.id === refId);
@@ -353,7 +348,6 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
 
       const payVars = buildPaymentVars(formaPagamento, settings);
 
-      // ⬇️ ADICIONA PACOTE E CARDÁPIO NO OBJETO VARS
       let vars: Record<string, string> = {
         buffet: settings?.business_name ?? "Buffet",
         telefone_buffet: settings?.phone ?? settings?.whatsapp ?? "",
@@ -373,7 +367,7 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
         entrada: brl(0),
         saldo: brl(0),
         pacote: "",
-        cardapio: "", // ⬅️ NOVAS VARIÁVEIS
+        cardapio: "",
         ...payVars,
       };
 
@@ -434,7 +428,6 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
             };
           }
         }
-        // ⬇️ USA OS VALORES DIGITADOS NO MODO EM BRANCO
         vars.pacote = packageName;
         vars.cardapio = menuDescription;
       }
@@ -545,7 +538,6 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
               ))}
             </select>
 
-            {/* ⬇️ NOVOS CAMPOS PARA PACOTE E CARDÁPIO NO MODO EM BRANCO */}
             <input
               placeholder="Nome do pacote contratado (ex: Pacote Ouro)"
               value={packageName}
@@ -583,7 +575,6 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
           )}
         </div>
 
-        {/* ⬇️ MOSTRA OS DADOS DE PACOTE E CARDÁPIO QUANDO SELECIONADO */}
         {(source === "quote" || source === "event") && refId && (packageName || menuDescription) && (
           <div className="bg-muted/30 p-3 rounded-lg border border-border space-y-1">
             {packageName && <p className="text-xs font-semibold">📦 Pacote: {packageName}</p>}
