@@ -15,11 +15,13 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as OrcamentoSlugRouteImport } from './routes/orcamento.$slug'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as AuthenticatedRelatoriosRouteImport } from './routes/_authenticated/relatorios'
+import { Route as AuthenticatedPagamentosDiariasRouteImport } from './routes/_authenticated/pagamentos-diarias'
 import { Route as AuthenticatedPacotesRouteImport } from './routes/_authenticated/pacotes'
 import { Route as AuthenticatedLeadsRouteImport } from './routes/_authenticated/leads'
 import { Route as AuthenticatedFuncionariosRouteImport } from './routes/_authenticated/funcionarios'
 import { Route as AuthenticatedFinanceiroRouteImport } from './routes/_authenticated/financeiro'
 import { Route as AuthenticatedEstoqueRouteImport } from './routes/_authenticated/estoque'
+import { Route as AuthenticatedEquipeRouteImport } from './routes/_authenticated/equipe'
 import { Route as AuthenticatedDiagnosticoRouteImport } from './routes/_authenticated/diagnostico'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedContratosRouteImport } from './routes/_authenticated/contratos'
@@ -65,6 +67,12 @@ const AuthenticatedRelatoriosRoute = AuthenticatedRelatoriosRouteImport.update({
   path: '/relatorios',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedPagamentosDiariasRoute =
+  AuthenticatedPagamentosDiariasRouteImport.update({
+    id: '/pagamentos-diarias',
+    path: '/pagamentos-diarias',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedPacotesRoute = AuthenticatedPacotesRouteImport.update({
   id: '/pacotes',
   path: '/pacotes',
@@ -89,6 +97,11 @@ const AuthenticatedFinanceiroRoute = AuthenticatedFinanceiroRouteImport.update({
 const AuthenticatedEstoqueRoute = AuthenticatedEstoqueRouteImport.update({
   id: '/estoque',
   path: '/estoque',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedEquipeRoute = AuthenticatedEquipeRouteImport.update({
+  id: '/equipe',
+  path: '/equipe',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedDiagnosticoRoute =
@@ -187,11 +200,13 @@ export interface FileRoutesByFullPath {
   '/contratos': typeof AuthenticatedContratosRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/diagnostico': typeof AuthenticatedDiagnosticoRoute
+  '/equipe': typeof AuthenticatedEquipeRoute
   '/estoque': typeof AuthenticatedEstoqueRoute
   '/financeiro': typeof AuthenticatedFinanceiroRoute
   '/funcionarios': typeof AuthenticatedFuncionariosRoute
   '/leads': typeof AuthenticatedLeadsRoute
   '/pacotes': typeof AuthenticatedPacotesRoute
+  '/pagamentos-diarias': typeof AuthenticatedPagamentosDiariasRoute
   '/relatorios': typeof AuthenticatedRelatoriosRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/orcamento/$slug': typeof OrcamentoSlugRoute
@@ -214,11 +229,13 @@ export interface FileRoutesByTo {
   '/contratos': typeof AuthenticatedContratosRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/diagnostico': typeof AuthenticatedDiagnosticoRoute
+  '/equipe': typeof AuthenticatedEquipeRoute
   '/estoque': typeof AuthenticatedEstoqueRoute
   '/financeiro': typeof AuthenticatedFinanceiroRoute
   '/funcionarios': typeof AuthenticatedFuncionariosRoute
   '/leads': typeof AuthenticatedLeadsRoute
   '/pacotes': typeof AuthenticatedPacotesRoute
+  '/pagamentos-diarias': typeof AuthenticatedPagamentosDiariasRoute
   '/relatorios': typeof AuthenticatedRelatoriosRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/orcamento/$slug': typeof OrcamentoSlugRoute
@@ -243,11 +260,13 @@ export interface FileRoutesById {
   '/_authenticated/contratos': typeof AuthenticatedContratosRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/diagnostico': typeof AuthenticatedDiagnosticoRoute
+  '/_authenticated/equipe': typeof AuthenticatedEquipeRoute
   '/_authenticated/estoque': typeof AuthenticatedEstoqueRoute
   '/_authenticated/financeiro': typeof AuthenticatedFinanceiroRoute
   '/_authenticated/funcionarios': typeof AuthenticatedFuncionariosRoute
   '/_authenticated/leads': typeof AuthenticatedLeadsRoute
   '/_authenticated/pacotes': typeof AuthenticatedPacotesRoute
+  '/_authenticated/pagamentos-diarias': typeof AuthenticatedPagamentosDiariasRoute
   '/_authenticated/relatorios': typeof AuthenticatedRelatoriosRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/orcamento/$slug': typeof OrcamentoSlugRoute
@@ -272,11 +291,13 @@ export interface FileRouteTypes {
     | '/contratos'
     | '/dashboard'
     | '/diagnostico'
+    | '/equipe'
     | '/estoque'
     | '/financeiro'
     | '/funcionarios'
     | '/leads'
     | '/pacotes'
+    | '/pagamentos-diarias'
     | '/relatorios'
     | '/auth/callback'
     | '/orcamento/$slug'
@@ -299,11 +320,13 @@ export interface FileRouteTypes {
     | '/contratos'
     | '/dashboard'
     | '/diagnostico'
+    | '/equipe'
     | '/estoque'
     | '/financeiro'
     | '/funcionarios'
     | '/leads'
     | '/pacotes'
+    | '/pagamentos-diarias'
     | '/relatorios'
     | '/auth/callback'
     | '/orcamento/$slug'
@@ -327,11 +350,13 @@ export interface FileRouteTypes {
     | '/_authenticated/contratos'
     | '/_authenticated/dashboard'
     | '/_authenticated/diagnostico'
+    | '/_authenticated/equipe'
     | '/_authenticated/estoque'
     | '/_authenticated/financeiro'
     | '/_authenticated/funcionarios'
     | '/_authenticated/leads'
     | '/_authenticated/pacotes'
+    | '/_authenticated/pagamentos-diarias'
     | '/_authenticated/relatorios'
     | '/auth/callback'
     | '/orcamento/$slug'
@@ -397,6 +422,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedRelatoriosRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/pagamentos-diarias': {
+      id: '/_authenticated/pagamentos-diarias'
+      path: '/pagamentos-diarias'
+      fullPath: '/pagamentos-diarias'
+      preLoaderRoute: typeof AuthenticatedPagamentosDiariasRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/pacotes': {
       id: '/_authenticated/pacotes'
       path: '/pacotes'
@@ -430,6 +462,13 @@ declare module '@tanstack/react-router' {
       path: '/estoque'
       fullPath: '/estoque'
       preLoaderRoute: typeof AuthenticatedEstoqueRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/equipe': {
+      id: '/_authenticated/equipe'
+      path: '/equipe'
+      fullPath: '/equipe'
+      preLoaderRoute: typeof AuthenticatedEquipeRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/diagnostico': {
@@ -547,11 +586,13 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedContratosRoute: typeof AuthenticatedContratosRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedDiagnosticoRoute: typeof AuthenticatedDiagnosticoRoute
+  AuthenticatedEquipeRoute: typeof AuthenticatedEquipeRoute
   AuthenticatedEstoqueRoute: typeof AuthenticatedEstoqueRoute
   AuthenticatedFinanceiroRoute: typeof AuthenticatedFinanceiroRoute
   AuthenticatedFuncionariosRoute: typeof AuthenticatedFuncionariosRoute
   AuthenticatedLeadsRoute: typeof AuthenticatedLeadsRoute
   AuthenticatedPacotesRoute: typeof AuthenticatedPacotesRoute
+  AuthenticatedPagamentosDiariasRoute: typeof AuthenticatedPagamentosDiariasRoute
   AuthenticatedRelatoriosRoute: typeof AuthenticatedRelatoriosRoute
   AuthenticatedClientesImportarRoute: typeof AuthenticatedClientesImportarRoute
   AuthenticatedClientesNovoRoute: typeof AuthenticatedClientesNovoRoute
@@ -571,11 +612,13 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedContratosRoute: AuthenticatedContratosRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedDiagnosticoRoute: AuthenticatedDiagnosticoRoute,
+  AuthenticatedEquipeRoute: AuthenticatedEquipeRoute,
   AuthenticatedEstoqueRoute: AuthenticatedEstoqueRoute,
   AuthenticatedFinanceiroRoute: AuthenticatedFinanceiroRoute,
   AuthenticatedFuncionariosRoute: AuthenticatedFuncionariosRoute,
   AuthenticatedLeadsRoute: AuthenticatedLeadsRoute,
   AuthenticatedPacotesRoute: AuthenticatedPacotesRoute,
+  AuthenticatedPagamentosDiariasRoute: AuthenticatedPagamentosDiariasRoute,
   AuthenticatedRelatoriosRoute: AuthenticatedRelatoriosRoute,
   AuthenticatedClientesImportarRoute: AuthenticatedClientesImportarRoute,
   AuthenticatedClientesNovoRoute: AuthenticatedClientesNovoRoute,
@@ -610,13 +653,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

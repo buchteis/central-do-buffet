@@ -1,11 +1,11 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { brl } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Plus, Trash2 } from "lucide-react";
 import { ChecklistPreDefinido } from "@/components/ChecklistPreDefinido";
 
 type EventStatus =
@@ -27,7 +27,6 @@ function CreateEventPage() {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     client_id: "",
-    package_id: "",
     event_date: "",
     event_time: "18:00",
     guest_count: "",
@@ -36,6 +35,9 @@ function CreateEventPage() {
     status: "agendado" as EventStatus,
     notes: "",
   });
+  // Múltiplos pacotes (mesma lógica de "Novo orçamento"). O primeiro vira o pacote
+  // principal em events.package_id; os demais são registrados nas observações.
+  const [packageLines, setPackageLines] = useState<string[]>([""]);
 
   const { data: clients } = useQuery({
     queryKey: ["clients-for-select"],
@@ -56,6 +58,14 @@ function CreateEventPage() {
     },
   });
 
+  const selectedPackages = useMemo(
+    () =>
+      packageLines
+        .map((id) => (packages ?? []).find((p) => p.id === id))
+        .filter(Boolean) as { id: string; name: string; price_per_person: number }[],
+    [packageLines, packages],
+  );
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -63,17 +73,24 @@ function CreateEventPage() {
       const { data: userRes } = await supabase.auth.getUser();
       if (!userRes.user) throw new Error("Sessão expirada");
 
+      const pkgIds = packageLines.filter(Boolean);
+      const primaryPackageId = pkgIds[0] ?? null;
+      const extraNames = selectedPackages.slice(1).map((p) => p.name);
+      const finalNotes = extraNames.length
+        ? [`Pacotes adicionais: ${extraNames.join(", ")}`, formData.notes].filter(Boolean).join("\n")
+        : formData.notes;
+
       const { error } = await supabase.from("events").insert({
         owner_id: userRes.user.id,
         client_id: formData.client_id || null,
-        package_id: formData.package_id || null,
+        package_id: primaryPackageId,
         event_date: formData.event_date,
         event_time: formData.event_time || null,
         event_address: formData.event_address || null,
         guest_count: Number(formData.guest_count) || 0,
         total_value: Number(formData.total_value) || 0,
         status: formData.status,
-        notes: formData.notes || null,
+        notes: finalNotes || null,
       });
       if (error) throw error;
 
@@ -126,19 +143,57 @@ function CreateEventPage() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">Pacote</label>
-          <select
-            value={formData.package_id}
-            onChange={(e) => setFormData({ ...formData, package_id: e.target.value })}
-            className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all"
-          >
-            <option value="">Selecione um pacote</option>
-            {packages?.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name} — {brl(p.price_per_person)}/pessoa
-              </option>
+          <div className="flex items-center justify-between mb-1">
+            <label className="block text-sm font-medium text-slate-700">Pacotes</label>
+            <button
+              type="button"
+              onClick={() => setPackageLines((l) => [...l, ""])}
+              disabled={!packages || packages.length === 0}
+              className="inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700 disabled:opacity-50"
+            >
+              <Plus className="size-3.5" /> Adicionar pacote
+            </button>
+          </div>
+          <div className="space-y-2">
+            {packageLines.map((pid, i) => (
+              <div key={i} className="flex gap-2 items-start">
+                <select
+                  value={pid}
+                  onChange={(e) =>
+                    setPackageLines((arr) => arr.map((x, idx) => (idx === i ? e.target.value : x)))
+                  }
+                  className="flex-1 px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all"
+                >
+                  <option value="">Selecione um pacote</option>
+                  {packages?.map((p) => (
+                    <option
+                      key={p.id}
+                      value={p.id}
+                      disabled={packageLines.includes(p.id) && p.id !== pid}
+                    >
+                      {p.name} — {brl(p.price_per_person)}/pessoa
+                    </option>
+                  ))}
+                </select>
+                {packageLines.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => setPackageLines((arr) => arr.filter((_, idx) => idx !== i))}
+                    className="p-3 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors"
+                    aria-label="Remover pacote"
+                  >
+                    <Trash2 className="size-4" />
+                  </button>
+                )}
+              </div>
             ))}
-          </select>
+          </div>
+          {selectedPackages.length > 1 && (
+            <p className="text-[11px] text-muted-foreground mt-1">
+              {selectedPackages.length} pacotes combinados —{" "}
+              {brl(selectedPackages.reduce((s, p) => s + Number(p.price_per_person || 0), 0))}/pessoa
+            </p>
+          )}
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
