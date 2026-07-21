@@ -27,7 +27,6 @@ function CreateEventPage() {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     client_id: "",
-    package_id: "",
     event_date: "",
     event_time: "18:00",
     guest_count: "",
@@ -36,6 +35,9 @@ function CreateEventPage() {
     status: "agendado" as EventStatus,
     notes: "",
   });
+  // Múltiplos pacotes (mesma lógica de "Novo orçamento"). O primeiro vira o pacote
+  // principal em events.package_id; os demais são registrados nas observações.
+  const [packageLines, setPackageLines] = useState<string[]>([""]);
 
   const { data: clients } = useQuery({
     queryKey: ["clients-for-select"],
@@ -56,6 +58,14 @@ function CreateEventPage() {
     },
   });
 
+  const selectedPackages = useMemo(
+    () =>
+      packageLines
+        .map((id) => (packages ?? []).find((p) => p.id === id))
+        .filter(Boolean) as { id: string; name: string; price_per_person: number }[],
+    [packageLines, packages],
+  );
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -63,17 +73,24 @@ function CreateEventPage() {
       const { data: userRes } = await supabase.auth.getUser();
       if (!userRes.user) throw new Error("Sessão expirada");
 
+      const pkgIds = packageLines.filter(Boolean);
+      const primaryPackageId = pkgIds[0] ?? null;
+      const extraNames = selectedPackages.slice(1).map((p) => p.name);
+      const finalNotes = extraNames.length
+        ? [`Pacotes adicionais: ${extraNames.join(", ")}`, formData.notes].filter(Boolean).join("\n")
+        : formData.notes;
+
       const { error } = await supabase.from("events").insert({
         owner_id: userRes.user.id,
         client_id: formData.client_id || null,
-        package_id: formData.package_id || null,
+        package_id: primaryPackageId,
         event_date: formData.event_date,
         event_time: formData.event_time || null,
         event_address: formData.event_address || null,
         guest_count: Number(formData.guest_count) || 0,
         total_value: Number(formData.total_value) || 0,
         status: formData.status,
-        notes: formData.notes || null,
+        notes: finalNotes || null,
       });
       if (error) throw error;
 
