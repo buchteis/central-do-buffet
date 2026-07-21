@@ -28,12 +28,17 @@ Endereço: {endereco_buffet}
 CLÁUSULA 1 — OBJETO
 O CONTRATADO se obriga a prestar serviços de buffet para o evento a ser realizado em {data_evento} às {hora_evento}, no local {local_evento}, para aproximadamente {convidados} convidados.
 
+PACOTE CONTRATADO: {pacote}
+
+CARDÁPIO SERVIDO:
+{cardapio}
+
 CLÁUSULA 2 — VALOR E PAGAMENTO
 Valor total dos serviços: {valor}.
 Sinal/Entrada: {entrada}.
 Saldo remanescente: {saldo}, a ser pago até a data do evento.
-Forma de pagamento: {{forma_pagamento}}.
-{{dados_pagamento}}
+Forma de pagamento: {forma_pagamento}.
+{dados_pagamento}
 
 CLÁUSULA 3 — OBRIGAÇÕES DO CONTRATADO
 Fornecer os alimentos, bebidas e serviços conforme o pacote contratado, com equipe treinada e higiene adequada.
@@ -81,7 +86,9 @@ function ContractsPage() {
     queryFn: async () => {
       const { data } = await supabase
         .from("contracts")
-        .select("*, events(event_date, event_address, guest_count, total_value, clients(name, address)), clients(name, address)")
+        .select(
+          "*, events(event_date, event_address, guest_count, total_value, clients(name, address)), clients(name, address)",
+        )
         .order("created_at", { ascending: false });
       return data ?? [];
     },
@@ -89,10 +96,17 @@ function ContractsPage() {
 
   const upd = useMutation({
     mutationFn: async (c: any) => {
-      const { error } = await supabase.from("contracts").update({ content: c.content, status: c.status, title: c.title }).eq("id", c.id);
+      const { error } = await supabase
+        .from("contracts")
+        .update({ content: c.content, status: c.status, title: c.title })
+        .eq("id", c.id);
       if (error) throw error;
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["contracts"] }); toast.success("Contrato salvo"); setEditing(null); },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["contracts"] });
+      toast.success("Contrato salvo");
+      setEditing(null);
+    },
     onError: (e: any) => toast.error(e.message),
   });
 
@@ -101,7 +115,10 @@ function ContractsPage() {
       const { error } = await supabase.from("contracts").delete().eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["contracts"] }); toast.success("Contrato excluído"); },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["contracts"] });
+      toast.success("Contrato excluído");
+    },
     onError: (e: any) => toast.error(e.message),
   });
 
@@ -110,9 +127,14 @@ function ContractsPage() {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">Contratos</h1>
-          <p className="text-sm text-muted-foreground mt-1">Crie a partir de um orçamento fechado, evento agendado ou em branco</p>
+          <p className="text-sm text-muted-foreground mt-1">
+            Crie a partir de um orçamento fechado, evento agendado ou em branco
+          </p>
         </div>
-        <button onClick={() => setOpen(true)} className="inline-flex items-center gap-1 h-9 px-4 rounded-full bg-primary text-primary-foreground text-xs font-bold shadow-lg shadow-primary/20">
+        <button
+          onClick={() => setOpen(true)}
+          className="inline-flex items-center gap-1 h-9 px-4 rounded-full bg-primary text-primary-foreground text-xs font-bold shadow-lg shadow-primary/20"
+        >
           <Plus className="size-4" /> Novo contrato
         </button>
       </div>
@@ -144,11 +166,34 @@ function ContractsPage() {
                     <td className="px-5 py-4 text-sm font-semibold">{c.title}</td>
                     <td className="px-4 py-4 text-sm">{clientName}</td>
                     <td className="px-4 py-4 text-xs font-mono">{eventDate}</td>
-                    <td className="px-4 py-4"><span className={cn("px-2 py-1 text-[10px] rounded-full font-bold uppercase", statusStyles[c.status])}>{c.status}</span></td>
+                    <td className="px-4 py-4">
+                      <span
+                        className={cn("px-2 py-1 text-[10px] rounded-full font-bold uppercase", statusStyles[c.status])}
+                      >
+                        {c.status}
+                      </span>
+                    </td>
                     <td className="px-4 py-4 text-right whitespace-nowrap">
-                      <button onClick={() => setPreviewing(c)} className="inline-flex items-center gap-1 text-xs font-bold text-muted-foreground hover:text-foreground mr-3"><Eye className="size-3.5" /> Visualizar</button>
-                      <button onClick={() => setEditing(c)} className="inline-flex items-center gap-1 text-xs font-bold text-primary hover:underline mr-3"><Pencil className="size-3.5" /> Editar</button>
-                      <button onClick={() => { if (confirm("Excluir contrato?")) del.mutate(c.id); }} className="text-xs font-bold text-destructive hover:underline">Excluir</button>
+                      <button
+                        onClick={() => setPreviewing(c)}
+                        className="inline-flex items-center gap-1 text-xs font-bold text-muted-foreground hover:text-foreground mr-3"
+                      >
+                        <Eye className="size-3.5" /> Visualizar
+                      </button>
+                      <button
+                        onClick={() => setEditing(c)}
+                        className="inline-flex items-center gap-1 text-xs font-bold text-primary hover:underline mr-3"
+                      >
+                        <Pencil className="size-3.5" /> Editar
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (confirm("Excluir contrato?")) del.mutate(c.id);
+                        }}
+                        className="text-xs font-bold text-destructive hover:underline"
+                      >
+                        Excluir
+                      </button>
                     </td>
                   </tr>
                 );
@@ -159,8 +204,21 @@ function ContractsPage() {
       </div>
 
       {open && <NewContractDialog onClose={() => setOpen(false)} />}
-      {editing && <ContractEditor contract={editing} onClose={() => setEditing(null)} onSave={(c) => upd.mutate(c)} onPreview={(c) => setPreviewing(c)} />}
-      {previewing && <ContractPreview contract={previewing} logoValue={(settings as any)?.logo_url ?? ""} onClose={() => setPreviewing(null)} />}
+      {editing && (
+        <ContractEditor
+          contract={editing}
+          onClose={() => setEditing(null)}
+          onSave={(c) => upd.mutate(c)}
+          onPreview={(c) => setPreviewing(c)}
+        />
+      )}
+      {previewing && (
+        <ContractPreview
+          contract={previewing}
+          logoValue={(settings as any)?.logo_url ?? ""}
+          onClose={() => setPreviewing(null)}
+        />
+      )}
     </div>
   );
 }
@@ -173,12 +231,18 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
   const [title, setTitle] = useState("Contrato de prestação de serviços");
   const [formaPagamento, setFormaPagamento] = useState<"PIX" | "Dados Bancários" | "Dinheiro">("PIX");
 
+  // ⬇️ NOVOS ESTADOS PARA PACOTE E CARDÁPIO (MODO EM BRANCO)
+  const [packageName, setPackageName] = useState("");
+  const [menuDescription, setMenuDescription] = useState("");
+
   const { data: quotes } = useQuery({
     queryKey: ["quotes-closed-for-contract"],
     queryFn: async () => {
       const { data } = await supabase
         .from("quotes")
-        .select("id, event_date, event_time, event_address, adults, children_7_10, children_0_6, total_value, entry_value, balance_value, client_id, payment_method, clients(name, address, phone, cpf)")
+        .select(
+          "id, event_date, event_time, event_address, adults, children_7_10, children_0_6, total_value, entry_value, balance_value, client_id, payment_method, package_name, menu_description, clients(name, address, phone, cpf)",
+        )
         .eq("status", "fechado")
         .order("event_date", { ascending: false })
         .limit(200);
@@ -191,7 +255,9 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
     queryFn: async () => {
       const { data } = await supabase
         .from("events")
-        .select("id, event_date, event_time, event_address, guest_count, total_value, client_id, clients(name, address, phone, cpf)")
+        .select(
+          "id, event_date, event_time, event_address, guest_count, total_value, client_id, package_name, menu_description, clients(name, address, phone, cpf)",
+        )
         .order("event_date", { ascending: false })
         .limit(200);
       return data ?? [];
@@ -214,7 +280,6 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
     },
   });
 
-  // Se a origem for orçamento, herda automaticamente a forma de pagamento salva
   useEffect(() => {
     if (source !== "quote" || !refId) return;
     const q: any = (quotes ?? []).find((x: any) => x.id === refId);
@@ -222,7 +287,23 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
     if (pm === "PIX" || pm === "Dados Bancários" || pm === "Dinheiro") {
       setFormaPagamento(pm);
     }
+
+    // ⬇️ PREENCHE OS CAMPOS DE PACOTE E CARDÁPIO QUANDO SELECIONAR ORÇAMENTO
+    if (q) {
+      setPackageName(q.package_name ?? "");
+      setMenuDescription(q.menu_description ?? "");
+    }
   }, [source, refId, quotes]);
+
+  // ⬇️ QUANDO SELECIONAR EVENTO, PREENCHE PACOTE E CARDÁPIO
+  useEffect(() => {
+    if (source !== "event" || !refId) return;
+    const ev: any = (events ?? []).find((x: any) => x.id === refId);
+    if (ev) {
+      setPackageName(ev.package_name ?? "");
+      setMenuDescription(ev.menu_description ?? "");
+    }
+  }, [source, refId, events]);
 
   function buildPaymentVars(method: "PIX" | "Dados Bancários" | "Dinheiro", s: any) {
     const pix = s?.pix_key?.trim() ?? "";
@@ -244,7 +325,9 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
     }
     if (method === "Dados Bancários") {
       if (!bankName || !bankAgency || !bankAccount || !bankHolder) {
-        throw new Error("Cadastre os Dados Bancários (Banco, Agência, Conta e Titular) em Configurações antes de gerar o contrato.");
+        throw new Error(
+          "Cadastre os Dados Bancários (Banco, Agência, Conta e Titular) em Configurações antes de gerar o contrato.",
+        );
       }
       const dados = `Banco: ${bankName} | Agência: ${bankAgency} | Conta: ${bankAccount} | Titular: ${bankHolder}`;
       return {
@@ -254,7 +337,6 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
         dados_pagamento: `Dados Bancários — ${dados}.`,
       };
     }
-    // Dinheiro
     return {
       forma_pagamento: "Dinheiro",
       chave_pix: "",
@@ -271,6 +353,7 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
 
       const payVars = buildPaymentVars(formaPagamento, settings);
 
+      // ⬇️ ADICIONA PACOTE E CARDÁPIO NO OBJETO VARS
       let vars: Record<string, string> = {
         buffet: settings?.business_name ?? "Buffet",
         telefone_buffet: settings?.phone ?? settings?.whatsapp ?? "",
@@ -278,9 +361,19 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
         pix: settings?.pix_key ?? "",
         pix_titular: settings?.pix_holder ?? "",
         data_hoje: formatDateFullBR(new Date()),
-        cliente: "", cpf_cliente: "", endereco_cliente: "", telefone_cliente: "",
-        data_evento: "", hora_evento: "", local_evento: "",
-        convidados: "", valor: brl(0), entrada: brl(0), saldo: brl(0),
+        cliente: "",
+        cpf_cliente: "",
+        endereco_cliente: "",
+        telefone_cliente: "",
+        data_evento: "",
+        hora_evento: "",
+        local_evento: "",
+        convidados: "",
+        valor: brl(0),
+        entrada: brl(0),
+        saldo: brl(0),
+        pacote: "",
+        cardapio: "", // ⬅️ NOVAS VARIÁVEIS
         ...payVars,
       };
 
@@ -292,7 +385,8 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
         if (!q) throw new Error("Selecione um orçamento");
         cli_id = q.client_id;
         const guests = (q.adults ?? 0) + (q.children_7_10 ?? 0) + (q.children_0_6 ?? 0);
-        vars = { ...vars,
+        vars = {
+          ...vars,
           cliente: q.clients?.name ?? "",
           cpf_cliente: q.clients?.cpf ?? "",
           endereco_cliente: q.clients?.address ?? "",
@@ -304,13 +398,16 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
           valor: brl(q.total_value),
           entrada: brl(q.entry_value),
           saldo: brl(q.balance_value),
+          pacote: q.package_name ?? "",
+          cardapio: q.menu_description ?? "",
         };
       } else if (source === "event") {
         const ev = (events ?? []).find((x: any) => x.id === refId);
         if (!ev) throw new Error("Selecione um evento");
         ev_id = ev.id;
         cli_id = ev.client_id;
-        vars = { ...vars,
+        vars = {
+          ...vars,
           cliente: ev.clients?.name ?? "",
           cpf_cliente: ev.clients?.cpf ?? "",
           endereco_cliente: ev.clients?.address ?? "",
@@ -320,13 +417,16 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
           local_evento: ev.event_address ?? "",
           convidados: String(ev.guest_count ?? ""),
           valor: brl(ev.total_value),
+          pacote: ev.package_name ?? "",
+          cardapio: ev.menu_description ?? "",
         };
       } else {
         if (clientId) {
           const cli = (clients ?? []).find((c: any) => c.id === clientId);
           if (cli) {
             cli_id = cli.id;
-            vars = { ...vars,
+            vars = {
+              ...vars,
               cliente: cli.name ?? "",
               cpf_cliente: cli.cpf ?? "",
               endereco_cliente: cli.address ?? "",
@@ -334,6 +434,9 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
             };
           }
         }
+        // ⬇️ USA OS VALORES DIGITADOS NO MODO EM BRANCO
+        vars.pacote = packageName;
+        vars.cardapio = menuDescription;
       }
 
       const content = fillTemplate(tpl, vars);
@@ -347,54 +450,123 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
       });
       if (error) throw error;
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["contracts"] }); toast.success("Contrato criado"); onClose(); },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["contracts"] });
+      toast.success("Contrato criado");
+      onClose();
+    },
     onError: (e: any) => toast.error(e.message),
   });
 
   const canCreate = source === "blank" ? true : !!refId;
 
   return (
-    <div className="fixed inset-0 z-50 bg-background/60 backdrop-blur-sm flex items-center justify-center p-4" onClick={onClose}>
-      <div onClick={(e) => e.stopPropagation()} className="bg-card border border-border rounded-2xl p-6 w-full max-w-md space-y-4">
+    <div
+      className="fixed inset-0 z-50 bg-background/60 backdrop-blur-sm flex items-center justify-center p-4"
+      onClick={onClose}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="bg-card border border-border rounded-2xl p-6 w-full max-w-md space-y-4"
+      >
         <h3 className="text-lg font-extrabold">Novo contrato</h3>
 
         <div>
           <div className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest mb-2">Origem</div>
           <div className="grid grid-cols-3 gap-2">
             {(["quote", "event", "blank"] as Source[]).map((s) => (
-              <button key={s} type="button" onClick={() => { setSource(s); setRefId(""); }}
-                className={cn("h-9 rounded-lg text-xs font-bold border", source === s ? "bg-primary text-primary-foreground border-primary" : "border-border")}>
+              <button
+                key={s}
+                type="button"
+                onClick={() => {
+                  setSource(s);
+                  setRefId("");
+                }}
+                className={cn(
+                  "h-9 rounded-lg text-xs font-bold border",
+                  source === s ? "bg-primary text-primary-foreground border-primary" : "border-border",
+                )}
+              >
                 {s === "quote" ? "Orçamento" : s === "event" ? "Evento" : "Em branco"}
               </button>
             ))}
           </div>
         </div>
 
-        <input placeholder="Título" value={title} onChange={(e) => setTitle(e.target.value)} className="w-full h-10 px-3 border border-border rounded-lg bg-background text-sm" />
+        <input
+          placeholder="Título"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          className="w-full h-10 px-3 border border-border rounded-lg bg-background text-sm"
+        />
 
         {source === "quote" && (
-          <select value={refId} onChange={(e) => setRefId(e.target.value)} className="w-full h-10 px-3 border border-border rounded-lg bg-background text-sm">
+          <select
+            value={refId}
+            onChange={(e) => setRefId(e.target.value)}
+            className="w-full h-10 px-3 border border-border rounded-lg bg-background text-sm"
+          >
             <option value="">Selecione um orçamento fechado</option>
-            {(quotes ?? []).map((q: any) => <option key={q.id} value={q.id}>{formatDateFullBR(q.event_date)} — {q.clients?.name} — {brl(q.total_value)}</option>)}
+            {(quotes ?? []).map((q: any) => (
+              <option key={q.id} value={q.id}>
+                {formatDateFullBR(q.event_date)} — {q.clients?.name} — {brl(q.total_value)}
+              </option>
+            ))}
           </select>
         )}
 
         {source === "event" && (
-          <select value={refId} onChange={(e) => setRefId(e.target.value)} className="w-full h-10 px-3 border border-border rounded-lg bg-background text-sm">
+          <select
+            value={refId}
+            onChange={(e) => setRefId(e.target.value)}
+            className="w-full h-10 px-3 border border-border rounded-lg bg-background text-sm"
+          >
             <option value="">Selecione um evento</option>
-            {(events ?? []).map((e: any) => <option key={e.id} value={e.id}>{formatDateFullBR(e.event_date)} — {e.clients?.name}</option>)}
+            {(events ?? []).map((e: any) => (
+              <option key={e.id} value={e.id}>
+                {formatDateFullBR(e.event_date)} — {e.clients?.name}
+              </option>
+            ))}
           </select>
         )}
 
         {source === "blank" && (
-          <select value={clientId} onChange={(e) => setClientId(e.target.value)} className="w-full h-10 px-3 border border-border rounded-lg bg-background text-sm">
-            <option value="">Cliente (opcional)</option>
-            {(clients ?? []).map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </select>
+          <>
+            <select
+              value={clientId}
+              onChange={(e) => setClientId(e.target.value)}
+              className="w-full h-10 px-3 border border-border rounded-lg bg-background text-sm"
+            >
+              <option value="">Cliente (opcional)</option>
+              {(clients ?? []).map((c: any) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+
+            {/* ⬇️ NOVOS CAMPOS PARA PACOTE E CARDÁPIO NO MODO EM BRANCO */}
+            <input
+              placeholder="Nome do pacote contratado (ex: Pacote Ouro)"
+              value={packageName}
+              onChange={(e) => setPackageName(e.target.value)}
+              className="w-full h-10 px-3 border border-border rounded-lg bg-background text-sm"
+            />
+
+            <textarea
+              placeholder="Descrição do cardápio (ex: Entradas: ... | Prato principal: ... | Sobremesa: ...)"
+              value={menuDescription}
+              onChange={(e) => setMenuDescription(e.target.value)}
+              className="w-full min-h-[80px] p-3 border border-border rounded-lg bg-background text-sm resize-none"
+              rows={3}
+            />
+          </>
         )}
 
         <div>
-          <label className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">Forma de pagamento</label>
+          <label className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">
+            Forma de pagamento
+          </label>
           <select
             value={formaPagamento}
             onChange={(e) => setFormaPagamento(e.target.value as "PIX" | "Dados Bancários" | "Dinheiro")}
@@ -405,10 +577,21 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
             <option value="Dinheiro">Dinheiro</option>
           </select>
           {source === "quote" && refId && (
-            <p className="text-[11px] text-muted-foreground mt-1">Herdada do orçamento selecionado (você pode alterar se necessário).</p>
+            <p className="text-[11px] text-muted-foreground mt-1">
+              Herdada do orçamento selecionado (você pode alterar se necessário).
+            </p>
           )}
         </div>
 
+        {/* ⬇️ MOSTRA OS DADOS DE PACOTE E CARDÁPIO QUANDO SELECIONADO */}
+        {(source === "quote" || source === "event") && refId && (packageName || menuDescription) && (
+          <div className="bg-muted/30 p-3 rounded-lg border border-border space-y-1">
+            {packageName && <p className="text-xs font-semibold">📦 Pacote: {packageName}</p>}
+            {menuDescription && (
+              <p className="text-xs text-muted-foreground truncate">📋 Cardápio: {menuDescription}</p>
+            )}
+          </div>
+        )}
 
         <p className="text-[11px] text-muted-foreground">
           {source === "blank"
@@ -417,33 +600,86 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
         </p>
 
         <div className="flex gap-2 pt-2">
-          <button onClick={onClose} className="flex-1 h-10 rounded-lg border border-border text-sm font-bold">Cancelar</button>
-          <button disabled={!canCreate || mut.isPending} onClick={() => mut.mutate()} className="flex-1 h-10 rounded-lg bg-primary text-primary-foreground text-sm font-bold disabled:opacity-50">Criar</button>
+          <button onClick={onClose} className="flex-1 h-10 rounded-lg border border-border text-sm font-bold">
+            Cancelar
+          </button>
+          <button
+            disabled={!canCreate || mut.isPending}
+            onClick={() => mut.mutate()}
+            className="flex-1 h-10 rounded-lg bg-primary text-primary-foreground text-sm font-bold disabled:opacity-50"
+          >
+            Criar
+          </button>
         </div>
       </div>
     </div>
   );
 }
 
-function ContractEditor({ contract, onClose, onSave, onPreview }: { contract: any; onClose: () => void; onSave: (c: any) => void; onPreview: (c: any) => void }) {
+function ContractEditor({
+  contract,
+  onClose,
+  onSave,
+  onPreview,
+}: {
+  contract: any;
+  onClose: () => void;
+  onSave: (c: any) => void;
+  onPreview: (c: any) => void;
+}) {
   const [c, setC] = useState(contract);
 
   return (
-    <div className="fixed inset-0 z-50 bg-background/70 backdrop-blur-sm flex items-center justify-center p-4" onClick={onClose}>
-      <div onClick={(e) => e.stopPropagation()} className="bg-card border border-border rounded-2xl p-6 w-full max-w-3xl space-y-3 max-h-[90vh] flex flex-col">
+    <div
+      className="fixed inset-0 z-50 bg-background/70 backdrop-blur-sm flex items-center justify-center p-4"
+      onClick={onClose}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="bg-card border border-border rounded-2xl p-6 w-full max-w-3xl space-y-3 max-h-[90vh] flex flex-col"
+      >
         <div className="flex justify-between items-center gap-3">
-          <input value={c.title} onChange={(e) => setC({ ...c, title: e.target.value })} className="text-lg font-extrabold bg-transparent border-b border-transparent focus:border-border outline-none flex-1" />
-          <select value={c.status} onChange={(e) => setC({ ...c, status: e.target.value })} className="h-8 px-2 border border-border rounded-md bg-background text-xs font-bold uppercase">
-            <option value="rascunho">Rascunho</option><option value="enviado">Enviado</option><option value="assinado">Assinado</option><option value="cancelado">Cancelado</option>
+          <input
+            value={c.title}
+            onChange={(e) => setC({ ...c, title: e.target.value })}
+            className="text-lg font-extrabold bg-transparent border-b border-transparent focus:border-border outline-none flex-1"
+          />
+          <select
+            value={c.status}
+            onChange={(e) => setC({ ...c, status: e.target.value })}
+            className="h-8 px-2 border border-border rounded-md bg-background text-xs font-bold uppercase"
+          >
+            <option value="rascunho">Rascunho</option>
+            <option value="enviado">Enviado</option>
+            <option value="assinado">Assinado</option>
+            <option value="cancelado">Cancelado</option>
           </select>
         </div>
-        <p className="text-[11px] text-muted-foreground">Edite livremente o texto do contrato. Todas as cláusulas podem ser alteradas.</p>
-        <textarea value={c.content} onChange={(e) => setC({ ...c, content: e.target.value })} className="flex-1 min-h-[400px] p-4 border border-border rounded-lg bg-background text-sm font-mono resize-none" />
+        <p className="text-[11px] text-muted-foreground">
+          Edite livremente o texto do contrato. Todas as cláusulas podem ser alteradas.
+        </p>
+        <textarea
+          value={c.content}
+          onChange={(e) => setC({ ...c, content: e.target.value })}
+          className="flex-1 min-h-[400px] p-4 border border-border rounded-lg bg-background text-sm font-mono resize-none"
+        />
         <div className="flex gap-2 flex-wrap">
-          <button onClick={() => onPreview(c)} className="inline-flex items-center gap-1 h-10 px-4 rounded-lg border border-border text-sm font-bold"><Eye className="size-4" /> Visualizar</button>
+          <button
+            onClick={() => onPreview(c)}
+            className="inline-flex items-center gap-1 h-10 px-4 rounded-lg border border-border text-sm font-bold"
+          >
+            <Eye className="size-4" /> Visualizar
+          </button>
           <div className="flex-1" />
-          <button onClick={onClose} className="h-10 px-4 rounded-lg border border-border text-sm font-bold">Fechar</button>
-          <button onClick={() => onSave(c)} className="h-10 px-4 rounded-lg bg-primary text-primary-foreground text-sm font-bold">Salvar</button>
+          <button onClick={onClose} className="h-10 px-4 rounded-lg border border-border text-sm font-bold">
+            Fechar
+          </button>
+          <button
+            onClick={() => onSave(c)}
+            className="h-10 px-4 rounded-lg bg-primary text-primary-foreground text-sm font-bold"
+          >
+            Salvar
+          </button>
         </div>
       </div>
     </div>
@@ -457,7 +693,10 @@ function ContractPreview({ contract, logoValue, onClose }: { contract: any; logo
   async function printPdf() {
     const freshLogo = await getLogoDisplayUrl(logoValue);
     const w = window.open("", "_blank");
-    if (!w) { toast.error("Permita pop-ups para gerar o PDF"); return; }
+    if (!w) {
+      toast.error("Permita pop-ups para gerar o PDF");
+      return;
+    }
     const logoHtml = freshLogo
       ? `<div class="logo"><img id="__logo" src="${escapeHtml(freshLogo)}" alt="Logomarca"/></div>`
       : "";
@@ -495,20 +734,43 @@ ${logoHtml}
   }
 
   return (
-    <div className="fixed inset-0 z-[60] bg-background/80 backdrop-blur-sm flex items-center justify-center p-4" onClick={onClose}>
-      <div onClick={(e) => e.stopPropagation()} className="bg-card border border-border rounded-2xl w-full max-w-3xl max-h-[92vh] flex flex-col overflow-hidden">
+    <div
+      className="fixed inset-0 z-[60] bg-background/80 backdrop-blur-sm flex items-center justify-center p-4"
+      onClick={onClose}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="bg-card border border-border rounded-2xl w-full max-w-3xl max-h-[92vh] flex flex-col overflow-hidden"
+      >
         <div className="flex items-center justify-between px-5 py-3 border-b border-border">
           <div className="text-sm font-extrabold">Visualização do contrato</div>
           <div className="flex gap-2">
-            <button onClick={printPdf} className="inline-flex items-center gap-1 h-9 px-4 rounded-lg bg-primary text-primary-foreground text-xs font-bold"><Printer className="size-4" /> Gerar PDF</button>
-            <button onClick={onClose} className="h-9 px-4 rounded-lg border border-border text-xs font-bold">Fechar</button>
+            <button
+              onClick={printPdf}
+              className="inline-flex items-center gap-1 h-9 px-4 rounded-lg bg-primary text-primary-foreground text-xs font-bold"
+            >
+              <Printer className="size-4" /> Gerar PDF
+            </button>
+            <button onClick={onClose} className="h-9 px-4 rounded-lg border border-border text-xs font-bold">
+              Fechar
+            </button>
           </div>
         </div>
         <div className="flex-1 overflow-auto bg-muted/40 p-6">
-          <div className="mx-auto max-w-[720px] bg-white text-neutral-900 shadow-lg rounded-md p-12" style={{ fontFamily: "Georgia, 'Times New Roman', serif", lineHeight: 1.65 }}>
+          <div
+            className="mx-auto max-w-[720px] bg-white text-neutral-900 shadow-lg rounded-md p-12"
+            style={{ fontFamily: "Georgia, 'Times New Roman', serif", lineHeight: 1.65 }}
+          >
             {logo && (
               <div className="text-center mb-4">
-                <img src={logo} alt="Logomarca" className="mx-auto max-h-24 object-contain" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
+                <img
+                  src={logo}
+                  alt="Logomarca"
+                  className="mx-auto max-h-24 object-contain"
+                  onError={(e) => {
+                    (e.currentTarget as HTMLImageElement).style.display = "none";
+                  }}
+                />
               </div>
             )}
             <h1 className="text-center text-xl font-bold uppercase tracking-wide mb-6">{contract.title}</h1>
