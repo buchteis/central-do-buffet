@@ -56,6 +56,7 @@ const statusLabels: Record<string, string> = {
 };
 
 function EventsPage() {
+  const qc = useQueryClient();
   const { data, isLoading } = useQuery({
     queryKey: ["events"],
     queryFn: async () => {
@@ -66,6 +67,19 @@ function EventsPage() {
       if (error) throw error;
       return data ?? [];
     },
+  });
+
+  const cancelEvent = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("events").update({ status: "cancelado" }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Evento cancelado. Estoque devolvido automaticamente.");
+      qc.invalidateQueries({ queryKey: ["events"] });
+      qc.invalidateQueries({ queryKey: ["dashboard"] });
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Erro ao cancelar evento"),
   });
 
   return (
