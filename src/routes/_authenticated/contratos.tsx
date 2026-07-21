@@ -28,17 +28,12 @@ Endereço: {endereco_buffet}
 CLÁUSULA 1 — OBJETO
 O CONTRATADO se obriga a prestar serviços de buffet para o evento a ser realizado em {data_evento} às {hora_evento}, no local {local_evento}, para aproximadamente {convidados} convidados.
 
-PACOTE CONTRATADO: {pacote}
-
-CARDÁPIO SERVIDO:
-{cardapio}
-
 CLÁUSULA 2 — VALOR E PAGAMENTO
 Valor total dos serviços: {valor}.
 Sinal/Entrada: {entrada}.
 Saldo remanescente: {saldo}, a ser pago até a data do evento.
-Forma de pagamento: {forma_pagamento}.
-{dados_pagamento}
+Forma de pagamento: {{forma_pagamento}}.
+{{dados_pagamento}}
 
 CLÁUSULA 3 — OBRIGAÇÕES DO CONTRATADO
 Fornecer os alimentos, bebidas e serviços conforme o pacote contratado, com equipe treinada e higiene adequada.
@@ -230,8 +225,6 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
   const [clientId, setClientId] = useState("");
   const [title, setTitle] = useState("Contrato de prestação de serviços");
   const [formaPagamento, setFormaPagamento] = useState<"PIX" | "Dados Bancários" | "Dinheiro">("PIX");
-  const [packageName, setPackageName] = useState("");
-  const [menuDescription, setMenuDescription] = useState("");
 
   const { data: quotes } = useQuery({
     queryKey: ["quotes-closed-for-contract"],
@@ -239,7 +232,7 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
       const { data } = await supabase
         .from("quotes")
         .select(
-          "id, event_date, event_time, event_address, adults, children_7_10, children_0_6, total_value, entry_value, balance_value, client_id, payment_method, package_name, menu_description, clients(name, address, phone, cpf)",
+          "id, event_date, event_time, event_address, adults, children_7_10, children_0_6, total_value, entry_value, balance_value, client_id, payment_method, clients(name, address, phone, cpf)",
         )
         .eq("status", "fechado")
         .order("event_date", { ascending: false })
@@ -254,7 +247,7 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
       const { data } = await supabase
         .from("events")
         .select(
-          "id, event_date, event_time, event_address, guest_count, total_value, client_id, package_name, menu_description, clients(name, address, phone, cpf)",
+          "id, event_date, event_time, event_address, guest_count, total_value, client_id, clients(name, address, phone, cpf)",
         )
         .order("event_date", { ascending: false })
         .limit(200);
@@ -278,6 +271,7 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
     },
   });
 
+  // Se a origem for orçamento, herda automaticamente a forma de pagamento salva
   useEffect(() => {
     if (source !== "quote" || !refId) return;
     const q: any = (quotes ?? []).find((x: any) => x.id === refId);
@@ -285,20 +279,7 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
     if (pm === "PIX" || pm === "Dados Bancários" || pm === "Dinheiro") {
       setFormaPagamento(pm);
     }
-    if (q) {
-      setPackageName(q.package_name ?? "");
-      setMenuDescription(q.menu_description ?? "");
-    }
   }, [source, refId, quotes]);
-
-  useEffect(() => {
-    if (source !== "event" || !refId) return;
-    const ev: any = (events ?? []).find((x: any) => x.id === refId);
-    if (ev) {
-      setPackageName(ev.package_name ?? "");
-      setMenuDescription(ev.menu_description ?? "");
-    }
-  }, [source, refId, events]);
 
   function buildPaymentVars(method: "PIX" | "Dados Bancários" | "Dinheiro", s: any) {
     const pix = s?.pix_key?.trim() ?? "";
@@ -332,6 +313,7 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
         dados_pagamento: `Dados Bancários — ${dados}.`,
       };
     }
+    // Dinheiro
     return {
       forma_pagamento: "Dinheiro",
       chave_pix: "",
@@ -366,8 +348,6 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
         valor: brl(0),
         entrada: brl(0),
         saldo: brl(0),
-        pacote: "",
-        cardapio: "",
         ...payVars,
       };
 
@@ -392,8 +372,6 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
           valor: brl(q.total_value),
           entrada: brl(q.entry_value),
           saldo: brl(q.balance_value),
-          pacote: q.package_name ?? "",
-          cardapio: q.menu_description ?? "",
         };
       } else if (source === "event") {
         const ev = (events ?? []).find((x: any) => x.id === refId);
@@ -411,8 +389,6 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
           local_evento: ev.event_address ?? "",
           convidados: String(ev.guest_count ?? ""),
           valor: brl(ev.total_value),
-          pacote: ev.package_name ?? "",
-          cardapio: ev.menu_description ?? "",
         };
       } else {
         if (clientId) {
@@ -428,8 +404,6 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
             };
           }
         }
-        vars.pacote = packageName;
-        vars.cardapio = menuDescription;
       }
 
       const content = fillTemplate(tpl, vars);
@@ -524,35 +498,18 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
         )}
 
         {source === "blank" && (
-          <>
-            <select
-              value={clientId}
-              onChange={(e) => setClientId(e.target.value)}
-              className="w-full h-10 px-3 border border-border rounded-lg bg-background text-sm"
-            >
-              <option value="">Cliente (opcional)</option>
-              {(clients ?? []).map((c: any) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-
-            <input
-              placeholder="Nome do pacote contratado (ex: Pacote Ouro)"
-              value={packageName}
-              onChange={(e) => setPackageName(e.target.value)}
-              className="w-full h-10 px-3 border border-border rounded-lg bg-background text-sm"
-            />
-
-            <textarea
-              placeholder="Descrição do cardápio (ex: Entradas: ... | Prato principal: ... | Sobremesa: ...)"
-              value={menuDescription}
-              onChange={(e) => setMenuDescription(e.target.value)}
-              className="w-full min-h-[80px] p-3 border border-border rounded-lg bg-background text-sm resize-none"
-              rows={3}
-            />
-          </>
+          <select
+            value={clientId}
+            onChange={(e) => setClientId(e.target.value)}
+            className="w-full h-10 px-3 border border-border rounded-lg bg-background text-sm"
+          >
+            <option value="">Cliente (opcional)</option>
+            {(clients ?? []).map((c: any) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
         )}
 
         <div>
@@ -574,15 +531,6 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
             </p>
           )}
         </div>
-
-        {(source === "quote" || source === "event") && refId && (packageName || menuDescription) && (
-          <div className="bg-muted/30 p-3 rounded-lg border border-border space-y-1">
-            {packageName && <p className="text-xs font-semibold">📦 Pacote: {packageName}</p>}
-            {menuDescription && (
-              <p className="text-xs text-muted-foreground truncate">📋 Cardápio: {menuDescription}</p>
-            )}
-          </div>
-        )}
 
         <p className="text-[11px] text-muted-foreground">
           {source === "blank"
