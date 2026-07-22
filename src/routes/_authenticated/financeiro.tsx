@@ -1,10 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { TrendingUp, TrendingDown, Wallet, Calendar, Hourglass } from "lucide-react";
+import { TrendingUp, TrendingDown, Wallet, Calendar, Hourglass, FileText, CheckCircle2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { brl, formatDateBR } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { useTenantAccess } from "@/hooks/useTenantAccess";
 
 export const Route = createFileRoute("/_authenticated/financeiro")({
   head: () => ({ meta: [{ title: "Financeiro — Meu Churras" }] }),
@@ -13,169 +14,141 @@ export const Route = createFileRoute("/_authenticated/financeiro")({
 
 type PeriodFilter = "todos" | "hoje" | "semana" | "mes" | "ano";
 type TypeFilter = "todos" | "recebido" | "receber";
+type SourceFilter = "todos" | "evento" | "orcamento" | "transacao";
 
-const RECEIVED_STATUSES: string[] = ["pago", "concluido", "realizado"];
-const RECEIVABLE_STATUSES: string[] = ["agendado", "em_andamento"];
-const ACTIVE_STATUSES = [...RECEIVED_STATUSES, ...RECEIVABLE_STATUSES] as any;
+const RECEIVED_EVENT_STATUSES: string[] = ["pago", "concluido", "realizado"];
+const RECEIVABLE_EVENT_STATUSES: string[] = ["agendado", "pagamento_parcial", "em_andamento"];
+const ACTIVE_EVENT_STATUSES = [...RECEIVED_EVENT_STATUSES, ...RECEIVABLE_EVENT_STATUSES] as any;
+
+// Orçamentos que representam receita confirmada (fechados/aprovados)
+const CLOSED_QUOTE_STATUSES: string[] = ["fechado", "aprovado", "em_andamento"];
 
 const statusLabels: Record<string, string> = {
   agendado: "Agendado",
+  pagamento_parcial: "Pag. Parcial",
   em_andamento: "Em andamento",
   pago: "Pago",
   concluido: "Concluído",
   realizado: "Realizado",
+  pendente: "Pendente",
+  atrasado: "Atrasado",
+  novo: "Novo",
+  em_analise: "Em análise",
+  enviado: "Enviado",
+  aprovado: "Aprovado",
+  recusado: "Recusado",
+  cancelado: "Cancelado",
+  primeiro_contato: "1º Contato",
+  visitado: "Visitado",
+  negociacao: "Negociação",
+  aguardando: "Aguardando",
+  fechado: "Fechado",
 };
 
 const statusStyles: Record<string, string> = {
   agendado: "bg-blue-500/20 text-blue-800 border-blue-300",
+  pagamento_parcial: "bg-cyan-500/20 text-cyan-800 border-cyan-300",
   em_andamento: "bg-amber-500/20 text-amber-800 border-amber-300",
   pago: "bg-emerald-500/20 text-emerald-800 border-emerald-300",
   concluido: "bg-gray-500/20 text-gray-800 border-gray-300",
   realizado: "bg-purple-500/20 text-purple-800 border-purple-300",
+  pendente: "bg-amber-500/20 text-amber-800 border-amber-300",
+  atrasado: "bg-rose-500/20 text-rose-800 border-rose-300",
+  novo: "bg-blue-500/20 text-blue-800 border-blue-300",
+  em_analise: "bg-indigo-500/20 text-indigo-800 border-indigo-300",
+  enviado: "bg-cyan-500/20 text-cyan-800 border-cyan-300",
+  aprovado: "bg-emerald-500/20 text-emerald-800 border-emerald-300",
+  recusado: "bg-rose-500/20 text-rose-800 border-rose-300",
+  cancelado: "bg-gray-500/20 text-gray-800 border-gray-300",
+  primeiro_contato: "bg-blue-500/20 text-blue-800 border-blue-300",
+  visitado: "bg-cyan-500/20 text-cyan-800 border-cyan-300",
+  negociacao: "bg-amber-500/20 text-amber-800 border-amber-300",
+  aguardando: "bg-orange-500/20 text-orange-800 border-orange-300",
+  fechado: "bg-emerald-500/20 text-emerald-800 border-emerald-300",
 };
 
 function FinanceiroPage() {
   const qc = useQueryClient();
+  const { data: access } = useTenantAccess();
+  const tenantId = access?.tenant?.id ?? null;
+  const isSuperAdmin = access?.isSuperAdmin ?? false;
+
   const [period, setPeriod] = useState<PeriodFilter>("todos");
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("todos");
-  const [userId, setUserId] = useState<string | null>(null);
+  const [sourceFilter, setSourceFilter] = useState<SourceFilter>("todos");
 
-  // 🔥 CORREÇÃO 1: Busca o usuário atual
+  // Realtime: reflete o Dashboard
   useEffect(() => {
-    const getUser = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      setUserId(user?.id || null);
-    };
-    getUser();
-  }, []);
-
-  // 🔥 CORREÇÃO 2: Realtime com userId
-  useEffect(() => {
-    if (!userId) return;
-
     const channel = supabase
       .channel("financeiro-live")
       .on("postgres_changes", { event: "*", schema: "public", table: "events" }, () => {
-        qc.invalidateQueries({ queryKey: ["financeiro-events", userId] });
+        qc.invalidateQueries({ queryKey: ["financeiro-events"] });
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "transactions" }, () => {
-        qc.invalidateQueries({ queryKey: ["financeiro-transactions", userId] });
+        qc.invalidateQueries({ queryKey: ["financeiro-transactions"] });
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "quotes" }, () => {
+        qc.invalidateQueries({ queryKey: ["financeiro-quotes"] });
       })
       .subscribe();
-
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [qc, userId]);
+  }, [qc]);
 
-  // 🔥 CORREÇÃO 3: Busca eventos APENAS do usuário logado
-  const { data: events, isLoading: eventsLoading } = useQuery({
-    queryKey: ["financeiro-events", userId],
+  // Eventos — filtra por tenant_id (super_admin vê tudo)
+  const { data: events } = useQuery({
+    queryKey: ["financeiro-events", tenantId],
+    enabled: !!tenantId || isSuperAdmin,
     queryFn: async () => {
-      if (!userId) return [];
-
-      const { data, error } = await supabase
+      let q = supabase
         .from("events")
         .select("id, title, event_date, status, total_value, clients(name)")
-        .eq("user_id", userId) // 🔥 FILTRO AQUI
-        .in("status", ACTIVE_STATUSES as any)
+        .in("status", ACTIVE_EVENT_STATUSES as any)
         .order("event_date", { ascending: false });
-
-      if (error) {
-        console.error("Erro ao buscar eventos:", error);
-        return [];
-      }
-
+      if (tenantId && !isSuperAdmin) q = q.eq("tenant_id", tenantId);
+      const { data } = await q;
       return data ?? [];
     },
-    enabled: !!userId, // 🔥 Só executa se tiver usuário
   });
 
-  // 🔥 CORREÇÃO 4: Busca transações APENAS do usuário logado
-  const { data: transactions, isLoading: transactionsLoading } = useQuery({
-    queryKey: ["financeiro-transactions", userId],
+  // Transações — filtra por tenant_id (super_admin vê tudo)
+  const { data: transactions } = useQuery({
+    queryKey: ["financeiro-transactions", tenantId],
+    enabled: !!tenantId || isSuperAdmin,
     queryFn: async () => {
-      if (!userId) return [];
-
-      try {
-        // Tenta buscar com user_id direto
-        let { data, error } = await supabase
-          .from("transactions")
-          .select(
-            `
-            id, 
-            description, 
-            due_date, 
-            paid_date, 
-            status, 
-            amount, 
-            type, 
-            method, 
-            category,
-            events (
-              id,
-              status,
-              user_id,
-              clients(name)
-            )
-          `,
-          )
-          .eq("user_id", userId)
-          .order("due_date", { ascending: false });
-
-        // Se não encontrou, tenta via events
-        if (error || !data || data.length === 0) {
-          const { data: txData, error: txError } = await supabase
-            .from("transactions")
-            .select(
-              `
-              id, 
-              description, 
-              due_date, 
-              paid_date, 
-              status, 
-              amount, 
-              type, 
-              method, 
-              category,
-              events!inner (
-                id,
-                status,
-                user_id,
-                clients(name)
-              )
-            `,
-            )
-            .eq("events.user_id", userId)
-            .order("due_date", { ascending: false });
-
-          if (txError) {
-            console.error("Erro ao buscar transações:", txError);
-            return [];
-          }
-
-          data = txData;
-        }
-
-        return (data ?? []).filter((t: any) => {
-          const eventStatus = t.events?.status?.toLowerCase();
-          const txStatus = String(t.status ?? "").toLowerCase();
-          return eventStatus !== "cancelado" && txStatus !== "cancelado";
-        });
-      } catch (err) {
-        console.error("Erro na busca de transações:", err);
-        return [];
-      }
+      let q = supabase
+        .from("transactions")
+        .select("id, description, due_date, paid_date, status, amount, type, method, category, events(status, clients(name))")
+        .order("due_date", { ascending: false });
+      if (tenantId && !isSuperAdmin) q = q.eq("tenant_id", tenantId);
+      const { data } = await q;
+      return (data ?? []).filter(
+        (t: any) => t.events?.status !== "cancelado" && String(t.status).toLowerCase() !== "cancelado",
+      );
     },
-    enabled: !!userId,
   });
 
-  // Unifica eventos + transações em um formato comum
+  // Orçamentos fechados/aprovados — filtra por tenant_id (super_admin vê tudo)
+  const { data: quotes } = useQuery({
+    queryKey: ["financeiro-quotes", tenantId],
+    enabled: !!tenantId || isSuperAdmin,
+    queryFn: async () => {
+      let q = supabase
+        .from("quotes")
+        .select("id, event_date, status, total_value, entry_value, balance_value, paid, clients(name), packages(name)")
+        .in("status", CLOSED_QUOTE_STATUSES as any)
+        .order("event_date", { ascending: false });
+      if (tenantId && !isSuperAdmin) q = q.eq("tenant_id", tenantId);
+      const { data } = await q;
+      return data ?? [];
+    },
+  });
+
+  // Unifica eventos + transações + orçamentos em um formato comum
   type Row = {
     id: string;
-    source: "evento" | "transacao";
+    source: "evento" | "orcamento" | "transacao";
     title: string;
     client?: string | null;
     date: string | null;
@@ -187,7 +160,7 @@ function FinanceiroPage() {
 
   const eventRows: Row[] = (events ?? []).map((e: any) => {
     const st = String(e.status ?? "").toLowerCase();
-    const isReceived = RECEIVED_STATUSES.includes(st);
+    const isReceived = RECEIVED_EVENT_STATUSES.includes(st);
     return {
       id: `ev-${e.id}`,
       source: "evento",
@@ -197,6 +170,22 @@ function FinanceiroPage() {
       status: st,
       amount: Number(e.total_value ?? 0),
       kind: isReceived ? "recebido" : "receber",
+    };
+  });
+
+  const quoteRows: Row[] = (quotes ?? []).map((q: any) => {
+    const st = String(q.status ?? "").toLowerCase();
+    const isPaid = q.paid === true;
+    const pkgName = q.packages?.name ?? null;
+    return {
+      id: `qt-${q.id}`,
+      source: "orcamento",
+      title: pkgName ? `Orçamento — ${pkgName}` : "Orçamento",
+      client: q.clients?.name ?? null,
+      date: q.event_date ?? null,
+      status: st,
+      amount: Number(q.total_value ?? 0),
+      kind: isPaid ? "recebido" : "receber",
     };
   });
 
@@ -217,7 +206,7 @@ function FinanceiroPage() {
     };
   });
 
-  const allRows: Row[] = [...eventRows, ...txRows].sort((a, b) => {
+  const allRows: Row[] = [...eventRows, ...quoteRows, ...txRows].sort((a, b) => {
     const da = a.date ? new Date(a.date + "T00:00:00").getTime() : 0;
     const db = b.date ? new Date(b.date + "T00:00:00").getTime() : 0;
     return db - da;
@@ -255,42 +244,26 @@ function FinanceiroPage() {
     { recebido: 0, receber: 0, saidas: 0 },
   );
 
-  const rows = periodFiltered.filter((r) => {
+  // Aplica filtro de origem
+  const sourceFiltered = periodFiltered.filter((r) => {
+    if (sourceFilter === "todos") return true;
+    return r.source === sourceFilter;
+  });
+
+  // Aplica filtro de tipo (recebido/receber)
+  const rows = sourceFiltered.filter((r) => {
     if (typeFilter === "recebido") return r.kind === "recebido";
     if (typeFilter === "receber") return r.kind === "receber";
     return true;
   });
 
-  // 🔥 CORREÇÃO 5: Mostra loading enquanto carrega
-  if (!userId && !eventsLoading && !transactionsLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold text-muted-foreground">Faça login para acessar o financeiro</h2>
-          <p className="text-sm text-muted-foreground mt-2">
-            Você precisa estar autenticado para ver seus dados financeiros.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  if (eventsLoading || transactionsLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-          <p className="text-sm text-muted-foreground mt-4">Carregando dados financeiros...</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">Financeiro</h1>
-        <p className="text-sm text-muted-foreground mt-1">Reflexo do Dashboard — eventos e transações de pagamento</p>
+        <p className="text-sm text-muted-foreground mt-1">
+          Fluxo completo — eventos, orçamentos fechados e transações financeiras
+        </p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
@@ -307,6 +280,30 @@ function FinanceiroPage() {
 
       {/* Barra de Filtros */}
       <div className="flex flex-wrap items-center justify-between gap-3 bg-card p-3 rounded-2xl border border-border shadow-sm">
+        {/* Filtro por origem */}
+        <div className="flex gap-2 flex-wrap">
+          {([
+            { id: "todos", label: "Todos" },
+            { id: "evento", label: "Eventos" },
+            { id: "orcamento", label: "Orçamentos" },
+            { id: "transacao", label: "Transações" },
+          ] as const).map((f) => (
+            <button
+              key={f.id}
+              onClick={() => setSourceFilter(f.id)}
+              className={cn(
+                "px-3 py-1.5 text-xs font-bold rounded-full border transition-colors",
+                sourceFilter === f.id
+                  ? "bg-primary text-primary-foreground border-primary"
+                  : "border-border hover:bg-muted",
+              )}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Filtro por tipo */}
         <div className="flex gap-2">
           {(["todos", "recebido", "receber"] as const).map((f) => (
             <button
@@ -314,7 +311,9 @@ function FinanceiroPage() {
               onClick={() => setTypeFilter(f)}
               className={cn(
                 "px-3 py-1.5 text-xs font-bold rounded-full border transition-colors",
-                typeFilter === f ? "bg-primary text-primary-foreground border-primary" : "border-border hover:bg-muted",
+                typeFilter === f
+                  ? "bg-primary text-primary-foreground border-primary"
+                  : "border-border hover:bg-muted",
               )}
             >
               {f === "todos" ? "Todos" : f === "recebido" ? "Recebidos" : "A Receber"}
@@ -322,6 +321,7 @@ function FinanceiroPage() {
           ))}
         </div>
 
+        {/* Filtro por período */}
         <div className="flex items-center gap-1 bg-muted/60 p-1 rounded-full border border-border">
           <Calendar className="size-3.5 ml-2 text-muted-foreground" />
           {(["todos", "hoje", "semana", "mes", "ano"] as const).map((p) => (
@@ -365,7 +365,15 @@ function FinanceiroPage() {
                     {r.client && <div className="text-[11px] text-muted-foreground">{r.client}</div>}
                   </td>
                   <td className="px-4 py-4 text-[10px] uppercase font-bold text-muted-foreground">
-                    {r.source === "evento" ? "Evento" : "Transação"}
+                    <span className="inline-flex items-center gap-1">
+                      {r.source === "evento" ? (
+                        <><CheckCircle2 className="size-3" /> Evento</>
+                      ) : r.source === "orcamento" ? (
+                        <><FileText className="size-3" /> Orçamento</>
+                      ) : (
+                        <><Wallet className="size-3" /> Transação</>
+                      )}
+                    </span>
                     {r.method && <span className="ml-1 normal-case text-muted-foreground/70">· {r.method}</span>}
                   </td>
                   <td className="px-4 py-4 text-xs font-mono">{formatDateBR(r.date)}</td>
