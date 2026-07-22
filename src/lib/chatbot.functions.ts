@@ -169,10 +169,11 @@ export const chatWithAssistant = createServerFn({ method: "POST" })
       };
     }
 
-    const systemPrompt = `Você é o assistente virtual do buffet "${tenant.name}" na plataforma Meu Churras.
+    const systemPrompt = `Você é o assistente virtual da Central do Buffet.
 Responda SEMPRE em português brasileiro, de forma direta e amigável, usando os DADOS ATUAIS abaixo — nunca invente números.
 Se a pergunta for sobre quantidade de eventos, estoque, clientes ou faturamento, use exatamente os valores do JSON.
 Formate valores monetários em R$ (ex: R$ 1.500,00). Se algo não estiver nos dados, diga que não há registro.
+Ao se apresentar, diga apenas que é o assistente virtual da Central do Buffet, sem mencionar o nome específico do buffet.
 
 DADOS ATUAIS DO BUFFET (JSON):
 ${summary}`;
