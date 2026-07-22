@@ -58,20 +58,82 @@ function FinanceiroPage() {
       const { data } = await supabase
         .from("events")
         .select("id, title, event_date, status, total_value, clients(name)")
-        .in("status", ACTIVE_STATUSES)
+        .in("status", ACTIVE_STATUSES as any)
         .order("event_date", { ascending: false });
       return data ?? [];
     },
   });
 
-  const filterByPeriod = (e: any) => {
+  const { data: transactions } = useQuery({
+    queryKey: ["financeiro-transactions"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("transactions")
+        .select("id, description, due_date, paid_date, status, amount, type, method, category, events(status, clients(name))")
+        .order("due_date", { ascending: false });
+      return (data ?? []).filter(
+        (t: any) => t.events?.status !== "cancelado" && String(t.status).toLowerCase() !== "cancelado",
+      );
+    },
+  });
+
+  // Unifica eventos + transações em um formato comum
+  type Row = {
+    id: string;
+    source: "evento" | "transacao";
+    title: string;
+    client?: string | null;
+    date: string | null;
+    status: string;
+    amount: number;
+    kind: "recebido" | "receber" | "saida";
+    method?: string | null;
+  };
+
+  const eventRows: Row[] = (events ?? []).map((e: any) => {
+    const st = String(e.status ?? "").toLowerCase();
+    const isReceived = RECEIVED_STATUSES.includes(st);
+    return {
+      id: `ev-${e.id}`,
+      source: "evento",
+      title: e.title ?? "Evento",
+      client: e.clients?.name ?? null,
+      date: e.event_date ?? null,
+      status: st,
+      amount: Number(e.total_value ?? 0),
+      kind: isReceived ? "recebido" : "receber",
+    };
+  });
+
+  const txRows: Row[] = (transactions ?? []).map((t: any) => {
+    const st = String(t.status ?? "pendente").toLowerCase();
+    const isEntrada = t.type === "entrada";
+    const isPago = st === "pago";
+    return {
+      id: `tx-${t.id}`,
+      source: "transacao",
+      title: t.description ?? "Transação",
+      client: t.events?.clients?.name ?? t.category ?? null,
+      date: t.due_date ?? t.paid_date ?? null,
+      status: st,
+      amount: Number(t.amount ?? 0),
+      kind: isEntrada ? (isPago ? "recebido" : "receber") : "saida",
+      method: t.method,
+    };
+  });
+
+  const allRows: Row[] = [...eventRows, ...txRows].sort((a, b) => {
+    const da = a.date ? new Date(a.date + "T00:00:00").getTime() : 0;
+    const db = b.date ? new Date(b.date + "T00:00:00").getTime() : 0;
+    return db - da;
+  });
+
+  const filterByPeriod = (r: Row) => {
     if (period === "todos") return true;
-    if (!e.event_date) return false;
-    const d = new Date(e.event_date + "T00:00:00");
+    if (!r.date) return false;
+    const d = new Date(r.date + "T00:00:00");
     const now = new Date();
-    if (period === "hoje") {
-      return d.toDateString() === now.toDateString();
-    }
+    if (period === "hoje") return d.toDateString() === now.toDateString();
     if (period === "semana") {
       const start = new Date(now);
       start.setDate(now.getDate() - now.getDay());
@@ -81,34 +143,29 @@ function FinanceiroPage() {
       end.setHours(23, 59, 59, 999);
       return d >= start && d <= end;
     }
-    if (period === "mes") {
-      return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-    }
-    if (period === "ano") {
-      return d.getFullYear() === now.getFullYear();
-    }
+    if (period === "mes") return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+    if (period === "ano") return d.getFullYear() === now.getFullYear();
     return true;
   };
 
-  const periodFiltered = (events ?? []).filter(filterByPeriod);
+  const periodFiltered = allRows.filter(filterByPeriod);
 
   const totals = periodFiltered.reduce(
-    (acc, e: any) => {
-      const v = Number(e.total_value ?? 0);
-      const st = String(e.status ?? "").toLowerCase();
-      if (RECEIVED_STATUSES.includes(st)) acc.recebido += v;
-      if (RECEIVABLE_STATUSES.includes(st)) acc.receber += v;
+    (acc, r) => {
+      if (r.kind === "recebido") acc.recebido += r.amount;
+      else if (r.kind === "receber") acc.receber += r.amount;
+      else if (r.kind === "saida") acc.saidas += r.amount;
       return acc;
     },
-    { recebido: 0, receber: 0 },
+    { recebido: 0, receber: 0, saidas: 0 },
   );
 
-  const rows = periodFiltered.filter((e: any) => {
-    const st = String(e.status ?? "").toLowerCase();
-    if (typeFilter === "recebido") return RECEIVED_STATUSES.includes(st);
-    if (typeFilter === "receber") return RECEIVABLE_STATUSES.includes(st);
+  const rows = periodFiltered.filter((r) => {
+    if (typeFilter === "recebido") return r.kind === "recebido";
+    if (typeFilter === "receber") return r.kind === "receber";
     return true;
   });
+
 
   return (
     <div className="space-y-6">
