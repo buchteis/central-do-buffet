@@ -366,13 +366,14 @@ function Dashboard() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <FinanceCard label="Receita recebida" value={brl(stats.revenueReceived)} icon={TrendingUp} color="emerald" />
           <FinanceCard label="A receber" value={brl(stats.toReceive)} icon={Clock} color="amber" />
-          {/* ✅ CORRIGIDO: Saldo atual = Receita Recebida - Despesas Pagas */}
+          {/* Saldo atual = Receita Recebida + A Receber (previsto total) */}
           <FinanceCard
             label="Saldo atual"
-            value={brl(stats.revenueReceived - stats.despesasPagas)}
+            value={brl(stats.revenueReceived + stats.toReceive)}
             icon={Wallet}
             color="sky"
           />
+
         </div>
       </section>
 
