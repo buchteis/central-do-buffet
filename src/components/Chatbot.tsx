@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useTenantAccess } from "@/hooks/useTenantAccess";
 import { chatWithAssistant } from "@/lib/chatbot.functions";
+import { Flame } from "lucide-react";
 
 type Msg = { role: "user" | "assistant"; content: string };
 
@@ -65,12 +66,11 @@ export const Chatbot = () => {
           bottom: 20,
           right: 20,
           zIndex: 9999,
-          background: "transparent",
+          background: "#FF7A00",
           border: "none",
-          borderRadius: "50%",
+          borderRadius: 16,
           width: 60,
           height: 60,
-          padding: 0,
           boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
           cursor: "pointer",
           display: "flex",
@@ -78,11 +78,7 @@ export const Chatbot = () => {
           justifyContent: "center",
         }}
       >
-        <img
-          src="/bot-icon.jpeg"
-          alt="Central do Buffet"
-          style={{ width: 60, height: 60, borderRadius: "50%", objectFit: "cover" }}
-        />
+        <Flame className="size-7 text-white" />
       </button>
 
       {isOpen && (
@@ -116,11 +112,18 @@ export const Chatbot = () => {
             }}
           >
             <span style={{ fontWeight: "bold", fontSize: 16, display: "flex", alignItems: "center", gap: 8 }}>
-              <img
-                src="/bot-icon.jpeg"
-                alt="Central do Buffet"
-                style={{ width: 28, height: 28, borderRadius: 6, objectFit: "cover" }}
-              />
+              <div style={{
+                width: 28,
+                height: 28,
+                background: "#FF7A00",
+                borderRadius: 8,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0,
+              }}>
+                <Flame className="size-4 text-white" />
+              </div>
               Assistente — Central do Buffet
             </span>
             <button
