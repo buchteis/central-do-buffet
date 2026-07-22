@@ -233,61 +233,60 @@ function FinanceiroPage() {
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="text-[10px] uppercase tracking-widest text-muted-foreground border-b border-border bg-muted/30">
-              <th className="px-5 py-3 font-bold">Evento</th>
+              <th className="px-5 py-3 font-bold">Descrição</th>
+              <th className="px-4 py-3 font-bold">Origem</th>
               <th className="px-4 py-3 font-bold">Data</th>
               <th className="px-4 py-3 font-bold">Status</th>
-              <th className="px-4 py-3 font-bold">Categoria</th>
+              <th className="px-4 py-3 font-bold">Tipo</th>
               <th className="px-4 py-3 font-bold text-right">Valor</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {rows.map((e: any) => {
-              const st = String(e.status ?? "").toLowerCase();
-              const isReceived = RECEIVED_STATUSES.includes(st);
+            {rows.map((r) => {
+              const isReceived = r.kind === "recebido";
+              const isSaida = r.kind === "saida";
+              const color = isSaida ? "text-rose-600" : isReceived ? "text-emerald-600" : "text-amber-600";
               return (
-                <tr key={e.id} className="hover:bg-muted/30 transition-colors">
+                <tr key={r.id} className="hover:bg-muted/30 transition-colors">
                   <td className="px-5 py-4">
-                    <div className="text-sm font-semibold">{e.title ?? "—"}</div>
-                    {e.clients?.name && (
-                      <div className="text-[11px] text-muted-foreground">{e.clients.name}</div>
-                    )}
+                    <div className="text-sm font-semibold">{r.title}</div>
+                    {r.client && <div className="text-[11px] text-muted-foreground">{r.client}</div>}
                   </td>
-                  <td className="px-4 py-4 text-xs font-mono">{formatDateBR(e.event_date)}</td>
+                  <td className="px-4 py-4 text-[10px] uppercase font-bold text-muted-foreground">
+                    {r.source === "evento" ? "Evento" : "Transação"}
+                    {r.method && <span className="ml-1 normal-case text-muted-foreground/70">· {r.method}</span>}
+                  </td>
+                  <td className="px-4 py-4 text-xs font-mono">{formatDateBR(r.date)}</td>
                   <td className="px-4 py-4">
                     <span
                       className={cn(
                         "px-2 py-1 text-[10px] rounded-full font-bold uppercase border",
-                        statusStyles[st] || "bg-muted text-muted-foreground border-border",
+                        statusStyles[r.status] || "bg-muted text-muted-foreground border-border",
                       )}
                     >
-                      {statusLabels[st] ?? st}
+                      {statusLabels[r.status] ?? r.status}
                     </span>
                   </td>
                   <td className="px-4 py-4 text-xs">
-                    <span
-                      className={cn(
-                        "inline-flex items-center gap-1 font-semibold",
-                        isReceived ? "text-emerald-600" : "text-amber-600",
-                      )}
-                    >
-                      {isReceived ? (
+                    <span className={cn("inline-flex items-center gap-1 font-semibold", color)}>
+                      {isSaida ? (
+                        <>
+                          <TrendingDown className="size-3" /> Saída
+                        </>
+                      ) : isReceived ? (
                         <>
                           <TrendingUp className="size-3" /> Recebido
                         </>
                       ) : (
                         <>
-                          <TrendingDown className="size-3" /> A Receber
+                          <Hourglass className="size-3" /> A Receber
                         </>
                       )}
                     </span>
                   </td>
-                  <td
-                    className={cn(
-                      "px-4 py-4 text-sm font-mono text-right font-bold",
-                      isReceived ? "text-emerald-600" : "text-amber-600",
-                    )}
-                  >
-                    {brl(e.total_value)}
+                  <td className={cn("px-4 py-4 text-sm font-mono text-right font-bold", color)}>
+                    {isSaida ? "- " : ""}
+                    {brl(r.amount)}
                   </td>
                 </tr>
               );
