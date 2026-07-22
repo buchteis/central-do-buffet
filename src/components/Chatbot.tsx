@@ -13,7 +13,7 @@ export const Chatbot = () => {
     {
       role: "assistant",
       content:
-        "🤖 Olá! Sou o assistente da central do Buffet. Pergunte sobre seus eventos, estoque, clientes, faturamento ou pacotes.",
+        "🤖 Olá! Sou o assistente da Central do Buffet. Pergunte sobre seus eventos, estoque, clientes, faturamento ou pacotes.",
     },
   ]);
   const scrollRef = useRef<HTMLDivElement>(null);
