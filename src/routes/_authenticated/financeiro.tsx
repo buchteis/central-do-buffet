@@ -38,9 +38,23 @@ function FinanceiroPage() {
   const qc = useQueryClient();
   const [period, setPeriod] = useState<PeriodFilter>("todos");
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("todos");
+  const [userId, setUserId] = useState<string | null>(null);
 
-  // Realtime: reflete o Dashboard
+  // 🔥 CORREÇÃO 1: Busca o usuário de forma mais simples
   useEffect(() => {
+    const getUser = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      setUserId(user?.id || null);
+    };
+    getUser();
+  }, []);
+
+  // 🔥 CORREÇÃO 2: Realtime com dependências corretas
+  useEffect(() => {
+    if (!userId) return;
+
     const channel = supabase
       .channel("financeiro-live")
       .on("postgres_changes", { event: "*", schema: "public", table: "events" }, () => {
@@ -50,34 +64,115 @@ function FinanceiroPage() {
         qc.invalidateQueries({ queryKey: ["financeiro-transactions"] });
       })
       .subscribe();
+
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [qc]);
+  }, [qc, userId]);
 
-  const { data: events } = useQuery({
-    queryKey: ["financeiro-events"],
+  // 🔥 CORREÇÃO 3: Busca eventos APENAS do usuário logado
+  const { data: events, isLoading: eventsLoading } = useQuery({
+    queryKey: ["financeiro-events", userId],
     queryFn: async () => {
-      const { data } = await supabase
+      if (!userId) return [];
+
+      const { data, error } = await supabase
         .from("events")
         .select("id, title, event_date, status, total_value, clients(name)")
+        .eq("user_id", userId)
         .in("status", ACTIVE_STATUSES as any)
         .order("event_date", { ascending: false });
+
+      if (error) {
+        console.error("Erro ao buscar eventos:", error);
+        return [];
+      }
+
       return data ?? [];
     },
+    enabled: !!userId,
   });
 
-  const { data: transactions } = useQuery({
-    queryKey: ["financeiro-transactions"],
+  // 🔥 CORREÇÃO 4: Busca transações de DUAS FORMAS (compatibilidade)
+  const { data: transactions, isLoading: transactionsLoading } = useQuery({
+    queryKey: ["financeiro-transactions", userId],
     queryFn: async () => {
-      const { data } = await supabase
-        .from("transactions")
-        .select("id, description, due_date, paid_date, status, amount, type, method, category, events(status, clients(name))")
-        .order("due_date", { ascending: false });
-      return (data ?? []).filter(
-        (t: any) => t.events?.status !== "cancelado" && String(t.status).toLowerCase() !== "cancelado",
-      );
+      if (!userId) return [];
+
+      try {
+        // TENTATIVA 1: Buscar transações com user_id direto
+        let { data, error } = await supabase
+          .from("transactions")
+          .select(
+            `
+            id, 
+            description, 
+            due_date, 
+            paid_date, 
+            status, 
+            amount, 
+            type, 
+            method, 
+            category,
+            events (
+              id,
+              status,
+              user_id,
+              clients(name)
+            )
+          `,
+          )
+          .eq("user_id", userId)
+          .order("due_date", { ascending: false });
+
+        // 🔥 CORREÇÃO 5: Se não encontrou com user_id, tenta via events
+        if (error || !data || data.length === 0) {
+          console.log("Buscando transações via eventos...");
+
+          const { data: txData, error: txError } = await supabase
+            .from("transactions")
+            .select(
+              `
+              id, 
+              description, 
+              due_date, 
+              paid_date, 
+              status, 
+              amount, 
+              type, 
+              method, 
+              category,
+              events!inner (
+                id,
+                status,
+                user_id,
+                clients(name)
+              )
+            `,
+            )
+            .eq("events.user_id", userId)
+            .order("due_date", { ascending: false });
+
+          if (txError) {
+            console.error("Erro ao buscar transações via eventos:", txError);
+            return [];
+          }
+
+          data = txData;
+        }
+
+        // 🔥 CORREÇÃO 6: Filtra transações canceladas com segurança
+        return (data ?? []).filter((t: any) => {
+          const eventStatus = t.events?.status?.toLowerCase();
+          const txStatus = String(t.status ?? "").toLowerCase();
+          return eventStatus !== "cancelado" && txStatus !== "cancelado";
+        });
+      } catch (err) {
+        console.error("Erro na busca de transações:", err);
+        return [];
+      }
     },
+    enabled: !!userId,
   });
 
   // Unifica eventos + transações em um formato comum
@@ -169,14 +264,36 @@ function FinanceiroPage() {
     return true;
   });
 
+  // 🔥 CORREÇÃO 7: Mostra loading enquanto carrega
+  if (!userId && !eventsLoading && !transactionsLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-muted-foreground">Faça login para acessar o financeiro</h2>
+          <p className="text-sm text-muted-foreground mt-2">
+            Você precisa estar autenticado para ver seus dados financeiros.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (eventsLoading || transactionsLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+          <p className="text-sm text-muted-foreground mt-4">Carregando dados financeiros...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">Financeiro</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Reflexo do Dashboard — eventos e transações de pagamento
-        </p>
+        <p className="text-sm text-muted-foreground mt-1">Reflexo do Dashboard — eventos e transações de pagamento</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
@@ -200,9 +317,7 @@ function FinanceiroPage() {
               onClick={() => setTypeFilter(f)}
               className={cn(
                 "px-3 py-1.5 text-xs font-bold rounded-full border transition-colors",
-                typeFilter === f
-                  ? "bg-primary text-primary-foreground border-primary"
-                  : "border-border hover:bg-muted",
+                typeFilter === f ? "bg-primary text-primary-foreground border-primary" : "border-border hover:bg-muted",
               )}
             >
               {f === "todos" ? "Todos" : f === "recebido" ? "Recebidos" : "A Receber"}
