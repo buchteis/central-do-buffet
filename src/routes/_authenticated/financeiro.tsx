@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { TrendingUp, TrendingDown, Wallet, Calendar, Hourglass, FileText, CheckCircle2 } from "lucide-react";
+import { TrendingUp, TrendingDown, Wallet, Calendar, Hourglass, CheckCircle2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { brl, formatDateBR } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -14,14 +14,11 @@ export const Route = createFileRoute("/_authenticated/financeiro")({
 
 type PeriodFilter = "todos" | "hoje" | "semana" | "mes" | "ano";
 type TypeFilter = "todos" | "recebido" | "receber";
-type SourceFilter = "todos" | "evento" | "orcamento" | "transacao";
+type SourceFilter = "todos" | "evento" | "transacao";
 
 const RECEIVED_EVENT_STATUSES: string[] = ["pago", "concluido", "realizado"];
 const RECEIVABLE_EVENT_STATUSES: string[] = ["agendado", "pagamento_parcial", "em_andamento"];
 const ACTIVE_EVENT_STATUSES = [...RECEIVED_EVENT_STATUSES, ...RECEIVABLE_EVENT_STATUSES] as any;
-
-// Orçamentos que representam receita confirmada (fechados/aprovados)
-const CLOSED_QUOTE_STATUSES: string[] = ["fechado", "aprovado", "em_andamento"];
 
 const statusLabels: Record<string, string> = {
   agendado: "Agendado",
@@ -87,9 +84,6 @@ function FinanceiroPage() {
       .on("postgres_changes", { event: "*", schema: "public", table: "transactions" }, () => {
         qc.invalidateQueries({ queryKey: ["financeiro-transactions"] });
       })
-      .on("postgres_changes", { event: "*", schema: "public", table: "quotes" }, () => {
-        qc.invalidateQueries({ queryKey: ["financeiro-quotes"] });
-      })
       .subscribe();
     return () => {
       supabase.removeChannel(channel);
@@ -129,26 +123,10 @@ function FinanceiroPage() {
     },
   });
 
-  // Orçamentos fechados/aprovados — filtra por tenant_id (super_admin vê tudo)
-  const { data: quotes } = useQuery({
-    queryKey: ["financeiro-quotes", tenantId],
-    enabled: !!tenantId || isSuperAdmin,
-    queryFn: async () => {
-      let q = supabase
-        .from("quotes")
-        .select("id, event_date, status, total_value, entry_value, balance_value, paid, clients(name), packages(name)")
-        .in("status", CLOSED_QUOTE_STATUSES as any)
-        .order("event_date", { ascending: false });
-      if (tenantId && !isSuperAdmin) q = q.eq("tenant_id", tenantId);
-      const { data } = await q;
-      return data ?? [];
-    },
-  });
-
-  // Unifica eventos + transações + orçamentos em um formato comum
+  // Unifica eventos + transações em um formato comum
   type Row = {
     id: string;
-    source: "evento" | "orcamento" | "transacao";
+    source: "evento" | "transacao";
     title: string;
     client?: string | null;
     date: string | null;
@@ -173,22 +151,6 @@ function FinanceiroPage() {
     };
   });
 
-  const quoteRows: Row[] = (quotes ?? []).map((q: any) => {
-    const st = String(q.status ?? "").toLowerCase();
-    const isPaid = q.paid === true;
-    const pkgName = q.packages?.name ?? null;
-    return {
-      id: `qt-${q.id}`,
-      source: "orcamento",
-      title: pkgName ? `Orçamento — ${pkgName}` : "Orçamento",
-      client: q.clients?.name ?? null,
-      date: q.event_date ?? null,
-      status: st,
-      amount: Number(q.total_value ?? 0),
-      kind: isPaid ? "recebido" : "receber",
-    };
-  });
-
   const txRows: Row[] = (transactions ?? []).map((t: any) => {
     const st = String(t.status ?? "pendente").toLowerCase();
     const isEntrada = t.type === "entrada";
@@ -206,7 +168,7 @@ function FinanceiroPage() {
     };
   });
 
-  const allRows: Row[] = [...eventRows, ...quoteRows, ...txRows].sort((a, b) => {
+  const allRows: Row[] = [...eventRows, ...txRows].sort((a, b) => {
     const da = a.date ? new Date(a.date + "T00:00:00").getTime() : 0;
     const db = b.date ? new Date(b.date + "T00:00:00").getTime() : 0;
     return db - da;
@@ -262,7 +224,7 @@ function FinanceiroPage() {
       <div>
         <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">Financeiro</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Fluxo completo — eventos, orçamentos fechados e transações financeiras
+          Eventos pagos e transações financeiras
         </p>
       </div>
 
@@ -285,7 +247,6 @@ function FinanceiroPage() {
           {([
             { id: "todos", label: "Todos" },
             { id: "evento", label: "Eventos" },
-            { id: "orcamento", label: "Orçamentos" },
             { id: "transacao", label: "Transações" },
           ] as const).map((f) => (
             <button
@@ -368,8 +329,6 @@ function FinanceiroPage() {
                     <span className="inline-flex items-center gap-1">
                       {r.source === "evento" ? (
                         <><CheckCircle2 className="size-3" /> Evento</>
-                      ) : r.source === "orcamento" ? (
-                        <><FileText className="size-3" /> Orçamento</>
                       ) : (
                         <><Wallet className="size-3" /> Transação</>
                       )}
