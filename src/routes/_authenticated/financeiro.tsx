@@ -40,7 +40,7 @@ function FinanceiroPage() {
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("todos");
   const [userId, setUserId] = useState<string | null>(null);
 
-  // 🔥 CORREÇÃO 1: Busca o usuário de forma mais simples
+  // Busca o usuário atual
   useEffect(() => {
     const getUser = async () => {
       const {
@@ -51,51 +51,26 @@ function FinanceiroPage() {
     getUser();
   }, []);
 
-  // 🔥 CORREÇÃO 2: Realtime com dependências corretas
+  // Realtime: reflete o Dashboard
   useEffect(() => {
     if (!userId) return;
-    useEffect(() => {
-      if (!userId) return;
 
-      const channel = supabase
-        .channel("financeiro-live")
-        .on("postgres_changes", { event: "*", schema: "public", table: "events" }, () => {
-          qc.invalidateQueries({ queryKey: ["financeiro-events", userId] });
-        })
-        .on("postgres_changes", { event: "*", schema: "public", table: "transactions" }, () => {
-          qc.invalidateQueries({ queryKey: ["financeiro-transactions", userId] });
-        })
-        .subscribe();
-
-      return () => {
-        supabase.removeChannel(channel);
-      };
-    }, [qc, userId]);
-    const channel = supabase;
-    useEffect(() => {
-      if (!userId) return;
-
-      const channel = supabase
-        .channel("financeiro-live")
-        .on("postgres_changes", { event: "*", schema: "public", table: "events" }, () => {
-          qc.invalidateQueries({ queryKey: ["financeiro-events", userId] });
-        })
-        .on("postgres_changes", { event: "*", schema: "public", table: "transactions" }, () => {
-          qc.invalidateQueries({ queryKey: ["financeiro-transactions", userId] });
-        })
-        .subscribe();
-
-      return () => {
-        supabase.removeChannel(channel);
-      };
-    }, [qc, userId]);
+    const channel = supabase
+      .channel("financeiro-live")
+      .on("postgres_changes", { event: "*", schema: "public", table: "events" }, () => {
+        qc.invalidateQueries({ queryKey: ["financeiro-events", userId] });
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "transactions" }, () => {
+        qc.invalidateQueries({ queryKey: ["financeiro-transactions", userId] });
+      })
+      .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
   }, [qc, userId]);
 
-  // 🔥 CORREÇÃO 3: Busca eventos APENAS do usuário logado
+  // Busca eventos APENAS do usuário logado
   const { data: events, isLoading: eventsLoading } = useQuery({
     queryKey: ["financeiro-events", userId],
     queryFn: async () => {
@@ -118,7 +93,7 @@ function FinanceiroPage() {
     enabled: !!userId,
   });
 
-  // 🔥 CORREÇÃO 4: Busca transações de DUAS FORMAS (compatibilidade)
+  // Busca transações APENAS do usuário logado
   const { data: transactions, isLoading: transactionsLoading } = useQuery({
     queryKey: ["financeiro-transactions", userId],
     queryFn: async () => {
@@ -150,7 +125,7 @@ function FinanceiroPage() {
           .eq("user_id", userId)
           .order("due_date", { ascending: false });
 
-        // 🔥 CORREÇÃO 5: Se não encontrou com user_id, tenta via events
+        // Se não encontrou com user_id, tenta via events
         if (error || !data || data.length === 0) {
           console.log("Buscando transações via eventos...");
 
@@ -186,7 +161,7 @@ function FinanceiroPage() {
           data = txData;
         }
 
-        // 🔥 CORREÇÃO 6: Filtra transações canceladas com segurança
+        // Filtra transações canceladas com segurança
         return (data ?? []).filter((t: any) => {
           const eventStatus = t.events?.status?.toLowerCase();
           const txStatus = String(t.status ?? "").toLowerCase();
@@ -289,7 +264,7 @@ function FinanceiroPage() {
     return true;
   });
 
-  // 🔥 CORREÇÃO 7: Mostra loading enquanto carrega
+  // Mostra loading enquanto carrega
   if (!userId && !eventsLoading && !transactionsLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
