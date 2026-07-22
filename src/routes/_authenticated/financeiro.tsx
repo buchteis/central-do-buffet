@@ -14,9 +14,9 @@ export const Route = createFileRoute("/_authenticated/financeiro")({
 type PeriodFilter = "todos" | "hoje" | "semana" | "mes" | "ano";
 type TypeFilter = "todos" | "recebido" | "receber";
 
-const RECEIVED_STATUSES = ["pago", "concluido", "realizado"];
-const RECEIVABLE_STATUSES = ["agendado", "em_andamento"];
-const ACTIVE_STATUSES = [...RECEIVED_STATUSES, ...RECEIVABLE_STATUSES];
+const RECEIVED_STATUSES = ["pago", "concluido", "realizado"] as const;
+const RECEIVABLE_STATUSES = ["agendado", "em_andamento"] as const;
+const ACTIVE_STATUSES = [...RECEIVED_STATUSES, ...RECEIVABLE_STATUSES] as const;
 
 const statusLabels: Record<string, string> = {
   agendado: "Agendado",
