@@ -293,7 +293,7 @@ function FinanceiroPage() {
             })}
             {rows.length === 0 && (
               <tr>
-                <td colSpan={5} className="p-10 text-center text-sm text-muted-foreground">
+                <td colSpan={6} className="p-10 text-center text-sm text-muted-foreground">
                   Nenhum registro neste período.
                 </td>
               </tr>
