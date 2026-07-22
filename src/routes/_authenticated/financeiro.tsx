@@ -175,14 +175,20 @@ function FinanceiroPage() {
       <div>
         <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">Financeiro</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Reflexo do Dashboard — receitas recebidas e a receber por evento
+          Reflexo do Dashboard — eventos e transações de pagamento
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
         <Card icon={TrendingUp} label="Receita Recebida" value={brl(totals.recebido)} tone="emerald" />
         <Card icon={Hourglass} label="A Receber" value={brl(totals.receber)} tone="amber" />
-        <Card icon={Wallet} label="Saldo Atual" value={brl(totals.recebido + totals.receber)} tone="primary" />
+        <Card icon={TrendingDown} label="Saídas (pagas)" value={brl(totals.saidas)} tone="rose" />
+        <Card
+          icon={Wallet}
+          label="Saldo Atual"
+          value={brl(totals.recebido + totals.receber - totals.saidas)}
+          tone="primary"
+        />
       </div>
 
       {/* Barra de Filtros */}
