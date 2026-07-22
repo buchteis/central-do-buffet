@@ -54,7 +54,23 @@ function FinanceiroPage() {
   // 🔥 CORREÇÃO 2: Realtime com dependências corretas
   useEffect(() => {
     if (!userId) return;
+    useEffect(() => {
+      if (!userId) return;
 
+      const channel = supabase
+        .channel("financeiro-live")
+        .on("postgres_changes", { event: "*", schema: "public", table: "events" }, () => {
+          qc.invalidateQueries({ queryKey: ["financeiro-events", userId] });
+        })
+        .on("postgres_changes", { event: "*", schema: "public", table: "transactions" }, () => {
+          qc.invalidateQueries({ queryKey: ["financeiro-transactions", userId] });
+        })
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    }, [qc, userId]);
     const channel = supabase;
     useEffect(() => {
       if (!userId) return;
