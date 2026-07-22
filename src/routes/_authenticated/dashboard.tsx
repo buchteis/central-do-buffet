@@ -134,28 +134,39 @@ function Dashboard() {
     return { pendentes, aprovados, concluidos, previsiveis };
   });
 
-  // ✅ CORRIGIDO: Agora calcula entradas pagas, despesas pagas e a receber
+  // Financeiro baseado nos EVENTOS (fonte da verdade):
+  // - A Receber: eventos agendado + em_andamento
+  // - Receita Recebida: eventos pago + concluido + realizado
+  // - Cancelado: ignorado
   const transactionsData = useDashboardQuery("transactions-data", async () => {
-    const { data } = await supabase.from("transactions").select("id, amount, type, status, paid_date, due_date");
+    const { data: evts } = await supabase
+      .from("events")
+      .select("total_value, status")
+      .not("status", "in", '("cancelado")');
 
     const recebido =
-      data
-        ?.filter((t) => t.type === "entrada" && t.status === "pago")
-        .reduce((sum, t) => sum + Number(t.amount || 0), 0) || 0;
+      evts
+        ?.filter((e) => ["pago", "concluido", "realizado"].includes(e.status as string))
+        .reduce((sum, e) => sum + Number(e.total_value || 0), 0) || 0;
+
+    const aReceber =
+      evts
+        ?.filter((e) => ["agendado", "em_andamento"].includes(e.status as string))
+        .reduce((sum, e) => sum + Number(e.total_value || 0), 0) || 0;
+
+    const { data: txs } = await supabase
+      .from("transactions")
+      .select("amount, type, status, due_date");
 
     const despesasPagas =
-      data
+      txs
         ?.filter((t) => t.type === "saida" && t.status === "pago")
         .reduce((sum, t) => sum + Number(t.amount || 0), 0) || 0;
 
-    const aReceber =
-      data
-        ?.filter((t) => t.type === "entrada" && t.status === "pendente")
-        .reduce((sum, t) => sum + Number(t.amount || 0), 0) || 0;
-
     const vencidos =
-      data?.filter((t) => t.type === "entrada" && t.status === "pendente" && t.due_date && t.due_date < today).length ||
-      0;
+      txs?.filter(
+        (t) => t.type === "entrada" && t.status === "pendente" && t.due_date && t.due_date < today,
+      ).length || 0;
 
     return { recebido, despesasPagas, aReceber, vencidos };
   });
@@ -355,13 +366,14 @@ function Dashboard() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <FinanceCard label="Receita recebida" value={brl(stats.revenueReceived)} icon={TrendingUp} color="emerald" />
           <FinanceCard label="A receber" value={brl(stats.toReceive)} icon={Clock} color="amber" />
-          {/* ✅ CORRIGIDO: Saldo atual = Receita Recebida - Despesas Pagas */}
+          {/* Saldo atual = Receita Recebida + A Receber (previsto total) */}
           <FinanceCard
             label="Saldo atual"
-            value={brl(stats.revenueReceived - stats.despesasPagas)}
+            value={brl(stats.revenueReceived + stats.toReceive)}
             icon={Wallet}
             color="sky"
           />
+
         </div>
       </section>
 
