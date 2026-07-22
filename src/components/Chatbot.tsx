@@ -13,7 +13,7 @@ export const Chatbot = () => {
     {
       role: "assistant",
       content:
-        "🤖 Olá! Sou o assistente do Meu Churras. Pergunte sobre seus eventos, estoque, clientes, faturamento ou pacotes.",
+        "🤖 Olá! Sou o assistente dA central do Buffet. Pergunte sobre seus eventos, estoque, clientes, faturamento ou pacotes.",
     },
   ]);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -46,10 +46,7 @@ export const Chatbot = () => {
       setMessages((p) => [...p, { role: "assistant", content: res.reply }]);
     } catch (e: any) {
       console.error(e);
-      setMessages((p) => [
-        ...p,
-        { role: "assistant", content: "❌ Erro ao consultar o assistente. Tente novamente." },
-      ]);
+      setMessages((p) => [...p, { role: "assistant", content: "❌ Erro ao consultar o assistente. Tente novamente." }]);
     } finally {
       setIsLoading(false);
     }
@@ -123,15 +120,9 @@ export const Chatbot = () => {
             </button>
           </div>
 
-          <div
-            ref={scrollRef}
-            style={{ flex: 1, padding: "16px 20px", overflowY: "auto", background: "#f9fafb" }}
-          >
+          <div ref={scrollRef} style={{ flex: 1, padding: "16px 20px", overflowY: "auto", background: "#f9fafb" }}>
             {messages.map((msg, i) => (
-              <div
-                key={i}
-                style={{ marginBottom: 12, textAlign: msg.role === "user" ? "right" : "left" }}
-              >
+              <div key={i} style={{ marginBottom: 12, textAlign: msg.role === "user" ? "right" : "left" }}>
                 <div
                   style={{
                     display: "inline-block",
