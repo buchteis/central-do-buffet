@@ -1,222 +1,152 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState, useEffect } from "react";
-import {
-  Plus,
-  TrendingUp,
-  TrendingDown,
-  Wallet,
-  Construction,
-  Pencil,
-  Trash2,
-  Calendar,
-  CheckCircle2,
-  Clock,
-} from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
+import { TrendingUp, TrendingDown, Wallet, Calendar, Hourglass } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { brl, formatDateBR } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/financeiro")({
   head: () => ({ meta: [{ title: "Financeiro — Meu Churras" }] }),
   component: FinanceiroPage,
 });
 
-export function Placeholder({ title, hint }: { title: string; hint: string }) {
-  return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">{title}</h1>
-        <p className="text-sm text-muted-foreground mt-1">{hint}</p>
-      </div>
-      <div className="bg-card border border-border rounded-2xl p-16 text-center">
-        <Construction className="size-8 mx-auto text-muted-foreground mb-3" />
-        <div className="text-sm font-semibold">Em construção</div>
-        <div className="text-xs text-muted-foreground mt-1">Este módulo está previsto para a próxima fase.</div>
-      </div>
-    </div>
-  );
-}
+type PeriodFilter = "todos" | "hoje" | "semana" | "mes" | "ano";
+type TypeFilter = "todos" | "recebido" | "receber";
 
-const statusStyles: Record<string, string> = {
-  pendente: "bg-amber-500/20 text-amber-800 border-amber-300",
-  pago: "bg-emerald-500/20 text-emerald-800 border-emerald-300",
-  atrasado: "bg-rose-500/20 text-rose-800 border-rose-300",
-  cancelado: "bg-muted text-muted-foreground border-border",
+const RECEIVED_STATUSES = ["pago", "concluido", "realizado"];
+const RECEIVABLE_STATUSES = ["agendado", "em_andamento"];
+const ACTIVE_STATUSES = [...RECEIVED_STATUSES, ...RECEIVABLE_STATUSES];
+
+const statusLabels: Record<string, string> = {
+  agendado: "Agendado",
+  em_andamento: "Em andamento",
+  pago: "Pago",
+  concluido: "Concluído",
+  realizado: "Realizado",
 };
 
-type PeriodFilter = "todos" | "dia" | "semana" | "mes" | "ano";
+const statusStyles: Record<string, string> = {
+  agendado: "bg-blue-500/20 text-blue-800 border-blue-300",
+  em_andamento: "bg-amber-500/20 text-amber-800 border-amber-300",
+  pago: "bg-emerald-500/20 text-emerald-800 border-emerald-300",
+  concluido: "bg-gray-500/20 text-gray-800 border-gray-300",
+  realizado: "bg-purple-500/20 text-purple-800 border-purple-300",
+};
 
 function FinanceiroPage() {
   const qc = useQueryClient();
-  const [openDialog, setOpenDialog] = useState(false);
-  const [editingTx, setEditingTx] = useState<any | null>(null);
-  const [filter, setFilter] = useState<"todos" | "entrada" | "saida">("todos");
   const [period, setPeriod] = useState<PeriodFilter>("todos");
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>("todos");
 
-  const { data: txs } = useQuery({
-    queryKey: ["transactions"],
+  // Realtime: reflete o Dashboard
+  useEffect(() => {
+    const channel = supabase
+      .channel("financeiro-live")
+      .on("postgres_changes", { event: "*", schema: "public", table: "events" }, () => {
+        qc.invalidateQueries({ queryKey: ["financeiro-events"] });
+      })
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [qc]);
+
+  const { data: events } = useQuery({
+    queryKey: ["financeiro-events"],
     queryFn: async () => {
       const { data } = await supabase
-        .from("transactions")
-        .select("*, events(status, clients(name))")
-        .order("due_date", { ascending: false });
+        .from("events")
+        .select("id, title, event_date, status, total_value, clients(name)")
+        .in("status", ACTIVE_STATUSES)
+        .order("event_date", { ascending: false });
       return data ?? [];
     },
   });
 
-  // Atualização rápida de status direto pela tabela
-  const updateStatusMut = useMutation({
-    mutationFn: async ({ id, status, due_date }: { id: string; status: string; due_date: string }) => {
-      const cleanStatus = status.toLowerCase();
-      const { error } = await supabase
-        .from("transactions")
-        .update({
-          status: cleanStatus as any,
-          paid_date: cleanStatus === "pago" ? due_date : null,
-        })
-        .eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["transactions"] });
-      toast.success("Status atualizado");
-    },
-    onError: (e: any) => toast.error(`Erro ao atualizar status: ${e.message}`),
-  });
-
-  const deleteMut = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from("transactions").delete().eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["transactions"] });
-      toast.success("Transação excluída com sucesso");
-    },
-    onError: (e: any) => toast.error(`Erro ao excluir: ${e.message}`),
-  });
-
-  const handleDelete = (id: string, description: string) => {
-    if (confirm(`Tem certeza que deseja excluir "${description}"?`)) {
-      deleteMut.mutate(id);
-    }
-  };
-
-  const handleEdit = (tx: any) => {
-    setEditingTx(tx);
-    setOpenDialog(true);
-  };
-
-  const handleNew = () => {
-    setEditingTx(null);
-    setOpenDialog(true);
-  };
-
-  const active = (txs ?? []).filter(
-    (t: any) => t.events?.status !== "cancelado" && String(t.status).toLowerCase() !== "cancelado",
-  );
-
-  // Filtro Temporal por Data
-  const filterByPeriod = (t: any) => {
+  const filterByPeriod = (e: any) => {
     if (period === "todos") return true;
-    if (!t.due_date) return false;
-
-    const txDate = new Date(t.due_date + "T00:00:00");
+    if (!e.event_date) return false;
+    const d = new Date(e.event_date + "T00:00:00");
     const now = new Date();
-
-    if (period === "dia") {
-      return (
-        txDate.getDate() === now.getDate() &&
-        txDate.getMonth() === now.getMonth() &&
-        txDate.getFullYear() === now.getFullYear()
-      );
+    if (period === "hoje") {
+      return d.toDateString() === now.toDateString();
     }
-
     if (period === "semana") {
-      const startOfWeek = new Date(now);
-      startOfWeek.setDate(now.getDate() - now.getDay());
-      startOfWeek.setHours(0, 0, 0, 0);
-
-      const endOfWeek = new Date(startOfWeek);
-      endOfWeek.setDate(startOfWeek.getDate() + 6);
-      endOfWeek.setHours(23, 59, 59, 999);
-
-      return txDate >= startOfWeek && txDate <= endOfWeek;
+      const start = new Date(now);
+      start.setDate(now.getDate() - now.getDay());
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(start);
+      end.setDate(start.getDate() + 6);
+      end.setHours(23, 59, 59, 999);
+      return d >= start && d <= end;
     }
-
     if (period === "mes") {
-      return txDate.getMonth() === now.getMonth() && txDate.getFullYear() === now.getFullYear();
+      return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
     }
-
     if (period === "ano") {
-      return txDate.getFullYear() === now.getFullYear();
+      return d.getFullYear() === now.getFullYear();
     }
-
     return true;
   };
 
-  const periodFiltered = active.filter(filterByPeriod);
-  const filtered = periodFiltered.filter((t) => (filter === "todos" ? true : t.type === filter));
+  const periodFiltered = (events ?? []).filter(filterByPeriod);
 
-  // Totais Recalculados
   const totals = periodFiltered.reduce(
-    (acc, t) => {
-      const v = Number(t.amount ?? 0);
-      const st = String(t.status ?? "").toLowerCase();
-      if (t.type === "entrada" && st === "pago") acc.entradas += v;
-      if (t.type === "saida" && st === "pago") acc.saidas += v;
-      if (st === "pendente") {
-        acc.pendentes += t.type === "entrada" ? v : -v;
-      }
+    (acc, e: any) => {
+      const v = Number(e.total_value ?? 0);
+      const st = String(e.status ?? "").toLowerCase();
+      if (RECEIVED_STATUSES.includes(st)) acc.recebido += v;
+      if (RECEIVABLE_STATUSES.includes(st)) acc.receber += v;
       return acc;
     },
-    { entradas: 0, saidas: 0, pendentes: 0 },
+    { recebido: 0, receber: 0 },
   );
+
+  const rows = periodFiltered.filter((e: any) => {
+    const st = String(e.status ?? "").toLowerCase();
+    if (typeFilter === "recebido") return RECEIVED_STATUSES.includes(st);
+    if (typeFilter === "receber") return RECEIVABLE_STATUSES.includes(st);
+    return true;
+  });
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">Financeiro</h1>
-          <p className="text-sm text-muted-foreground mt-1">Fluxo de caixa, contas a pagar e a receber</p>
-        </div>
-        <button
-          onClick={handleNew}
-          className="inline-flex items-center gap-1 h-9 px-4 rounded-full bg-primary text-primary-foreground text-xs font-bold shadow-lg shadow-primary/20 hover:opacity-90"
-        >
-          <Plus className="size-4" /> Nova transação
-        </button>
+      <div>
+        <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">Financeiro</h1>
+        <p className="text-sm text-muted-foreground mt-1">
+          Reflexo do Dashboard — receitas recebidas e a receber por evento
+        </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-        <Card icon={TrendingUp} label="Entradas (pagas)" value={brl(totals.entradas)} tone="emerald" />
-        <Card icon={TrendingDown} label="Saídas (pagas)" value={brl(totals.saidas)} tone="rose" />
-        <Card icon={Wallet} label="Saldo" value={brl(totals.entradas - totals.saidas)} tone="primary" />
-        <Card icon={Wallet} label="Pendente Líquido" value={brl(totals.pendentes)} tone="amber" />
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <Card icon={TrendingUp} label="Receita Recebida" value={brl(totals.recebido)} tone="emerald" />
+        <Card icon={Hourglass} label="A Receber" value={brl(totals.receber)} tone="amber" />
+        <Card icon={Wallet} label="Saldo Atual" value={brl(totals.recebido + totals.receber)} tone="primary" />
       </div>
 
       {/* Barra de Filtros */}
       <div className="flex flex-wrap items-center justify-between gap-3 bg-card p-3 rounded-2xl border border-border shadow-sm">
         <div className="flex gap-2">
-          {(["todos", "entrada", "saida"] as const).map((f) => (
+          {(["todos", "recebido", "receber"] as const).map((f) => (
             <button
               key={f}
-              onClick={() => setFilter(f)}
+              onClick={() => setTypeFilter(f)}
               className={cn(
                 "px-3 py-1.5 text-xs font-bold rounded-full border transition-colors",
-                filter === f ? "bg-primary text-primary-foreground border-primary" : "border-border hover:bg-muted",
+                typeFilter === f
+                  ? "bg-primary text-primary-foreground border-primary"
+                  : "border-border hover:bg-muted",
               )}
             >
-              {f === "todos" ? "Todos" : f === "entrada" ? "Entradas" : "Saídas"}
+              {f === "todos" ? "Todos" : f === "recebido" ? "Recebidos" : "A Receber"}
             </button>
           ))}
         </div>
 
         <div className="flex items-center gap-1 bg-muted/60 p-1 rounded-full border border-border">
           <Calendar className="size-3.5 ml-2 text-muted-foreground" />
-          {(["todos", "dia", "semana", "mes", "ano"] as const).map((p) => (
+          {(["todos", "hoje", "semana", "mes", "ano"] as const).map((p) => (
             <button
               key={p}
               onClick={() => setPeriod(p)}
@@ -233,101 +163,79 @@ function FinanceiroPage() {
         </div>
       </div>
 
-      {/* Tabela de Transações */}
       <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="text-[10px] uppercase tracking-widest text-muted-foreground border-b border-border bg-muted/30">
-              <th className="px-5 py-3 font-bold">Descrição</th>
-              <th className="px-4 py-3 font-bold">Vencimento</th>
-              <th className="px-4 py-3 font-bold">Método</th>
+              <th className="px-5 py-3 font-bold">Evento</th>
+              <th className="px-4 py-3 font-bold">Data</th>
               <th className="px-4 py-3 font-bold">Status</th>
+              <th className="px-4 py-3 font-bold">Categoria</th>
               <th className="px-4 py-3 font-bold text-right">Valor</th>
-              <th className="px-4 py-3 font-bold text-center">Ações</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {filtered.map((t: any) => {
-              const currentStatus = String(t.status ?? "pendente").toLowerCase();
+            {rows.map((e: any) => {
+              const st = String(e.status ?? "").toLowerCase();
+              const isReceived = RECEIVED_STATUSES.includes(st);
               return (
-                <tr key={t.id} className="hover:bg-muted/30 transition-colors">
+                <tr key={e.id} className="hover:bg-muted/30 transition-colors">
                   <td className="px-5 py-4">
-                    <div className="text-sm font-semibold">{t.description}</div>
-                    {t.events?.clients?.name && (
-                      <div className="text-[11px] text-muted-foreground">{t.events.clients.name}</div>
+                    <div className="text-sm font-semibold">{e.title ?? "—"}</div>
+                    {e.clients?.name && (
+                      <div className="text-[11px] text-muted-foreground">{e.clients.name}</div>
                     )}
                   </td>
-                  <td className="px-4 py-4 text-xs font-mono">{formatDateBR(t.due_date)}</td>
-                  <td className="px-4 py-4 text-xs uppercase">{t.method}</td>
-
-                  {/* Alteração rápida de Status com seletor robusto */}
+                  <td className="px-4 py-4 text-xs font-mono">{formatDateBR(e.event_date)}</td>
                   <td className="px-4 py-4">
-                    <select
-                      value={currentStatus}
-                      onChange={(e) =>
-                        updateStatusMut.mutate({ id: t.id, status: e.target.value, due_date: t.due_date })
-                      }
+                    <span
                       className={cn(
-                        "px-2 py-1 text-[10px] rounded-full font-bold uppercase border cursor-pointer outline-none transition-all",
-                        statusStyles[currentStatus] || statusStyles.pendente,
+                        "px-2 py-1 text-[10px] rounded-full font-bold uppercase border",
+                        statusStyles[st] || "bg-muted text-muted-foreground border-border",
                       )}
                     >
-                      <option value="pendente" className="bg-background text-foreground">
-                        PENDENTE
-                      </option>
-                      <option value="pago" className="bg-background text-foreground">
-                        PAGO
-                      </option>
-                      <option value="atrasado" className="bg-background text-foreground">
-                        ATRASADO
-                      </option>
-                      <option value="cancelado" className="bg-background text-foreground">
-                        CANCELADO
-                      </option>
-                    </select>
+                      {statusLabels[st] ?? st}
+                    </span>
                   </td>
-
+                  <td className="px-4 py-4 text-xs">
+                    <span
+                      className={cn(
+                        "inline-flex items-center gap-1 font-semibold",
+                        isReceived ? "text-emerald-600" : "text-amber-600",
+                      )}
+                    >
+                      {isReceived ? (
+                        <>
+                          <TrendingUp className="size-3" /> Recebido
+                        </>
+                      ) : (
+                        <>
+                          <TrendingDown className="size-3" /> A Receber
+                        </>
+                      )}
+                    </span>
+                  </td>
                   <td
                     className={cn(
                       "px-4 py-4 text-sm font-mono text-right font-bold",
-                      t.type === "entrada" ? "text-emerald-600" : "text-rose-600",
+                      isReceived ? "text-emerald-600" : "text-amber-600",
                     )}
                   >
-                    {t.type === "entrada" ? "+" : "-"} {brl(t.amount)}
-                  </td>
-                  <td className="px-4 py-4 text-center">
-                    <div className="flex items-center justify-center gap-2">
-                      <button
-                        onClick={() => handleEdit(t)}
-                        title="Editar"
-                        className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground"
-                      >
-                        <Pencil className="size-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(t.id, t.description)}
-                        title="Excluir"
-                        className="p-1.5 rounded-lg hover:bg-rose-500/10 text-muted-foreground hover:text-rose-600"
-                      >
-                        <Trash2 className="size-4" />
-                      </button>
-                    </div>
+                    {brl(e.total_value)}
                   </td>
                 </tr>
               );
             })}
-            {filtered.length === 0 && (
+            {rows.length === 0 && (
               <tr>
-                <td colSpan={6} className="p-10 text-center text-sm text-muted-foreground">
-                  Nenhuma transação registrada neste período.
+                <td colSpan={5} className="p-10 text-center text-sm text-muted-foreground">
+                  Nenhum registro neste período.
                 </td>
               </tr>
             )}
           </tbody>
         </table>
       </div>
-
-      {openDialog && <TxDialog initialData={editingTx} onClose={() => setOpenDialog(false)} />}
     </div>
   );
 }
@@ -346,216 +254,6 @@ function Card({ icon: Icon, label, value, tone }: { icon: any; label: string; va
         <Icon className={cn("size-4", tones[tone])} />
       </div>
       <div className={cn("mt-2 text-2xl font-extrabold tracking-tighter", tones[tone])}>{value}</div>
-    </div>
-  );
-}
-
-function TxDialog({ initialData, onClose }: { initialData?: any; onClose: () => void }) {
-  const qc = useQueryClient();
-  const todayLocal = new Date().toLocaleDateString("sv-SE");
-
-  const [form, setForm] = useState({
-    type: "entrada" as "entrada" | "saida",
-    description: "",
-    amount: "",
-    method: "pix",
-    status: "pendente",
-    due_date: todayLocal,
-    category: "",
-  });
-
-  useEffect(() => {
-    if (initialData) {
-      setForm({
-        type: initialData.type ?? "entrada",
-        description: initialData.description ?? "",
-        amount: initialData.amount ? String(initialData.amount) : "",
-        method: String(initialData.method ?? "pix").toLowerCase(),
-        status: String(initialData.status ?? "pendente").toLowerCase(),
-        due_date: initialData.due_date ?? todayLocal,
-        category: initialData.category ?? "",
-      });
-    } else {
-      setForm({
-        type: "entrada",
-        description: "",
-        amount: "",
-        method: "pix",
-        status: "pendente",
-        due_date: todayLocal,
-        category: "",
-      });
-    }
-  }, [initialData]);
-
-  const mut = useMutation({
-    mutationFn: async () => {
-      const { data: u } = await supabase.auth.getUser();
-      if (!u.user) throw new Error("Sem sessão ativa");
-
-      const cleanStatus = form.status.toLowerCase();
-
-      const payload = {
-        owner_id: u.user.id,
-        type: form.type as any,
-        description: form.description,
-        amount: Number(form.amount || 0),
-        method: form.method.toLowerCase() as any,
-        status: cleanStatus as any,
-        due_date: form.due_date,
-        category: form.category || null,
-        paid_date: cleanStatus === "pago" ? form.due_date : null,
-      };
-
-      if (initialData?.id) {
-        const { error } = await supabase.from("transactions").update(payload).eq("id", initialData.id);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase.from("transactions").insert(payload);
-        if (error) throw error;
-      }
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["transactions"] });
-      toast.success(initialData?.id ? "Transação atualizada" : "Transação registrada");
-      onClose();
-    },
-    onError: (e: any) => toast.error(e.message),
-  });
-
-  return (
-    <div
-      className="fixed inset-0 z-50 bg-background/60 backdrop-blur-sm flex items-center justify-center p-4"
-      onClick={onClose}
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        className="bg-card border border-border rounded-2xl p-6 w-full max-w-md space-y-4 max-h-[90vh] overflow-y-auto shadow-2xl"
-      >
-        <h3 className="text-lg font-extrabold">{initialData?.id ? "Editar transação" : "Nova transação"}</h3>
-
-        {/* Seleção do Tipo */}
-        <div className="grid grid-cols-2 gap-2">
-          <button
-            type="button"
-            onClick={() => setForm((prev) => ({ ...prev, type: "entrada" }))}
-            className={cn(
-              "h-10 rounded-lg text-sm font-bold border transition-colors",
-              form.type === "entrada" ? "bg-emerald-500 text-white border-emerald-500" : "border-border",
-            )}
-          >
-            Entrada
-          </button>
-          <button
-            type="button"
-            onClick={() => setForm((prev) => ({ ...prev, type: "saida" }))}
-            className={cn(
-              "h-10 rounded-lg text-sm font-bold border transition-colors",
-              form.type === "saida" ? "bg-rose-500 text-white border-rose-500" : "border-border",
-            )}
-          >
-            Saída
-          </button>
-        </div>
-
-        <input
-          placeholder="Descrição"
-          value={form.description}
-          onChange={(e) => setForm({ ...form, description: e.target.value })}
-          className="w-full h-10 px-3 border border-border rounded-lg bg-background text-sm outline-none focus:border-primary"
-        />
-        <input
-          placeholder="Categoria (ex: Carnes, Bebidas)"
-          value={form.category}
-          onChange={(e) => setForm({ ...form, category: e.target.value })}
-          className="w-full h-10 px-3 border border-border rounded-lg bg-background text-sm outline-none focus:border-primary"
-        />
-
-        <div className="grid grid-cols-2 gap-2">
-          <input
-            type="number"
-            step="0.01"
-            placeholder="Valor"
-            value={form.amount}
-            onChange={(e) => setForm({ ...form, amount: e.target.value })}
-            className="h-10 px-3 border border-border rounded-lg bg-background text-sm outline-none focus:border-primary"
-          />
-          <input
-            type="date"
-            value={form.due_date}
-            onChange={(e) => setForm({ ...form, due_date: e.target.value })}
-            className="h-10 px-3 border border-border rounded-lg bg-background text-sm outline-none focus:border-primary"
-          />
-        </div>
-
-        {/* Método de Pagamento */}
-        <div>
-          <label className="text-[11px] font-bold text-muted-foreground uppercase mb-1 block">Forma de Pagamento</label>
-          <select
-            value={form.method}
-            onChange={(e) => setForm((prev) => ({ ...prev, method: e.target.value.toLowerCase() }))}
-            className="w-full h-10 px-3 border border-border rounded-lg bg-background text-sm cursor-pointer outline-none focus:border-primary"
-          >
-            <option value="pix">PIX</option>
-            <option value="dinheiro">Dinheiro</option>
-            <option value="cartao">Cartão</option>
-            <option value="boleto">Boleto</option>
-            <option value="transferencia">Transferência</option>
-            <option value="outro">Outro</option>
-          </select>
-        </div>
-
-        {/* Seleção de Status Interativa (Pendente x Pago) */}
-        <div>
-          <label className="text-[11px] font-bold text-muted-foreground uppercase mb-1.5 block">
-            Status da Transação
-          </label>
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => setForm((prev) => ({ ...prev, status: "pendente" }))}
-              className={cn(
-                "h-10 rounded-lg text-xs font-bold border flex items-center justify-center gap-1.5 transition-all",
-                form.status === "pendente"
-                  ? "bg-amber-500 text-white border-amber-500 shadow-md"
-                  : "border-border text-muted-foreground hover:bg-muted",
-              )}
-            >
-              <Clock className="size-4" /> Pendente
-            </button>
-            <button
-              type="button"
-              onClick={() => setForm((prev) => ({ ...prev, status: "pago" }))}
-              className={cn(
-                "h-10 rounded-lg text-xs font-bold border flex items-center justify-center gap-1.5 transition-all",
-                form.status === "pago"
-                  ? "bg-emerald-600 text-white border-emerald-600 shadow-md"
-                  : "border-border text-muted-foreground hover:bg-muted",
-              )}
-            >
-              <CheckCircle2 className="size-4" /> Pago
-            </button>
-          </div>
-        </div>
-
-        <div className="flex gap-2 pt-2">
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex-1 h-10 rounded-lg border border-border text-sm font-bold hover:bg-muted"
-          >
-            Cancelar
-          </button>
-          <button
-            type="button"
-            disabled={!form.description || !form.amount || mut.isPending}
-            onClick={() => mut.mutate()}
-            className="flex-1 h-10 rounded-lg bg-primary text-primary-foreground text-sm font-bold disabled:opacity-50"
-          >
-            Salvar
-          </button>
-        </div>
-      </div>
     </div>
   );
 }
