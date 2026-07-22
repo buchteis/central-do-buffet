@@ -58,10 +58,10 @@ function FinanceiroPage() {
     const channel = supabase
       .channel("financeiro-live")
       .on("postgres_changes", { event: "*", schema: "public", table: "events" }, () => {
-        qc.invalidateQueries({ queryKey: ["financeiro-events"] });
+        qc.invalidateQueries({ queryKey: ["financeiro-events", userId] });
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "transactions" }, () => {
-        qc.invalidateQueries({ queryKey: ["financeiro-transactions"] });
+        qc.invalidateQueries({ queryKey: ["financeiro-transactions", userId] });
       })
       .subscribe();
 
