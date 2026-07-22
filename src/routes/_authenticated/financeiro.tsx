@@ -46,6 +46,9 @@ function FinanceiroPage() {
       .on("postgres_changes", { event: "*", schema: "public", table: "events" }, () => {
         qc.invalidateQueries({ queryKey: ["financeiro-events"] });
       })
+      .on("postgres_changes", { event: "*", schema: "public", table: "transactions" }, () => {
+        qc.invalidateQueries({ queryKey: ["financeiro-transactions"] });
+      })
       .subscribe();
     return () => {
       supabase.removeChannel(channel);
