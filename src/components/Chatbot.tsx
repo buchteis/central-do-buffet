@@ -13,7 +13,7 @@ export const Chatbot = () => {
     {
       role: "assistant",
       content:
-        "🤖 Olá! Sou o assistente virtual da Central do Buffet. Como posso ajudar você hoje?",
+        "Olá! Sou o assistente virtual da Central do Buffet. Como posso ajudar você hoje?",
     },
   ]);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -65,13 +65,12 @@ export const Chatbot = () => {
           bottom: 20,
           right: 20,
           zIndex: 9999,
-          background: "#22c55e",
-          color: "white",
+          background: "transparent",
           border: "none",
           borderRadius: "50%",
           width: 60,
           height: 60,
-          fontSize: 30,
+          padding: 0,
           boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
           cursor: "pointer",
           display: "flex",
@@ -79,7 +78,11 @@ export const Chatbot = () => {
           justifyContent: "center",
         }}
       >
-        🤖
+        <img
+          src="/bot-icon.jpeg"
+          alt="Central do Buffet"
+          style={{ width: 60, height: 60, borderRadius: "50%", objectFit: "cover" }}
+        />
       </button>
 
       {isOpen && (
@@ -112,8 +115,13 @@ export const Chatbot = () => {
               alignItems: "center",
             }}
           >
-            <span style={{ fontWeight: "bold", fontSize: 16 }}>
-              🤖 Assistente — Central do Buffet
+            <span style={{ fontWeight: "bold", fontSize: 16, display: "flex", alignItems: "center", gap: 8 }}>
+              <img
+                src="/bot-icon.jpeg"
+                alt="Central do Buffet"
+                style={{ width: 28, height: 28, borderRadius: 6, objectFit: "cover" }}
+              />
+              Assistente — Central do Buffet
             </span>
             <button
               onClick={() => setIsOpen(false)}
