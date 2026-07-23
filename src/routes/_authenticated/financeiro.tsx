@@ -141,7 +141,7 @@ function FinanceiroPage() {
     return {
       id: `ev-${e.id}`,
       source: "evento",
-      title: e.title ?? "Evento",
+      title: e.packages?.name ?? e.clients?.name ?? "Evento",
       client: e.clients?.name ?? null,
       date: e.event_date ?? null,
       status: st,
