@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { maskCpfCnpj, isValidCpfCnpj, onlyDigits, docKind } from "@/lib/doc";
+import { useTenantAccess } from "@/hooks/useTenantAccess";
 
 export const Route = createFileRoute("/_authenticated/clientes/novo")({
   head: () => ({ meta: [{ title: "Novo cliente — Central do Buffet" }] }),
@@ -31,6 +32,7 @@ function NewClientPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const [cpf, setCpf] = useState("");
+  const { data: access } = useTenantAccess();
 
   const mut = useMutation({
     mutationFn: async (values: z.infer<typeof schema>) => {
@@ -39,7 +41,12 @@ function NewClientPage() {
       const payload = Object.fromEntries(Object.entries(values).map(([k, v]) => [k, v === "" ? null : v]));
       const { data, error } = await supabase
         .from("clients")
-        .insert({ ...(payload as any), name: values.name, owner_id: userRes.user.id })
+        .insert({
+          ...(payload as any),
+          name: values.name,
+          owner_id: userRes.user.id,
+          tenant_id: access?.tenant?.id ?? null,
+        })
         .select()
         .single();
       if (error) throw error;
@@ -108,7 +115,6 @@ function NewClientPage() {
           <Label htmlFor="notes">Observações</Label>
           <Textarea id="notes" name="notes" rows={3} />
         </div>
-
 
         <div className="flex justify-end gap-2 pt-2">
           <Button type="button" variant="outline" onClick={() => navigate({ to: "/clientes" })}>
