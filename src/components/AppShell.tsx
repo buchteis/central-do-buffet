@@ -61,20 +61,14 @@ export function AppShell({ children }: { children: ReactNode }) {
             <Flame className="size-5 text-primary-foreground" />
           </div>
           <div className="flex flex-col leading-tight">
-            <span className="font-extrabold text-lg tracking-tight">Meu Churras</span>
-            <span className="text-[10px] text-muted-foreground font-mono uppercase">
-              Gestão de buffet
-            </span>
+            <span className="font-extrabold text-lg tracking-tight">Central do Buffet</span>
+            <span className="text-[10px] text-muted-foreground font-mono uppercase">Gestão de buffet</span>
           </div>
         </div>
 
         <nav className="flex-1 px-3 space-y-0.5 overflow-y-auto">
           {primary.map((item) => (
-            <SideLink
-              key={item.to}
-              item={item}
-              active={isActive(pathname, item.to)}
-            />
+            <SideLink key={item.to} item={item} active={isActive(pathname, item.to)} />
           ))}
           {access?.isSuperAdmin && (
             <>
@@ -96,9 +90,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               {(access?.tenant?.name ?? "MC").slice(0, 2).toUpperCase()}
             </div>
             <div className="flex flex-col overflow-hidden flex-1 min-w-0">
-              <span className="text-xs font-bold truncate">
-                {access?.tenant?.name ?? "Meu Buffet"}
-              </span>
+              <span className="text-xs font-bold truncate">{access?.tenant?.name ?? "Meu Buffet"}</span>
               <span className="text-[10px] text-muted-foreground truncate">
                 {access?.isSuperAdmin ? "Super Admin" : access?.email}
               </span>
