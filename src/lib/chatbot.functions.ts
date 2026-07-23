@@ -28,35 +28,31 @@ async function buildContext(supabase: any, userId: string) {
 
   const tid = tenant.id;
 
-  const [
-    clientsRes,
-    eventsRes,
-    quotesRes,
-    stockRes,
-    packagesRes,
-    pkgProductsRes,
-    movementsRes,
-  ] = await Promise.all([
-    supabase.from("clients").select("id, name, phone, email, city, created_at").eq("tenant_id", tid),
+  const [clientsRes, eventsRes, quotesRes, stockRes, packagesRes, pkgProductsRes, movementsRes] = await Promise.all([
+    // Busca clientes por tenant_id OU owner_id (para capturar clientes antigos sem tenant_id)
+    supabase
+      .from("clients")
+      .select("id, name, phone, email, city, created_at")
+      .or(`tenant_id.eq.${tid},owner_id.eq.${userId}`),
     supabase
       .from("events")
       .select("id, event_date, status, total_value, guest_count, clients(name), packages(name)")
-      .eq("tenant_id", tid)
+      .or(`tenant_id.eq.${tid},owner_id.eq.${userId}`)
       .order("event_date", { ascending: false })
       .limit(50),
     supabase
       .from("quotes")
       .select("id, status, paid, total_value, event_date, created_at")
-      .eq("tenant_id", tid),
+      .or(`tenant_id.eq.${tid},owner_id.eq.${userId}`),
     supabase
       .from("stock_products")
       .select("id, name, unit, physical_qty, reserved_qty, min_qty, stock_categories(name)")
-      .eq("tenant_id", tid)
+      .or(`tenant_id.eq.${tid},owner_id.eq.${userId}`)
       .order("name"),
     supabase
       .from("packages")
       .select("id, name, price_per_person, min_people, max_people, active")
-      .eq("tenant_id", tid),
+      .or(`tenant_id.eq.${tid},owner_id.eq.${userId}`),
     supabase.from("package_products").select("package_id, product_id, qty_per_person, qty_fixed"),
     supabase
       .from("stock_movements")
@@ -164,8 +160,7 @@ export const chatWithAssistant = createServerFn({ method: "POST" })
     const { tenant, summary } = await buildContext(context.supabase, context.userId);
     if (!tenant) {
       return {
-        reply:
-          "Não encontrei um buffet vinculado à sua conta. Verifique se seu cadastro foi aprovado.",
+        reply: "Não encontrei um buffet vinculado à sua conta. Verifique se seu cadastro foi aprovado.",
       };
     }
 
@@ -209,7 +204,6 @@ ${summary}`;
     }
 
     const json = (await res.json()) as any;
-    const reply: string =
-      json?.choices?.[0]?.message?.content ?? "Não consegui gerar uma resposta.";
+    const reply: string = json?.choices?.[0]?.message?.content ?? "Não consegui gerar uma resposta.";
     return { reply };
   });
