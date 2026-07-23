@@ -19,7 +19,7 @@ import { useTenantAccess } from "@/hooks/useTenantAccess";
 import { maskCpfCnpj } from "@/lib/doc";
 
 export const Route = createFileRoute("/_authenticated/orcamentos/novo")({
-  head: () => ({ meta: [{ title: "Novo orçamento — Central do Buffet" }] }),
+  head: () => ({ meta: [{ title: "Novo orçamento — Meu Churras" }] }),
   validateSearch: (s: Record<string, unknown>) => ({
     leadId: typeof s.leadId === "string" ? s.leadId : undefined,
     quoteId: typeof s.quoteId === "string" ? s.quoteId : undefined,
@@ -224,7 +224,6 @@ function NewQuotePage() {
           .insert({
             ...payload,
             owner_id: userRes.user.id,
-            tenant_id: access?.tenant?.id ?? null,
             status: "novo" as const,
           } as any)
           .select()
@@ -480,25 +479,11 @@ function NewQuotePage() {
                         </SelectTrigger>
                         <SelectContent>
                           {(() => {
-                            const guests = (Number(form.adults) || 0) + (Number(form.children_count) || 0);
                             const all = packages ?? [];
-                            const fits = (p: any) => {
-                              if (guests <= 0) return true;
-                              const min = p.min_people ?? 0;
-                              const max = p.max_people ?? Number.POSITIVE_INFINITY;
-                              return guests >= min && guests <= max;
-                            };
-                            const visible = all.filter((p: any) => fits(p) || p.id === pid);
-                            if (visible.length === 0) {
-                              return (
-                                <div className="p-4 text-xs text-muted-foreground">
-                                  {all.length === 0
-                                    ? "Cadastre um pacote antes."
-                                    : `Nenhum pacote cadastrado para ${guests} convidado(s).`}
-                                </div>
-                              );
+                            if (all.length === 0) {
+                              return <div className="p-4 text-xs text-muted-foreground">Cadastre um pacote antes.</div>;
                             }
-                            return visible.map((p: any) => (
+                            return all.map((p: any) => (
                               <SelectItem
                                 key={p.id}
                                 value={p.id}
