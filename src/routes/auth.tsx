@@ -16,10 +16,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 export const Route = createFileRoute("/auth")({
   head: () => ({
     meta: [
-      { title: "Meu Churras — Login" },
+      { title: "Central do Buffet — Login" },
       {
         name: "description",
-        content: "Acesse sua conta do Meu Churras.",
+        content: "Acesse sua conta do Central do Buffet.",
       },
     ],
   }),

@@ -10,7 +10,7 @@ import { fillTemplate } from "@/lib/whatsapp";
 import { useLogoDisplayUrl, getLogoDisplayUrl } from "@/lib/logo";
 
 export const Route = createFileRoute("/_authenticated/contratos")({
-  head: () => ({ meta: [{ title: "Contratos — Meu Churras" }] }),
+  head: () => ({ meta: [{ title: "Contratos — Central do Buffet" }] }),
   component: ContractsPage,
 });
 

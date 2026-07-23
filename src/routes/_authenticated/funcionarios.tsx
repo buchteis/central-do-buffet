@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/funcionarios")({
-  head: () => ({ meta: [{ title: "Funcionários — Meu Churras" }] }),
+  head: () => ({ meta: [{ title: "Funcionários — Central do Buffet" }] }),
   component: FuncionariosPage,
 });
 

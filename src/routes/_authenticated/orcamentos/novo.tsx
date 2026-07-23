@@ -19,7 +19,7 @@ import { useTenantAccess } from "@/hooks/useTenantAccess";
 import { maskCpfCnpj } from "@/lib/doc";
 
 export const Route = createFileRoute("/_authenticated/orcamentos/novo")({
-  head: () => ({ meta: [{ title: "Novo orçamento — Meu Churras" }] }),
+  head: () => ({ meta: [{ title: "Novo orçamento — Central do Buffet" }] }),
   validateSearch: (s: Record<string, unknown>) => ({
     leadId: typeof s.leadId === "string" ? s.leadId : undefined,
     quoteId: typeof s.quoteId === "string" ? s.quoteId : undefined,

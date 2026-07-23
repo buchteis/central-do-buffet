@@ -33,7 +33,7 @@ function googleCalendarUrl(e: any): string {
 }
 
 export const Route = createFileRoute("/_authenticated/eventos/")({
-  head: () => ({ meta: [{ title: "Eventos — Meu Churras" }] }),
+  head: () => ({ meta: [{ title: "Eventos — Central do Buffet" }] }),
   component: EventsPage,
 });
 

@@ -8,7 +8,7 @@ import { useTenantAccess } from "@/hooks/useTenantAccess";
 import { useLogoDisplayUrl } from "@/lib/logo";
 
 export const Route = createFileRoute("/_authenticated/configuracoes")({
-  head: () => ({ meta: [{ title: "Configurações — Meu Churras" }] }),
+  head: () => ({ meta: [{ title: "Configurações — Central do Buffet" }] }),
   component: SettingsPage,
 });
 

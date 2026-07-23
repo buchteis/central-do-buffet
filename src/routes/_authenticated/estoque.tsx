@@ -29,7 +29,7 @@ import { formatDateBR } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/estoque")({
-  head: () => ({ meta: [{ title: "Estoque — Meu Churras" }] }),
+  head: () => ({ meta: [{ title: "Estoque — Central do Buffet" }] }),
   component: StockPage,
 });
 

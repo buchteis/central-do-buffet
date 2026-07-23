@@ -79,13 +79,13 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Meu Churras — Gestão para buffets de churrasco" },
+      { title: "Central do Buffet — Gestão para buffets de churrasco" },
       {
         name: "description",
         content:
           "ERP simples e completo para buffets de churrasco: clientes, orçamentos, agenda, eventos e pacotes em um só lugar.",
       },
-      { property: "og:title", content: "Meu Churras — Gestão para buffets" },
+      { property: "og:title", content: "Central do Buffet — Gestão para buffets" },
       {
         property: "og:description",
         content: "Controle clientes, orçamentos, agenda e eventos do seu buffet de churrasco.",
