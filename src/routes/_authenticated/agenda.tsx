@@ -707,7 +707,7 @@ function EventPanel({ event, onClose }: { event: any; onClose: () => void }) {
                 <option value="pago">Pago</option>
                 <option value="concluido">Concluído</option>
                 <option value="cancelado">Cancelado</option>
-                <option value="realizado">Realizado (arquivar)</option>
+                
               </select>
             </div>
           </div>

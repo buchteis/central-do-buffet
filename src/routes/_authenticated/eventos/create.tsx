@@ -269,7 +269,7 @@ function CreateEventPage() {
             <option value="agendado">Agendado</option>
             <option value="em_andamento">Em andamento</option>
             <option value="pago">Pago</option>
-            <option value="realizado">Realizado</option>
+            
             <option value="concluido">Concluído</option>
             <option value="cancelado">Cancelado</option>
           </select>

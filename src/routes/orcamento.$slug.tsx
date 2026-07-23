@@ -140,7 +140,6 @@ function PublicQuoteForm() {
         p_guest_count: payload.guest_count,
         p_event_type: payload.event_type || null,
         p_package_id: packageIds.length > 0 ? packageIds[0] : null,
-        p_package_ids: packageIds,
         p_notes: payload.notes || null,
       } as any);
       if (error) throw error;
