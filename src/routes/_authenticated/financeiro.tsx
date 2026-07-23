@@ -96,7 +96,7 @@ function FinanceiroPage() {
     queryFn: async () => {
       let q = supabase
         .from("events")
-        .select("id, title, event_date, status, total_value, clients(name)")
+        .select("id, event_date, status, total_value, clients(name), packages(name)")
         .in("status", ACTIVE_EVENT_STATUSES as any)
         .order("event_date", { ascending: false });
       if (tenantId && !isSuperAdmin) q = q.eq("tenant_id", tenantId);
