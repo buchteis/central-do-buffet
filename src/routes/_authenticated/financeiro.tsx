@@ -16,9 +16,8 @@ type PeriodFilter = "todos" | "hoje" | "semana" | "mes" | "ano";
 type TypeFilter = "todos" | "recebido" | "receber";
 type SourceFilter = "todos" | "evento" | "transacao";
 
-const RECEIVED_EVENT_STATUSES: string[] = ["pago", "concluido", "realizado"];
-const RECEIVABLE_EVENT_STATUSES: string[] = ["agendado", "pagamento_parcial", "em_andamento"];
-const ACTIVE_EVENT_STATUSES = [...RECEIVED_EVENT_STATUSES, ...RECEIVABLE_EVENT_STATUSES] as any;
+const RECEIVED_EVENT_STATUSES: string[] = ["pago", "concluido"];
+const ACTIVE_EVENT_STATUSES = [...RECEIVED_EVENT_STATUSES] as any;
 
 const statusLabels: Record<string, string> = {
   agendado: "Agendado",
