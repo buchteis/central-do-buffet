@@ -136,7 +136,7 @@ function Dashboard() {
 
   // Financeiro baseado nos EVENTOS (fonte da verdade):
   // - A Receber: eventos agendado + em_andamento
-  // - Receita Recebida: eventos pago + concluido + realizado
+  // - Receita Recebida: eventos pago + concluido
   // - Cancelado: ignorado
   const transactionsData = useDashboardQuery("transactions-data", async () => {
     const { data: evts } = await supabase
@@ -146,7 +146,7 @@ function Dashboard() {
 
     const recebido =
       evts
-        ?.filter((e) => ["pago", "concluido", "realizado"].includes(e.status as string))
+        ?.filter((e) => ["pago", "concluido"].includes(e.status as string))
         .reduce((sum, e) => sum + Number(e.total_value || 0), 0) || 0;
 
     const aReceber =
