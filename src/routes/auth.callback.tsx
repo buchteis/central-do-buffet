@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 export const Route = createFileRoute("/auth/callback")({
   ssr: false,
   head: () => ({
-    meta: [{ title: "Confirmando acesso — Meu Churras" }],
+    meta: [{ title: "Confirmando acesso — Central do Buffet" }],
   }),
   component: AuthCallback,
 });

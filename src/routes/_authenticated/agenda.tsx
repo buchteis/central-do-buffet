@@ -21,7 +21,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/_authenticated/agenda")({
-  head: () => ({ meta: [{ title: "Agenda — Meu Churras" }] }),
+  head: () => ({ meta: [{ title: "Agenda — Central do Buffet" }] }),
   component: AgendaPage,
 });
 

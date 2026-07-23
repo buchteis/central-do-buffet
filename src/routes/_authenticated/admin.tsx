@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Check, Pause, Play, Shield, ShieldCheck, ShieldOff, UserCog, X } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/admin")({
-  head: () => ({ meta: [{ title: "Super Admin — Meu Churras" }] }),
+  head: () => ({ meta: [{ title: "Super Admin — Central do Buffet" }] }),
   component: AdminPage,
 });
 

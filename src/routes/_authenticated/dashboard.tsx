@@ -27,7 +27,7 @@ import {
 import { Chatbot } from "@/components/Chatbot";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
-  head: () => ({ meta: [{ title: "Dashboard — Meu Churras" }] }),
+  head: () => ({ meta: [{ title: "Dashboard — Central do Buffet" }] }),
   component: Dashboard,
 });
 

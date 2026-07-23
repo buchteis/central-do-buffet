@@ -17,7 +17,7 @@ import { brl } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/relatorios")({
-  head: () => ({ meta: [{ title: "Relatórios — Meu Churras" }] }),
+  head: () => ({ meta: [{ title: "Relatórios — Central do Buffet" }] }),
   component: RelatoriosPage,
 });
 

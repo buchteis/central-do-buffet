@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/dialog";
 
 export const Route = createFileRoute("/_authenticated/pacotes")({
-  head: () => ({ meta: [{ title: "Pacotes — Meu Churras" }] }),
+  head: () => ({ meta: [{ title: "Pacotes — Central do Buffet" }] }),
   component: PackagesPage,
 });
 

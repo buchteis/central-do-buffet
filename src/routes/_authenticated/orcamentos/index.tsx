@@ -28,7 +28,7 @@ import { useTenantAccess } from "@/hooks/useTenantAccess";
 import { useEffect } from "react";
 
 export const Route = createFileRoute("/_authenticated/orcamentos/")({
-  head: () => ({ meta: [{ title: "Orçamentos — Meu Churras" }] }),
+  head: () => ({ meta: [{ title: "Orçamentos — Central do Buffet" }] }),
   component: QuotesPage,
 });
 
@@ -37,7 +37,7 @@ function whatsappMessage(q: any) {
   const date = formatDateBR(q.event_date) ?? "a data definida";
   const pkg = q.packages?.name ?? "pacote escolhido";
   const value = brl(q.total_value);
-  return `Olá, ${name}! Tudo bem? Aqui é do Meu Churras. Estou entrando em contato sobre o orçamento do seu evento em ${date} (${pkg}). O investimento estimado é ${value}. Posso te passar mais detalhes?`;
+  return `Olá, ${name}! Tudo bem? Aqui é do Central do Buffet. Estou entrando em contato sobre o orçamento do seu evento em ${date} (${pkg}). O investimento estimado é ${value}. Posso te passar mais detalhes?`;
 }
 
 type Stage = "novo" | "em_andamento" | "fechado";

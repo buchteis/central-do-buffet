@@ -7,7 +7,7 @@ import { useTenantAccess } from "@/hooks/useTenantAccess";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/clientes/importar")({
-  head: () => ({ meta: [{ title: "Importar Clientes — Meu Churras" }] }),
+  head: () => ({ meta: [{ title: "Importar Clientes — Central do Buffet" }] }),
   component: ImportClientsPage,
 });
 

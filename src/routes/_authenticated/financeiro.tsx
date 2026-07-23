@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 import { useTenantAccess } from "@/hooks/useTenantAccess";
 
 export const Route = createFileRoute("/_authenticated/financeiro")({
-  head: () => ({ meta: [{ title: "Financeiro — Meu Churras" }] }),
+  head: () => ({ meta: [{ title: "Financeiro — Central do Buffet" }] }),
   component: FinanceiroPage,
 });
 

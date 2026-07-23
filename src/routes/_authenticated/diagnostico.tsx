@@ -23,7 +23,7 @@ import { useState } from "react";
 import { brl } from "@/lib/format";
 
 export const Route = createFileRoute("/_authenticated/diagnostico")({
-  head: () => ({ meta: [{ title: "Diagnóstico — Meu Churras" }] }),
+  head: () => ({ meta: [{ title: "Diagnóstico — Central do Buffet" }] }),
   component: DiagnosticoPage,
 });
 
@@ -400,7 +400,7 @@ function DiagnosticoPage() {
 
         {/* RODAPÉ */}
         <div className="text-center text-xs text-muted-foreground border-t border-slate-200 pt-6">
-          <p>Diagnóstico · Meu Churras · {new Date().toLocaleDateString()}</p>
+          <p>Diagnóstico · Central do Buffet · {new Date().toLocaleDateString()}</p>
           <p className="mt-1">
             {data?.integridade?.integridadePercentual >= 90 ? (
               <span className="text-emerald-600">✅ Sistema saudável</span>

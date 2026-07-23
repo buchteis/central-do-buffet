@@ -18,7 +18,7 @@ type EventStatus =
   | "cancelado";
 
 export const Route = createFileRoute("/_authenticated/eventos/create")({
-  head: () => ({ meta: [{ title: "Novo Evento — Meu Churras" }] }),
+  head: () => ({ meta: [{ title: "Novo Evento — Central do Buffet" }] }),
   component: CreateEventPage,
 });
 

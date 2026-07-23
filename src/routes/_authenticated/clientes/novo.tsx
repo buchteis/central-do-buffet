@@ -12,7 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { maskCpfCnpj, isValidCpfCnpj, onlyDigits, docKind } from "@/lib/doc";
 
 export const Route = createFileRoute("/_authenticated/clientes/novo")({
-  head: () => ({ meta: [{ title: "Novo cliente — Meu Churras" }] }),
+  head: () => ({ meta: [{ title: "Novo cliente — Central do Buffet" }] }),
   component: NewClientPage,
 });
 
