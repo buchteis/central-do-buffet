@@ -224,6 +224,7 @@ function NewQuotePage() {
           .insert({
             ...payload,
             owner_id: userRes.user.id,
+            tenant_id: access?.tenant?.id ?? null,
             status: "novo" as const,
           } as any)
           .select()
@@ -772,11 +773,7 @@ function NewQuotePage() {
           <ChecklistPreDefinido
             guests={(Number(form.adults) || 0) + (Number(form.children_count) || 0)}
             eventName={form.event_type || null}
-            clientName={
-              (clients ?? []).find((c: any) => c.id === form.client_id)?.name ??
-              (lead as any)?.name ??
-              null
-            }
+            clientName={(clients ?? []).find((c: any) => c.id === form.client_id)?.name ?? (lead as any)?.name ?? null}
             eventDate={form.event_date || null}
             eventTime={form.event_time || null}
             eventAddress={form.event_address || null}
