@@ -52,18 +52,51 @@ function CreateEventPage() {
     queryFn: async () => {
       const { data } = await supabase
         .from("packages")
-        .select("id, name, price_per_person")
+        .select("id, name")
+        .eq("active", true)
         .order("name");
       return data ?? [];
     },
   });
 
+  const { data: tiers } = useQuery({
+    queryKey: ["packages-tiers-for-event"],
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from("package_price_tiers")
+        .select("package_id, min_guests, max_guests, price_per_person");
+      return (data ?? []) as {
+        package_id: string;
+        min_guests: number;
+        max_guests: number;
+        price_per_person: number;
+      }[];
+    },
+  });
+
+  const guests = Number(formData.guest_count) || 0;
+  const priceForPackage = (packageId: string): number => {
+    const pkgTiers = (tiers ?? []).filter((t) => t.package_id === packageId);
+    if (pkgTiers.length === 0) return 0;
+    const inRange = pkgTiers.find((t) => guests >= t.min_guests && guests <= t.max_guests);
+    if (inRange) return Number(inRange.price_per_person) || 0;
+    const sorted = [...pkgTiers].sort((a, b) => a.min_guests - b.min_guests);
+    if (guests < sorted[0].min_guests) return Number(sorted[0].price_per_person) || 0;
+    return Number(sorted[sorted.length - 1].price_per_person) || 0;
+  };
+
   const selectedPackages = useMemo(
     () =>
       packageLines
         .map((id) => (packages ?? []).find((p) => p.id === id))
-        .filter(Boolean) as { id: string; name: string; price_per_person: number }[],
-    [packageLines, packages],
+        .filter(Boolean)
+        .map((p) => ({
+          id: p!.id,
+          name: p!.name,
+          price_per_person: priceForPackage(p!.id),
+        })),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [packageLines, packages, tiers, guests],
   );
 
   const handleSubmit = async (e: React.FormEvent) => {
