@@ -10,7 +10,7 @@ import { fillTemplate } from "@/lib/whatsapp";
 import { useLogoDisplayUrl, getLogoDisplayUrl } from "@/lib/logo";
 
 export const Route = createFileRoute("/_authenticated/contratos")({
-  head: () => ({ meta: [{ title: "Contratos — Central do Buffet" }] }),
+  head: () => ({ meta: [{ title: "Contratos — Meu Churras" }] }),
   component: ContractsPage,
 });
 
@@ -27,6 +27,8 @@ Endereço: {endereco_buffet}
 
 CLÁUSULA 1 — OBJETO
 O CONTRATADO se obriga a prestar serviços de buffet para o evento a ser realizado em {data_evento} às {hora_evento}, no local {local_evento}, para aproximadamente {convidados} convidados.
+Pacote contratado: {pacote}.
+Descrição do pacote: {descricao_pacote}.
 
 CLÁUSULA 2 — VALOR E PAGAMENTO
 Valor total dos serviços: {valor}.
@@ -232,7 +234,7 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
       const { data } = await supabase
         .from("quotes")
         .select(
-          "id, event_date, event_time, event_address, adults, children_7_10, children_0_6, total_value, entry_value, balance_value, client_id, payment_method, clients(name, address, phone, cpf)",
+          "id, event_date, event_time, event_address, adults, children_7_10, children_0_6, total_value, entry_value, balance_value, client_id, payment_method, clients(name, address, phone, cpf), packages(name, description)",
         )
         .eq("status", "fechado")
         .order("event_date", { ascending: false })
@@ -247,7 +249,7 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
       const { data } = await supabase
         .from("events")
         .select(
-          "id, event_date, event_time, event_address, guest_count, total_value, client_id, clients(name, address, phone, cpf)",
+          "id, event_date, event_time, event_address, guest_count, total_value, client_id, clients(name, address, phone, cpf), packages(name, description)",
         )
         .order("event_date", { ascending: false })
         .limit(200);
@@ -348,6 +350,8 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
         valor: brl(0),
         entrada: brl(0),
         saldo: brl(0),
+        pacote: "",
+        descricao_pacote: "",
         ...payVars,
       };
 
@@ -372,6 +376,8 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
           valor: brl(q.total_value),
           entrada: brl(q.entry_value),
           saldo: brl(q.balance_value),
+          pacote: q.packages?.name ?? "",
+          descricao_pacote: q.packages?.description ?? "",
         };
       } else if (source === "event") {
         const ev = (events ?? []).find((x: any) => x.id === refId);
@@ -389,6 +395,8 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
           local_evento: ev.event_address ?? "",
           convidados: String(ev.guest_count ?? ""),
           valor: brl(ev.total_value),
+          pacote: ev.packages?.name ?? "",
+          descricao_pacote: ev.packages?.description ?? "",
         };
       } else {
         if (clientId) {
