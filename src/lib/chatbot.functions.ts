@@ -72,6 +72,7 @@ async function buildContext(supabase: any, userId: string) {
   const stock = stockRes.data ?? [];
   const packages = packagesRes.data ?? [];
   const pkgProducts = pkgProductsRes.data ?? [];
+  const priceTiers = (tiersRes as any)?.data ?? [];
   const movements = movementsRes.data ?? [];
 
   // Metrics
