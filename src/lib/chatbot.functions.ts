@@ -51,9 +51,13 @@ async function buildContext(supabase: any, userId: string) {
       .order("name"),
     supabase
       .from("packages")
-      .select("id, name, price_per_person, min_people, max_people, active")
+      .select("id, name, active")
       .or(`tenant_id.eq.${tid},owner_id.eq.${userId}`),
     supabase.from("package_products").select("package_id, product_id, qty_per_person, qty_fixed"),
+    (supabase as any)
+      .from("package_price_tiers")
+      .select("package_id, min_guests, max_guests, price_per_person")
+      .or(`tenant_id.eq.${tid},owner_id.eq.${userId}`),
     supabase
       .from("stock_movements")
       .select("kind, quantity, product_id, created_at")
