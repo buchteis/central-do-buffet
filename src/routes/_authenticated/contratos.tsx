@@ -27,8 +27,8 @@ Endereço: {endereco_buffet}
 
 CLÁUSULA 1 — OBJETO
 O CONTRATADO se obriga a prestar serviços de buffet para o evento a ser realizado em {data_evento} às {hora_evento}, no local {local_evento}, para aproximadamente {convidados} convidados.
-Pacote contratado: {pacote}.
-Descrição do pacote: {descricao_pacote}.
+Cardápio contratado: {cardapio}.
+Descrição do cardápio: {descricao_cardapio}.
 
 CLÁUSULA 2 — VALOR E PAGAMENTO
 Valor total dos serviços: {valor}.
@@ -38,7 +38,7 @@ Forma de pagamento: {{forma_pagamento}}.
 {{dados_pagamento}}
 
 CLÁUSULA 3 — OBRIGAÇÕES DO CONTRATADO
-Fornecer os alimentos, bebidas e serviços conforme o pacote contratado, com equipe treinada e higiene adequada.
+Fornecer os alimentos, bebidas e serviços conforme o cardápio contratado, com equipe treinada e higiene adequada.
 
 CLÁUSULA 4 — OBRIGAÇÕES DO CONTRATANTE
 Fornecer local adequado, ponto de energia e água, além de efetuar os pagamentos nas datas acordadas.
@@ -352,6 +352,8 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
         saldo: brl(0),
         pacote: "",
         descricao_pacote: "",
+        cardapio: "",
+        descricao_cardapio: "",
         ...payVars,
       };
 
@@ -378,6 +380,8 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
           saldo: brl(q.balance_value),
           pacote: q.packages?.name ?? "",
           descricao_pacote: q.packages?.description ?? "",
+          cardapio: q.packages?.name ?? "",
+          descricao_cardapio: q.packages?.description ?? "",
         };
       } else if (source === "event") {
         const ev = (events ?? []).find((x: any) => x.id === refId);
@@ -397,6 +401,8 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
           valor: brl(ev.total_value),
           pacote: ev.packages?.name ?? "",
           descricao_pacote: ev.packages?.description ?? "",
+          cardapio: ev.packages?.name ?? "",
+          descricao_cardapio: ev.packages?.description ?? "",
         };
       } else {
         if (clientId) {
