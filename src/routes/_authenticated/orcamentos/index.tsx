@@ -122,7 +122,7 @@ function QuotesPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("quotes")
-        .select("*, clients(name, phone, whatsapp, cpf, email, address), packages(name, price_per_person)")
+        .select("*, clients(name, phone, whatsapp, cpf, email, address), packages(name)")
         .neq("status", "cancelado")
         .order("created_at", { ascending: false });
       if (error) throw error;
@@ -225,7 +225,12 @@ function QuotesPage() {
       const childPrice = Number(extras.child_price ?? 0);
       const priceOverride =
         extras.price_per_person_override != null ? Number(extras.price_per_person_override) : null;
-      const pricePerPerson = priceOverride ?? Number(q.packages?.price_per_person ?? 0);
+      const pkgSnapshot = Array.isArray(extras.packages) ? extras.packages : [];
+      const snapshotSum = pkgSnapshot.reduce(
+        (s: number, p: any) => s + Number(p?.price_per_person ?? 0),
+        0,
+      );
+      const pricePerPerson = priceOverride ?? snapshotSum;
       const customExtras = Array.isArray(extras.custom) ? extras.custom : [];
       const adults = Number(q.adults ?? 0);
       const childrenCount = Number(q.children_7_10 ?? 0) + Number(q.children_0_6 ?? 0);

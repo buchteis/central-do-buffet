@@ -588,6 +588,60 @@ export type Database = {
           },
         ]
       }
+      package_price_tiers: {
+        Row: {
+          created_at: string
+          id: string
+          max_guests: number
+          min_guests: number
+          owner_id: string
+          package_id: string
+          position: number
+          price_per_person: number
+          tenant_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          max_guests?: number
+          min_guests?: number
+          owner_id: string
+          package_id: string
+          position?: number
+          price_per_person?: number
+          tenant_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          max_guests?: number
+          min_guests?: number
+          owner_id?: string
+          package_id?: string
+          position?: number
+          price_per_person?: number
+          tenant_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "package_price_tiers_package_id_fkey"
+            columns: ["package_id"]
+            isOneToOne: false
+            referencedRelation: "packages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "package_price_tiers_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       package_products: {
         Row: {
           created_at: string
@@ -1136,6 +1190,10 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      resolve_package_price: {
+        Args: { p_guests: number; p_package_id: string }
+        Returns: number
       }
       return_event_stock: { Args: { _event_id: string }; Returns: undefined }
       slugify: { Args: { txt: string }; Returns: string }
