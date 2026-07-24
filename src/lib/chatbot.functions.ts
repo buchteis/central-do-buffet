@@ -115,12 +115,17 @@ async function buildContext(supabase: any, userId: string) {
           qty_fixa: Number(pp.qty_fixed),
         };
       });
+    const faixas = priceTiers
+      .filter((t: any) => t.package_id === p.id)
+      .map((t: any) => ({
+        de_convidados: Number(t.min_guests),
+        ate_convidados: Number(t.max_guests),
+        preco_por_pessoa: Number(t.price_per_person),
+      }));
     return {
       nome: p.name,
-      preco_por_pessoa: Number(p.price_per_person),
-      min_convidados: p.min_people,
-      max_convidados: p.max_people,
       ativo: p.active,
+      faixas_de_preco: faixas,
       produtos_consumidos: prods,
     };
   });
