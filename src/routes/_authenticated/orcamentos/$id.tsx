@@ -21,7 +21,7 @@ function QuoteDetail() {
         .select(`
           *,
           clients(name, phone, email, city),
-          packages(id, name, price_per_person, min_people, max_people)
+          packages(id, name)
         `)
         .eq("id", id)
         .single();
