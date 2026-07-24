@@ -28,7 +28,7 @@ async function buildContext(supabase: any, userId: string) {
 
   const tid = tenant.id;
 
-  const [clientsRes, eventsRes, quotesRes, stockRes, packagesRes, pkgProductsRes, movementsRes] = await Promise.all([
+  const [clientsRes, eventsRes, quotesRes, stockRes, packagesRes, pkgProductsRes, tiersRes, movementsRes] = await Promise.all([
     // Busca clientes por tenant_id OU owner_id (para capturar clientes antigos sem tenant_id)
     supabase
       .from("clients")
