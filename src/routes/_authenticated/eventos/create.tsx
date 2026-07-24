@@ -204,7 +204,7 @@ function CreateEventPage() {
                       value={p.id}
                       disabled={packageLines.includes(p.id) && p.id !== pid}
                     >
-                      {p.name} — {brl(p.price_per_person)}/pessoa
+                      {p.name}{guests > 0 && priceForPackage(p.id) > 0 ? ` — ${brl(priceForPackage(p.id))}/pessoa` : ""}
                     </option>
                   ))}
                 </select>
