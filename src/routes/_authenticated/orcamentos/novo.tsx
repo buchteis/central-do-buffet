@@ -80,10 +80,29 @@ function NewQuotePage() {
     queryFn: async () => {
       const { data } = await supabase
         .from("packages")
-        .select("id, name, price_per_person, min_people, max_people")
+        .select("id, name")
         .eq("active", true)
         .order("name");
       return data ?? [];
+    },
+  });
+  const { data: tiers } = useQuery({
+    queryKey: ["packages-tiers-select"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("package_price_tiers")
+        .select("id, package_id, min_guests, max_guests, price_per_person, position")
+        .order("position", { ascending: true })
+        .order("min_guests", { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as {
+        id: string;
+        package_id: string;
+        min_guests: number;
+        max_guests: number;
+        price_per_person: number;
+        position: number;
+      }[];
     },
   });
   const { data: settings } = useQuery({
@@ -118,14 +137,31 @@ function NewQuotePage() {
   const [entryOverride, setEntryOverride] = useState<number | null>(null);
   const [balanceOverride, setBalanceOverride] = useState<number | null>(null);
 
+  const totalGuests = (Number(form.adults) || 0) + (Number(form.children_count) || 0);
+
+  const priceForPackage = (packageId: string, guests: number): number => {
+    const pkgTiers = (tiers ?? []).filter((t) => t.package_id === packageId);
+    if (pkgTiers.length === 0) return 0;
+    const inRange = pkgTiers.find((t) => guests >= t.min_guests && guests <= t.max_guests);
+    if (inRange) return Number(inRange.price_per_person) || 0;
+    // fallback: below smallest → smallest tier; above biggest → biggest tier
+    const sorted = [...pkgTiers].sort((a, b) => a.min_guests - b.min_guests);
+    if (guests < sorted[0].min_guests) return Number(sorted[0].price_per_person) || 0;
+    return Number(sorted[sorted.length - 1].price_per_person) || 0;
+  };
+
   const selectedPackages = useMemo(
     () =>
-      packageLines.map((id) => (packages ?? []).find((p) => p.id === id)).filter(Boolean) as {
-        id: string;
-        name: string;
-        price_per_person: number;
-      }[],
-    [packageLines, packages],
+      packageLines
+        .map((id) => (packages ?? []).find((p) => p.id === id))
+        .filter(Boolean)
+        .map((p) => ({
+          id: p!.id,
+          name: p!.name,
+          price_per_person: priceForPackage(p!.id, totalGuests),
+        })),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [packageLines, packages, tiers, totalGuests],
   );
   const primaryPackage = selectedPackages[0];
   const packagesSumPerPerson = selectedPackages.reduce((s, p) => s + Number(p.price_per_person ?? 0), 0);
@@ -172,7 +208,7 @@ function NewQuotePage() {
         .map((p) => ({
           package_id: p!.id,
           name: p!.name,
-          price_per_person: Number(p!.price_per_person ?? 0),
+          price_per_person: priceForPackage(p!.id, totalGuests),
         }));
 
       const prevExtras = ((existingQuote as any)?.extras ?? {}) as any;
@@ -483,21 +519,23 @@ function NewQuotePage() {
                             if (all.length === 0) {
                               return <div className="p-4 text-xs text-muted-foreground">Cadastre um pacote antes.</div>;
                             }
-                            return all.map((p: any) => (
-                              <SelectItem
-                                key={p.id}
-                                value={p.id}
-                                disabled={packageLines.includes(p.id) && p.id !== pid}
-                              >
-                                {p.name} · {brl(p.price_per_person)}/pessoa
-                                {(p.min_people != null || p.max_people != null) && (
-                                  <span className="text-muted-foreground">
-                                    {" "}
-                                    ({p.min_people ?? 0}–{p.max_people ?? "∞"} pess.)
-                                  </span>
-                                )}
-                              </SelectItem>
-                            ));
+                            return all.map((p: any) => {
+                              const applied = priceForPackage(p.id, totalGuests);
+                              return (
+                                <SelectItem
+                                  key={p.id}
+                                  value={p.id}
+                                  disabled={packageLines.includes(p.id) && p.id !== pid}
+                                >
+                                  {p.name}
+                                  {applied > 0 && totalGuests > 0 && (
+                                    <span className="text-muted-foreground">
+                                      {" · "}{brl(applied)}/pessoa
+                                    </span>
+                                  )}
+                                </SelectItem>
+                              );
+                            });
                           })()}
                         </SelectContent>
                       </Select>

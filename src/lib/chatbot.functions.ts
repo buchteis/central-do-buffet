@@ -28,7 +28,7 @@ async function buildContext(supabase: any, userId: string) {
 
   const tid = tenant.id;
 
-  const [clientsRes, eventsRes, quotesRes, stockRes, packagesRes, pkgProductsRes, movementsRes] = await Promise.all([
+  const [clientsRes, eventsRes, quotesRes, stockRes, packagesRes, pkgProductsRes, tiersRes, movementsRes] = await Promise.all([
     // Busca clientes por tenant_id OU owner_id (para capturar clientes antigos sem tenant_id)
     supabase
       .from("clients")
@@ -51,9 +51,13 @@ async function buildContext(supabase: any, userId: string) {
       .order("name"),
     supabase
       .from("packages")
-      .select("id, name, price_per_person, min_people, max_people, active")
+      .select("id, name, active")
       .or(`tenant_id.eq.${tid},owner_id.eq.${userId}`),
     supabase.from("package_products").select("package_id, product_id, qty_per_person, qty_fixed"),
+    (supabase as any)
+      .from("package_price_tiers")
+      .select("package_id, min_guests, max_guests, price_per_person")
+      .or(`tenant_id.eq.${tid},owner_id.eq.${userId}`),
     supabase
       .from("stock_movements")
       .select("kind, quantity, product_id, created_at")
@@ -68,6 +72,7 @@ async function buildContext(supabase: any, userId: string) {
   const stock = stockRes.data ?? [];
   const packages = packagesRes.data ?? [];
   const pkgProducts = pkgProductsRes.data ?? [];
+  const priceTiers = (tiersRes as any)?.data ?? [];
   const movements = movementsRes.data ?? [];
 
   // Metrics
@@ -110,12 +115,17 @@ async function buildContext(supabase: any, userId: string) {
           qty_fixa: Number(pp.qty_fixed),
         };
       });
+    const faixas = priceTiers
+      .filter((t: any) => t.package_id === p.id)
+      .map((t: any) => ({
+        de_convidados: Number(t.min_guests),
+        ate_convidados: Number(t.max_guests),
+        preco_por_pessoa: Number(t.price_per_person),
+      }));
     return {
       nome: p.name,
-      preco_por_pessoa: Number(p.price_per_person),
-      min_convidados: p.min_people,
-      max_convidados: p.max_people,
       ativo: p.active,
+      faixas_de_preco: faixas,
       produtos_consumidos: prods,
     };
   });
