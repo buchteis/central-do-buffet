@@ -285,7 +285,7 @@ function SettingsPage() {
       <Section title="Modelo padrão de contrato">
         <p className="text-xs text-muted-foreground mb-2">
           Variáveis: {"{cliente}"}, {"{buffet}"}, {"{data_evento}"}, {"{local_evento}"}, {"{convidados}"}, {"{valor}"},{" "}
-          {"{pix}"}, {"{data_hoje}"}, {"{pacote}"}, {"{descricao_pacote}"}.
+          {"{pix}"}, {"{data_hoje}"}, {"{pacote}"}, {"{descricao_pacote}"}, {"{cardapio}"}, {"{descricao_cardapio}"}.
         </p>
         <textarea
           rows={10}
