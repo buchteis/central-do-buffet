@@ -32,8 +32,9 @@ async function buildContext(supabase: any, userId: string) {
     // Busca clientes por tenant_id OU owner_id (para capturar clientes antigos sem tenant_id)
     supabase
       .from("clients")
-      .select("id, name, phone, email, city, created_at")
-      .or(`tenant_id.eq.${tid},owner_id.eq.${userId}`),
+      .select("id, name, cpf, phone, whatsapp, email, city, address, notes, origem, status, created_at")
+      .or(`tenant_id.eq.${tid},owner_id.eq.${userId}`)
+      .order("created_at", { ascending: false }),
     supabase
       .from("events")
       .select("id, event_date, status, total_value, guest_count, clients(name), packages(name)")
@@ -42,8 +43,9 @@ async function buildContext(supabase: any, userId: string) {
       .limit(50),
     supabase
       .from("quotes")
-      .select("id, status, paid, total_value, event_date, created_at")
+      .select("id, status, paid, total_value, event_date, event_address, event_type, adults, children_7_10, children_0_6, created_at, extras, clients(name, phone, whatsapp, email, cpf, city, address, origem)")
       .or(`tenant_id.eq.${tid},owner_id.eq.${userId}`),
+
     supabase
       .from("stock_products")
       .select("id, name, unit, physical_qty, reserved_qty, min_qty, stock_categories(name)")
@@ -130,10 +132,46 @@ async function buildContext(supabase: any, userId: string) {
     };
   });
 
+  const clientesDetalhados = clients.map((c: any) => ({
+    nome: c.name,
+    documento: c.cpf ?? null,
+    telefone: c.phone ?? null,
+    whatsapp: c.whatsapp ?? null,
+    email: c.email ?? null,
+    cidade: c.city ?? null,
+    endereco: c.address ?? null,
+    observacoes: c.notes ?? null,
+    origem: c.origem === "link_orcamento" ? "link público" : (c.origem ?? "manual"),
+    status: c.status,
+    cadastrado_em: c.created_at,
+  }));
+
+  const solicitantesLinkPublico = quotes
+    .filter((q: any) => q?.extras?.requester)
+    .map((q: any) => ({
+      orcamento_id: q.id,
+      status_orcamento: q.status,
+      nome: q.extras.requester.name ?? null,
+      whatsapp: q.extras.requester.whatsapp ?? null,
+      email: q.extras.requester.email ?? null,
+      documento: q.extras.requester.cpf ?? null,
+      cidade: q.extras.requester.city ?? null,
+      data_evento: q.event_date,
+      local_evento: q.event_address ?? null,
+      tipo_evento: q.event_type ?? null,
+      convidados:
+        Number(q.adults || 0) + Number(q.children_7_10 || 0) + Number(q.children_0_6 || 0),
+      valor: Number(q.total_value || 0),
+      criado_em: q.created_at,
+    }));
+
   const context = {
+
     buffet: { nome: tenant.name, status: tenant.status },
     metricas: {
       total_clientes: clients.length,
+      clientes_via_link_publico: clients.filter((c: any) => c.origem === "link_orcamento").length,
+      clientes_manuais: clients.filter((c: any) => c.origem !== "link_orcamento").length,
       total_eventos: events.length,
       eventos_por_status: eventsByStatus,
       total_orcamentos: quotes.length,
@@ -143,6 +181,9 @@ async function buildContext(supabase: any, userId: string) {
       faturamento_total_pago: faturamentoTotal,
       faturamento_mes_atual: faturamentoMes,
     },
+    clientes: clientesDetalhados,
+    solicitantes_link_publico: solicitantesLinkPublico,
+
     proximos_eventos: proximosEventos.map((e: any) => ({
       data: e.event_date,
       cliente: e.clients?.name,
@@ -179,6 +220,8 @@ Responda SEMPRE em português brasileiro, de forma direta e amigável, usando os
 Se a pergunta for sobre quantidade de eventos, estoque, clientes ou faturamento, use exatamente os valores do JSON.
 Formate valores monetários em R$ (ex: R$ 1.500,00). Se algo não estiver nos dados, diga que não há registro.
 Ao se apresentar, diga apenas que é o assistente virtual da Central do Buffet, sem mencionar o nome específico do buffet.
+Para perguntas sobre clientes, use "clientes" (cadastro manual e vindos do link público, veja o campo origem) e "solicitantes_link_publico" (pedidos recebidos pelo link que ainda podem não ter cadastro).
+
 
 DADOS ATUAIS DO BUFFET (JSON):
 ${summary}`;
