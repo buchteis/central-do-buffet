@@ -306,7 +306,6 @@ function ProductsTab() {
                 <tr className="text-[10px] uppercase tracking-widest text-muted-foreground border-b border-border bg-muted/30">
                   <th className="px-5 py-3 font-bold">Produto</th>
                   <th className="px-3 py-3 font-bold hidden md:table-cell">Categoria</th>
-                  <th className="px-3 py-3 font-bold text-right">Físico</th>
                   <th className="px-3 py-3 font-bold text-right">Reservado</th>
                   <th className="px-3 py-3 font-bold text-right">Disponível</th>
                   <th className="px-3 py-3 font-bold text-right">Mínimo</th>
@@ -323,9 +322,6 @@ function ProductsTab() {
                       <td className="px-5 py-3 font-semibold">{p.name}</td>
                       <td className="px-3 py-3 text-xs text-muted-foreground hidden md:table-cell">
                         {p.stock_categories?.name ?? "—"}
-                      </td>
-                      <td className="px-3 py-3 font-mono text-right">
-                        {Number(p.physical_qty).toLocaleString("pt-BR")}
                       </td>
                       <td className="px-3 py-3 font-mono text-right">
                         {Number(p.reserved_qty).toLocaleString("pt-BR")}
