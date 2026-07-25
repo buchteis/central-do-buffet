@@ -170,6 +170,8 @@ async function buildContext(supabase: any, userId: string) {
     buffet: { nome: tenant.name, status: tenant.status },
     metricas: {
       total_clientes: clients.length,
+      clientes_via_link_publico: clients.filter((c: any) => c.origem === "link_orcamento").length,
+      clientes_manuais: clients.filter((c: any) => c.origem !== "link_orcamento").length,
       total_eventos: events.length,
       eventos_por_status: eventsByStatus,
       total_orcamentos: quotes.length,
@@ -179,6 +181,9 @@ async function buildContext(supabase: any, userId: string) {
       faturamento_total_pago: faturamentoTotal,
       faturamento_mes_atual: faturamentoMes,
     },
+    clientes: clientesDetalhados,
+    solicitantes_link_publico: solicitantesLinkPublico,
+
     proximos_eventos: proximosEventos.map((e: any) => ({
       data: e.event_date,
       cliente: e.clients?.name,
