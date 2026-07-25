@@ -32,8 +32,9 @@ async function buildContext(supabase: any, userId: string) {
     // Busca clientes por tenant_id OU owner_id (para capturar clientes antigos sem tenant_id)
     supabase
       .from("clients")
-      .select("id, name, phone, email, city, created_at")
-      .or(`tenant_id.eq.${tid},owner_id.eq.${userId}`),
+      .select("id, name, cpf, phone, whatsapp, email, city, address, notes, origem, status, created_at")
+      .or(`tenant_id.eq.${tid},owner_id.eq.${userId}`)
+      .order("created_at", { ascending: false }),
     supabase
       .from("events")
       .select("id, event_date, status, total_value, guest_count, clients(name), packages(name)")
@@ -42,8 +43,9 @@ async function buildContext(supabase: any, userId: string) {
       .limit(50),
     supabase
       .from("quotes")
-      .select("id, status, paid, total_value, event_date, created_at")
+      .select("id, status, paid, total_value, event_date, event_address, event_type, adults, children_7_10, children_0_6, created_at, extras, clients(name, phone, whatsapp, email, cpf, city, address, origem)")
       .or(`tenant_id.eq.${tid},owner_id.eq.${userId}`),
+
     supabase
       .from("stock_products")
       .select("id, name, unit, physical_qty, reserved_qty, min_qty, stock_categories(name)")
