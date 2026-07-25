@@ -132,7 +132,41 @@ async function buildContext(supabase: any, userId: string) {
     };
   });
 
+  const clientesDetalhados = clients.map((c: any) => ({
+    nome: c.name,
+    documento: c.cpf ?? null,
+    telefone: c.phone ?? null,
+    whatsapp: c.whatsapp ?? null,
+    email: c.email ?? null,
+    cidade: c.city ?? null,
+    endereco: c.address ?? null,
+    observacoes: c.notes ?? null,
+    origem: c.origem === "link_orcamento" ? "link público" : (c.origem ?? "manual"),
+    status: c.status,
+    cadastrado_em: c.created_at,
+  }));
+
+  const solicitantesLinkPublico = quotes
+    .filter((q: any) => q?.extras?.requester)
+    .map((q: any) => ({
+      orcamento_id: q.id,
+      status_orcamento: q.status,
+      nome: q.extras.requester.name ?? null,
+      whatsapp: q.extras.requester.whatsapp ?? null,
+      email: q.extras.requester.email ?? null,
+      documento: q.extras.requester.cpf ?? null,
+      cidade: q.extras.requester.city ?? null,
+      data_evento: q.event_date,
+      local_evento: q.event_address ?? null,
+      tipo_evento: q.event_type ?? null,
+      convidados:
+        Number(q.adults || 0) + Number(q.children_7_10 || 0) + Number(q.children_0_6 || 0),
+      valor: Number(q.total_value || 0),
+      criado_em: q.created_at,
+    }));
+
   const context = {
+
     buffet: { nome: tenant.name, status: tenant.status },
     metricas: {
       total_clientes: clients.length,
