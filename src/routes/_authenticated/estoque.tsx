@@ -325,9 +325,7 @@ function ProductsTab() {
                         {p.stock_categories?.name ?? "—"}
                       </td>
                       <td className="px-3 py-3 font-mono text-right">
-                        {Number(p.physical_qty).toLocaleString("pt-BR")}
-                      </td>
-                      <td className="px-3 py-3 font-mono text-right">
+
                         {Number(p.reserved_qty).toLocaleString("pt-BR")}
                       </td>
                       <td
