@@ -68,6 +68,13 @@ async function buildContext(supabase: any, userId: string) {
       .limit(20),
   ]);
 
+  const { data: feedbacksData } = await (supabase as any)
+    .from("feedbacks")
+    .select("client_name, nps_score, rating_food, rating_drinks, rating_staff, rating_punctuality, comments, improvements, created_at")
+    .eq("tenant_id", tid)
+    .order("created_at", { ascending: false })
+    .limit(100);
+
   const clients = clientsRes.data ?? [];
   const events = eventsRes.data ?? [];
   const quotes = quotesRes.data ?? [];
@@ -76,6 +83,8 @@ async function buildContext(supabase: any, userId: string) {
   const pkgProducts = pkgProductsRes.data ?? [];
   const priceTiers = (tiersRes as any)?.data ?? [];
   const movements = movementsRes.data ?? [];
+  const feedbacks = (feedbacksData ?? []) as any[];
+
 
   // Metrics
   const eventsByStatus: Record<string, number> = {};
