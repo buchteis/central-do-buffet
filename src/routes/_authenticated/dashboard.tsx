@@ -536,7 +536,11 @@ function Dashboard() {
         </div>
       </div>
 
+      {/* ===== AVALIAÇÕES / NPS ===== */}
+      <FeedbackPieCard />
+
       <Chatbot />
+
     </div>
   );
 }
