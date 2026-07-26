@@ -501,6 +501,66 @@ export type Database = {
           },
         ]
       }
+      feedbacks: {
+        Row: {
+          client_name: string
+          comments: string | null
+          created_at: string
+          event_id: string | null
+          id: string
+          improvements: string | null
+          nps_score: number
+          rating_drinks: number | null
+          rating_food: number | null
+          rating_punctuality: number | null
+          rating_staff: number | null
+          tenant_id: string
+        }
+        Insert: {
+          client_name: string
+          comments?: string | null
+          created_at?: string
+          event_id?: string | null
+          id?: string
+          improvements?: string | null
+          nps_score: number
+          rating_drinks?: number | null
+          rating_food?: number | null
+          rating_punctuality?: number | null
+          rating_staff?: number | null
+          tenant_id: string
+        }
+        Update: {
+          client_name?: string
+          comments?: string | null
+          created_at?: string
+          event_id?: string | null
+          id?: string
+          improvements?: string | null
+          nps_score?: number
+          rating_drinks?: number | null
+          rating_food?: number | null
+          rating_punctuality?: number | null
+          rating_staff?: number | null
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feedbacks_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "feedbacks_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leads: {
         Row: {
           city: string | null
@@ -1197,6 +1257,20 @@ export type Database = {
       }
       return_event_stock: { Args: { _event_id: string }; Returns: undefined }
       slugify: { Args: { txt: string }; Returns: string }
+      submit_public_feedback: {
+        Args: {
+          p_client_name: string
+          p_comments: string
+          p_improvements: string
+          p_nps_score: number
+          p_rating_drinks: number
+          p_rating_food: number
+          p_rating_punctuality: number
+          p_rating_staff: number
+          p_slug: string
+        }
+        Returns: string
+      }
       submit_public_quote: {
         Args: {
           p_city: string

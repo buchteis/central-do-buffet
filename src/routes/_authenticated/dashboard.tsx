@@ -25,6 +25,8 @@ import {
   Building2,
 } from "lucide-react";
 import { Chatbot } from "@/components/Chatbot";
+import { FeedbackPieCard } from "@/components/feedback/FeedbackPieCard";
+
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({ meta: [{ title: "Dashboard — Central do Buffet" }] }),
@@ -536,7 +538,11 @@ function Dashboard() {
         </div>
       </div>
 
+      {/* ===== AVALIAÇÕES / NPS ===== */}
+      <FeedbackPieCard />
+
       <Chatbot />
+
     </div>
   );
 }

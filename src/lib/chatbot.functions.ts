@@ -68,6 +68,13 @@ async function buildContext(supabase: any, userId: string) {
       .limit(20),
   ]);
 
+  const { data: feedbacksData } = await (supabase as any)
+    .from("feedbacks")
+    .select("client_name, nps_score, rating_food, rating_drinks, rating_staff, rating_punctuality, comments, improvements, created_at")
+    .eq("tenant_id", tid)
+    .order("created_at", { ascending: false })
+    .limit(100);
+
   const clients = clientsRes.data ?? [];
   const events = eventsRes.data ?? [];
   const quotes = quotesRes.data ?? [];
@@ -76,6 +83,8 @@ async function buildContext(supabase: any, userId: string) {
   const pkgProducts = pkgProductsRes.data ?? [];
   const priceTiers = (tiersRes as any)?.data ?? [];
   const movements = movementsRes.data ?? [];
+  const feedbacks = (feedbacksData ?? []) as any[];
+
 
   // Metrics
   const eventsByStatus: Record<string, number> = {};
@@ -180,6 +189,13 @@ async function buildContext(supabase: any, userId: string) {
       orcamentos_fechados: quotes.filter((q: any) => q.status === "fechado").length,
       faturamento_total_pago: faturamentoTotal,
       faturamento_mes_atual: faturamentoMes,
+      total_avaliacoes: feedbacks.length,
+      nps_medio: feedbacks.length
+        ? Number((feedbacks.reduce((s, f) => s + Number(f.nps_score || 0), 0) / feedbacks.length).toFixed(1))
+        : null,
+      promotores: feedbacks.filter((f) => Number(f.nps_score) >= 9).length,
+      neutros: feedbacks.filter((f) => Number(f.nps_score) >= 7 && Number(f.nps_score) <= 8).length,
+      detratores: feedbacks.filter((f) => Number(f.nps_score) <= 6).length,
     },
     clientes: clientesDetalhados,
     solicitantes_link_publico: solicitantesLinkPublico,
@@ -196,6 +212,18 @@ async function buildContext(supabase: any, userId: string) {
     estoque_alerta_baixo: estoqueDetalhado.filter((p: any) => p.abaixo_do_minimo),
     pacotes: pacotesDetalhados,
     ultimas_movimentacoes_estoque: movements,
+    avaliacoes_clientes: feedbacks.map((f) => ({
+      cliente: f.client_name,
+      nota_nps: f.nps_score,
+      comida: f.rating_food,
+      bebidas: f.rating_drinks,
+      equipe: f.rating_staff,
+      pontualidade: f.rating_punctuality,
+      elogios: f.comments,
+      melhorias: f.improvements,
+      data: f.created_at,
+    })),
+
   };
 
   return { tenant, summary: JSON.stringify(context, null, 2) };

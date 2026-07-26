@@ -13,6 +13,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as OrcamentoSlugRouteImport } from './routes/orcamento.$slug'
+import { Route as AvaliarSlugRouteImport } from './routes/avaliar.$slug'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as AuthenticatedRelatoriosRouteImport } from './routes/_authenticated/relatorios'
 import { Route as AuthenticatedPagamentosDiariasRouteImport } from './routes/_authenticated/pagamentos-diarias'
@@ -29,6 +30,7 @@ import { Route as AuthenticatedConfiguracoesRouteImport } from './routes/_authen
 import { Route as AuthenticatedAgendaRouteImport } from './routes/_authenticated/agenda'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedOrcamentosIndexRouteImport } from './routes/_authenticated/orcamentos/index'
+import { Route as AuthenticatedFeedbacksIndexRouteImport } from './routes/_authenticated/feedbacks/index'
 import { Route as AuthenticatedEventosIndexRouteImport } from './routes/_authenticated/eventos/index'
 import { Route as AuthenticatedClientesIndexRouteImport } from './routes/_authenticated/clientes/index'
 import { Route as AuthenticatedOrcamentosNovoRouteImport } from './routes/_authenticated/orcamentos/novo'
@@ -55,6 +57,11 @@ const IndexRoute = IndexRouteImport.update({
 const OrcamentoSlugRoute = OrcamentoSlugRouteImport.update({
   id: '/orcamento/$slug',
   path: '/orcamento/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AvaliarSlugRoute = AvaliarSlugRouteImport.update({
+  id: '/avaliar/$slug',
+  path: '/avaliar/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthCallbackRoute = AuthCallbackRouteImport.update({
@@ -142,6 +149,12 @@ const AuthenticatedOrcamentosIndexRoute =
     path: '/orcamentos/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedFeedbacksIndexRoute =
+  AuthenticatedFeedbacksIndexRouteImport.update({
+    id: '/feedbacks/',
+    path: '/feedbacks/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedEventosIndexRoute =
   AuthenticatedEventosIndexRouteImport.update({
     id: '/eventos/',
@@ -209,6 +222,7 @@ export interface FileRoutesByFullPath {
   '/pagamentos-diarias': typeof AuthenticatedPagamentosDiariasRoute
   '/relatorios': typeof AuthenticatedRelatoriosRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/avaliar/$slug': typeof AvaliarSlugRoute
   '/orcamento/$slug': typeof OrcamentoSlugRoute
   '/clientes/importar': typeof AuthenticatedClientesImportarRoute
   '/clientes/novo': typeof AuthenticatedClientesNovoRoute
@@ -217,6 +231,7 @@ export interface FileRoutesByFullPath {
   '/orcamentos/novo': typeof AuthenticatedOrcamentosNovoRoute
   '/clientes/': typeof AuthenticatedClientesIndexRoute
   '/eventos/': typeof AuthenticatedEventosIndexRoute
+  '/feedbacks/': typeof AuthenticatedFeedbacksIndexRoute
   '/orcamentos/': typeof AuthenticatedOrcamentosIndexRoute
   '/clientes/$id/editar': typeof AuthenticatedClientesIdEditarRoute
 }
@@ -238,6 +253,7 @@ export interface FileRoutesByTo {
   '/pagamentos-diarias': typeof AuthenticatedPagamentosDiariasRoute
   '/relatorios': typeof AuthenticatedRelatoriosRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/avaliar/$slug': typeof AvaliarSlugRoute
   '/orcamento/$slug': typeof OrcamentoSlugRoute
   '/clientes/importar': typeof AuthenticatedClientesImportarRoute
   '/clientes/novo': typeof AuthenticatedClientesNovoRoute
@@ -246,6 +262,7 @@ export interface FileRoutesByTo {
   '/orcamentos/novo': typeof AuthenticatedOrcamentosNovoRoute
   '/clientes': typeof AuthenticatedClientesIndexRoute
   '/eventos': typeof AuthenticatedEventosIndexRoute
+  '/feedbacks': typeof AuthenticatedFeedbacksIndexRoute
   '/orcamentos': typeof AuthenticatedOrcamentosIndexRoute
   '/clientes/$id/editar': typeof AuthenticatedClientesIdEditarRoute
 }
@@ -269,6 +286,7 @@ export interface FileRoutesById {
   '/_authenticated/pagamentos-diarias': typeof AuthenticatedPagamentosDiariasRoute
   '/_authenticated/relatorios': typeof AuthenticatedRelatoriosRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/avaliar/$slug': typeof AvaliarSlugRoute
   '/orcamento/$slug': typeof OrcamentoSlugRoute
   '/_authenticated/clientes/importar': typeof AuthenticatedClientesImportarRoute
   '/_authenticated/clientes/novo': typeof AuthenticatedClientesNovoRoute
@@ -277,6 +295,7 @@ export interface FileRoutesById {
   '/_authenticated/orcamentos/novo': typeof AuthenticatedOrcamentosNovoRoute
   '/_authenticated/clientes/': typeof AuthenticatedClientesIndexRoute
   '/_authenticated/eventos/': typeof AuthenticatedEventosIndexRoute
+  '/_authenticated/feedbacks/': typeof AuthenticatedFeedbacksIndexRoute
   '/_authenticated/orcamentos/': typeof AuthenticatedOrcamentosIndexRoute
   '/_authenticated/clientes/$id/editar': typeof AuthenticatedClientesIdEditarRoute
 }
@@ -300,6 +319,7 @@ export interface FileRouteTypes {
     | '/pagamentos-diarias'
     | '/relatorios'
     | '/auth/callback'
+    | '/avaliar/$slug'
     | '/orcamento/$slug'
     | '/clientes/importar'
     | '/clientes/novo'
@@ -308,6 +328,7 @@ export interface FileRouteTypes {
     | '/orcamentos/novo'
     | '/clientes/'
     | '/eventos/'
+    | '/feedbacks/'
     | '/orcamentos/'
     | '/clientes/$id/editar'
   fileRoutesByTo: FileRoutesByTo
@@ -329,6 +350,7 @@ export interface FileRouteTypes {
     | '/pagamentos-diarias'
     | '/relatorios'
     | '/auth/callback'
+    | '/avaliar/$slug'
     | '/orcamento/$slug'
     | '/clientes/importar'
     | '/clientes/novo'
@@ -337,6 +359,7 @@ export interface FileRouteTypes {
     | '/orcamentos/novo'
     | '/clientes'
     | '/eventos'
+    | '/feedbacks'
     | '/orcamentos'
     | '/clientes/$id/editar'
   id:
@@ -359,6 +382,7 @@ export interface FileRouteTypes {
     | '/_authenticated/pagamentos-diarias'
     | '/_authenticated/relatorios'
     | '/auth/callback'
+    | '/avaliar/$slug'
     | '/orcamento/$slug'
     | '/_authenticated/clientes/importar'
     | '/_authenticated/clientes/novo'
@@ -367,6 +391,7 @@ export interface FileRouteTypes {
     | '/_authenticated/orcamentos/novo'
     | '/_authenticated/clientes/'
     | '/_authenticated/eventos/'
+    | '/_authenticated/feedbacks/'
     | '/_authenticated/orcamentos/'
     | '/_authenticated/clientes/$id/editar'
   fileRoutesById: FileRoutesById
@@ -375,6 +400,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRouteWithChildren
+  AvaliarSlugRoute: typeof AvaliarSlugRoute
   OrcamentoSlugRoute: typeof OrcamentoSlugRoute
 }
 
@@ -406,6 +432,13 @@ declare module '@tanstack/react-router' {
       path: '/orcamento/$slug'
       fullPath: '/orcamento/$slug'
       preLoaderRoute: typeof OrcamentoSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/avaliar/$slug': {
+      id: '/avaliar/$slug'
+      path: '/avaliar/$slug'
+      fullPath: '/avaliar/$slug'
+      preLoaderRoute: typeof AvaliarSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth/callback': {
@@ -520,6 +553,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedOrcamentosIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/feedbacks/': {
+      id: '/_authenticated/feedbacks/'
+      path: '/feedbacks'
+      fullPath: '/feedbacks/'
+      preLoaderRoute: typeof AuthenticatedFeedbacksIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/eventos/': {
       id: '/_authenticated/eventos/'
       path: '/eventos'
@@ -601,6 +641,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedOrcamentosNovoRoute: typeof AuthenticatedOrcamentosNovoRoute
   AuthenticatedClientesIndexRoute: typeof AuthenticatedClientesIndexRoute
   AuthenticatedEventosIndexRoute: typeof AuthenticatedEventosIndexRoute
+  AuthenticatedFeedbacksIndexRoute: typeof AuthenticatedFeedbacksIndexRoute
   AuthenticatedOrcamentosIndexRoute: typeof AuthenticatedOrcamentosIndexRoute
   AuthenticatedClientesIdEditarRoute: typeof AuthenticatedClientesIdEditarRoute
 }
@@ -627,6 +668,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedOrcamentosNovoRoute: AuthenticatedOrcamentosNovoRoute,
   AuthenticatedClientesIndexRoute: AuthenticatedClientesIndexRoute,
   AuthenticatedEventosIndexRoute: AuthenticatedEventosIndexRoute,
+  AuthenticatedFeedbacksIndexRoute: AuthenticatedFeedbacksIndexRoute,
   AuthenticatedOrcamentosIndexRoute: AuthenticatedOrcamentosIndexRoute,
   AuthenticatedClientesIdEditarRoute: AuthenticatedClientesIdEditarRoute,
 }
@@ -648,6 +690,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRouteWithChildren,
+  AvaliarSlugRoute: AvaliarSlugRoute,
   OrcamentoSlugRoute: OrcamentoSlugRoute,
 }
 export const routeTree = rootRouteImport
