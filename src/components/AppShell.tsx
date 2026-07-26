@@ -38,7 +38,9 @@ const primary: NavItem[] = [
   { to: "/clientes", label: "Clientes", icon: Users },
   { to: "/funcionarios", label: "Profissionais", icon: UserCog },
   { to: "/financeiro", label: "Financeiro", icon: Wallet },
+  { to: "/feedbacks", label: "Avaliações", icon: Star },
   { to: "/relatorios", label: "Relatórios", icon: BarChart3 },
+
   { to: "/configuracoes", label: "Configurações", icon: Settings },
 ];
 
