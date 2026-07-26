@@ -29,6 +29,7 @@ import { Route as AuthenticatedConfiguracoesRouteImport } from './routes/_authen
 import { Route as AuthenticatedAgendaRouteImport } from './routes/_authenticated/agenda'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedOrcamentosIndexRouteImport } from './routes/_authenticated/orcamentos/index'
+import { Route as AuthenticatedFeedbacksIndexRouteImport } from './routes/_authenticated/feedbacks/index'
 import { Route as AuthenticatedEventosIndexRouteImport } from './routes/_authenticated/eventos/index'
 import { Route as AuthenticatedClientesIndexRouteImport } from './routes/_authenticated/clientes/index'
 import { Route as AuthenticatedOrcamentosNovoRouteImport } from './routes/_authenticated/orcamentos/novo'
@@ -142,6 +143,12 @@ const AuthenticatedOrcamentosIndexRoute =
     path: '/orcamentos/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedFeedbacksIndexRoute =
+  AuthenticatedFeedbacksIndexRouteImport.update({
+    id: '/feedbacks/',
+    path: '/feedbacks/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedEventosIndexRoute =
   AuthenticatedEventosIndexRouteImport.update({
     id: '/eventos/',
@@ -217,6 +224,7 @@ export interface FileRoutesByFullPath {
   '/orcamentos/novo': typeof AuthenticatedOrcamentosNovoRoute
   '/clientes/': typeof AuthenticatedClientesIndexRoute
   '/eventos/': typeof AuthenticatedEventosIndexRoute
+  '/feedbacks/': typeof AuthenticatedFeedbacksIndexRoute
   '/orcamentos/': typeof AuthenticatedOrcamentosIndexRoute
   '/clientes/$id/editar': typeof AuthenticatedClientesIdEditarRoute
 }
@@ -246,6 +254,7 @@ export interface FileRoutesByTo {
   '/orcamentos/novo': typeof AuthenticatedOrcamentosNovoRoute
   '/clientes': typeof AuthenticatedClientesIndexRoute
   '/eventos': typeof AuthenticatedEventosIndexRoute
+  '/feedbacks': typeof AuthenticatedFeedbacksIndexRoute
   '/orcamentos': typeof AuthenticatedOrcamentosIndexRoute
   '/clientes/$id/editar': typeof AuthenticatedClientesIdEditarRoute
 }
@@ -277,6 +286,7 @@ export interface FileRoutesById {
   '/_authenticated/orcamentos/novo': typeof AuthenticatedOrcamentosNovoRoute
   '/_authenticated/clientes/': typeof AuthenticatedClientesIndexRoute
   '/_authenticated/eventos/': typeof AuthenticatedEventosIndexRoute
+  '/_authenticated/feedbacks/': typeof AuthenticatedFeedbacksIndexRoute
   '/_authenticated/orcamentos/': typeof AuthenticatedOrcamentosIndexRoute
   '/_authenticated/clientes/$id/editar': typeof AuthenticatedClientesIdEditarRoute
 }
@@ -308,6 +318,7 @@ export interface FileRouteTypes {
     | '/orcamentos/novo'
     | '/clientes/'
     | '/eventos/'
+    | '/feedbacks/'
     | '/orcamentos/'
     | '/clientes/$id/editar'
   fileRoutesByTo: FileRoutesByTo
@@ -337,6 +348,7 @@ export interface FileRouteTypes {
     | '/orcamentos/novo'
     | '/clientes'
     | '/eventos'
+    | '/feedbacks'
     | '/orcamentos'
     | '/clientes/$id/editar'
   id:
@@ -367,6 +379,7 @@ export interface FileRouteTypes {
     | '/_authenticated/orcamentos/novo'
     | '/_authenticated/clientes/'
     | '/_authenticated/eventos/'
+    | '/_authenticated/feedbacks/'
     | '/_authenticated/orcamentos/'
     | '/_authenticated/clientes/$id/editar'
   fileRoutesById: FileRoutesById
@@ -520,6 +533,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedOrcamentosIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/feedbacks/': {
+      id: '/_authenticated/feedbacks/'
+      path: '/feedbacks'
+      fullPath: '/feedbacks/'
+      preLoaderRoute: typeof AuthenticatedFeedbacksIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/eventos/': {
       id: '/_authenticated/eventos/'
       path: '/eventos'
@@ -601,6 +621,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedOrcamentosNovoRoute: typeof AuthenticatedOrcamentosNovoRoute
   AuthenticatedClientesIndexRoute: typeof AuthenticatedClientesIndexRoute
   AuthenticatedEventosIndexRoute: typeof AuthenticatedEventosIndexRoute
+  AuthenticatedFeedbacksIndexRoute: typeof AuthenticatedFeedbacksIndexRoute
   AuthenticatedOrcamentosIndexRoute: typeof AuthenticatedOrcamentosIndexRoute
   AuthenticatedClientesIdEditarRoute: typeof AuthenticatedClientesIdEditarRoute
 }
@@ -627,6 +648,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedOrcamentosNovoRoute: AuthenticatedOrcamentosNovoRoute,
   AuthenticatedClientesIndexRoute: AuthenticatedClientesIndexRoute,
   AuthenticatedEventosIndexRoute: AuthenticatedEventosIndexRoute,
+  AuthenticatedFeedbacksIndexRoute: AuthenticatedFeedbacksIndexRoute,
   AuthenticatedOrcamentosIndexRoute: AuthenticatedOrcamentosIndexRoute,
   AuthenticatedClientesIdEditarRoute: AuthenticatedClientesIdEditarRoute,
 }
@@ -653,3 +675,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
