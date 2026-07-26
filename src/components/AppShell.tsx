@@ -15,6 +15,8 @@ import {
   Search,
   Settings,
   Shield,
+  Star,
+
   UserCog,
   Users,
   Wallet,
