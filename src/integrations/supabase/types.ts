@@ -561,6 +561,210 @@ export type Database = {
           },
         ]
       }
+      fiscal_settings: {
+        Row: {
+          address_city: string | null
+          address_complement: string | null
+          address_district: string | null
+          address_number: string | null
+          address_state: string | null
+          address_street: string | null
+          address_zip: string | null
+          aliquota_iss: number | null
+          api_key: string | null
+          cnpj: string | null
+          codigo_servico: string | null
+          created_at: string
+          environment: string
+          fiscal_email: string | null
+          fiscal_phone: string | null
+          has_api_key: boolean | null
+          id: string
+          inscricao_municipal: string | null
+          invoice_logo_url: string | null
+          owner_id: string
+          provider: string
+          razao_social: string | null
+          regime_tributario: string | null
+          tenant_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          address_city?: string | null
+          address_complement?: string | null
+          address_district?: string | null
+          address_number?: string | null
+          address_state?: string | null
+          address_street?: string | null
+          address_zip?: string | null
+          aliquota_iss?: number | null
+          api_key?: string | null
+          cnpj?: string | null
+          codigo_servico?: string | null
+          created_at?: string
+          environment?: string
+          fiscal_email?: string | null
+          fiscal_phone?: string | null
+          has_api_key?: boolean | null
+          id?: string
+          inscricao_municipal?: string | null
+          invoice_logo_url?: string | null
+          owner_id?: string
+          provider?: string
+          razao_social?: string | null
+          regime_tributario?: string | null
+          tenant_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          address_city?: string | null
+          address_complement?: string | null
+          address_district?: string | null
+          address_number?: string | null
+          address_state?: string | null
+          address_street?: string | null
+          address_zip?: string | null
+          aliquota_iss?: number | null
+          api_key?: string | null
+          cnpj?: string | null
+          codigo_servico?: string | null
+          created_at?: string
+          environment?: string
+          fiscal_email?: string | null
+          fiscal_phone?: string | null
+          has_api_key?: boolean | null
+          id?: string
+          inscricao_municipal?: string | null
+          invoice_logo_url?: string | null
+          owner_id?: string
+          provider?: string
+          razao_social?: string | null
+          regime_tributario?: string | null
+          tenant_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fiscal_settings_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      invoices: {
+        Row: {
+          amount: number
+          cancel_reason: string | null
+          cancelled_at: string | null
+          client_id: string | null
+          created_at: string
+          description: string
+          email_sent_at: string | null
+          environment: string
+          error_message: string | null
+          event_id: string | null
+          id: string
+          issued_at: string | null
+          number: string | null
+          owner_id: string
+          payment_method: string | null
+          pdf_url: string | null
+          provider: string
+          provider_ref: string | null
+          recipient_doc: string | null
+          recipient_email: string | null
+          recipient_name: string | null
+          series: string | null
+          service_date: string | null
+          status: string
+          tenant_id: string | null
+          updated_at: string
+          xml_url: string | null
+        }
+        Insert: {
+          amount?: number
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          client_id?: string | null
+          created_at?: string
+          description: string
+          email_sent_at?: string | null
+          environment?: string
+          error_message?: string | null
+          event_id?: string | null
+          id?: string
+          issued_at?: string | null
+          number?: string | null
+          owner_id?: string
+          payment_method?: string | null
+          pdf_url?: string | null
+          provider?: string
+          provider_ref?: string | null
+          recipient_doc?: string | null
+          recipient_email?: string | null
+          recipient_name?: string | null
+          series?: string | null
+          service_date?: string | null
+          status?: string
+          tenant_id?: string | null
+          updated_at?: string
+          xml_url?: string | null
+        }
+        Update: {
+          amount?: number
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          client_id?: string | null
+          created_at?: string
+          description?: string
+          email_sent_at?: string | null
+          environment?: string
+          error_message?: string | null
+          event_id?: string | null
+          id?: string
+          issued_at?: string | null
+          number?: string | null
+          owner_id?: string
+          payment_method?: string | null
+          pdf_url?: string | null
+          provider?: string
+          provider_ref?: string | null
+          recipient_doc?: string | null
+          recipient_email?: string | null
+          recipient_name?: string | null
+          series?: string | null
+          service_date?: string | null
+          status?: string
+          tenant_id?: string | null
+          updated_at?: string
+          xml_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoices_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leads: {
         Row: {
           city: string | null
