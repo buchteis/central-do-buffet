@@ -12,6 +12,7 @@ import {
   LogOut,
   Package,
   Receipt,
+  ReceiptText,
   Search,
   Settings,
   Shield,
