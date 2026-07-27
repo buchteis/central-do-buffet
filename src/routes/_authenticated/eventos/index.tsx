@@ -1,10 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useState } from "react";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
-import { Calendar as CalendarIcon, CalendarPlus, XCircle } from "lucide-react";
+import { Calendar as CalendarIcon, CalendarPlus, FileText, XCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { brl, formatDateBR } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { EmitirNFModal, type NfEvent } from "@/components/nf/EmitirNFModal";
 
 // Gera link do Google Agenda pré-preenchido (sem necessidade de OAuth).
 // Cada evento fechado/pago vira um aviso na agenda do dono do buffet.
