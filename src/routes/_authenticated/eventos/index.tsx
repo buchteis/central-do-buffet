@@ -59,12 +59,13 @@ const statusLabels: Record<string, string> = {
 
 function EventsPage() {
   const qc = useQueryClient();
+  const [nfEvent, setNfEvent] = useState<NfEvent | null>(null);
   const { data, isLoading } = useQuery({
     queryKey: ["events"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("events")
-        .select("*, clients(name), packages(name)")
+        .select("*, clients(name, cpf, email), packages(name)")
         .order("event_date", { ascending: false });
       if (error) throw error;
       return data ?? [];
