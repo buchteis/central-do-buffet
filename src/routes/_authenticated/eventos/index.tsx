@@ -181,6 +181,15 @@ function EventsPage() {
                             <XCircle className="size-3.5" /> Cancelar
                           </button>
                         )}
+                        {(e.status === "pago" || e.status === "concluido") && (
+                          <button
+                            onClick={() => setNfEvent(e as NfEvent)}
+                            title="Emitir nota fiscal deste evento"
+                            className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold rounded-full bg-success/10 text-success hover:bg-success/20 transition-colors"
+                          >
+                            <FileText className="size-3.5" /> Emitir NF
+                          </button>
+                        )}
                         {!canSchedule && !canCancel && (
                           <span className="text-[11px] text-muted-foreground">—</span>
                         )}
@@ -194,6 +203,8 @@ function EventsPage() {
           </div>
         )}
       </div>
+
+      {nfEvent && <EmitirNFModal event={nfEvent} onClose={() => setNfEvent(null)} />}
     </div>
   );
 }
