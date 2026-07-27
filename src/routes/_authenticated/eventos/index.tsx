@@ -1,10 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useState } from "react";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
-import { Calendar as CalendarIcon, CalendarPlus, XCircle } from "lucide-react";
+import { Calendar as CalendarIcon, CalendarPlus, FileText, XCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { brl, formatDateBR } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { EmitirNFModal, type NfEvent } from "@/components/nf/EmitirNFModal";
 
 // Gera link do Google Agenda pré-preenchido (sem necessidade de OAuth).
 // Cada evento fechado/pago vira um aviso na agenda do dono do buffet.
@@ -57,12 +59,13 @@ const statusLabels: Record<string, string> = {
 
 function EventsPage() {
   const qc = useQueryClient();
+  const [nfEvent, setNfEvent] = useState<NfEvent | null>(null);
   const { data, isLoading } = useQuery({
     queryKey: ["events"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("events")
-        .select("*, clients(name), packages(name)")
+        .select("*, clients(name, cpf, email), packages(name)")
         .order("event_date", { ascending: false });
       if (error) throw error;
       return data ?? [];
@@ -178,6 +181,15 @@ function EventsPage() {
                             <XCircle className="size-3.5" /> Cancelar
                           </button>
                         )}
+                        {(e.status === "pago" || e.status === "concluido") && (
+                          <button
+                            onClick={() => setNfEvent(e as NfEvent)}
+                            title="Emitir nota fiscal deste evento"
+                            className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold rounded-full bg-success/10 text-success hover:bg-success/20 transition-colors"
+                          >
+                            <FileText className="size-3.5" /> Emitir NF
+                          </button>
+                        )}
                         {!canSchedule && !canCancel && (
                           <span className="text-[11px] text-muted-foreground">—</span>
                         )}
@@ -191,6 +203,8 @@ function EventsPage() {
           </div>
         )}
       </div>
+
+      {nfEvent && <EmitirNFModal event={nfEvent} onClose={() => setNfEvent(null)} />}
     </div>
   );
 }
