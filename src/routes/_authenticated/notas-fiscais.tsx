@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { maskCpfCnpj } from "@/lib/doc";
 import { downloadInvoiceXml, openInvoicePdf } from "@/lib/nf-doc";
 import { cancelInvoice, resendInvoiceEmail, saveFiscalApiKey } from "@/lib/nfse.functions";
+import { useSearchFilter } from "@/lib/search-store";
 
 export const Route = createFileRoute("/_authenticated/notas-fiscais")({
   head: () => ({
