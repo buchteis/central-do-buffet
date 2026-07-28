@@ -184,30 +184,34 @@ function isActive(pathname: string, to: string) {
   return pathname === to || pathname.startsWith(to + "/");
 }
 
-function TopBar() {
+function TopBar({ menu }: { menu?: ReactNode }) {
   const q = useGlobalSearch();
   const router = useRouter();
   return (
-    <header className="h-16 border-b border-border bg-background/80 backdrop-blur flex items-center justify-between px-4 md:px-8 sticky top-0 z-10">
-      <div className="relative w-full max-w-md">
+    <header className="h-16 border-b border-border bg-background/80 backdrop-blur flex items-center gap-2 md:gap-4 px-3 md:px-8 sticky top-0 z-10">
+      {menu}
+      <div className="relative flex-1 min-w-0 md:max-w-md">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
         <input
           type="search"
           value={q}
           onChange={(e) => setGlobalSearch(e.target.value)}
-          placeholder="Buscar cliente, orçamento…"
-          className="w-full bg-muted/40 border border-border rounded-full py-2 pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:bg-background transition"
+          placeholder="Buscar…"
+          className="w-full bg-muted/40 border border-border rounded-full py-2 pl-10 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:bg-background transition"
         />
       </div>
-      <div className="flex items-center gap-2 md:gap-3">
+      <div className="flex items-center gap-2 md:gap-3 shrink-0">
         <Button
           onClick={() => router.navigate({ to: "/orcamentos/novo" })}
           className="rounded-full shadow-lg shadow-primary/20 font-bold text-xs"
           size="sm"
+          aria-label="Novo orçamento"
         >
-          + Novo orçamento
+          <Plus className="size-4 md:hidden" />
+          <span className="hidden md:inline">+ Novo orçamento</span>
         </Button>
       </div>
+
     </header>
   );
 }
