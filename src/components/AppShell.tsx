@@ -56,6 +56,12 @@ export function AppShell({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const { data: access } = useTenantAccess();
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  // Fecha o menu mobile a cada navegação
+  useEffect(() => {
+    setMenuOpen(false);
+  }, [pathname]);
 
   async function handleSignOut() {
     await supabase.auth.signOut();
@@ -63,67 +69,97 @@ export function AppShell({ children }: { children: ReactNode }) {
     router.navigate({ to: "/auth", replace: true });
   }
 
+  const nav = (
+    <>
+      <nav className="flex-1 px-3 space-y-0.5 overflow-y-auto">
+        {primary.map((item) => (
+          <SideLink key={item.to} item={item} active={isActive(pathname, item.to)} />
+        ))}
+        {access?.isSuperAdmin && (
+          <>
+            <div className="h-px bg-border my-4 mx-3" />
+            <div className="px-3 pb-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+              Administração
+            </div>
+            <SideLink
+              item={{ to: "/admin", label: "Super Admin", icon: Shield }}
+              active={isActive(pathname, "/admin")}
+            />
+          </>
+        )}
+      </nav>
+
+      <div className="p-4 mt-auto border-t border-border">
+        <div className="flex items-center gap-3 px-2">
+          <div className="size-9 shrink-0 rounded-full bg-primary/10 text-primary font-bold text-xs flex items-center justify-center ring-1 ring-primary/20">
+            {(access?.tenant?.name ?? "CB").slice(0, 2).toUpperCase()}
+          </div>
+          <div className="flex flex-col overflow-hidden flex-1 min-w-0">
+            <span className="text-xs font-bold truncate">{access?.tenant?.name ?? "Meu Buffet"}</span>
+            <span className="text-[10px] text-muted-foreground truncate">
+              {access?.isSuperAdmin ? "Super Admin" : access?.email}
+            </span>
+          </div>
+          <button
+            onClick={handleSignOut}
+            className="p-2 shrink-0 text-muted-foreground hover:text-foreground hover:bg-accent rounded-md transition-colors"
+            aria-label="Sair"
+            title="Sair"
+          >
+            <LogOut className="size-4" />
+          </button>
+        </div>
+      </div>
+    </>
+  );
+
   return (
     <div className="flex min-h-screen bg-background text-foreground font-sans">
       <aside className="hidden md:flex w-64 border-r border-border flex-col sticky top-0 h-screen bg-sidebar">
-        <div className="p-6 flex items-center gap-3">
-          <div className="size-9 bg-primary rounded-xl flex items-center justify-center shadow-lg shadow-primary/20">
-            <Flame className="size-5 text-primary-foreground" />
-          </div>
-          <div className="flex flex-col leading-tight">
-            <span className="font-extrabold text-lg tracking-tight">Central do Buffet</span>
-            <span className="text-[10px] text-muted-foreground font-mono uppercase">Gestão de buffet</span>
-          </div>
-        </div>
-
-        <nav className="flex-1 px-3 space-y-0.5 overflow-y-auto">
-          {primary.map((item) => (
-            <SideLink key={item.to} item={item} active={isActive(pathname, item.to)} />
-          ))}
-          {access?.isSuperAdmin && (
-            <>
-              <div className="h-px bg-border my-4 mx-3" />
-              <div className="px-3 pb-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                Administração
-              </div>
-              <SideLink
-                item={{ to: "/admin", label: "Super Admin", icon: Shield }}
-                active={isActive(pathname, "/admin")}
-              />
-            </>
-          )}
-        </nav>
-
-        <div className="p-4 mt-auto border-t border-border">
-          <div className="flex items-center gap-3 px-2">
-            <div className="size-9 rounded-full bg-primary/10 text-primary font-bold text-xs flex items-center justify-center ring-1 ring-primary/20">
-              {(access?.tenant?.name ?? "MC").slice(0, 2).toUpperCase()}
-            </div>
-            <div className="flex flex-col overflow-hidden flex-1 min-w-0">
-              <span className="text-xs font-bold truncate">{access?.tenant?.name ?? "Meu Buffet"}</span>
-              <span className="text-[10px] text-muted-foreground truncate">
-                {access?.isSuperAdmin ? "Super Admin" : access?.email}
-              </span>
-            </div>
-            <button
-              onClick={handleSignOut}
-              className="p-2 text-muted-foreground hover:text-foreground hover:bg-accent rounded-md transition-colors"
-              aria-label="Sair"
-              title="Sair"
-            >
-              <LogOut className="size-4" />
-            </button>
-          </div>
-        </div>
+        <BrandHeader />
+        {nav}
       </aside>
 
       <main className="flex-1 flex flex-col min-w-0">
-        <TopBar />
-        <div className="flex-1 p-4 md:p-8 max-w-[1280px] mx-auto w-full">{children}</div>
+        <TopBar
+          menu={
+            <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
+              <SheetTrigger asChild>
+                <button
+                  className="md:hidden p-2 -ml-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors shrink-0"
+                  aria-label="Abrir menu"
+                >
+                  <Menu className="size-5" />
+                </button>
+              </SheetTrigger>
+              <SheetContent side="left" className="p-0 w-[17rem] bg-sidebar flex flex-col gap-0">
+                <SheetTitle className="sr-only">Menu de navegação</SheetTitle>
+                <BrandHeader />
+                {nav}
+              </SheetContent>
+            </Sheet>
+          }
+        />
+        <div className="flex-1 p-4 md:p-8 max-w-[1280px] mx-auto w-full min-w-0">{children}</div>
       </main>
     </div>
   );
 }
+
+function BrandHeader() {
+  return (
+    <div className="p-5 md:p-6 flex items-center gap-3">
+      <div className="size-9 shrink-0 bg-primary rounded-xl flex items-center justify-center shadow-lg shadow-primary/20">
+        <Flame className="size-5 text-primary-foreground" />
+      </div>
+      <div className="flex flex-col leading-tight min-w-0">
+        <span className="font-extrabold text-lg tracking-tight truncate">Central do Buffet</span>
+        <span className="text-[10px] text-muted-foreground font-mono uppercase">Gestão de buffet</span>
+      </div>
+    </div>
+  );
+}
+
 
 function SideLink({ item, active }: { item: NavItem; active: boolean }) {
   const Icon = item.icon;
