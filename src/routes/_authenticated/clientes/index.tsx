@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { formatDateBR } from "@/lib/format";
 import { toast } from "sonner";
 import { Checkbox } from "@/components/ui/checkbox";
+import { useSearchFilter } from "@/lib/search-store";
 
 export const Route = createFileRoute("/_authenticated/clientes/")({
   head: () => ({ meta: [{ title: "Clientes — Central do Buffet" }] }),
@@ -15,6 +16,7 @@ export const Route = createFileRoute("/_authenticated/clientes/")({
 function ClientsPage() {
   const qc = useQueryClient();
   const [q, setQ] = useState("");
+  const { query: gq, match } = useSearchFilter();
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [confirmBulk, setConfirmBulk] = useState(false);
@@ -61,16 +63,20 @@ function ClientsPage() {
   const filtered = useMemo(
     () =>
       (clients ?? []).filter((c) => {
-        if (!q.trim()) return true;
-        const term = q.toLowerCase();
+        const local = q.trim().toLowerCase();
+        const localOk =
+          !local ||
+          [c.name, c.phone, c.whatsapp, c.email, c.cpf, c.city, c.address]
+            .some((v) => String(v ?? "").toLowerCase().includes(local)) ||
+          [c.phone, c.whatsapp, c.cpf].some(
+            (v) => local.replace(/\D/g, "") && String(v ?? "").replace(/\D/g, "").includes(local.replace(/\D/g, "")),
+          );
         return (
-          c.name?.toLowerCase().includes(term) ||
-          c.phone?.toLowerCase().includes(term) ||
-          c.email?.toLowerCase().includes(term) ||
-          c.cpf?.toLowerCase().includes(term)
+          localOk &&
+          match(c.name, c.phone, c.whatsapp, c.email, c.cpf, c.city, c.address, c.notes, c.origem, c.status)
         );
       }),
-    [clients, q],
+    [clients, q, gq],
   );
 
   const confirming = (clients ?? []).find((c) => c.id === confirmId);

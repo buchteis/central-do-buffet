@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { fillTemplate } from "@/lib/whatsapp";
 import { useLogoDisplayUrl, getLogoDisplayUrl } from "@/lib/logo";
+import { useSearchFilter } from "@/lib/search-store";
 
 export const Route = createFileRoute("/_authenticated/contratos")({
   head: () => ({ meta: [{ title: "Contratos — Meu Churras" }] }),
@@ -155,7 +156,19 @@ function ContractsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {(contracts ?? []).map((c: any) => {
+              {(contracts ?? [])
+                .filter((c: any) =>
+                  match(
+                    c.title,
+                    c.status,
+                    c.content,
+                    c.events?.clients?.name,
+                    c.events?.clients?.cpf,
+                    c.clients?.name,
+                    c.clients?.cpf,
+                  ),
+                )
+                .map((c: any) => {
                 const clientName = c.events?.clients?.name ?? c.clients?.name ?? "—";
                 const eventDate = c.events?.event_date ? formatDateFullBR(c.events.event_date) : "—";
                 return (

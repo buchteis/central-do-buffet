@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { brl, formatDateBR } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { useTenantAccess } from "@/hooks/useTenantAccess";
+import { useSearchFilter } from "@/lib/search-store";
 
 export const Route = createFileRoute("/_authenticated/financeiro")({
   head: () => ({ meta: [{ title: "Financeiro — Central do Buffet" }] }),
@@ -66,6 +67,7 @@ const statusStyles: Record<string, string> = {
 function FinanceiroPage() {
   const qc = useQueryClient();
   const { data: access } = useTenantAccess();
+  const { match } = useSearchFilter();
   const tenantId = access?.tenant?.id ?? null;
   const isSuperAdmin = access?.isSuperAdmin ?? false;
 
@@ -212,11 +214,13 @@ function FinanceiroPage() {
   });
 
   // Aplica filtro de tipo (recebido/receber)
-  const rows = sourceFiltered.filter((r) => {
-    if (typeFilter === "recebido") return r.kind === "recebido";
-    if (typeFilter === "receber") return r.kind === "receber";
-    return true;
-  });
+  const rows = sourceFiltered
+    .filter((r) => {
+      if (typeFilter === "recebido") return r.kind === "recebido";
+      if (typeFilter === "receber") return r.kind === "receber";
+      return true;
+    })
+    .filter((r) => match(r.title, r.client, r.status, r.method, r.date, r.amount));
 
   return (
     <div className="space-y-6">
