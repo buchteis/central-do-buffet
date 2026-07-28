@@ -61,6 +61,10 @@ function PackagesPage() {
     },
   });
 
+  const packages = (allPackages ?? []).filter((p) =>
+    match(p.name, p.description, (p as any).included_items?.join?.(" ")),
+  );
+
   const { data: allTiers } = useQuery({
     queryKey: ["all-tiers"],
     queryFn: async () => {
