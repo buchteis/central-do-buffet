@@ -454,7 +454,7 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
 
         <div>
           <div className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest mb-2">Origem</div>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
             {(["quote", "event", "blank"] as Source[]).map((s) => (
               <button
                 key={s}

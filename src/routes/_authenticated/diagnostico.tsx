@@ -278,7 +278,7 @@ function DiagnosticoPage() {
               <Calendar className="size-5 text-blue-600" />
               Eventos
             </h3>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Stat label="Hoje" value={data?.eventos?.hoje || 0} icon={Clock} color="blue" />
               <Stat label="Futuros" value={data?.eventos?.futuro || 0} icon={TrendingUp} color="green" />
               <Stat label="Passados" value={data?.eventos?.passado || 0} icon={TrendingDown} color="amber" />
@@ -309,7 +309,7 @@ function DiagnosticoPage() {
               <DollarSign className="size-5 text-emerald-600" />
               Financeiro
             </h3>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Stat
                 label="Receita recebida"
                 value={brl(data?.financeiro?.entradaPaga || 0)}
