@@ -64,6 +64,7 @@ function InvoicesPage() {
 
 function HistoryTab() {
   const qc = useQueryClient();
+  const { query: gq, match } = useSearchFilter();
   const [q, setQ] = useState("");
   const [status, setStatus] = useState("todos");
   const [from, setFrom] = useState("");
@@ -106,17 +107,31 @@ function HistoryTab() {
 
   const rows = useMemo(() => {
     const term = q.trim().toLowerCase();
+    const gmatch = match;
     return (data ?? []).filter((i: any) => {
       if (status !== "todos" && i.status !== status) return false;
       const d = i.service_date ?? i.created_at?.slice(0, 10);
       if (from && d && d < from) return false;
       if (to && d && d > to) return false;
+      if (
+        !gmatch(
+          i.number,
+          i.recipient_name,
+          i.recipient_doc,
+          i.recipient_email,
+          i.clients?.name,
+          i.description,
+          i.status,
+          i.amount,
+        )
+      )
+        return false;
       if (!term) return true;
       return [i.number, i.recipient_name, i.recipient_doc, i.clients?.name, i.description]
         .filter(Boolean)
         .some((v: string) => String(v).toLowerCase().includes(term));
     });
-  }, [data, q, status, from, to]);
+  }, [data, q, status, from, to, gq]);
 
   const issuer = {
     razao_social: fiscal?.razao_social,
