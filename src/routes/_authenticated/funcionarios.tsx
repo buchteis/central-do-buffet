@@ -19,6 +19,7 @@ function FuncionariosPage() {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [assignOpen, setAssignOpen] = useState(false);
+  const { match } = useSearchFilter();
 
   const { data: employees } = useQuery({
     queryKey: ["employees"],

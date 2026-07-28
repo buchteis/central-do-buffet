@@ -70,6 +70,7 @@ function ContractsPage() {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<any | null>(null);
   const [previewing, setPreviewing] = useState<any | null>(null);
+  const { match } = useSearchFilter();
 
   const { data: settings } = useQuery({
     queryKey: ["buffet-settings"],
