@@ -5,6 +5,7 @@ import { Plus, Boxes, Pencil, Trash2, ArrowDownUp, History } from "lucide-react"
 import { toast } from "sonner";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
+import { useSearchFilter } from "@/lib/search-store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -109,7 +110,8 @@ function ProductsTab() {
   const [editing, setEditing] = useState<Product | null>(null);
   const [adjOpen, setAdjOpen] = useState<Product | null>(null);
 
-  const { data: products, isLoading } = useQuery({
+  const { match } = useSearchFilter();
+  const { data: allProducts, isLoading } = useQuery({
     queryKey: ["stock-products"],
     queryFn: async () => {
       const { data, error } = await (supabase as any)
@@ -120,6 +122,10 @@ function ProductsTab() {
       return (data ?? []) as Product[];
     },
   });
+
+  const products = (allProducts ?? []).filter((p: any) =>
+    match(p.name, p.unit, p.notes, p.stock_categories?.name),
+  );
 
   const { data: categories } = useQuery({
     queryKey: ["stock-categories"],
@@ -556,7 +562,8 @@ function CategoriesTab() {
 }
 
 function MovementsTab() {
-  const { data, isLoading } = useQuery({
+  const { match } = useSearchFilter();
+  const { data: allMovements, isLoading } = useQuery({
     queryKey: ["stock-movements"],
     queryFn: async () => {
       const { data, error } = await (supabase as any)
@@ -568,6 +575,10 @@ function MovementsTab() {
       return data ?? [];
     },
   });
+
+  const data = (allMovements ?? []).filter((m: any) =>
+    match(m.stock_products?.name, m.kind, m.notes, m.quantity),
+  );
 
   const kindLabel: Record<string, string> = {
     reserve: "Reserva",

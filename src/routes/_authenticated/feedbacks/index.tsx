@@ -6,6 +6,7 @@ import { useTenantAccess } from "@/hooks/useTenantAccess";
 import { copyToClipboard } from "@/lib/clipboard";
 import { Copy, Star } from "lucide-react";
 import { toast } from "sonner";
+import { useSearchFilter } from "@/lib/search-store";
 
 export const Route = createFileRoute("/_authenticated/feedbacks/")({
   head: () => ({
@@ -19,6 +20,7 @@ export const Route = createFileRoute("/_authenticated/feedbacks/")({
 
 function FeedbacksDashboard() {
   const { data: access } = useTenantAccess();
+  const { match } = useSearchFilter();
   const slug = access?.tenant?.slug ?? "";
   const link = slug ? `${typeof window !== "undefined" ? window.location.origin : ""}/avaliar/${slug}` : "";
 
@@ -90,7 +92,9 @@ function FeedbacksDashboard() {
           <p className="text-sm text-muted-foreground">Nenhum feedback recebido ainda.</p>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {feedbacks.map((f: any) => (
+            {feedbacks
+              .filter((f: any) => match(f.client_name, f.comments, f.improvements, f.nps_score))
+              .map((f: any) => (
               <NpsCard
                 key={f.id}
                 clientName={f.client_name}

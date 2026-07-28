@@ -7,6 +7,7 @@ import { brl, formatDateBR } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { EmitirNFModal, type NfEvent } from "@/components/nf/EmitirNFModal";
+import { useSearchFilter } from "@/lib/search-store";
 
 // Gera link do Google Agenda pré-preenchido (sem necessidade de OAuth).
 // Cada evento fechado/pago vira um aviso na agenda do dono do buffet.
@@ -60,7 +61,8 @@ const statusLabels: Record<string, string> = {
 function EventsPage() {
   const qc = useQueryClient();
   const [nfEvent, setNfEvent] = useState<NfEvent | null>(null);
-  const { data, isLoading } = useQuery({
+  const { match } = useSearchFilter();
+  const { data: allEvents, isLoading } = useQuery({
     queryKey: ["events"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -71,6 +73,20 @@ function EventsPage() {
       return data ?? [];
     },
   });
+
+  const data = (allEvents ?? []).filter((e: any) =>
+    match(
+      e.clients?.name,
+      e.clients?.cpf,
+      e.clients?.email,
+      e.packages?.name,
+      e.event_address,
+      e.notes,
+      e.status,
+      e.event_date,
+      e.total_value,
+    ),
+  );
 
   const cancelEvent = useMutation({
     mutationFn: async (id: string) => {

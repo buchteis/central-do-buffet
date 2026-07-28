@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { brl } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { useSearchFilter } from "@/lib/search-store";
 
 export const Route = createFileRoute("/_authenticated/funcionarios")({
   head: () => ({ meta: [{ title: "Funcionários — Central do Buffet" }] }),
@@ -18,6 +19,7 @@ function FuncionariosPage() {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [assignOpen, setAssignOpen] = useState(false);
+  const { match } = useSearchFilter();
 
   const { data: employees } = useQuery({
     queryKey: ["employees"],
@@ -72,7 +74,9 @@ function FuncionariosPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {(employees ?? []).map((e: any) => (
+              {(employees ?? [])
+                .filter((e: any) => match(e.name, e.role, e.phone, e.pix, e.notes))
+                .map((e: any) => (
                 <tr key={e.id} className="hover:bg-muted/30">
                   <td className="px-5 py-4 text-sm font-semibold">{e.name}</td>
                   <td className="px-4 py-4 text-xs uppercase">{e.role}</td>

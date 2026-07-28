@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { brl } from "@/lib/format";
+import { useSearchFilter } from "@/lib/search-store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -50,7 +51,8 @@ function PackagesPage() {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Pack | null>(null);
 
-  const { data: packages, isLoading } = useQuery({
+  const { match } = useSearchFilter();
+  const { data: allPackages, isLoading } = useQuery({
     queryKey: ["packages"],
     queryFn: async () => {
       const { data, error } = await supabase.from("packages").select("*").order("name");
@@ -58,6 +60,10 @@ function PackagesPage() {
       return (data ?? []) as Pack[];
     },
   });
+
+  const packages = (allPackages ?? []).filter((p) =>
+    match(p.name, p.description, (p as any).included_items?.join?.(" ")),
+  );
 
   const { data: allTiers } = useQuery({
     queryKey: ["all-tiers"],
