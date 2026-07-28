@@ -359,7 +359,7 @@ function FiscalSettingsTab() {
         <Field label="Razão social">
           <input value={f.razao_social} onChange={(e) => setF({ ...f, razao_social: e.target.value })} className="inp" />
         </Field>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Field label="CNPJ">
             <input
               value={f.cnpj}
@@ -375,7 +375,7 @@ function FiscalSettingsTab() {
             />
           </Field>
         </div>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <Field label="Regime tributário">
             <select
               value={f.regime_tributario}
@@ -408,7 +408,7 @@ function FiscalSettingsTab() {
       </Card>
 
       <Card title="Endereço do estabelecimento">
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div className="col-span-2">
             <Field label="Logradouro">
               <input
@@ -426,7 +426,7 @@ function FiscalSettingsTab() {
             />
           </Field>
         </div>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <Field label="Complemento">
             <input
               value={f.address_complement}
@@ -445,7 +445,7 @@ function FiscalSettingsTab() {
             <input value={f.address_zip} onChange={(e) => setF({ ...f, address_zip: e.target.value })} className="inp" />
           </Field>
         </div>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div className="col-span-2">
             <Field label="Cidade">
               <input
@@ -464,7 +464,7 @@ function FiscalSettingsTab() {
             />
           </Field>
         </div>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Field label="Telefone fiscal">
             <input
               value={f.fiscal_phone}
@@ -529,7 +529,7 @@ function FiscalSettingsTab() {
       </Card>
 
       <Card title="Integração fiscal">
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Field label="Provedor">
             <select value={f.provider} onChange={(e) => setF({ ...f, provider: e.target.value })} className="inp">
               <option value="generic">Nenhum (modo simulado)</option>

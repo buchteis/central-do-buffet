@@ -731,7 +731,7 @@ function EventPanel({ event, onClose }: { event: any; onClose: () => void }) {
           <StaffSection event={event} />
         </div>
 
-        <div className="mt-6 grid grid-cols-2 gap-2">
+        <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-2">
           {phone && (
             <a
               href={waLink(
@@ -924,7 +924,7 @@ function StaffSection({ event }: { event: any }) {
               </optgroup>
             )}
           </select>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             <input
               value={role}
               onChange={(e) => setRole(e.target.value)}

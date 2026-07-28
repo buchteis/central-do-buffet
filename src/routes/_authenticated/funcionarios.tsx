@@ -168,7 +168,7 @@ function AssignDialog({ onClose, employees }: { onClose: () => void; employees: 
           <option value="">Selecione o funcionário</option>
           {employees.map((emp) => <option key={emp.id} value={emp.id}>{emp.name} ({emp.role})</option>)}
         </select>
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           <select value={f.role} onChange={(e) => setF({ ...f, role: e.target.value })} className="h-10 px-3 border border-border rounded-lg bg-background text-sm capitalize">
             {roles.map((r) => <option key={r} value={r}>{r}</option>)}
           </select>

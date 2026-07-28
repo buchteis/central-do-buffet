@@ -383,7 +383,7 @@ function ImportClientsPage() {
             <CheckCircle2 className="size-6 text-green-600" />
             <div className="text-lg font-bold">Importação concluída</div>
           </div>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="rounded-lg bg-muted/30 p-4 text-center">
               <div className="text-2xl font-extrabold text-primary">{result.imported}</div>
               <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mt-1">

@@ -120,7 +120,7 @@ function SettingsPage() {
             className="input"
           />
         </Field>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Field label="Telefone">
             <input value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} className="input" />
           </Field>
@@ -191,7 +191,7 @@ function SettingsPage() {
       </Section>
 
       <Section title="PIX">
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Field label="Chave PIX">
             <input value={f.pix_key} onChange={(e) => setF({ ...f, pix_key: e.target.value })} className="input" />
           </Field>
@@ -222,7 +222,7 @@ function SettingsPage() {
         <p className="text-xs text-muted-foreground">
           Utilizados no contrato quando a forma de pagamento for "Dados Bancários".
         </p>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Field label="Banco">
             <input value={f.bank_name} onChange={(e) => setF({ ...f, bank_name: e.target.value })} className="input" />
           </Field>
@@ -234,7 +234,7 @@ function SettingsPage() {
             />
           </Field>
         </div>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Field label="Conta">
             <input
               value={f.bank_account}
