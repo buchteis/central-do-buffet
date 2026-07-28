@@ -1,5 +1,5 @@
 import { Link, useRouter, useRouterState } from "@tanstack/react-router";
-import { type ReactNode } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { setGlobalSearch, useGlobalSearch } from "@/lib/search-store";
 import {
   BarChart3,
@@ -10,7 +10,9 @@ import {
   Flame,
   Home,
   LogOut,
+  Menu,
   Package,
+  Plus,
   Receipt,
   ReceiptText,
   Search,
@@ -25,8 +27,10 @@ import {
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { toast } from "sonner";
 import { useTenantAccess } from "@/hooks/useTenantAccess";
+
 
 type NavItem = { to: string; label: string; icon: typeof Home };
 
