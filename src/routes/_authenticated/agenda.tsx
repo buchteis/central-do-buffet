@@ -751,12 +751,6 @@ function EventPanel({ event, onClose }: { event: any; onClose: () => void }) {
           >
             <FileText className="size-4" /> Contrato
           </a>
-          <a
-            href={`/financeiro?event=${event.id}`}
-            className="flex items-center justify-center gap-2 h-10 rounded-lg border border-border text-xs font-bold col-span-2"
-          >
-            <DollarSign className="size-4" /> Registrar pagamento
-          </a>
         </div>
       </div>
     </div>
