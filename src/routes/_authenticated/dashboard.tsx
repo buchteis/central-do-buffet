@@ -26,7 +26,9 @@ import {
 } from "lucide-react";
 import { Chatbot } from "@/components/Chatbot";
 import { FeedbackPieCard } from "@/components/feedback/FeedbackPieCard";
-
+import { GoogleConnect } from "@/components/GoogleConnect";
+import { GoogleReviews } from "@/components/GoogleReviews";
+import { useGoogleReviews } from "@/hooks/useGoogleReviews";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({ meta: [{ title: "Dashboard — Central do Buffet" }] }),
@@ -251,6 +253,9 @@ function Dashboard() {
     return data ?? [];
   });
 
+  // ===== GOOGLE REVIEWS =====
+  const { isConnected: isGoogleConnected, loading: googleLoading } = useGoogleReviews();
+
   // ===== CONSOLIDAÇÃO DOS DADOS =====
   const stats = {
     evToday: eventsData.data?.today ?? 0,
@@ -259,7 +264,7 @@ function Dashboard() {
     qPend: quotesData.data?.pendentes ?? 0,
     qApr: quotesData.data?.aprovados ?? 0,
     revenueReceived: transactionsData.data?.recebido ?? 0,
-    despesasPagas: transactionsData.data?.despesasPagas ?? 0, // ✅ ADICIONADO
+    despesasPagas: transactionsData.data?.despesasPagas ?? 0,
     toReceive: transactionsData.data?.aReceber ?? 0,
     txOverdue: transactionsData.data?.vencidos ?? 0,
     faturamentoConcluido: quotesData.data?.concluidos ?? 0,
@@ -368,14 +373,12 @@ function Dashboard() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <FinanceCard label="Receita recebida" value={brl(stats.revenueReceived)} icon={TrendingUp} color="emerald" />
           <FinanceCard label="A receber" value={brl(stats.toReceive)} icon={Clock} color="amber" />
-          {/* Saldo atual = Receita Recebida + A Receber (previsto total) */}
           <FinanceCard
             label="Saldo atual"
             value={brl(stats.revenueReceived + stats.toReceive)}
             icon={Wallet}
             color="sky"
           />
-
         </div>
       </section>
 
@@ -541,8 +544,37 @@ function Dashboard() {
       {/* ===== AVALIAÇÕES / NPS ===== */}
       <FeedbackPieCard />
 
-      <Chatbot />
+      {/* ===== AVALIAÇÕES DO GOOGLE ===== */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="font-extrabold text-lg tracking-tight text-slate-800 flex items-center gap-2">
+            <Building2 className="size-5 text-red-500" />
+            Avaliações do Google
+          </h2>
+          {!isGoogleConnected && <GoogleConnect />}
+          {isGoogleConnected && (
+            <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium">
+              ✅ Google Conectado
+            </span>
+          )}
+        </div>
 
+        {googleLoading ? (
+          <div className="p-8 text-center text-muted-foreground">Carregando avaliações do Google...</div>
+        ) : (
+          isGoogleConnected && <GoogleReviews />
+        )}
+
+        {!isGoogleConnected && !googleLoading && (
+          <div className="p-8 text-center text-muted-foreground border-2 border-dashed rounded-xl border-slate-200">
+            <Building2 className="size-12 mx-auto text-slate-300 mb-3" />
+            <p className="font-medium">Conecte sua conta do Google Meu Negócio</p>
+            <p className="text-sm">Para ver suas avaliações diretamente no dashboard</p>
+          </div>
+        )}
+      </div>
+
+      <Chatbot />
     </div>
   );
 }
