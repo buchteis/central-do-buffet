@@ -187,19 +187,26 @@ function isActive(pathname: string, to: string) {
 function TopBar({ menu }: { menu?: ReactNode }) {
   const q = useGlobalSearch();
   const router = useRouter();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const hideSearch = pathname === "/dashboard" || pathname === "/";
   return (
     <header className="h-16 border-b border-border bg-background/80 backdrop-blur flex items-center gap-2 md:gap-4 px-3 md:px-8 sticky top-0 z-10">
       {menu}
-      <div className="relative flex-1 min-w-0 md:max-w-md">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-        <input
-          type="search"
-          value={q}
-          onChange={(e) => setGlobalSearch(e.target.value)}
-          placeholder="Buscar…"
-          className="w-full bg-muted/40 border border-border rounded-full py-2 pl-10 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:bg-background transition"
-        />
-      </div>
+      {hideSearch ? (
+        <div className="flex-1 min-w-0" />
+      ) : (
+        <div className="relative flex-1 min-w-0 md:max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+          <input
+            type="search"
+            value={q}
+            onChange={(e) => setGlobalSearch(e.target.value)}
+            placeholder="Buscar…"
+            className="w-full bg-muted/40 border border-border rounded-full py-2 pl-10 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:bg-background transition"
+          />
+        </div>
+      )}
+
       <div className="flex items-center gap-2 md:gap-3 shrink-0">
         <Button
           onClick={() => router.navigate({ to: "/orcamentos/novo" })}

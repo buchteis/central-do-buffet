@@ -28,6 +28,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatDateBR } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { StockHealthChart } from "@/components/estoque/StockHealthChart";
 
 export const Route = createFileRoute("/_authenticated/estoque")({
   head: () => ({ meta: [{ title: "Estoque — Central do Buffet" }] }),
@@ -293,6 +294,8 @@ function ProductsTab() {
           </DialogContent>
         </Dialog>
       </div>
+
+      {!isLoading && (products?.length ?? 0) > 0 && <StockHealthChart products={products as any} />}
 
       {isLoading ? (
         <div className="p-10 text-center text-sm text-muted-foreground">Carregando…</div>

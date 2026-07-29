@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { NpsCard } from "@/components/feedback/NpsCard";
 import { useTenantAccess } from "@/hooks/useTenantAccess";
@@ -18,13 +19,31 @@ export const Route = createFileRoute("/_authenticated/feedbacks/")({
   component: FeedbacksDashboard,
 });
 
+type Period = "dia" | "mes" | "ano" | "todos";
+
+const PERIODS: { key: Period; label: string }[] = [
+  { key: "dia", label: "Dia" },
+  { key: "mes", label: "Mês" },
+  { key: "ano", label: "Ano" },
+  { key: "todos", label: "Tudo" },
+];
+
+function startOf(period: Period) {
+  const now = new Date();
+  if (period === "dia") return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  if (period === "mes") return new Date(now.getFullYear(), now.getMonth(), 1);
+  if (period === "ano") return new Date(now.getFullYear(), 0, 1);
+  return null;
+}
+
 function FeedbacksDashboard() {
   const { data: access } = useTenantAccess();
   const { match } = useSearchFilter();
+  const [period, setPeriod] = useState<Period>("mes");
   const slug = access?.tenant?.slug ?? "";
   const link = slug ? `${typeof window !== "undefined" ? window.location.origin : ""}/avaliar/${slug}` : "";
 
-  const { data: feedbacks = [], isLoading } = useQuery({
+  const { data: allFeedbacks = [], isLoading } = useQuery({
     queryKey: ["feedbacks"],
     queryFn: async () => {
       const { data, error } = await (supabase as any)
@@ -36,16 +55,41 @@ function FeedbacksDashboard() {
     },
   });
 
+  const from = startOf(period);
+  const feedbacks = from
+    ? allFeedbacks.filter((f: any) => new Date(f.created_at) >= from)
+    : allFeedbacks;
+
   const avgNps = feedbacks.length
     ? (feedbacks.reduce((acc: number, f: any) => acc + Number(f.nps_score), 0) / feedbacks.length).toFixed(1)
     : "0";
 
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-extrabold tracking-tight">Qualidade & Feedbacks</h1>
-        <p className="text-sm text-muted-foreground">Acompanhe a satisfação dos seus clientes em tempo real.</p>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-extrabold tracking-tight">Qualidade & Feedbacks</h1>
+          <p className="text-sm text-muted-foreground">Acompanhe a satisfação dos seus clientes em tempo real.</p>
+        </div>
+        <div className="flex gap-1 p-1 bg-muted/50 rounded-full">
+          {PERIODS.map((p) => (
+            <button
+              key={p.key}
+              onClick={() => setPeriod(p.key)}
+              className={
+                "px-3 py-1.5 rounded-full text-xs font-bold transition-colors " +
+                (period === p.key
+                  ? "bg-primary text-primary-foreground shadow"
+                  : "text-muted-foreground hover:text-foreground")
+              }
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
       </div>
+
 
       {link && (
         <div className="p-4 bg-card border border-border rounded-2xl flex flex-col md:flex-row md:items-center gap-3">
