@@ -67,10 +67,29 @@ function FeedbacksDashboard() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-extrabold tracking-tight">Qualidade & Feedbacks</h1>
-        <p className="text-sm text-muted-foreground">Acompanhe a satisfação dos seus clientes em tempo real.</p>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-extrabold tracking-tight">Qualidade & Feedbacks</h1>
+          <p className="text-sm text-muted-foreground">Acompanhe a satisfação dos seus clientes em tempo real.</p>
+        </div>
+        <div className="flex gap-1 p-1 bg-muted/50 rounded-full">
+          {PERIODS.map((p) => (
+            <button
+              key={p.key}
+              onClick={() => setPeriod(p.key)}
+              className={
+                "px-3 py-1.5 rounded-full text-xs font-bold transition-colors " +
+                (period === p.key
+                  ? "bg-primary text-primary-foreground shadow"
+                  : "text-muted-foreground hover:text-foreground")
+              }
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
       </div>
+
 
       {link && (
         <div className="p-4 bg-card border border-border rounded-2xl flex flex-col md:flex-row md:items-center gap-3">
