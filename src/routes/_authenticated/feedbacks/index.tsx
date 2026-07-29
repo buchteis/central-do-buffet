@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { NpsCard } from "@/components/feedback/NpsCard";
 import { useTenantAccess } from "@/hooks/useTenantAccess";
