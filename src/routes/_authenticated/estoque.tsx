@@ -564,8 +564,24 @@ function CategoriesTab() {
   );
 }
 
+const MOV_PERIODS: { key: "dia" | "mes" | "ano" | "todos"; label: string }[] = [
+  { key: "dia", label: "Dia" },
+  { key: "mes", label: "Mês" },
+  { key: "ano", label: "Ano" },
+  { key: "todos", label: "Tudo" },
+];
+
+function movStartOf(period: "dia" | "mes" | "ano" | "todos") {
+  const now = new Date();
+  if (period === "dia") return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  if (period === "mes") return new Date(now.getFullYear(), now.getMonth(), 1);
+  if (period === "ano") return new Date(now.getFullYear(), 0, 1);
+  return null;
+}
+
 function MovementsTab() {
   const { match } = useSearchFilter();
+  const [period, setPeriod] = useState<"dia" | "mes" | "ano" | "todos">("mes");
   const { data: allMovements, isLoading } = useQuery({
     queryKey: ["stock-movements"],
     queryFn: async () => {
@@ -579,9 +595,11 @@ function MovementsTab() {
     },
   });
 
-  const data = (allMovements ?? []).filter((m: any) =>
-    match(m.stock_products?.name, m.kind, m.notes, m.quantity),
-  );
+  const from = movStartOf(period);
+  const data = (allMovements ?? [])
+    .filter((m: any) => !from || new Date(m.created_at) >= from)
+    .filter((m: any) => match(m.stock_products?.name, m.kind, m.notes, m.quantity));
+
 
   const kindLabel: Record<string, string> = {
     reserve: "Reserva",
@@ -603,7 +621,26 @@ function MovementsTab() {
   };
 
   return (
-    <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
+    <div className="space-y-4">
+      <div className="flex justify-end">
+        <div className="flex gap-1 p-1 bg-muted/50 rounded-full">
+          {MOV_PERIODS.map((p) => (
+            <button
+              key={p.key}
+              onClick={() => setPeriod(p.key)}
+              className={cn(
+                "px-3 py-1.5 rounded-full text-xs font-bold transition-colors",
+                period === p.key
+                  ? "bg-primary text-primary-foreground shadow"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
       {isLoading ? (
         <div className="p-10 text-center text-sm text-muted-foreground">Carregando…</div>
       ) : (data?.length ?? 0) === 0 ? (
@@ -657,6 +694,7 @@ function MovementsTab() {
           </table>
         </div>
       )}
+      </div>
     </div>
   );
 }
