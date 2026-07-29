@@ -1,78 +1,71 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { Flame } from "lucide-react";
-import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
-import { Button } from "@/components/ui/button";
+import { useEffect, useState } from 'react';
+import { useNavigate, useSearchParams } from '@tanstack/react-router';
+import { supabase } from '@/integrations/supabase/client';
 
-export const Route = createFileRoute("/auth/callback")({
-  ssr: false,
-  head: () => ({
-    meta: [{ title: "Confirmando acesso — Central do Buffet" }],
-  }),
-  component: AuthCallback,
-});
-
-function AuthCallback() {
+export default function AuthCallback() {
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const [error, setError] = useState<string | null>(null);
+  const [status, setStatus] = useState('⏳ Processando autorização...');
 
   useEffect(() => {
-    let cancelled = false;
+    const code = searchParams.get('code');
+    const error = searchParams.get('error');
 
-    async function run() {
-      // Check for explicit error in URL (expired link, access denied, etc.)
-      const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
-      const search = new URLSearchParams(window.location.search);
-      const urlError = hash.get("error_description") || search.get("error_description")
-        || hash.get("error") || search.get("error");
-      if (urlError) {
-        setError(decodeURIComponent(urlError.replace(/\+/g, " ")));
-        return;
-      }
-
-      // Supabase client auto-detects the session from the URL hash on init.
-      // Poll briefly to give it time, then navigate.
-      for (let i = 0; i < 20; i++) {
-        if (cancelled) return;
-        const { data } = await supabase.auth.getSession();
-        if (data.session) {
-          toast.success("E-mail confirmado! Bem-vindo.");
-          navigate({ to: "/dashboard", replace: true });
-          return;
-        }
-        await new Promise((r) => setTimeout(r, 150));
-      }
-      // No session established — likely link already used or expired.
-      setError("Não foi possível confirmar seu e-mail. O link pode ter expirado ou já ter sido usado.");
+    if (error) {
+      setStatus('❌ Acesso negado. Tente novamente.');
+      setTimeout(() => navigate({ to: '/dashboard' }), 3000);
+      return;
     }
 
-    run();
-    return () => {
-      cancelled = true;
+    if (!code) {
+      setStatus('❌ Código não encontrado.');
+      setTimeout(() => navigate({ to: '/dashboard' }), 3000);
+      return;
+    }
+
+    const saveGoogleAuth = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+
+        if (!user) {
+          setStatus('❌ Usuário não autenticado.');
+          setTimeout(() => navigate({ to: '/auth' }), 3000);
+          return;
+        }
+
+        const { error: upsertError } = await supabase
+          .from('google_auth')
+          .upsert({
+            user_id: user.id,
+            auth_code: code,
+            updated_at: new Date().toISOString()
+          });
+
+        if (upsertError) throw upsertError;
+
+        setStatus('✅ Conexão realizada com sucesso!');
+        setTimeout(() => navigate({ to: '/dashboard' }), 2000);
+
+      } catch (error: any) {
+        setStatus('❌ Erro: ' + error.message);
+        setTimeout(() => navigate({ to: '/dashboard' }), 3000);
+      }
     };
-  }, [navigate]);
+
+    saveGoogleAuth();
+  }, [searchParams, navigate]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-6">
-      <div className="max-w-md w-full text-center space-y-4">
-        <div className="mx-auto size-12 rounded-xl bg-primary flex items-center justify-center">
-          <Flame className="size-6 text-primary-foreground animate-pulse" />
+    <div className="flex items-center justify-center min-h-screen bg-gray-50">
+      <div className="p-8 bg-white rounded-lg shadow-lg text-center">
+        <div className="text-4xl mb-4">
+          {status.includes('✅') ? '🎉' : status.includes('❌') ? '😕' : '⏳'}
         </div>
-        {error ? (
-          <>
-            <h1 className="text-xl font-bold">Confirmação não concluída</h1>
-            <p className="text-sm text-muted-foreground">{error}</p>
-            <Button onClick={() => navigate({ to: "/auth", replace: true })} className="w-full">
-              Voltar ao login
-            </Button>
-          </>
-        ) : (
-          <>
-            <h1 className="text-xl font-bold">Confirmando seu acesso…</h1>
-            <p className="text-sm text-muted-foreground">Aguarde um instante.</p>
-          </>
-        )}
+        <h2 className="text-xl font-semibold">{status}</h2>
+        <p className="mt-2 text-sm text-gray-500">
+          {status.includes('sucesso') && 'Redirecionando...'}
+          {status.includes('❌') && 'Você será redirecionado em instantes.'}
+        </p>
       </div>
     </div>
   );
