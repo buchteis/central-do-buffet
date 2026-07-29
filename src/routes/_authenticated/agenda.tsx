@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import {
   ChevronLeft,
   ChevronRight,
-  DollarSign,
   FileText,
   Filter,
   MessageCircle,
