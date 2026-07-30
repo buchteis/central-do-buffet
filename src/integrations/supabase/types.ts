@@ -24,6 +24,7 @@ export type Database = {
           business_name: string | null
           contract_template: string | null
           created_at: string
+          google_place_id: string | null
           logo_url: string | null
           owner_id: string
           phone: string | null
@@ -45,6 +46,7 @@ export type Database = {
           business_name?: string | null
           contract_template?: string | null
           created_at?: string
+          google_place_id?: string | null
           logo_url?: string | null
           owner_id: string
           phone?: string | null
@@ -66,6 +68,7 @@ export type Database = {
           business_name?: string | null
           contract_template?: string | null
           created_at?: string
+          google_place_id?: string | null
           logo_url?: string | null
           owner_id?: string
           phone?: string | null
