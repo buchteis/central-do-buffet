@@ -35,9 +35,24 @@ export const Route = createFileRoute("/_authenticated/orcamentos/")({
 function whatsappMessage(q: any) {
   const name = q.clients?.name?.split(" ")[0] ?? "tudo bem";
   const date = formatDateBR(q.event_date) ?? "a data definida";
-  const pkg = q.packages?.name ?? "pacote escolhido";
+  const pkg = quotePackagesLabel(q);
   const value = brl(q.total_value);
   return `Olá, ${name}! Tudo bem? Aqui é do Central do Buffet. Estou entrando em contato sobre o orçamento do seu evento em ${date} (${pkg}). O investimento estimado é ${value}. Posso te passar mais detalhes?`;
+}
+
+// Retorna o label dos pacotes do orçamento: prioriza extras.packages (lista,
+// pode ter 2, 3, 4...) e cai para a relação packages(name) (pacote único).
+function quotePackagesLabel(q: any): string {
+  const snap = (q?.extras as any)?.packages;
+  if (Array.isArray(snap) && snap.length > 0) {
+    return (
+      snap
+        .map((p: any) => p?.name)
+        .filter(Boolean)
+        .join(" + ") || "pacote escolhido"
+    );
+  }
+  return q?.packages?.name ?? "pacote escolhido";
 }
 
 type Stage = "novo" | "em_andamento" | "fechado";
@@ -51,7 +66,6 @@ function stageOf(status: string): Stage {
   if (status === "novo") return "novo";
   return "em_andamento";
 }
-
 
 type Period = "all" | "day" | "week" | "month" | "year";
 
@@ -114,8 +128,7 @@ function QuotesPage() {
   const nq = normalizeSearch(search);
   const { data: access } = useTenantAccess();
   const slug = access?.tenant?.slug;
-  const publicUrl =
-    slug && typeof window !== "undefined" ? `${window.location.origin}/orcamento/${slug}` : "";
+  const publicUrl = slug && typeof window !== "undefined" ? `${window.location.origin}/orcamento/${slug}` : "";
 
   const { data } = useQuery({
     queryKey: ["quotes"],
@@ -132,7 +145,10 @@ function QuotesPage() {
 
   const move = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
-      const { error } = await supabase.from("quotes").update({ status: status as any }).eq("id", id);
+      const { error } = await supabase
+        .from("quotes")
+        .update({ status: status as any })
+        .eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -147,7 +163,10 @@ function QuotesPage() {
 
   const togglePaid = useMutation({
     mutationFn: async ({ id, paid }: { id: string; paid: boolean }) => {
-      const { error } = await supabase.from("quotes").update({ paid } as any).eq("id", id);
+      const { error } = await supabase
+        .from("quotes")
+        .update({ paid } as any)
+        .eq("id", id);
       if (error) throw error;
     },
     onSuccess: (_d, vars) => {
@@ -185,7 +204,6 @@ function QuotesPage() {
     };
   }, [qc]);
 
-
   const range = useMemo(() => periodRange(period, offset), [period, offset]);
 
   const filtered = (data ?? []).filter((q: any) => {
@@ -196,8 +214,11 @@ function QuotesPage() {
       if (!ref || ref < range.start || ref >= range.end) return false;
     }
     if (nq) {
+      const snapNames = Array.isArray((q.extras as any)?.packages)
+        ? ((q.extras as any).packages as any[]).map((p) => p?.name)
+        : [];
       const hay = normalizeSearch(
-        [q.clients?.name, q.packages?.name, q.event_type, q.event_address, q.notes]
+        [q.clients?.name, q.packages?.name, ...snapNames, q.event_type, q.event_address, q.notes]
           .filter(Boolean)
           .join(" "),
       );
@@ -223,13 +244,9 @@ function QuotesPage() {
       const { data: settings } = await supabase.from("buffet_settings").select("*").maybeSingle();
       const extras = (q.extras ?? {}) as any;
       const childPrice = Number(extras.child_price ?? 0);
-      const priceOverride =
-        extras.price_per_person_override != null ? Number(extras.price_per_person_override) : null;
+      const priceOverride = extras.price_per_person_override != null ? Number(extras.price_per_person_override) : null;
       const pkgSnapshot = Array.isArray(extras.packages) ? extras.packages : [];
-      const snapshotSum = pkgSnapshot.reduce(
-        (s: number, p: any) => s + Number(p?.price_per_person ?? 0),
-        0,
-      );
+      const snapshotSum = pkgSnapshot.reduce((s: number, p: any) => s + Number(p?.price_per_person ?? 0), 0);
       const pricePerPerson = priceOverride ?? snapshotSum;
       const customExtras = Array.isArray(extras.custom) ? extras.custom : [];
       const adults = Number(q.adults ?? 0);
@@ -268,7 +285,11 @@ function QuotesPage() {
           adults,
           childrenCount,
         },
-        package: q.packages ? { name: q.packages.name, pricePerPerson } : null,
+        package: q.packages
+          ? { name: quotePackagesLabel(q), pricePerPerson }
+          : Array.isArray((q.extras as any)?.packages) && (q.extras as any).packages.length
+            ? { name: quotePackagesLabel(q), pricePerPerson }
+            : null,
         childPrice,
         extras: customExtras,
         breakdown,
@@ -336,10 +357,7 @@ function QuotesPage() {
             ))}
             <button
               onClick={() => setArchived(true)}
-              className={cn(
-                "px-3 py-1 text-xs font-bold rounded-full",
-                archived && "bg-background shadow",
-              )}
+              className={cn("px-3 py-1 text-xs font-bold rounded-full", archived && "bg-background shadow")}
               title="Ver histórico de orçamentos fechados"
             >
               Fechados
@@ -398,9 +416,7 @@ function QuotesPage() {
           >
             <ChevronLeft className="size-4" />
           </button>
-          <div className="text-sm font-bold min-w-[180px] text-center">
-            {range?.label ?? "—"}
-          </div>
+          <div className="text-sm font-bold min-w-[180px] text-center">{range?.label ?? "—"}</div>
           <button
             onClick={() => setOffset((o) => o + 1)}
             className="p-1 rounded-full hover:bg-background transition"
@@ -409,10 +425,7 @@ function QuotesPage() {
             <ChevronRight className="size-4" />
           </button>
           {offset !== 0 && (
-            <button
-              onClick={() => setOffset(0)}
-              className="text-[10px] font-bold uppercase text-primary ml-2"
-            >
+            <button onClick={() => setOffset(0)} className="text-[10px] font-bold uppercase text-primary ml-2">
               Hoje
             </button>
           )}
@@ -454,16 +467,12 @@ function QuotesPage() {
                           key={q.id}
                           className="bg-card border border-border rounded-xl p-3 shadow-sm hover:border-primary/40 transition-colors"
                         >
-                          <div className="font-semibold text-sm truncate">
-                            {displayName}
-                          </div>
+                          <div className="font-semibold text-sm truncate">{displayName}</div>
                           <div className="text-[11px] text-muted-foreground truncate">
-                            {q.packages?.name ?? "Sem pacote"} · {formatDateBR(q.event_date)}
+                            {quotePackagesLabel(q)} · {formatDateBR(q.event_date)}
                           </div>
                           <div className="mt-1 flex items-center justify-between gap-2">
-                            <div className="font-mono font-bold text-sm">
-                              {brl(q.total_value)}
-                            </div>
+                            <div className="font-mono font-bold text-sm">{brl(q.total_value)}</div>
                             {stageOf(q.status) === "fechado" && (
                               <button
                                 onClick={() => togglePaid.mutate({ id: q.id, paid: !q.paid })}
@@ -491,7 +500,6 @@ function QuotesPage() {
                               </option>
                             ))}
                           </select>
-
 
                           <div className="mt-2 flex items-center gap-1">
                             {phone && (
@@ -531,9 +539,7 @@ function QuotesPage() {
                       );
                     })}
                     {items.length === 0 && (
-                      <div className="text-[11px] text-muted-foreground text-center py-4">
-                        Vazio
-                      </div>
+                      <div className="text-[11px] text-muted-foreground text-center py-4">Vazio</div>
                     )}
                   </div>
                 </div>
@@ -563,22 +569,13 @@ function QuotesPage() {
                 const phone = q.clients?.whatsapp ?? q.clients?.phone ?? requester.whatsapp;
                 return (
                   <tr key={q.id} className="hover:bg-muted/30">
-                    <td className="px-5 py-4 text-sm font-semibold">
-                      {displayName}
-                    </td>
-                    <td className="px-4 py-4 text-xs font-mono">
-                      {formatDateBR(q.event_date)}
-                    </td>
-                    <td className="px-4 py-4 text-xs">{q.packages?.name ?? "—"}</td>
-                    <td className="px-4 py-4 text-sm font-mono text-right">
-                      {brl(q.total_value)}
-                    </td>
+                    <td className="px-5 py-4 text-sm font-semibold">{displayName}</td>
+                    <td className="px-4 py-4 text-xs font-mono">{formatDateBR(q.event_date)}</td>
+                    <td className="px-4 py-4 text-xs">{quotePackagesLabel(q)}</td>
+                    <td className="px-4 py-4 text-sm font-mono text-right">{brl(q.total_value)}</td>
                     <td className="px-4 py-4">
                       <span
-                        className={cn(
-                          "px-2 py-1 text-[10px] rounded-full font-bold uppercase border",
-                          stage?.tone,
-                        )}
+                        className={cn("px-2 py-1 text-[10px] rounded-full font-bold uppercase border", stage?.tone)}
                       >
                         {stage?.label ?? q.status}
                       </span>
