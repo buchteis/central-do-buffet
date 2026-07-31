@@ -96,16 +96,13 @@ export async function openQuotePdf(input: QuotePdfInput) {
   const guests = (ev.adults ?? 0) + (ev.childrenCount ?? 0);
   const buffetContact = [b.phone, b.whatsapp, b.email].filter(Boolean).join(" · ");
 
-  const packageRowUnit =
-    pkg?.pricePerPerson != null ? `${brl(pkg.pricePerPerson)}/pessoa` : "—";
+  const packageRowUnit = pkg?.pricePerPerson != null ? `${brl(pkg.pricePerPerson)}/pessoa` : "—";
   const packageRowQty = ev.adults ? `${ev.adults} adulto(s)` : "—";
 
   const rows: string[] = [];
   rows.push(`
     <tr>
-      <td>${esc(pkg?.name ?? "Pacote")}${
-        pkg?.name ? "" : ""
-      }<div class="muted">Serviço de buffet</div></td>
+      <td>${esc(pkg?.name ?? "Pacote")}${pkg?.name ? "" : ""}<div class="muted">Serviço de buffet</div></td>
       <td class="num">${esc(packageRowQty)}</td>
       <td class="num">${esc(packageRowUnit)}</td>
       <td class="num">${esc(brl(bk.adultsSubtotal))}</td>
@@ -135,7 +132,7 @@ export async function openQuotePdf(input: QuotePdfInput) {
   }
 
   for (const x of input.extras ?? []) {
-    if (!x || (Number(x.value) || 0) === 0 && !(x.description ?? "").trim()) continue;
+    if (!x || ((Number(x.value) || 0) === 0 && !(x.description ?? "").trim())) continue;
     rows.push(`
       <tr>
         <td>${esc(x.description || "Acréscimo")}</td>
@@ -197,9 +194,7 @@ export async function openQuotePdf(input: QuotePdfInput) {
       <div>
         <div class="name">${esc(b.business_name ?? "Buffet")}</div>
         <div class="contact">${esc(
-          [b.address, buffetContact, b.cnpj ? `CNPJ: ${b.cnpj}` : ""]
-            .filter(Boolean)
-            .join("\n"),
+          [b.address, buffetContact, b.cnpj ? `CNPJ: ${b.cnpj}` : ""].filter(Boolean).join("\n"),
         )}</div>
       </div>
     </div>
@@ -207,11 +202,7 @@ export async function openQuotePdf(input: QuotePdfInput) {
       <div class="title">Orçamento</div>
       ${input.quoteNumber ? `<div class="num">Nº ${esc(input.quoteNumber)}</div>` : ""}
       <div class="muted">Emitido em ${esc(formatDateFullBR(issued))}</div>
-      ${
-        input.validUntil
-          ? `<div class="muted">Válido até ${esc(formatDateFullBR(input.validUntil))}</div>`
-          : ""
-      }
+      ${input.validUntil ? `<div class="muted">Válido até ${esc(formatDateFullBR(input.validUntil))}</div>` : ""}
     </div>
   </div>
 
