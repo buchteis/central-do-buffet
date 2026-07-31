@@ -105,6 +105,26 @@ function NewQuotePage() {
       }[];
     },
   });
+  const { data: unitItemsCatalog } = useQuery({
+    queryKey: ["packages-unit-items-select"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("package_unit_items")
+        .select("id, package_id, product_id, name, unit, unit_price, default_qty, position")
+        .order("position", { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as {
+        id: string;
+        package_id: string;
+        product_id: string | null;
+        name: string;
+        unit: string;
+        unit_price: number;
+        default_qty: number;
+        position: number;
+      }[];
+    },
+  });
   const { data: settings } = useQuery({
     queryKey: ["buffet-settings"],
     queryFn: async () => {
