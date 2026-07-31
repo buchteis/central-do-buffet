@@ -213,6 +213,7 @@ function PackagesPage() {
                 <>
                   <PriceTiersEditor packageId={editing.id} />
                   <PackageProductsEditor packageId={editing.id} />
+                  <PackageUnitItemsEditor packageId={editing.id} />
                 </>
               ) : (
                 <p className="text-xs text-muted-foreground bg-muted/40 border border-border rounded-lg p-3">
