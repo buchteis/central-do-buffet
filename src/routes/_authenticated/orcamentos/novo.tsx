@@ -187,6 +187,43 @@ function NewQuotePage() {
   const packagesSumPerPerson = selectedPackages.reduce((s, p) => s + Number(p.price_per_person ?? 0), 0);
   const effectivePrice = priceOverride ?? packagesSumPerPerson;
 
+  // Itens unitários disponíveis nos pacotes selecionados (cobrados por unidade).
+  const availableUnitItems = useMemo(() => {
+    const ids = new Set(selectedPackages.map((p) => p.id));
+    return (unitItemsCatalog ?? []).filter((i) => ids.has(i.package_id));
+  }, [unitItemsCatalog, selectedPackages]);
+
+  // Qtd escolhida por item unitário (default = default_qty do pacote).
+  useEffect(() => {
+    if (!availableUnitItems.length) return;
+    setUnitQty((old) => {
+      const next = { ...old };
+      let changed = false;
+      for (const it of availableUnitItems) {
+        if (next[it.id] === undefined) {
+          next[it.id] = Number(it.default_qty) || 0;
+          changed = true;
+        }
+      }
+      return changed ? next : old;
+    });
+  }, [availableUnitItems]);
+
+  const selectedUnitItems = useMemo(
+    () =>
+      availableUnitItems
+        .map((i) => ({
+          item_id: i.id,
+          product_id: i.product_id,
+          name: i.name,
+          unit: i.unit,
+          unit_price: Number(i.unit_price) || 0,
+          qty: Number(unitQty[i.id] ?? 0) || 0,
+        }))
+        .filter((i) => i.qty > 0),
+    [availableUnitItems, unitQty],
+  );
+
   const autoBreakdown = useMemo(
     () =>
       calcQuote({
@@ -195,8 +232,9 @@ function NewQuotePage() {
         childrenCount: Number(form.children_count) || 0,
         childPrice: Number(form.child_price) || 0,
         customExtras,
+        unitItems: selectedUnitItems,
       }),
-    [effectivePrice, form.adults, form.children_count, form.child_price, customExtras],
+    [effectivePrice, form.adults, form.children_count, form.child_price, customExtras, selectedUnitItems],
   );
 
   const breakdown = useMemo(() => {
