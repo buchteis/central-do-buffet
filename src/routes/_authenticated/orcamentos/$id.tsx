@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatDateBR, brl } from "@/lib/format";
-import { ArrowLeft, User, Calendar, MapPin } from "lucide-react";
+import { ArrowLeft, User, Calendar, MapPin, Package } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/orcamentos/$id")({
   component: QuoteDetail,
@@ -18,11 +18,13 @@ function QuoteDetail() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("quotes")
-        .select(`
+        .select(
+          `
           *,
           clients(name, phone, email, city),
           packages(id, name)
-        `)
+        `,
+        )
         .eq("id", id)
         .single();
 
@@ -54,6 +56,15 @@ function QuoteDetail() {
   const adults = q.adults ?? 0;
   const children = (q.children_7_10 ?? 0) + (q.children_0_6 ?? 0);
 
+  // Pacotes do orçamento: prioriza extras.packages (lista, múltiplos) — fallback relação.
+  const packagesList: { name: string; price_per_person?: number }[] = (() => {
+    const snap = (q.extras as any)?.packages;
+    if (Array.isArray(snap) && snap.length > 0) {
+      return snap.map((p: any) => ({ name: p?.name, price_per_person: p?.price_per_person }));
+    }
+    return q.packages?.name ? [{ name: q.packages.name }] : [];
+  })();
+
   return (
     <div className="space-y-6 p-4 md:p-6">
       <div className="flex items-center gap-4">
@@ -62,9 +73,7 @@ function QuoteDetail() {
         </Link>
         <div>
           <h1 className="text-2xl font-extrabold tracking-tight">Orçamento #{q.id?.slice(0, 8)}</h1>
-          <p className="text-sm text-muted-foreground">
-            {formatDateBR(new Date(q.created_at))}
-          </p>
+          <p className="text-sm text-muted-foreground">{formatDateBR(new Date(q.created_at))}</p>
         </div>
         <Badge className="ml-auto">{q.status || "Rascunho"}</Badge>
       </div>
@@ -109,6 +118,27 @@ function QuoteDetail() {
           </CardContent>
         </Card>
 
+        <Card className="md:col-span-2">
+          <CardHeader>
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <Package className="size-4" /> Pacotes
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-1 text-sm">
+            {packagesList.length > 0 ? (
+              packagesList.map((p, i) => (
+                <div key={i} className="flex justify-between">
+                  <span className="font-semibold">{p.name}</span>
+                  {typeof p.price_per_person === "number" && (
+                    <span className="text-muted-foreground font-mono">{brl(p.price_per_person)}/pessoa</span>
+                  )}
+                </div>
+              ))
+            ) : (
+              <p className="text-muted-foreground">Nenhum pacote vinculado.</p>
+            )}
+          </CardContent>
+        </Card>
         <Card className="md:col-span-2">
           <CardHeader>
             <CardTitle className="text-sm font-medium">Valores</CardTitle>
