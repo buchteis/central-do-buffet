@@ -291,6 +291,7 @@ function NewQuotePage() {
           balance_override: balanceOverride,
           packages: pkgList,
           custom: customExtras.filter((e) => e.description.trim() !== "" || Number(e.value) > 0),
+          unit_items: selectedUnitItems,
         },
         notes: form.notes || null,
         total_value: breakdown.total,
