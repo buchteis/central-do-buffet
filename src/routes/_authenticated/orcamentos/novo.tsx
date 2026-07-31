@@ -105,6 +105,26 @@ function NewQuotePage() {
       }[];
     },
   });
+  const { data: unitItemsCatalog } = useQuery({
+    queryKey: ["packages-unit-items-select"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("package_unit_items")
+        .select("id, package_id, product_id, name, unit, unit_price, default_qty, position")
+        .order("position", { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as {
+        id: string;
+        package_id: string;
+        product_id: string | null;
+        name: string;
+        unit: string;
+        unit_price: number;
+        default_qty: number;
+        position: number;
+      }[];
+    },
+  });
   const { data: settings } = useQuery({
     queryKey: ["buffet-settings"],
     queryFn: async () => {
@@ -130,6 +150,7 @@ function NewQuotePage() {
   // Multiple packages support: list of selected package ids (empty string = "pick one" row).
   const [packageLines, setPackageLines] = useState<string[]>([""]);
   const [customExtras, setCustomExtras] = useState<{ description: string; value: number }[]>([]);
+  const [unitQty, setUnitQty] = useState<Record<string, number>>({});
 
   // Manual overrides — administrator has total freedom to edit price per person (sum),
   // entry (50%) and balance directly. `null` means "use auto value".
@@ -167,6 +188,43 @@ function NewQuotePage() {
   const packagesSumPerPerson = selectedPackages.reduce((s, p) => s + Number(p.price_per_person ?? 0), 0);
   const effectivePrice = priceOverride ?? packagesSumPerPerson;
 
+  // Itens unitários disponíveis nos pacotes selecionados (cobrados por unidade).
+  const availableUnitItems = useMemo(() => {
+    const ids = new Set(selectedPackages.map((p) => p.id));
+    return (unitItemsCatalog ?? []).filter((i) => ids.has(i.package_id));
+  }, [unitItemsCatalog, selectedPackages]);
+
+  // Qtd escolhida por item unitário (default = default_qty do pacote).
+  useEffect(() => {
+    if (!availableUnitItems.length) return;
+    setUnitQty((old) => {
+      const next = { ...old };
+      let changed = false;
+      for (const it of availableUnitItems) {
+        if (next[it.id] === undefined) {
+          next[it.id] = Number(it.default_qty) || 0;
+          changed = true;
+        }
+      }
+      return changed ? next : old;
+    });
+  }, [availableUnitItems]);
+
+  const selectedUnitItems = useMemo(
+    () =>
+      availableUnitItems
+        .map((i) => ({
+          item_id: i.id,
+          product_id: i.product_id,
+          name: i.name,
+          unit: i.unit,
+          unit_price: Number(i.unit_price) || 0,
+          qty: Number(unitQty[i.id] ?? 0) || 0,
+        }))
+        .filter((i) => i.qty > 0),
+    [availableUnitItems, unitQty],
+  );
+
   const autoBreakdown = useMemo(
     () =>
       calcQuote({
@@ -175,8 +233,9 @@ function NewQuotePage() {
         childrenCount: Number(form.children_count) || 0,
         childPrice: Number(form.child_price) || 0,
         customExtras,
+        unitItems: selectedUnitItems,
       }),
-    [effectivePrice, form.adults, form.children_count, form.child_price, customExtras],
+    [effectivePrice, form.adults, form.children_count, form.child_price, customExtras, selectedUnitItems],
   );
 
   const breakdown = useMemo(() => {
@@ -232,6 +291,7 @@ function NewQuotePage() {
           balance_override: balanceOverride,
           packages: pkgList,
           custom: customExtras.filter((e) => e.description.trim() !== "" || Number(e.value) > 0),
+          unit_items: selectedUnitItems,
         },
         notes: form.notes || null,
         total_value: breakdown.total,
@@ -394,6 +454,13 @@ function NewQuotePage() {
     }));
 
     if (Array.isArray(extras.custom)) setCustomExtras(extras.custom);
+    if (Array.isArray(extras.unit_items)) {
+      const map: Record<string, number> = {};
+      for (const it of extras.unit_items) {
+        if (it?.item_id) map[it.item_id] = Number(it.qty) || 0;
+      }
+      setUnitQty((old) => ({ ...old, ...map }));
+    }
     if (extras.price_per_person_override != null) setPriceOverride(Number(extras.price_per_person_override));
     if (extras.entry_override != null) setEntryOverride(Number(extras.entry_override));
     if (extras.balance_override != null) setBalanceOverride(Number(extras.balance_override));
@@ -561,6 +628,52 @@ function NewQuotePage() {
               )}
             </div>
           </div>
+
+          {availableUnitItems.length > 0 && (
+            <div className="space-y-3 p-4 bg-muted/30 rounded-xl border border-border">
+              <div>
+                <Label className="font-semibold">Itens unitários</Label>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  Cobrados por unidade (qtd × preço unitário), independente do nº de convidados. A
+                  quantidade é baixada do estoque quando o orçamento é fechado.
+                </p>
+              </div>
+              <div className="space-y-2">
+                {availableUnitItems.map((it) => {
+                  const qty = Number(unitQty[it.id] ?? 0) || 0;
+                  return (
+                    <div
+                      key={it.id}
+                      className="flex flex-wrap items-center gap-3 bg-background p-3 rounded-lg border"
+                    >
+                      <span className="flex-1 min-w-[140px] text-sm">
+                        {it.name}{" "}
+                        <span className="text-xs text-muted-foreground">
+                          ({brl(Number(it.unit_price) || 0)}/{it.unit})
+                        </span>
+                      </span>
+                      <Input
+                        type="number"
+                        min={0}
+                        step="0.01"
+                        className="w-24"
+                        value={unitQty[it.id] ?? 0}
+                        onChange={(e) =>
+                          setUnitQty((old) => ({ ...old, [it.id]: Number(e.target.value) || 0 }))
+                        }
+                      />
+                      <span className="w-24 text-right text-sm font-mono font-semibold">
+                        {brl(qty * (Number(it.unit_price) || 0))}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Subtotal itens unitários: <b>{brl(breakdown.unitItemsSubtotal)}</b>
+              </p>
+            </div>
+          )}
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
@@ -772,6 +885,7 @@ function NewQuotePage() {
 
                     childPrice: form.child_price,
                     extras: customExtras.filter((e) => e.description.trim() !== "" || Number(e.value) > 0),
+                    unitItems: selectedUnitItems,
                     breakdown,
                     paymentMethod: form.payment_method,
                     notes: form.notes,
@@ -821,6 +935,9 @@ function NewQuotePage() {
             value={brl(breakdown.childrenSubtotal)}
           />
           <SummaryRow label="Preço por pessoa" value={brl(effectivePrice)} />
+          {breakdown.unitItemsSubtotal > 0 && (
+            <SummaryRow label="Itens unitários" value={brl(breakdown.unitItemsSubtotal)} />
+          )}
           <SummaryRow label="Subtotal" value={brl(breakdown.subtotal)} />
           {breakdown.extras > 0 && <SummaryRow label="Acréscimos" value={brl(breakdown.extras)} />}
 

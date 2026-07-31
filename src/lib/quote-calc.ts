@@ -4,11 +4,22 @@
  * Regras:
  * - Adultos: valor por pessoa do pacote.
  * - Crianças: quantidade x valor por criança (definido manualmente).
+ * - Itens unitários (ex.: barril): quantidade x preço unitário — independem do nº de convidados.
  * - Acréscimos: itens manuais (descrição + valor) somados ao total.
+ *
+ * Total = Subtotal Pessoas + Subtotal Itens Unitários + Acréscimos.
  */
 export type QuoteExtraItem = {
   description: string;
   value: number;
+};
+
+export type QuoteUnitItem = {
+  product_id?: string | null;
+  name: string;
+  unit?: string;
+  unit_price: number;
+  qty: number;
 };
 
 export type QuoteInputs = {
@@ -17,11 +28,13 @@ export type QuoteInputs = {
   childrenCount: number;
   childPrice: number;
   customExtras?: QuoteExtraItem[];
+  unitItems?: QuoteUnitItem[];
 };
 
 export type QuoteBreakdown = {
   adultsSubtotal: number;
   childrenSubtotal: number;
+  unitItemsSubtotal: number;
   extras: number;
   subtotal: number;
   total: number;
@@ -38,13 +51,18 @@ export function calcQuote(input: QuoteInputs): QuoteBreakdown {
     (sum, e) => sum + (Number(e.value) || 0),
     0,
   );
+  const unitItemsSubtotal = (input.unitItems ?? []).reduce(
+    (sum, i) => sum + (Number(i.qty) || 0) * (Number(i.unit_price) || 0),
+    0,
+  );
   const subtotal = adultsSubtotal + childrenSubtotal;
-  const total = round2(subtotal + extras);
+  const total = round2(subtotal + unitItemsSubtotal + extras);
   const entry = round2(total * 0.5);
   const balance = round2(total - entry);
   return {
     adultsSubtotal: round2(adultsSubtotal),
     childrenSubtotal: round2(childrenSubtotal),
+    unitItemsSubtotal: round2(unitItemsSubtotal),
     extras: round2(extras),
     subtotal: round2(subtotal),
     total,

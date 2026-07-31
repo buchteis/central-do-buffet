@@ -27,6 +27,7 @@ export type QuotePdfInput = {
   } | null;
   childPrice?: number | null;
   extras?: QuoteExtraItem[];
+  unitItems?: { name: string; unit?: string | null; unit_price: number; qty: number }[];
   breakdown: QuoteBreakdown;
   paymentMethod?: string | null;
   notes?: string | null;
@@ -117,6 +118,19 @@ export async function openQuotePdf(input: QuotePdfInput) {
         <td class="num">${esc(ev.childrenCount)} criança(s)</td>
         <td class="num">${esc(brl(input.childPrice ?? 0))}</td>
         <td class="num">${esc(brl(bk.childrenSubtotal))}</td>
+      </tr>`);
+  }
+
+  for (const u of input.unitItems ?? []) {
+    const qty = Number(u?.qty) || 0;
+    if (qty <= 0) continue;
+    const price = Number(u.unit_price) || 0;
+    rows.push(`
+      <tr>
+        <td>${esc(u.name || "Item unitário")}<div class="muted">Item unitário</div></td>
+        <td class="num">${esc(qty)} ${esc(u.unit ?? "un")}</td>
+        <td class="num">${esc(brl(price))}</td>
+        <td class="num">${esc(brl(qty * price))}</td>
       </tr>`);
   }
 
@@ -246,6 +260,7 @@ export async function openQuotePdf(input: QuotePdfInput) {
 
     <div class="totals">
       <div class="row sub"><span>Subtotal</span><span>${esc(brl(bk.subtotal))}</span></div>
+      ${bk.unitItemsSubtotal > 0 ? `<div class="row sub"><span>Itens unitários</span><span>${esc(brl(bk.unitItemsSubtotal))}</span></div>` : ""}
       ${extrasTotal > 0 ? `<div class="row sub"><span>Acréscimos</span><span>${esc(brl(extrasTotal))}</span></div>` : ""}
       <div class="row total"><span>Total</span><span>${esc(brl(bk.total))}</span></div>
       <div class="row sub"><span>Entrada (50%)</span><span>${esc(brl(bk.entry))}</span></div>

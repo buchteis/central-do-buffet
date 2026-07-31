@@ -213,6 +213,7 @@ function PackagesPage() {
                 <>
                   <PriceTiersEditor packageId={editing.id} />
                   <PackageProductsEditor packageId={editing.id} />
+                  <PackageUnitItemsEditor packageId={editing.id} />
                 </>
               ) : (
                 <p className="text-xs text-muted-foreground bg-muted/40 border border-border rounded-lg p-3">
@@ -596,6 +597,151 @@ function PackageProductsEditor({ packageId }: { packageId: string }) {
       )}
       <p className="text-[10px] text-muted-foreground">
         Consumo = (por pessoa × convidados) + fixo. Recalculado automaticamente.
+      </p>
+    </div>
+  );
+}
+
+function PackageUnitItemsEditor({ packageId }: { packageId: string }) {
+  const qc = useQueryClient();
+  const key = ["pkg-unit-items", packageId];
+
+  const { data: items } = useQuery({
+    queryKey: key,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("package_unit_items")
+        .select("id, product_id, name, unit, unit_price, default_qty, stock_products(name, unit)")
+        .eq("package_id", packageId)
+        .order("position");
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  const { data: products } = useQuery({
+    queryKey: ["stock-products-select"],
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from("stock_products")
+        .select("id, name, unit")
+        .eq("active", true)
+        .order("name");
+      return data ?? [];
+    },
+  });
+
+  const add = useMutation({
+    mutationFn: async (product_id: string) => {
+      const p = (products ?? []).find((x: any) => x.id === product_id);
+      const { error } = await (supabase as any).from("package_unit_items").insert({
+        package_id: packageId,
+        product_id,
+        name: p?.name ?? "Item",
+        unit: p?.unit ?? "un",
+        unit_price: 0,
+        default_qty: 1,
+        position: (items?.length ?? 0) + 1,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: key }),
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const upd = useMutation({
+    mutationFn: async (v: { id: string; field: "unit_price" | "default_qty"; value: number }) => {
+      const { error } = await (supabase as any)
+        .from("package_unit_items")
+        .update({ [v.field]: v.value })
+        .eq("id", v.id);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: key }),
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const del = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await (supabase as any).from("package_unit_items").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: key }),
+  });
+
+  const usedIds = new Set((items ?? []).map((i: any) => i.product_id));
+  const available = (products ?? []).filter((p: any) => !usedIds.has(p.id));
+
+  return (
+    <div className="border-t border-border pt-4 space-y-2">
+      <Label className="text-xs uppercase tracking-widest font-bold text-muted-foreground">
+        Itens unitários (cobrados por unidade)
+      </Label>
+      <div className="space-y-2 max-h-64 overflow-y-auto">
+        {(items ?? []).map((it: any) => (
+          <div key={it.id} className="flex gap-2 items-center text-sm">
+            <span className="flex-1 truncate">
+              {it.stock_products?.name ?? it.name}{" "}
+              <span className="text-xs text-muted-foreground">
+                ({it.stock_products?.unit ?? it.unit})
+              </span>
+            </span>
+            <Input
+              type="number"
+              step="0.01"
+              min="0"
+              className="w-20"
+              defaultValue={it.default_qty}
+              placeholder="qtd"
+              onBlur={(e) =>
+                upd.mutate({ id: it.id, field: "default_qty", value: Number(e.target.value) || 0 })
+              }
+            />
+            <div className="relative w-28">
+              <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+                R$
+              </span>
+              <Input
+                type="number"
+                step="0.01"
+                min="0"
+                className="pl-8"
+                defaultValue={it.unit_price}
+                placeholder="unitário"
+                onBlur={(e) =>
+                  upd.mutate({ id: it.id, field: "unit_price", value: Number(e.target.value) || 0 })
+                }
+              />
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="text-destructive"
+              onClick={() => del.mutate(it.id)}
+            >
+              <Trash2 className="size-3" />
+            </Button>
+          </div>
+        ))}
+      </div>
+      {available.length > 0 && (
+        <select
+          className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm"
+          value=""
+          onChange={(e) => e.target.value && add.mutate(e.target.value)}
+        >
+          <option value="">+ Adicionar item unitário…</option>
+          {available.map((p: any) => (
+            <option key={p.id} value={p.id}>
+              {p.name} ({p.unit})
+            </option>
+          ))}
+        </select>
+      )}
+      <p className="text-[10px] text-muted-foreground">
+        Ex.: Barril de chope = R$ 450/un. Cobrado por quantidade escolhida no orçamento
+        (independente do nº de convidados) e baixado do estoque quando o orçamento é fechado.
       </p>
     </div>
   );
