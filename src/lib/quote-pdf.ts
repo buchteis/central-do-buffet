@@ -260,6 +260,7 @@ export async function openQuotePdf(input: QuotePdfInput) {
 
     <div class="totals">
       <div class="row sub"><span>Subtotal</span><span>${esc(brl(bk.subtotal))}</span></div>
+      ${bk.unitItemsSubtotal > 0 ? `<div class="row sub"><span>Itens unitários</span><span>${esc(brl(bk.unitItemsSubtotal))}</span></div>` : ""}
       ${extrasTotal > 0 ? `<div class="row sub"><span>Acréscimos</span><span>${esc(brl(extrasTotal))}</span></div>` : ""}
       <div class="row total"><span>Total</span><span>${esc(brl(bk.total))}</span></div>
       <div class="row sub"><span>Entrada (50%)</span><span>${esc(brl(bk.entry))}</span></div>

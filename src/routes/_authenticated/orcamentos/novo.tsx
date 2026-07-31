@@ -885,6 +885,7 @@ function NewQuotePage() {
 
                     childPrice: form.child_price,
                     extras: customExtras.filter((e) => e.description.trim() !== "" || Number(e.value) > 0),
+                    unitItems: selectedUnitItems,
                     breakdown,
                     paymentMethod: form.payment_method,
                     notes: form.notes,
@@ -934,6 +935,9 @@ function NewQuotePage() {
             value={brl(breakdown.childrenSubtotal)}
           />
           <SummaryRow label="Preço por pessoa" value={brl(effectivePrice)} />
+          {breakdown.unitItemsSubtotal > 0 && (
+            <SummaryRow label="Itens unitários" value={brl(breakdown.unitItemsSubtotal)} />
+          )}
           <SummaryRow label="Subtotal" value={brl(breakdown.subtotal)} />
           {breakdown.extras > 0 && <SummaryRow label="Acréscimos" value={brl(breakdown.extras)} />}
 
