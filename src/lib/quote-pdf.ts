@@ -120,6 +120,19 @@ export async function openQuotePdf(input: QuotePdfInput) {
       </tr>`);
   }
 
+  for (const u of input.unitItems ?? []) {
+    const qty = Number(u?.qty) || 0;
+    if (qty <= 0) continue;
+    const price = Number(u.unit_price) || 0;
+    rows.push(`
+      <tr>
+        <td>${esc(u.name || "Item unitário")}<div class="muted">Item unitário</div></td>
+        <td class="num">${esc(qty)} ${esc(u.unit ?? "un")}</td>
+        <td class="num">${esc(brl(price))}</td>
+        <td class="num">${esc(brl(qty * price))}</td>
+      </tr>`);
+  }
+
   for (const x of input.extras ?? []) {
     if (!x || (Number(x.value) || 0) === 0 && !(x.description ?? "").trim()) continue;
     rows.push(`
