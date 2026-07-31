@@ -629,6 +629,52 @@ function NewQuotePage() {
             </div>
           </div>
 
+          {availableUnitItems.length > 0 && (
+            <div className="space-y-3 p-4 bg-muted/30 rounded-xl border border-border">
+              <div>
+                <Label className="font-semibold">Itens unitários</Label>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  Cobrados por unidade (qtd × preço unitário), independente do nº de convidados. A
+                  quantidade é baixada do estoque quando o orçamento é fechado.
+                </p>
+              </div>
+              <div className="space-y-2">
+                {availableUnitItems.map((it) => {
+                  const qty = Number(unitQty[it.id] ?? 0) || 0;
+                  return (
+                    <div
+                      key={it.id}
+                      className="flex flex-wrap items-center gap-3 bg-background p-3 rounded-lg border"
+                    >
+                      <span className="flex-1 min-w-[140px] text-sm">
+                        {it.name}{" "}
+                        <span className="text-xs text-muted-foreground">
+                          ({brl(Number(it.unit_price) || 0)}/{it.unit})
+                        </span>
+                      </span>
+                      <Input
+                        type="number"
+                        min={0}
+                        step="0.01"
+                        className="w-24"
+                        value={unitQty[it.id] ?? 0}
+                        onChange={(e) =>
+                          setUnitQty((old) => ({ ...old, [it.id]: Number(e.target.value) || 0 }))
+                        }
+                      />
+                      <span className="w-24 text-right text-sm font-mono font-semibold">
+                        {brl(qty * (Number(it.unit_price) || 0))}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Subtotal itens unitários: <b>{brl(breakdown.unitItemsSubtotal)}</b>
+              </p>
+            </div>
+          )}
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label>Data do evento *</Label>
