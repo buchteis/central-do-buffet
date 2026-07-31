@@ -459,7 +459,7 @@ function NewQuotePage() {
       for (const it of extras.unit_items) {
         if (it?.item_id) map[it.item_id] = Number(it.qty) || 0;
       }
-      setUnitQty((old) => ({ ...map, ...old }));
+      setUnitQty((old) => ({ ...old, ...map }));
     }
     if (extras.price_per_person_override != null) setPriceOverride(Number(extras.price_per_person_override));
     if (extras.entry_override != null) setEntryOverride(Number(extras.entry_override));
