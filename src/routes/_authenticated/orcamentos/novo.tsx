@@ -454,6 +454,13 @@ function NewQuotePage() {
     }));
 
     if (Array.isArray(extras.custom)) setCustomExtras(extras.custom);
+    if (Array.isArray(extras.unit_items)) {
+      const map: Record<string, number> = {};
+      for (const it of extras.unit_items) {
+        if (it?.item_id) map[it.item_id] = Number(it.qty) || 0;
+      }
+      setUnitQty((old) => ({ ...map, ...old }));
+    }
     if (extras.price_per_person_override != null) setPriceOverride(Number(extras.price_per_person_override));
     if (extras.entry_override != null) setEntryOverride(Number(extras.entry_override));
     if (extras.balance_override != null) setBalanceOverride(Number(extras.balance_override));
