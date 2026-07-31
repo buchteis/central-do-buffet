@@ -27,6 +27,7 @@ export type QuotePdfInput = {
   } | null;
   childPrice?: number | null;
   extras?: QuoteExtraItem[];
+  unitItems?: { name: string; unit?: string | null; unit_price: number; qty: number }[];
   breakdown: QuoteBreakdown;
   paymentMethod?: string | null;
   notes?: string | null;
