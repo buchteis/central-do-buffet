@@ -951,6 +951,60 @@ export type Database = {
           },
         ]
       }
+      package_unit_items: {
+        Row: {
+          created_at: string
+          default_qty: number
+          id: string
+          name: string
+          package_id: string
+          position: number
+          product_id: string | null
+          unit: string
+          unit_price: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          default_qty?: number
+          id?: string
+          name: string
+          package_id: string
+          position?: number
+          product_id?: string | null
+          unit?: string
+          unit_price?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          default_qty?: number
+          id?: string
+          name?: string
+          package_id?: string
+          position?: number
+          product_id?: string | null
+          unit?: string
+          unit_price?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "package_unit_items_package_id_fkey"
+            columns: ["package_id"]
+            isOneToOne: false
+            referencedRelation: "packages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "package_unit_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "stock_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       packages: {
         Row: {
           active: boolean
@@ -1053,6 +1107,7 @@ export type Database = {
           status: Database["public"]["Enums"]["quote_status"]
           tenant_id: string | null
           total_value: number
+          unit_items_consumed_at: string | null
           updated_at: string
           valid_until: string | null
         }
@@ -1080,6 +1135,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["quote_status"]
           tenant_id?: string | null
           total_value?: number
+          unit_items_consumed_at?: string | null
           updated_at?: string
           valid_until?: string | null
         }
@@ -1107,6 +1163,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["quote_status"]
           tenant_id?: string | null
           total_value?: number
+          unit_items_consumed_at?: string | null
           updated_at?: string
           valid_until?: string | null
         }
