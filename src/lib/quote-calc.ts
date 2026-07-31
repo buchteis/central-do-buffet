@@ -47,10 +47,7 @@ const round2 = (n: number) => Math.round(n * 100) / 100;
 export function calcQuote(input: QuoteInputs): QuoteBreakdown {
   const adultsSubtotal = (input.adults || 0) * (input.pricePerPerson || 0);
   const childrenSubtotal = (input.childrenCount || 0) * (input.childPrice || 0);
-  const extras = (input.customExtras ?? []).reduce(
-    (sum, e) => sum + (Number(e.value) || 0),
-    0,
-  );
+  const extras = (input.customExtras ?? []).reduce((sum, e) => sum + (Number(e.value) || 0), 0);
   const unitItemsSubtotal = (input.unitItems ?? []).reduce(
     (sum, i) => sum + (Number(i.qty) || 0) * (Number(i.unit_price) || 0),
     0,
