@@ -78,11 +78,7 @@ function NewQuotePage() {
   const { data: packages } = useQuery({
     queryKey: ["packages-select"],
     queryFn: async () => {
-      const { data } = await supabase
-        .from("packages")
-        .select("id, name")
-        .eq("active", true)
-        .order("name");
+      const { data } = await supabase.from("packages").select("id, name").eq("active", true).order("name");
       return data ?? [];
     },
   });
@@ -597,7 +593,8 @@ function NewQuotePage() {
                                   {p.name}
                                   {applied > 0 && totalGuests > 0 && (
                                     <span className="text-muted-foreground">
-                                      {" · "}{brl(applied)}/pessoa
+                                      {" · "}
+                                      {brl(applied)}/pessoa
                                     </span>
                                   )}
                                 </SelectItem>
@@ -634,18 +631,15 @@ function NewQuotePage() {
               <div>
                 <Label className="font-semibold">Itens unitários</Label>
                 <p className="text-[11px] text-muted-foreground mt-0.5">
-                  Cobrados por unidade (qtd × preço unitário), independente do nº de convidados. A
-                  quantidade é baixada do estoque quando o orçamento é fechado.
+                  Cobrados por unidade (qtd × preço unitário), independente do nº de convidados. A quantidade é baixada
+                  do estoque quando o orçamento é fechado.
                 </p>
               </div>
               <div className="space-y-2">
                 {availableUnitItems.map((it) => {
                   const qty = Number(unitQty[it.id] ?? 0) || 0;
                   return (
-                    <div
-                      key={it.id}
-                      className="flex flex-wrap items-center gap-3 bg-background p-3 rounded-lg border"
-                    >
+                    <div key={it.id} className="flex flex-wrap items-center gap-3 bg-background p-3 rounded-lg border">
                       <span className="flex-1 min-w-[140px] text-sm">
                         {it.name}{" "}
                         <span className="text-xs text-muted-foreground">
@@ -658,9 +652,7 @@ function NewQuotePage() {
                         step="0.01"
                         className="w-24"
                         value={unitQty[it.id] ?? 0}
-                        onChange={(e) =>
-                          setUnitQty((old) => ({ ...old, [it.id]: Number(e.target.value) || 0 }))
-                        }
+                        onChange={(e) => setUnitQty((old) => ({ ...old, [it.id]: Number(e.target.value) || 0 }))}
                       />
                       <span className="w-24 text-right text-sm font-mono font-semibold">
                         {brl(qty * (Number(it.unit_price) || 0))}
