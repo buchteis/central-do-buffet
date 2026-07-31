@@ -150,6 +150,7 @@ function NewQuotePage() {
   // Multiple packages support: list of selected package ids (empty string = "pick one" row).
   const [packageLines, setPackageLines] = useState<string[]>([""]);
   const [customExtras, setCustomExtras] = useState<{ description: string; value: number }[]>([]);
+  const [unitQty, setUnitQty] = useState<Record<string, number>>({});
 
   // Manual overrides — administrator has total freedom to edit price per person (sum),
   // entry (50%) and balance directly. `null` means "use auto value".
