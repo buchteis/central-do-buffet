@@ -1553,6 +1553,26 @@ export type Database = {
         }
         Returns: string
       }
+      submit_public_quote_v2: {
+        Args: {
+          p_city: string
+          p_cpf: string
+          p_email: string
+          p_event_address: string
+          p_event_date: string
+          p_event_time: string
+          p_event_type: string
+          p_guest_count: number
+          p_name: string
+          p_notes: string
+          p_package_id: string
+          p_package_ids?: string[]
+          p_slug: string
+          p_unit_items?: Json
+          p_whatsapp: string
+        }
+        Returns: string
+      }
       sync_event_stock: { Args: { _event_id: string }; Returns: undefined }
       unaccent_string: { Args: { txt: string }; Returns: string }
     }

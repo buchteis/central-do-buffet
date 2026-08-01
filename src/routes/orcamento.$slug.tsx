@@ -121,6 +121,30 @@ function PublicQuoteForm() {
     },
   });
 
+  // Itens de preço unitário dos pacotes ativos
+  const { data: unitItemsCatalog } = useQuery({
+    queryKey: ["public-unit-items", tenant?.id],
+    enabled: !!tenant?.id,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("package_unit_items")
+        .select("id, package_id, name, unit, unit_price, default_qty, position")
+        .order("position", { ascending: true });
+      if (error) return [];
+      return (data ?? []) as {
+        id: string;
+        package_id: string;
+        name: string;
+        unit: string;
+        unit_price: number;
+        default_qty: number;
+        position: number;
+      }[];
+    },
+  });
+
+  const [unitQty, setUnitQty] = useState<Record<string, number>>({});
+
   // Preço por pessoa de um pacote conforme o nº de convidados
   const priceForPackage = (packageId: string, guests: number): number => {
     const pkgTiers = (tiers ?? []).filter((t) => t.package_id === packageId);
@@ -149,9 +173,28 @@ function PublicQuoteForm() {
     [selectedPackages, packages, tiers, guestCount],
   );
 
+  // Itens unitários disponíveis para os pacotes escolhidos
+  const availableUnitItems = useMemo(() => {
+    const ids = new Set(chosenPackages.map((p) => p.id));
+    return (unitItemsCatalog ?? []).filter((i) => ids.has(i.package_id));
+  }, [unitItemsCatalog, chosenPackages]);
+
+  const selectedUnitItems = useMemo(
+    () =>
+      availableUnitItems
+        .map((i) => ({ item_id: i.id, name: i.name, unit: i.unit, unit_price: Number(i.unit_price) || 0, qty: Number(unitQty[i.id] ?? 0) || 0 }))
+        .filter((i) => i.qty > 0),
+    [availableUnitItems, unitQty],
+  );
+
+  const unitItemsSubtotal = useMemo(
+    () => selectedUnitItems.reduce((s, i) => s + i.qty * i.unit_price, 0),
+    [selectedUnitItems],
+  );
+
   const previewTotal = useMemo(
-    () => chosenPackages.reduce((s, p) => s + p.price_per_person, 0) * (guestCount || 0),
-    [chosenPackages, guestCount],
+    () => chosenPackages.reduce((s, p) => s + p.price_per_person, 0) * (guestCount || 0) + unitItemsSubtotal,
+    [chosenPackages, guestCount, unitItemsSubtotal],
   );
 
   const fetchLogo = useServerFn(getPublicTenantLogo);
@@ -159,13 +202,14 @@ function PublicQuoteForm() {
     queryKey: ["public-logo", slug],
     queryFn: () => fetchLogo({ data: { slug } }),
   });
+  const logoUrl = logo?.url ?? "";
 
   // MUTATION PARA CHAMAR A NOVA FUNÇÃO V2 NO SUPABASE
   const submitMutation = useMutation({
     mutationFn: async (payload: FormValues) => {
       const validPackageIds = (payload.package_ids ?? []).filter(Boolean);
 
-      const { data, error } = await supabase.rpc("submit_public_quote_v2", {
+      const { data, error } = await (supabase as any).rpc("submit_public_quote_v2", {
         p_slug: slug,
         p_name: payload.name,
         p_whatsapp: payload.whatsapp,
@@ -180,6 +224,7 @@ function PublicQuoteForm() {
         p_package_id: validPackageIds[0] ?? null, // Retrocompatibilidade com o 1º pacote
         p_notes: payload.notes || null,
         p_package_ids: validPackageIds.length > 0 ? validPackageIds : null, // Array de IDs
+        p_unit_items: selectedUnitItems.length > 0 ? selectedUnitItems : null,
       });
 
       if (error) throw error;
@@ -193,6 +238,7 @@ function PublicQuoteForm() {
       toast.error(err.message || "Erro ao enviar solicitação.");
     },
   });
+
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -263,8 +309,9 @@ function PublicQuoteForm() {
     <div className="min-h-screen bg-slate-50 px-4 py-8 md:py-12">
       <div className="mx-auto max-w-2xl rounded-2xl border bg-card p-6 shadow-sm md:p-8">
         <div className="mb-8 text-center">
-          {logo ? (
-            <img src={logo} alt={tenant.name} className="mx-auto mb-4 max-h-16 object-contain" />
+          {logoUrl ? (
+            <img src={logoUrl} alt={tenant.name} className="mx-auto mb-4 max-h-16 object-contain" />
+
           ) : (
             <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
               <Flame className="h-6 w-6 text-primary" />
@@ -296,7 +343,7 @@ function PublicQuoteForm() {
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div>
-                <Label htmlFor="cpf">{cpfKind.toUpperCase()}</Label>
+                <Label htmlFor="cpf">{(cpfKind ?? "CPF/CNPJ").toUpperCase()}</Label>
                 <Input
                   id="cpf"
                   value={cpf}
@@ -390,6 +437,39 @@ function PublicQuoteForm() {
                 </div>
               ))}
 
+              {availableUnitItems.length > 0 && (
+                <div className="space-y-2 rounded-xl border p-3">
+                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+                    Itens com preço unitário (opcional)
+                  </Label>
+                  {availableUnitItems.map((it) => (
+                    <div key={it.id} className="flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium">{it.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {brl(Number(it.unit_price) || 0)} / {it.unit || "un"}
+                        </p>
+                      </div>
+                      <Input
+                        type="number"
+                        min="0"
+                        className="w-24"
+                        value={unitQty[it.id] ?? ""}
+                        onChange={(e) =>
+                          setUnitQty((old) => ({ ...old, [it.id]: Math.max(0, Number(e.target.value) || 0) }))
+                        }
+                        placeholder="Qtd"
+                      />
+                    </div>
+                  ))}
+                  {unitItemsSubtotal > 0 && (
+                    <p className="text-right text-xs text-muted-foreground">
+                      Subtotal itens unitários: <strong>{brl(unitItemsSubtotal)}</strong>
+                    </p>
+                  )}
+                </div>
+              )}
+
               {previewTotal > 0 && (
                 <div className="mt-2 rounded-lg bg-slate-100 p-3 text-right">
                   <span className="text-xs text-muted-foreground">Estimativa Total: </span>
@@ -397,6 +477,7 @@ function PublicQuoteForm() {
                 </div>
               )}
             </div>
+
 
             <div>
               <Label htmlFor="notes">Observações adicionais</Label>
