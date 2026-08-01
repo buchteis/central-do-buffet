@@ -309,8 +309,9 @@ function PublicQuoteForm() {
     <div className="min-h-screen bg-slate-50 px-4 py-8 md:py-12">
       <div className="mx-auto max-w-2xl rounded-2xl border bg-card p-6 shadow-sm md:p-8">
         <div className="mb-8 text-center">
-          {logo ? (
-            <img src={logo} alt={tenant.name} className="mx-auto mb-4 max-h-16 object-contain" />
+          {logoUrl ? (
+            <img src={logoUrl} alt={tenant.name} className="mx-auto mb-4 max-h-16 object-contain" />
+
           ) : (
             <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
               <Flame className="h-6 w-6 text-primary" />
