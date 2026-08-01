@@ -343,7 +343,7 @@ function PublicQuoteForm() {
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div>
-                <Label htmlFor="cpf">{cpfKind.toUpperCase()}</Label>
+                <Label htmlFor="cpf">{(cpfKind ?? "CPF/CNPJ").toUpperCase()}</Label>
                 <Input
                   id="cpf"
                   value={cpf}
