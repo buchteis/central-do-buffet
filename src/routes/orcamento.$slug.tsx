@@ -121,6 +121,30 @@ function PublicQuoteForm() {
     },
   });
 
+  // Itens de preço unitário dos pacotes ativos
+  const { data: unitItemsCatalog } = useQuery({
+    queryKey: ["public-unit-items", tenant?.id],
+    enabled: !!tenant?.id,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("package_unit_items")
+        .select("id, package_id, name, unit, unit_price, default_qty, position")
+        .order("position", { ascending: true });
+      if (error) return [];
+      return (data ?? []) as {
+        id: string;
+        package_id: string;
+        name: string;
+        unit: string;
+        unit_price: number;
+        default_qty: number;
+        position: number;
+      }[];
+    },
+  });
+
+  const [unitQty, setUnitQty] = useState<Record<string, number>>({});
+
   // Preço por pessoa de um pacote conforme o nº de convidados
   const priceForPackage = (packageId: string, guests: number): number => {
     const pkgTiers = (tiers ?? []).filter((t) => t.package_id === packageId);
@@ -149,9 +173,28 @@ function PublicQuoteForm() {
     [selectedPackages, packages, tiers, guestCount],
   );
 
+  // Itens unitários disponíveis para os pacotes escolhidos
+  const availableUnitItems = useMemo(() => {
+    const ids = new Set(chosenPackages.map((p) => p.id));
+    return (unitItemsCatalog ?? []).filter((i) => ids.has(i.package_id));
+  }, [unitItemsCatalog, chosenPackages]);
+
+  const selectedUnitItems = useMemo(
+    () =>
+      availableUnitItems
+        .map((i) => ({ item_id: i.id, name: i.name, unit: i.unit, unit_price: Number(i.unit_price) || 0, qty: Number(unitQty[i.id] ?? 0) || 0 }))
+        .filter((i) => i.qty > 0),
+    [availableUnitItems, unitQty],
+  );
+
+  const unitItemsSubtotal = useMemo(
+    () => selectedUnitItems.reduce((s, i) => s + i.qty * i.unit_price, 0),
+    [selectedUnitItems],
+  );
+
   const previewTotal = useMemo(
-    () => chosenPackages.reduce((s, p) => s + p.price_per_person, 0) * (guestCount || 0),
-    [chosenPackages, guestCount],
+    () => chosenPackages.reduce((s, p) => s + p.price_per_person, 0) * (guestCount || 0) + unitItemsSubtotal,
+    [chosenPackages, guestCount, unitItemsSubtotal],
   );
 
   const fetchLogo = useServerFn(getPublicTenantLogo);
@@ -159,13 +202,14 @@ function PublicQuoteForm() {
     queryKey: ["public-logo", slug],
     queryFn: () => fetchLogo({ data: { slug } }),
   });
+  const logoUrl = logo?.url ?? "";
 
   // MUTATION PARA CHAMAR A NOVA FUNÇÃO V2 NO SUPABASE
   const submitMutation = useMutation({
     mutationFn: async (payload: FormValues) => {
       const validPackageIds = (payload.package_ids ?? []).filter(Boolean);
 
-      const { data, error } = await supabase.rpc("submit_public_quote_v2", {
+      const { data, error } = await (supabase as any).rpc("submit_public_quote_v2", {
         p_slug: slug,
         p_name: payload.name,
         p_whatsapp: payload.whatsapp,
@@ -180,6 +224,7 @@ function PublicQuoteForm() {
         p_package_id: validPackageIds[0] ?? null, // Retrocompatibilidade com o 1º pacote
         p_notes: payload.notes || null,
         p_package_ids: validPackageIds.length > 0 ? validPackageIds : null, // Array de IDs
+        p_unit_items: selectedUnitItems.length > 0 ? selectedUnitItems : null,
       });
 
       if (error) throw error;
@@ -193,6 +238,7 @@ function PublicQuoteForm() {
       toast.error(err.message || "Erro ao enviar solicitação.");
     },
   });
+
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
