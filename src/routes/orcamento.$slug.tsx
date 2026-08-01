@@ -437,6 +437,39 @@ function PublicQuoteForm() {
                 </div>
               ))}
 
+              {availableUnitItems.length > 0 && (
+                <div className="space-y-2 rounded-xl border p-3">
+                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+                    Itens com preço unitário (opcional)
+                  </Label>
+                  {availableUnitItems.map((it) => (
+                    <div key={it.id} className="flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium">{it.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {brl(Number(it.unit_price) || 0)} / {it.unit || "un"}
+                        </p>
+                      </div>
+                      <Input
+                        type="number"
+                        min="0"
+                        className="w-24"
+                        value={unitQty[it.id] ?? ""}
+                        onChange={(e) =>
+                          setUnitQty((old) => ({ ...old, [it.id]: Math.max(0, Number(e.target.value) || 0) }))
+                        }
+                        placeholder="Qtd"
+                      />
+                    </div>
+                  ))}
+                  {unitItemsSubtotal > 0 && (
+                    <p className="text-right text-xs text-muted-foreground">
+                      Subtotal itens unitários: <strong>{brl(unitItemsSubtotal)}</strong>
+                    </p>
+                  )}
+                </div>
+              )}
+
               {previewTotal > 0 && (
                 <div className="mt-2 rounded-lg bg-slate-100 p-3 text-right">
                   <span className="text-xs text-muted-foreground">Estimativa Total: </span>
@@ -444,6 +477,7 @@ function PublicQuoteForm() {
                 </div>
               )}
             </div>
+
 
             <div>
               <Label htmlFor="notes">Observações adicionais</Label>
