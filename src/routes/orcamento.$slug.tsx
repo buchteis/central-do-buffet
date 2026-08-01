@@ -472,7 +472,7 @@ function PublicQuoteForm() {
 
               {previewTotal > 0 && (
                 <div className="mt-2 rounded-lg bg-slate-100 p-3 text-right">
-                  <span className="text-xs text-muted-foreground">Estimativa Total: </span>
+                  <span className="text-xs text-muted-foreground">Valor Total: </span>
                   <span className="text-base font-bold text-primary">{brl(previewTotal)}</span>
                 </div>
               )}
