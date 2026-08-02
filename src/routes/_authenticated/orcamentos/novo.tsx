@@ -874,6 +874,10 @@ function NewQuotePage() {
                       name: selectedPackages.map((p) => p.name).join(" + "),
                       pricePerPerson: effectivePrice,
                     },
+                    packages:
+                      priceOverride == null
+                        ? selectedPackages.map((p) => ({ name: p.name, price_per_person: p.price_per_person }))
+                        : undefined,
 
                     childPrice: form.child_price,
                     extras: customExtras.filter((e) => e.description.trim() !== "" || Number(e.value) > 0),
