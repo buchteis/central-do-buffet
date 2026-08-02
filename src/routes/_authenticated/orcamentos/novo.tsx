@@ -78,7 +78,11 @@ function NewQuotePage() {
   const { data: packages } = useQuery({
     queryKey: ["packages-select"],
     queryFn: async () => {
-      const { data } = await supabase.from("packages").select("id, name").eq("active", true).order("name");
+      const { data } = await supabase
+        .from("packages")
+        .select("id, name, price_per_person")
+        .eq("active", true)
+        .order("name");
       return data ?? [];
     },
   });
