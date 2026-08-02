@@ -60,9 +60,22 @@ function QuoteDetail() {
   const packagesList: { name: string; price_per_person?: number }[] = (() => {
     const snap = (q.extras as any)?.packages;
     if (Array.isArray(snap) && snap.length > 0) {
-      return snap.map((p: any) => ({ name: p?.name, price_per_person: p?.price_per_person }));
+      return snap.map((p: any) => ({ name: p?.name, price_per_person: Number(p?.price_per_person ?? 0) || 0 }));
     }
     return q.packages?.name ? [{ name: q.packages.name }] : [];
+  })();
+
+  const unitItems: { name: string; unit?: string; unit_price: number; qty: number }[] = (() => {
+    const snap = (q.extras as any)?.unit_items;
+    if (!Array.isArray(snap)) return [];
+    return snap
+      .map((i: any) => ({
+        name: i?.name ?? "Item",
+        unit: i?.unit ?? "un",
+        unit_price: Number(i?.unit_price ?? 0) || 0,
+        qty: Number(i?.qty ?? 0) || 0,
+      }))
+      .filter((i) => i.qty > 0);
   })();
 
   return (
