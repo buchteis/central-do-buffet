@@ -25,6 +25,8 @@ export type QuotePdfInput = {
     name?: string | null;
     pricePerPerson?: number | null;
   } | null;
+  /** Lista de pacotes escolhidos (nome + valor por pessoa da faixa aplicada). */
+  packages?: { name?: string | null; price_per_person?: number | null }[];
   childPrice?: number | null;
   extras?: QuoteExtraItem[];
   unitItems?: { name: string; unit?: string | null; unit_price: number; qty: number }[];
