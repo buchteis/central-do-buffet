@@ -199,6 +199,8 @@ function NewQuotePage() {
   }, [unitItemsCatalog, selectedPackages]);
 
   // Qtd escolhida por item unitário (default = default_qty do pacote).
+  // Ao editar um orçamento existente (ex.: vindo do link público), respeita exatamente
+  // o que foi escolhido: itens não escolhidos ficam em 0.
   useEffect(() => {
     if (!availableUnitItems.length) return;
     setUnitQty((old) => {
@@ -206,13 +208,13 @@ function NewQuotePage() {
       let changed = false;
       for (const it of availableUnitItems) {
         if (next[it.id] === undefined) {
-          next[it.id] = Number(it.default_qty) || 0;
+          next[it.id] = quoteId ? 0 : Number(it.default_qty) || 0;
           changed = true;
         }
       }
       return changed ? next : old;
     });
-  }, [availableUnitItems]);
+  }, [availableUnitItems, quoteId]);
 
   const selectedUnitItems = useMemo(
     () =>
