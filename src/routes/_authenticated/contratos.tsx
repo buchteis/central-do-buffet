@@ -248,7 +248,7 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
       const { data } = await supabase
         .from("quotes")
         .select(
-          "id, event_date, event_time, event_address, adults, children_7_10, children_0_6, total_value, entry_value, balance_value, client_id, payment_method, clients(name, address, phone, cpf), packages(name, description)",
+          "id, event_date, event_time, event_address, adults, children_7_10, children_0_6, total_value, entry_value, balance_value, client_id, payment_method, extras, clients(name, address, phone, cpf), packages(name, description)",
         )
         .eq("status", "fechado")
         .order("event_date", { ascending: false })
