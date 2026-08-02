@@ -142,8 +142,10 @@ function QuoteDetail() {
               packagesList.map((p, i) => (
                 <div key={i} className="flex justify-between">
                   <span className="font-semibold">{p.name}</span>
-                  {typeof p.price_per_person === "number" && (
-                    <span className="text-muted-foreground font-mono">{brl(p.price_per_person)}/pessoa</span>
+                  {typeof p.price_per_person === "number" && p.price_per_person > 0 && (
+                    <span className="text-muted-foreground font-mono">
+                      {brl(p.price_per_person)}/pessoa × {adults} = {brl(p.price_per_person * adults)}
+                    </span>
                   )}
                 </div>
               ))
@@ -152,6 +154,25 @@ function QuoteDetail() {
             )}
           </CardContent>
         </Card>
+
+        {unitItems.length > 0 && (
+          <Card className="md:col-span-2">
+            <CardHeader>
+              <CardTitle className="text-sm font-medium">Itens com preço unitário</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-1 text-sm">
+              {unitItems.map((it, i) => (
+                <div key={i} className="flex justify-between">
+                  <span className="font-semibold">{it.name}</span>
+                  <span className="text-muted-foreground font-mono">
+                    {it.qty} {it.unit} × {brl(it.unit_price)} = {brl(it.qty * it.unit_price)}
+                  </span>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        )}
+
         <Card className="md:col-span-2">
           <CardHeader>
             <CardTitle className="text-sm font-medium">Valores</CardTitle>
