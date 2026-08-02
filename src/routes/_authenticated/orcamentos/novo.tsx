@@ -162,7 +162,11 @@ function NewQuotePage() {
 
   const priceForPackage = (packageId: string, guests: number): number => {
     const pkgTiers = (tiers ?? []).filter((t) => t.package_id === packageId);
-    if (pkgTiers.length === 0) return 0;
+    if (pkgTiers.length === 0) {
+      // Mesma regra do formulário público: sem faixas, usa o preço base do pacote.
+      const pkg = (packages ?? []).find((p) => p.id === packageId) as any;
+      return Number(pkg?.price_per_person ?? 0) || 0;
+    }
     const inRange = pkgTiers.find((t) => guests >= t.min_guests && guests <= t.max_guests);
     if (inRange) return Number(inRange.price_per_person) || 0;
     // fallback: below smallest → smallest tier; above biggest → biggest tier
