@@ -60,9 +60,22 @@ function QuoteDetail() {
   const packagesList: { name: string; price_per_person?: number }[] = (() => {
     const snap = (q.extras as any)?.packages;
     if (Array.isArray(snap) && snap.length > 0) {
-      return snap.map((p: any) => ({ name: p?.name, price_per_person: p?.price_per_person }));
+      return snap.map((p: any) => ({ name: p?.name, price_per_person: Number(p?.price_per_person ?? 0) || 0 }));
     }
     return q.packages?.name ? [{ name: q.packages.name }] : [];
+  })();
+
+  const unitItems: { name: string; unit?: string; unit_price: number; qty: number }[] = (() => {
+    const snap = (q.extras as any)?.unit_items;
+    if (!Array.isArray(snap)) return [];
+    return snap
+      .map((i: any) => ({
+        name: i?.name ?? "Item",
+        unit: i?.unit ?? "un",
+        unit_price: Number(i?.unit_price ?? 0) || 0,
+        qty: Number(i?.qty ?? 0) || 0,
+      }))
+      .filter((i) => i.qty > 0);
   })();
 
   return (
@@ -129,8 +142,10 @@ function QuoteDetail() {
               packagesList.map((p, i) => (
                 <div key={i} className="flex justify-between">
                   <span className="font-semibold">{p.name}</span>
-                  {typeof p.price_per_person === "number" && (
-                    <span className="text-muted-foreground font-mono">{brl(p.price_per_person)}/pessoa</span>
+                  {typeof p.price_per_person === "number" && p.price_per_person > 0 && (
+                    <span className="text-muted-foreground font-mono">
+                      {brl(p.price_per_person)}/pessoa × {adults} = {brl(p.price_per_person * adults)}
+                    </span>
                   )}
                 </div>
               ))
@@ -139,6 +154,25 @@ function QuoteDetail() {
             )}
           </CardContent>
         </Card>
+
+        {unitItems.length > 0 && (
+          <Card className="md:col-span-2">
+            <CardHeader>
+              <CardTitle className="text-sm font-medium">Itens com preço unitário</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-1 text-sm">
+              {unitItems.map((it, i) => (
+                <div key={i} className="flex justify-between">
+                  <span className="font-semibold">{it.name}</span>
+                  <span className="text-muted-foreground font-mono">
+                    {it.qty} {it.unit} × {brl(it.unit_price)} = {brl(it.qty * it.unit_price)}
+                  </span>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        )}
+
         <Card className="md:col-span-2">
           <CardHeader>
             <CardTitle className="text-sm font-medium">Valores</CardTitle>

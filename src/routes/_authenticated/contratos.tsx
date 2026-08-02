@@ -248,7 +248,7 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
       const { data } = await supabase
         .from("quotes")
         .select(
-          "id, event_date, event_time, event_address, adults, children_7_10, children_0_6, total_value, entry_value, balance_value, client_id, payment_method, clients(name, address, phone, cpf), packages(name, description)",
+          "id, event_date, event_time, event_address, adults, children_7_10, children_0_6, total_value, entry_value, balance_value, client_id, payment_method, extras, clients(name, address, phone, cpf), packages(name, description)",
         )
         .eq("status", "fechado")
         .order("event_date", { ascending: false })
@@ -365,6 +365,8 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
         entrada: brl(0),
         saldo: brl(0),
         pacote: "",
+        pacotes: "",
+        itens_unitarios: "",
         descricao_pacote: "",
         cardapio: "",
         descricao_cardapio: "",
@@ -375,10 +377,32 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
       let cli_id: string | null = null;
 
       if (source === "quote") {
-        const q = (quotes ?? []).find((x: any) => x.id === refId);
+        const q: any = (quotes ?? []).find((x: any) => x.id === refId);
         if (!q) throw new Error("Selecione um orçamento");
         cli_id = q.client_id;
         const guests = (q.adults ?? 0) + (q.children_7_10 ?? 0) + (q.children_0_6 ?? 0);
+        const qExtras: any = q.extras ?? {};
+        const adults = Number(q.adults ?? 0) || 0;
+        const pkgSnap: any[] = Array.isArray(qExtras.packages) ? qExtras.packages : [];
+        const unitSnap: any[] = Array.isArray(qExtras.unit_items) ? qExtras.unit_items : [];
+        const pkgNames = pkgSnap.map((p) => p?.name).filter(Boolean);
+        const pacoteLabel = pkgNames.length ? pkgNames.join(" + ") : (q.packages?.name ?? "");
+        const pacotesDetalhados = pkgSnap.length
+          ? pkgSnap
+              .map((p) => {
+                const ppp = Number(p?.price_per_person ?? 0) || 0;
+                return `${p?.name ?? "Pacote"} — ${brl(ppp)}/pessoa × ${adults} = ${brl(ppp * adults)}`;
+              })
+              .join("\n")
+          : pacoteLabel;
+        const itensUnitarios = unitSnap
+          .filter((i) => (Number(i?.qty) || 0) > 0)
+          .map((i) => {
+            const qty = Number(i?.qty) || 0;
+            const price = Number(i?.unit_price) || 0;
+            return `${i?.name ?? "Item"} — ${qty} ${i?.unit ?? "un"} × ${brl(price)} = ${brl(qty * price)}`;
+          })
+          .join("\n");
         vars = {
           ...vars,
           cliente: q.clients?.name ?? "",
@@ -392,9 +416,11 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
           valor: brl(q.total_value),
           entrada: brl(q.entry_value),
           saldo: brl(q.balance_value),
-          pacote: q.packages?.name ?? "",
+          pacote: pacoteLabel,
+          pacotes: pacotesDetalhados,
+          itens_unitarios: itensUnitarios,
           descricao_pacote: q.packages?.description ?? "",
-          cardapio: q.packages?.name ?? "",
+          cardapio: pacoteLabel,
           descricao_cardapio: q.packages?.description ?? "",
         };
       } else if (source === "event") {

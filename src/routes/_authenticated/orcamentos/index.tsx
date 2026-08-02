@@ -249,6 +249,12 @@ function QuotesPage() {
       const snapshotSum = pkgSnapshot.reduce((s: number, p: any) => s + Number(p?.price_per_person ?? 0), 0);
       const pricePerPerson = priceOverride ?? snapshotSum;
       const customExtras = Array.isArray(extras.custom) ? extras.custom : [];
+      const unitItems = (Array.isArray(extras.unit_items) ? extras.unit_items : []).map((i: any) => ({
+        name: i?.name ?? "Item unitário",
+        unit: i?.unit ?? "un",
+        unit_price: Number(i?.unit_price ?? 0) || 0,
+        qty: Number(i?.qty ?? 0) || 0,
+      }));
       const adults = Number(q.adults ?? 0);
       const childrenCount = Number(q.children_7_10 ?? 0) + Number(q.children_0_6 ?? 0);
       const breakdown = calcQuote({
@@ -257,6 +263,7 @@ function QuotesPage() {
         childrenCount,
         childPrice,
         customExtras,
+        unitItems,
       });
       if (extras.entry_override != null) {
         breakdown.entry = Number(extras.entry_override);
@@ -285,11 +292,13 @@ function QuotesPage() {
           adults,
           childrenCount,
         },
-        package: q.packages
-          ? { name: quotePackagesLabel(q), pricePerPerson }
-          : Array.isArray((q.extras as any)?.packages) && (q.extras as any).packages.length
-            ? { name: quotePackagesLabel(q), pricePerPerson }
-            : null,
+        package:
+          pkgSnapshot.length || q.packages ? { name: quotePackagesLabel(q), pricePerPerson } : null,
+        packages: pkgSnapshot.map((p: any) => ({
+          name: p?.name,
+          price_per_person: Number(p?.price_per_person ?? 0) || 0,
+        })),
+        unitItems,
         childPrice,
         extras: customExtras,
         breakdown,

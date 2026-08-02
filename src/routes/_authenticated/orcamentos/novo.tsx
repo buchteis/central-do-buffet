@@ -78,7 +78,11 @@ function NewQuotePage() {
   const { data: packages } = useQuery({
     queryKey: ["packages-select"],
     queryFn: async () => {
-      const { data } = await supabase.from("packages").select("id, name").eq("active", true).order("name");
+      const { data } = await supabase
+        .from("packages")
+        .select("id, name, price_per_person")
+        .eq("active", true)
+        .order("name");
       return data ?? [];
     },
   });
@@ -158,7 +162,11 @@ function NewQuotePage() {
 
   const priceForPackage = (packageId: string, guests: number): number => {
     const pkgTiers = (tiers ?? []).filter((t) => t.package_id === packageId);
-    if (pkgTiers.length === 0) return 0;
+    if (pkgTiers.length === 0) {
+      // Mesma regra do formulário público: sem faixas, usa o preço base do pacote.
+      const pkg = (packages ?? []).find((p) => p.id === packageId) as any;
+      return Number(pkg?.price_per_person ?? 0) || 0;
+    }
     const inRange = pkgTiers.find((t) => guests >= t.min_guests && guests <= t.max_guests);
     if (inRange) return Number(inRange.price_per_person) || 0;
     // fallback: below smallest → smallest tier; above biggest → biggest tier
@@ -191,6 +199,8 @@ function NewQuotePage() {
   }, [unitItemsCatalog, selectedPackages]);
 
   // Qtd escolhida por item unitário (default = default_qty do pacote).
+  // Ao editar um orçamento existente (ex.: vindo do link público), respeita exatamente
+  // o que foi escolhido: itens não escolhidos ficam em 0.
   useEffect(() => {
     if (!availableUnitItems.length) return;
     setUnitQty((old) => {
@@ -198,13 +208,13 @@ function NewQuotePage() {
       let changed = false;
       for (const it of availableUnitItems) {
         if (next[it.id] === undefined) {
-          next[it.id] = Number(it.default_qty) || 0;
+          next[it.id] = quoteId ? 0 : Number(it.default_qty) || 0;
           changed = true;
         }
       }
       return changed ? next : old;
     });
-  }, [availableUnitItems]);
+  }, [availableUnitItems, quoteId]);
 
   const selectedUnitItems = useMemo(
     () =>
@@ -874,6 +884,10 @@ function NewQuotePage() {
                       name: selectedPackages.map((p) => p.name).join(" + "),
                       pricePerPerson: effectivePrice,
                     },
+                    packages:
+                      priceOverride == null
+                        ? selectedPackages.map((p) => ({ name: p.name, price_per_person: p.price_per_person }))
+                        : undefined,
 
                     childPrice: form.child_price,
                     extras: customExtras.filter((e) => e.description.trim() !== "" || Number(e.value) > 0),
