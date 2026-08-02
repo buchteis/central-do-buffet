@@ -100,15 +100,31 @@ export async function openQuotePdf(input: QuotePdfInput) {
 
   const packageRowUnit = pkg?.pricePerPerson != null ? `${brl(pkg.pricePerPerson)}/pessoa` : "—";
   const packageRowQty = ev.adults ? `${ev.adults} adulto(s)` : "—";
+  const adults = Number(ev.adults ?? 0) || 0;
 
   const rows: string[] = [];
-  rows.push(`
+  const pkgList = (input.packages ?? []).filter((p) => (p?.name ?? "").toString().trim() !== "");
+  if (pkgList.length > 0) {
+    // Uma linha por pacote escolhido, com o valor por pessoa da faixa aplicada.
+    for (const p of pkgList) {
+      const ppp = Number(p.price_per_person ?? 0) || 0;
+      rows.push(`
     <tr>
-      <td>${esc(pkg?.name ?? "Pacote")}${pkg?.name ? "" : ""}<div class="muted">Serviço de buffet</div></td>
+      <td>${esc(p.name ?? "Pacote")}<div class="muted">Serviço de buffet</div></td>
+      <td class="num">${esc(packageRowQty)}</td>
+      <td class="num">${esc(ppp ? `${brl(ppp)}/pessoa` : "—")}</td>
+      <td class="num">${esc(brl(ppp * adults))}</td>
+    </tr>`);
+    }
+  } else {
+    rows.push(`
+    <tr>
+      <td>${esc(pkg?.name ?? "Pacote")}<div class="muted">Serviço de buffet</div></td>
       <td class="num">${esc(packageRowQty)}</td>
       <td class="num">${esc(packageRowUnit)}</td>
       <td class="num">${esc(brl(bk.adultsSubtotal))}</td>
     </tr>`);
+  }
 
   if ((ev.childrenCount ?? 0) > 0) {
     rows.push(`
