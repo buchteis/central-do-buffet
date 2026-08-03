@@ -22,6 +22,7 @@ import {
   CheckCircle,
   Package,
   TrendingUp,
+  TrendingDown,
   Building2,
 } from "lucide-react";
 import { Chatbot } from "@/components/Chatbot";
