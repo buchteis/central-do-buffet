@@ -276,6 +276,7 @@ function FinanceiroPage() {
     .filter((r) => {
       if (typeFilter === "recebido") return r.kind === "recebido";
       if (typeFilter === "receber") return r.kind === "receber";
+      if (typeFilter === "saida") return r.kind === "saida";
       return true;
     })
     .filter((r) => match(r.title, r.client, r.status, r.method, r.date, r.amount));
