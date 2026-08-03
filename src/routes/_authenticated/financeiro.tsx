@@ -255,11 +255,15 @@ function FinanceiroPage() {
     (acc, r) => {
       if (r.kind === "recebido") acc.recebido += r.amount;
       else if (r.kind === "receber") acc.receber += r.amount;
-      else if (r.kind === "saida") acc.saidas += r.amount;
+      else if (r.kind === "saida") {
+        acc.saidas += r.amount;
+        if (r.status === "pago") acc.saidasPagas += r.amount;
+      }
       return acc;
     },
-    { recebido: 0, receber: 0, saidas: 0 },
+    { recebido: 0, receber: 0, saidas: 0, saidasPagas: 0 },
   );
+
 
   // Aplica filtro de origem
   const sourceFiltered = periodFiltered.filter((r) => {
