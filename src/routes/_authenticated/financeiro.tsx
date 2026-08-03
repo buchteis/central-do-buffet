@@ -383,6 +383,7 @@ function FinanceiroPage() {
               <th className="px-4 py-3 font-bold">Status</th>
               <th className="px-4 py-3 font-bold">Tipo</th>
               <th className="px-4 py-3 font-bold text-right">Valor</th>
+              <th className="px-3 py-3 font-bold"></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
