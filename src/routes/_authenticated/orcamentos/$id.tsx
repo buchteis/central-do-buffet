@@ -56,15 +56,6 @@ function QuoteDetail() {
   const adults = q.adults ?? 0;
   const children = (q.children_7_10 ?? 0) + (q.children_0_6 ?? 0);
 
-  // Pacotes do orçamento: prioriza extras.packages (lista, múltiplos) — fallback relação.
-  const packagesList: { name: string; price_per_person?: number }[] = (() => {
-    const snap = (q.extras as any)?.packages;
-    if (Array.isArray(snap) && snap.length > 0) {
-      return snap.map((p: any) => ({ name: p?.name, price_per_person: Number(p?.price_per_person ?? 0) || 0 }));
-    }
-    return q.packages?.name ? [{ name: q.packages.name }] : [];
-  })();
-
   const unitItems: { name: string; unit?: string; unit_price: number; qty: number }[] = (() => {
     const snap = (q.extras as any)?.unit_items;
     if (!Array.isArray(snap)) return [];
@@ -76,6 +67,18 @@ function QuoteDetail() {
         qty: Number(i?.qty ?? 0) || 0,
       }))
       .filter((i) => i.qty > 0);
+  })();
+
+  // Pacotes do orçamento: prioriza extras.packages (lista, múltiplos) — fallback relação.
+  const packagesList: { name: string; price_per_person?: number }[] = (() => {
+    const snap = (q.extras as any)?.packages;
+    if (Array.isArray(snap) && snap.length > 0) {
+      return dedupePackages(
+        snap.map((p: any) => ({ name: p?.name, price_per_person: Number(p?.price_per_person ?? 0) || 0 })),
+        unitItems,
+      );
+    }
+    return q.packages?.name ? [{ name: q.packages.name }] : [];
   })();
 
   return (
