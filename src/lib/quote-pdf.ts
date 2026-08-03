@@ -1,6 +1,6 @@
 import { brl, formatDateFullBR } from "@/lib/format";
 import { getLogoDisplayUrl } from "@/lib/logo";
-import type { QuoteBreakdown, QuoteExtraItem } from "@/lib/quote-calc";
+import { dedupePackages, type QuoteBreakdown, type QuoteExtraItem } from "@/lib/quote-calc";
 
 export type QuotePdfInput = {
   quoteNumber?: string | null;
