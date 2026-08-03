@@ -1,7 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { TrendingUp, TrendingDown, Wallet, Calendar, Hourglass, CheckCircle2 } from "lucide-react";
+import { toast } from "sonner";
+import { TrendingUp, TrendingDown, Wallet, Calendar, Hourglass, CheckCircle2, Plus, Trash2, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { brl, formatDateBR } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -14,7 +15,7 @@ export const Route = createFileRoute("/_authenticated/financeiro")({
 });
 
 type PeriodFilter = "todos" | "hoje" | "semana" | "mes" | "ano";
-type TypeFilter = "todos" | "recebido" | "receber";
+type TypeFilter = "todos" | "recebido" | "receber" | "saida";
 type SourceFilter = "todos" | "evento" | "transacao";
 
 const RECEIVED_EVENT_STATUSES: string[] = ["pago", "concluido"];
@@ -74,6 +75,59 @@ function FinanceiroPage() {
   const [period, setPeriod] = useState<PeriodFilter>("todos");
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("todos");
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>("todos");
+  const [showExpense, setShowExpense] = useState(false);
+  const [form, setForm] = useState({
+    description: "",
+    category: "Funcionários",
+    amount: "",
+    date: new Date().toISOString().slice(0, 10),
+    method: "pix" as "pix" | "dinheiro" | "cartao" | "boleto" | "transferencia" | "outro",
+    status: "pago" as "pago" | "pendente",
+  });
+
+  const createExpense = useMutation({
+    mutationFn: async () => {
+      const amount = Number(String(form.amount).replace(/\./g, "").replace(",", "."));
+      if (!form.description.trim()) throw new Error("Informe a descrição da despesa.");
+      if (!amount || amount <= 0) throw new Error("Informe um valor válido.");
+      if (!access?.userId) throw new Error("Sessão expirada.");
+      const { error } = await supabase.from("transactions").insert({
+        description: form.description.trim(),
+        category: form.category || null,
+        amount,
+        type: "saida",
+        status: form.status,
+        method: form.method,
+        due_date: form.date,
+        paid_date: form.status === "pago" ? form.date : null,
+        owner_id: access.userId,
+        tenant_id: tenantId,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Despesa registrada");
+      setShowExpense(false);
+      setForm((f) => ({ ...f, description: "", amount: "" }));
+      qc.invalidateQueries({ queryKey: ["financeiro-transactions"] });
+      qc.invalidateQueries({ queryKey: ["dashboard"] });
+    },
+    onError: (e: any) => toast.error(e.message ?? "Erro ao registrar despesa"),
+  });
+
+  const deleteTx = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("transactions").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Lançamento removido");
+      qc.invalidateQueries({ queryKey: ["financeiro-transactions"] });
+      qc.invalidateQueries({ queryKey: ["dashboard"] });
+    },
+    onError: (e: any) => toast.error(e.message ?? "Erro ao remover"),
+  });
+
 
   // Realtime: reflete o Dashboard
   useEffect(() => {
@@ -201,11 +255,15 @@ function FinanceiroPage() {
     (acc, r) => {
       if (r.kind === "recebido") acc.recebido += r.amount;
       else if (r.kind === "receber") acc.receber += r.amount;
-      else if (r.kind === "saida") acc.saidas += r.amount;
+      else if (r.kind === "saida") {
+        acc.saidas += r.amount;
+        if (r.status === "pago") acc.saidasPagas += r.amount;
+      }
       return acc;
     },
-    { recebido: 0, receber: 0, saidas: 0 },
+    { recebido: 0, receber: 0, saidas: 0, saidasPagas: 0 },
   );
+
 
   // Aplica filtro de origem
   const sourceFiltered = periodFiltered.filter((r) => {
@@ -218,30 +276,40 @@ function FinanceiroPage() {
     .filter((r) => {
       if (typeFilter === "recebido") return r.kind === "recebido";
       if (typeFilter === "receber") return r.kind === "receber";
+      if (typeFilter === "saida") return r.kind === "saida";
       return true;
     })
     .filter((r) => match(r.title, r.client, r.status, r.method, r.date, r.amount));
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">Financeiro</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Eventos pagos e transações financeiras
-        </p>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">Financeiro</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Eventos pagos, despesas e transações financeiras
+          </p>
+        </div>
+        <button
+          onClick={() => setShowExpense(true)}
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-rose-600 text-white text-xs font-bold hover:bg-rose-700 transition-colors"
+        >
+          <Plus className="size-4" /> Nova despesa
+        </button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
         <Card icon={TrendingUp} label="Receita Recebida" value={brl(totals.recebido)} tone="emerald" />
         <Card icon={Hourglass} label="A Receber" value={brl(totals.receber)} tone="amber" />
-        <Card icon={TrendingDown} label="Saídas (pagas)" value={brl(totals.saidas)} tone="rose" />
+        <Card icon={TrendingDown} label="Despesas (pagas)" value={brl(totals.saidasPagas)} tone="rose" />
         <Card
           icon={Wallet}
           label="Saldo Atual"
-          value={brl(totals.recebido + totals.receber - totals.saidas)}
+          value={brl(totals.recebido + totals.receber - totals.saidasPagas)}
           tone="primary"
         />
       </div>
+
 
       {/* Barra de Filtros */}
       <div className="flex flex-wrap items-center justify-between gap-3 bg-card p-3 rounded-2xl border border-border shadow-sm">
@@ -269,7 +337,7 @@ function FinanceiroPage() {
 
         {/* Filtro por tipo */}
         <div className="flex gap-2">
-          {(["todos", "recebido", "receber"] as const).map((f) => (
+          {(["todos", "recebido", "receber", "saida"] as const).map((f) => (
             <button
               key={f}
               onClick={() => setTypeFilter(f)}
@@ -280,7 +348,7 @@ function FinanceiroPage() {
                   : "border-border hover:bg-muted",
               )}
             >
-              {f === "todos" ? "Todos" : f === "recebido" ? "Recebidos" : "A Receber"}
+              {f === "todos" ? "Todos" : f === "recebido" ? "Recebidos" : f === "receber" ? "A Receber" : "Despesas"}
             </button>
           ))}
         </div>
@@ -315,6 +383,7 @@ function FinanceiroPage() {
               <th className="px-4 py-3 font-bold">Status</th>
               <th className="px-4 py-3 font-bold">Tipo</th>
               <th className="px-4 py-3 font-bold text-right">Valor</th>
+              <th className="px-3 py-3 font-bold"></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
@@ -370,12 +439,25 @@ function FinanceiroPage() {
                     {isSaida ? "- " : ""}
                     {brl(r.amount)}
                   </td>
+                  <td className="px-3 py-4 text-right">
+                    {r.source === "transacao" && (
+                      <button
+                        onClick={() => {
+                          if (confirm("Remover este lançamento?")) deleteTx.mutate(r.id.replace(/^tx-/, ""));
+                        }}
+                        className="p-1.5 rounded-lg text-muted-foreground hover:text-rose-600 hover:bg-rose-500/10 transition-colors"
+                        title="Remover"
+                      >
+                        <Trash2 className="size-3.5" />
+                      </button>
+                    )}
+                  </td>
                 </tr>
               );
             })}
             {rows.length === 0 && (
               <tr>
-                <td colSpan={6} className="p-10 text-center text-sm text-muted-foreground">
+                <td colSpan={7} className="p-10 text-center text-sm text-muted-foreground">
                   Nenhum registro neste período.
                 </td>
               </tr>
@@ -383,6 +465,128 @@ function FinanceiroPage() {
           </tbody>
         </table>
       </div>
+
+      {showExpense && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+          <div className="bg-card w-full max-w-md rounded-2xl border border-border shadow-xl p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-extrabold tracking-tight">Nova despesa</h2>
+              <button onClick={() => setShowExpense(false)} className="p-1 rounded-lg hover:bg-muted">
+                <X className="size-4" />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                  Descrição
+                </label>
+                <input
+                  value={form.description}
+                  onChange={(e) => setForm({ ...form, description: e.target.value })}
+                  placeholder="Ex.: Pagamento funcionários"
+                  className="mt-1 w-full px-3 py-2 rounded-xl border border-border bg-background text-sm"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                    Valor (R$)
+                  </label>
+                  <input
+                    value={form.amount}
+                    onChange={(e) => setForm({ ...form, amount: e.target.value })}
+                    inputMode="decimal"
+                    placeholder="200,00"
+                    className="mt-1 w-full px-3 py-2 rounded-xl border border-border bg-background text-sm font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Data</label>
+                  <input
+                    type="date"
+                    value={form.date}
+                    onChange={(e) => setForm({ ...form, date: e.target.value })}
+                    className="mt-1 w-full px-3 py-2 rounded-xl border border-border bg-background text-sm"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                    Categoria
+                  </label>
+                  <select
+                    value={form.category}
+                    onChange={(e) => setForm({ ...form, category: e.target.value })}
+                    className="mt-1 w-full px-3 py-2 rounded-xl border border-border bg-background text-sm"
+                  >
+                    {["Funcionários", "Insumos", "Aluguel", "Transporte", "Impostos", "Marketing", "Outros"].map((c) => (
+                      <option key={c} value={c}>
+                        {c}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                    Forma de pagamento
+                  </label>
+                  <select
+                    value={form.method}
+                    onChange={(e) => setForm({ ...form, method: e.target.value as typeof form.method })}
+                    className="mt-1 w-full px-3 py-2 rounded-xl border border-border bg-background text-sm capitalize"
+                  >
+                    {(["pix", "dinheiro", "cartao", "boleto", "transferencia", "outro"] as const).map((m) => (
+                      <option key={m} value={m}>
+                        {m}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Situação</label>
+                <div className="mt-1 flex gap-2">
+                  {(["pago", "pendente"] as const).map((s) => (
+                    <button
+                      key={s}
+                      onClick={() => setForm({ ...form, status: s })}
+                      className={cn(
+                        "px-3 py-1.5 text-xs font-bold rounded-full border transition-colors capitalize",
+                        form.status === s
+                          ? "bg-primary text-primary-foreground border-primary"
+                          : "border-border hover:bg-muted",
+                      )}
+                    >
+                      {s === "pago" ? "Paga (sai do saldo)" : "Pendente"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-1">
+              <button
+                onClick={() => setShowExpense(false)}
+                className="px-4 py-2 rounded-full border border-border text-xs font-bold hover:bg-muted"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => createExpense.mutate()}
+                disabled={createExpense.isPending}
+                className="px-4 py-2 rounded-full bg-rose-600 text-white text-xs font-bold hover:bg-rose-700 disabled:opacity-60"
+              >
+                {createExpense.isPending ? "Salvando..." : "Registrar despesa"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
