@@ -336,7 +336,7 @@ function FinanceiroPage() {
 
         {/* Filtro por tipo */}
         <div className="flex gap-2">
-          {(["todos", "recebido", "receber"] as const).map((f) => (
+          {(["todos", "recebido", "receber", "saida"] as const).map((f) => (
             <button
               key={f}
               onClick={() => setTypeFilter(f)}
@@ -347,7 +347,7 @@ function FinanceiroPage() {
                   : "border-border hover:bg-muted",
               )}
             >
-              {f === "todos" ? "Todos" : f === "recebido" ? "Recebidos" : "A Receber"}
+              {f === "todos" ? "Todos" : f === "recebido" ? "Recebidos" : f === "receber" ? "A Receber" : "Despesas"}
             </button>
           ))}
         </div>
