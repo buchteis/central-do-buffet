@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatDateBR, brl } from "@/lib/format";
+import { dedupePackages } from "@/lib/quote-calc";
 import { ArrowLeft, User, Calendar, MapPin, Package } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/orcamentos/$id")({
