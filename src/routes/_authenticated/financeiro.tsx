@@ -75,6 +75,59 @@ function FinanceiroPage() {
   const [period, setPeriod] = useState<PeriodFilter>("todos");
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("todos");
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>("todos");
+  const [showExpense, setShowExpense] = useState(false);
+  const [form, setForm] = useState({
+    description: "",
+    category: "Funcionários",
+    amount: "",
+    date: new Date().toISOString().slice(0, 10),
+    method: "pix" as "pix" | "dinheiro" | "cartao" | "boleto" | "transferencia" | "outro",
+    status: "pago" as "pago" | "pendente",
+  });
+
+  const createExpense = useMutation({
+    mutationFn: async () => {
+      const amount = Number(String(form.amount).replace(/\./g, "").replace(",", "."));
+      if (!form.description.trim()) throw new Error("Informe a descrição da despesa.");
+      if (!amount || amount <= 0) throw new Error("Informe um valor válido.");
+      if (!access?.userId) throw new Error("Sessão expirada.");
+      const { error } = await supabase.from("transactions").insert({
+        description: form.description.trim(),
+        category: form.category || null,
+        amount,
+        type: "saida",
+        status: form.status,
+        method: form.method,
+        due_date: form.date,
+        paid_date: form.status === "pago" ? form.date : null,
+        owner_id: access.userId,
+        tenant_id: tenantId,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Despesa registrada");
+      setShowExpense(false);
+      setForm((f) => ({ ...f, description: "", amount: "" }));
+      qc.invalidateQueries({ queryKey: ["financeiro-transactions"] });
+      qc.invalidateQueries({ queryKey: ["dashboard"] });
+    },
+    onError: (e: any) => toast.error(e.message ?? "Erro ao registrar despesa"),
+  });
+
+  const deleteTx = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("transactions").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Lançamento removido");
+      qc.invalidateQueries({ queryKey: ["financeiro-transactions"] });
+      qc.invalidateQueries({ queryKey: ["dashboard"] });
+    },
+    onError: (e: any) => toast.error(e.message ?? "Erro ao remover"),
+  });
+
 
   // Realtime: reflete o Dashboard
   useEffect(() => {
