@@ -282,24 +282,33 @@ function FinanceiroPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">Financeiro</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Eventos pagos e transações financeiras
-        </p>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">Financeiro</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Eventos pagos, despesas e transações financeiras
+          </p>
+        </div>
+        <button
+          onClick={() => setShowExpense(true)}
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-rose-600 text-white text-xs font-bold hover:bg-rose-700 transition-colors"
+        >
+          <Plus className="size-4" /> Nova despesa
+        </button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
         <Card icon={TrendingUp} label="Receita Recebida" value={brl(totals.recebido)} tone="emerald" />
         <Card icon={Hourglass} label="A Receber" value={brl(totals.receber)} tone="amber" />
-        <Card icon={TrendingDown} label="Saídas (pagas)" value={brl(totals.saidas)} tone="rose" />
+        <Card icon={TrendingDown} label="Despesas (pagas)" value={brl(totals.saidasPagas)} tone="rose" />
         <Card
           icon={Wallet}
           label="Saldo Atual"
-          value={brl(totals.recebido + totals.receber - totals.saidas)}
+          value={brl(totals.recebido + totals.receber - totals.saidasPagas)}
           tone="primary"
         />
       </div>
+
 
       {/* Barra de Filtros */}
       <div className="flex flex-wrap items-center justify-between gap-3 bg-card p-3 rounded-2xl border border-border shadow-sm">
