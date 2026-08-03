@@ -15,7 +15,7 @@ export const Route = createFileRoute("/_authenticated/financeiro")({
 });
 
 type PeriodFilter = "todos" | "hoje" | "semana" | "mes" | "ano";
-type TypeFilter = "todos" | "recebido" | "receber";
+type TypeFilter = "todos" | "recebido" | "receber" | "saida";
 type SourceFilter = "todos" | "evento" | "transacao";
 
 const RECEIVED_EVENT_STATUSES: string[] = ["pago", "concluido"];
