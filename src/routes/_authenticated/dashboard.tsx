@@ -365,16 +365,18 @@ function Dashboard() {
             Ver extrato <ArrowRight className="size-3" />
           </Link>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
           <FinanceCard label="Receita recebida" value={brl(stats.revenueReceived)} icon={TrendingUp} color="emerald" />
           <FinanceCard label="A receber" value={brl(stats.toReceive)} icon={Clock} color="amber" />
+          <FinanceCard label="Despesas pagas" value={brl(stats.despesasPagas)} icon={TrendingDown} color="rose" />
           <FinanceCard
             label="Saldo atual"
-            value={brl(stats.revenueReceived + stats.toReceive)}
+            value={brl(stats.revenueReceived + stats.toReceive - stats.despesasPagas)}
             icon={Wallet}
             color="sky"
           />
         </div>
+
       </section>
 
       {/* ===== LINHA 3: ORÇAMENTOS E CLIENTES ===== */}
