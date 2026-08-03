@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { fillTemplate } from "@/lib/whatsapp";
 import { useLogoDisplayUrl, getLogoDisplayUrl } from "@/lib/logo";
 import { useSearchFilter } from "@/lib/search-store";
+import { dedupePackages } from "@/lib/quote-calc";
 
 export const Route = createFileRoute("/_authenticated/contratos")({
   head: () => ({ meta: [{ title: "Contratos — Meu Churras" }] }),
@@ -30,6 +31,10 @@ CLÁUSULA 1 — OBJETO
 O CONTRATADO se obriga a prestar serviços de buffet para o evento a ser realizado em {data_evento} às {hora_evento}, no local {local_evento}, para aproximadamente {convidados} convidados.
 Cardápio contratado: {cardapio}.
 Descrição do cardápio: {descricao_cardapio}.
+Pacotes contratados:
+{pacotes}
+Itens com preço unitário:
+{itens_unitarios}
 
 CLÁUSULA 2 — VALOR E PAGAMENTO
 Valor total dos serviços: {valor}.
@@ -387,8 +392,9 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
         const unitSnap: any[] = Array.isArray(qExtras.unit_items) ? qExtras.unit_items : [];
         const pkgNames = pkgSnap.map((p) => p?.name).filter(Boolean);
         const pacoteLabel = pkgNames.length ? pkgNames.join(" + ") : (q.packages?.name ?? "");
-        const pacotesDetalhados = pkgSnap.length
-          ? pkgSnap
+        const pkgSnapClean = dedupePackages(pkgSnap, unitSnap);
+        const pacotesDetalhados = pkgSnapClean.length
+          ? pkgSnapClean
               .map((p) => {
                 const ppp = Number(p?.price_per_person ?? 0) || 0;
                 return `${p?.name ?? "Pacote"} — ${brl(ppp)}/pessoa × ${adults} = ${brl(ppp * adults)}`;
@@ -460,7 +466,11 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
         }
       }
 
-      const content = fillTemplate(tpl, vars);
+      let content = fillTemplate(tpl, vars);
+      // Garante que os itens de preço unitário apareçam mesmo em modelos antigos
+      if (vars.itens_unitarios && !tpl.includes("{itens_unitarios}")) {
+        content += `\n\nITENS COM PREÇO UNITÁRIO\n${vars.itens_unitarios}`;
+      }
       const { error } = await supabase.from("contracts").insert({
         owner_id: u.user.id,
         event_id: ev_id,

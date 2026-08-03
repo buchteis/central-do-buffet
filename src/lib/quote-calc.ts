@@ -67,3 +67,38 @@ export function calcQuote(input: QuoteInputs): QuoteBreakdown {
     balance,
   };
 }
+
+/** Normaliza nome para comparação (sem acentos, minúsculo, sem espaços duplicados). */
+const normName = (s: unknown) =>
+  String(s ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
+
+/**
+ * Remove pacotes sem valor por pessoa que apenas duplicam um item unitário
+ * com o mesmo nome (ex.: "Barril de Chopp" cadastrado como pacote e como item unitário).
+ */
+export function dedupePackages<T extends { name?: string | null; price_per_person?: number | null }>(
+  packages: T[],
+  unitItems: { name?: string | null; qty?: number | null }[] = [],
+): T[] {
+  const unitNames = new Set(
+    (unitItems ?? [])
+      .filter((i) => (Number(i?.qty) || 0) > 0)
+      .map((i) => normName(i?.name))
+      .filter(Boolean),
+  );
+  const seen = new Set<string>();
+  return (packages ?? []).filter((p) => {
+    const key = normName(p?.name);
+    if (!key) return false;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    const ppp = Number(p?.price_per_person ?? 0) || 0;
+    if (ppp <= 0 && unitNames.has(key)) return false;
+    return true;
+  });
+}

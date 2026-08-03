@@ -1,6 +1,6 @@
 import { brl, formatDateFullBR } from "@/lib/format";
 import { getLogoDisplayUrl } from "@/lib/logo";
-import type { QuoteBreakdown, QuoteExtraItem } from "@/lib/quote-calc";
+import { dedupePackages, type QuoteBreakdown, type QuoteExtraItem } from "@/lib/quote-calc";
 
 export type QuotePdfInput = {
   quoteNumber?: string | null;
@@ -103,7 +103,10 @@ export async function openQuotePdf(input: QuotePdfInput) {
   const adults = Number(ev.adults ?? 0) || 0;
 
   const rows: string[] = [];
-  const pkgList = (input.packages ?? []).filter((p) => (p?.name ?? "").toString().trim() !== "");
+  const pkgList = dedupePackages(
+    (input.packages ?? []).filter((p) => (p?.name ?? "").toString().trim() !== ""),
+    input.unitItems ?? [],
+  );
   if (pkgList.length > 0) {
     // Uma linha por pacote escolhido, com o valor por pessoa da faixa aplicada.
     for (const p of pkgList) {
