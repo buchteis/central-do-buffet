@@ -103,7 +103,10 @@ export async function openQuotePdf(input: QuotePdfInput) {
   const adults = Number(ev.adults ?? 0) || 0;
 
   const rows: string[] = [];
-  const pkgList = (input.packages ?? []).filter((p) => (p?.name ?? "").toString().trim() !== "");
+  const pkgList = dedupePackages(
+    (input.packages ?? []).filter((p) => (p?.name ?? "").toString().trim() !== ""),
+    input.unitItems ?? [],
+  );
   if (pkgList.length > 0) {
     // Uma linha por pacote escolhido, com o valor por pessoa da faixa aplicada.
     for (const p of pkgList) {
