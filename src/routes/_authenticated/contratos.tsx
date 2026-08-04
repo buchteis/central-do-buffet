@@ -267,13 +267,14 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
     },
   });
 
+  // QUERY CORRIGIDA PARA OS EVENTOS
   const { data: events } = useQuery({
     queryKey: ["events-for-contract"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("events")
         .select(
-          "id, event_date, event_time, event_address, guest_count, total_value, entry_value, balance_value, client_id, clients(name, address, phone, cpf), packages(name, description)",
+          "id, event_date, event_time, event_address, guest_count, total_value, entry_value, balance_value, client_id, clients(name, address, phone, cpf), package_id",
         )
         .order("event_date", { ascending: false })
         .limit(200);
@@ -282,7 +283,22 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
         console.error("Erro ao buscar eventos:", error);
         return [];
       }
-      return data ?? [];
+
+      const packageIds = (data ?? []).map((e: any) => e.package_id).filter(Boolean);
+      let packagesMap: Record<string, any> = {};
+
+      if (packageIds.length > 0) {
+        const { data: pkgs } = await supabase.from("packages").select("id, name, description").in("id", packageIds);
+
+        (pkgs ?? []).forEach((p: any) => {
+          packagesMap[p.id] = p;
+        });
+      }
+
+      return (data ?? []).map((ev: any) => ({
+        ...ev,
+        packages: ev.package_id ? (packagesMap[ev.package_id] ?? null) : null,
+      }));
     },
   });
 
@@ -467,9 +483,9 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
           valor: brl(totalVal),
           entrada: brl(entryVal),
           saldo: brl(balanceVal),
-          pacote: ev.packages?.name ?? "",
+          pacote: ev.packages?.name ?? "—",
           descricao_pacote: ev.packages?.description ?? "",
-          cardapio: ev.packages?.name ?? "",
+          cardapio: ev.packages?.name ?? "—",
           descricao_cardapio: ev.packages?.description ?? "",
         };
       } else {
