@@ -467,7 +467,15 @@ function NewQuotePage() {
       }
       setUnitQty((old) => ({ ...old, ...map }));
     }
-    if (extras.price_per_person_override != null) setPriceOverride(Number(extras.price_per_person_override));
+    if (extras.price_per_person_override != null) {
+      setPriceOverride(Number(extras.price_per_person_override));
+    } else if (Array.isArray(extras.packages) && extras.packages.length) {
+      // Mantém exatamente o valor por pessoa que o cliente viu no link público,
+      // evitando divergência entre o card do orçamento e a tela de edição.
+      const snapSum = extras.packages.reduce((s: number, p: any) => s + (Number(p?.price_per_person) || 0), 0);
+      if (snapSum > 0) setPriceOverride(snapSum);
+    }
+
     if (extras.entry_override != null) setEntryOverride(Number(extras.entry_override));
     if (extras.balance_override != null) setBalanceOverride(Number(extras.balance_override));
 
