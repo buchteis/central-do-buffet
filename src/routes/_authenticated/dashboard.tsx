@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { brl, brlCompact, formatDateBR, formatDateFullBR } from "@/lib/format";
+import { FINANCE_EVENT_STATUSES, computeFinanceTotals } from "@/lib/finance-logic";
 import { cn } from "@/lib/utils";
 import {
   AlertTriangle,
