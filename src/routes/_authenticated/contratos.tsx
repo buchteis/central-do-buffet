@@ -34,14 +34,12 @@ Descrição do cardápio: {descricao_cardapio}.
 Pacotes contratados:
 {pacotes}
 
-
-
 CLÁUSULA 2 — VALOR E PAGAMENTO
 Valor total dos serviços: {valor}.
 Sinal/Entrada: {entrada}.
 Saldo remanescente: {saldo}, a ser pago até a data do evento.
-Forma de pagamento: {{forma_pagamento}}.
-{{dados_pagamento}}
+Forma de pagamento: {forma_pagamento}.
+{dados_pagamento}
 
 CLÁUSULA 3 — OBRIGAÇÕES DO CONTRATADO
 Fornecer os alimentos, bebidas e serviços conforme o cardápio contratado, com equipe treinada e higiene adequada.
@@ -271,7 +269,7 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
       const { data } = await supabase
         .from("events")
         .select(
-          "id, event_date, event_time, event_address, guest_count, total_value, client_id, clients(name, address, phone, cpf), packages(name, description)",
+          "id, event_date, event_time, event_address, guest_count, total_value, entry_value, balance_value, client_id, clients(name, address, phone, cpf), packages(name, description)",
         )
         .order("event_date", { ascending: false })
         .limit(200);
@@ -295,7 +293,6 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
     },
   });
 
-  // Se a origem for orçamento, herda automaticamente a forma de pagamento salva
   useEffect(() => {
     if (source !== "quote" || !refId) return;
     const q: any = (quotes ?? []).find((x: any) => x.id === refId);
@@ -337,7 +334,6 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
         dados_pagamento: `Dados Bancários — ${dados}.`,
       };
     }
-    // Dinheiro
     return {
       forma_pagamento: "Dinheiro",
       chave_pix: "",
@@ -374,7 +370,6 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
         saldo: brl(0),
         pacote: "",
         pacotes: "",
-
         descricao_pacote: "",
         cardapio: "",
         descricao_cardapio: "",
@@ -404,14 +399,7 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
               })
               .join("\n")
           : pacoteLabel;
-        const itensUnitarios = unitSnap
-          .filter((i) => (Number(i?.qty) || 0) > 0)
-          .map((i) => {
-            const qty = Number(i?.qty) || 0;
-            const price = Number(i?.unit_price) || 0;
-            return `${i?.name ?? "Item"} — ${qty} ${i?.unit ?? "un"} × ${brl(price)} = ${brl(qty * price)}`;
-          })
-          .join("\n");
+
         vars = {
           ...vars,
           cliente: q.clients?.name ?? "",
@@ -427,7 +415,6 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
           saldo: brl(q.balance_value),
           pacote: pacoteLabel,
           pacotes: pacotesDetalhados,
-          itens_unitarios: itensUnitarios,
           descricao_pacote: q.packages?.description ?? "",
           cardapio: pacoteLabel,
           descricao_cardapio: q.packages?.description ?? "",
@@ -448,6 +435,8 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
           local_evento: ev.event_address ?? "",
           convidados: String(ev.guest_count ?? ""),
           valor: brl(ev.total_value),
+          entrada: brl(ev.entry_value ?? 0),
+          saldo: brl(ev.balance_value ?? 0),
           pacote: ev.packages?.name ?? "",
           descricao_pacote: ev.packages?.description ?? "",
           cardapio: ev.packages?.name ?? "",
