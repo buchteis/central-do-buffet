@@ -77,28 +77,56 @@ const normName = (s: unknown) =>
     .replace(/\s+/g, " ")
     .trim();
 
+/** Só letras/números — tolera pontuação e espaçamento diferentes. */
+const compactName = (s: unknown) => normName(s).replace(/[^a-z0-9]/g, "");
+
+/** Distância de Levenshtein simples (para tolerar erros de digitação: "choop" vs "chopp"). */
+function levenshtein(a: string, b: string): number {
+  if (a === b) return 0;
+  if (!a.length) return b.length;
+  if (!b.length) return a.length;
+  let prev = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= a.length; i++) {
+    const cur = [i];
+    for (let j = 1; j <= b.length; j++) {
+      cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    }
+    prev = cur;
+  }
+  return prev[b.length];
+}
+
+/** Nomes "iguais o suficiente" (contém ou até 2 caracteres de diferença). */
+function similarName(a: string, b: string): boolean {
+  if (!a || !b) return false;
+  if (a === b) return true;
+  if (a.includes(b) || b.includes(a)) return true;
+  const tolerance = Math.min(a.length, b.length) >= 6 ? 2 : 1;
+  return levenshtein(a, b) <= tolerance;
+}
+
 /**
  * Remove pacotes sem valor por pessoa que apenas duplicam um item unitário
- * com o mesmo nome (ex.: "Barril de Chopp" cadastrado como pacote e como item unitário).
+ * com o mesmo nome (ex.: "Barril de Choop" pacote x "Barril de Chopp" item unitário).
  */
 export function dedupePackages<T extends { name?: string | null; price_per_person?: number | null }>(
   packages: T[],
   unitItems: { name?: string | null; qty?: number | null }[] = [],
 ): T[] {
-  const unitNames = new Set(
-    (unitItems ?? [])
-      .filter((i) => (Number(i?.qty) || 0) > 0)
-      .map((i) => normName(i?.name))
-      .filter(Boolean),
-  );
+  const unitNames = (unitItems ?? [])
+    .filter((i) => (Number(i?.qty) || 0) > 0)
+    .map((i) => compactName(i?.name))
+    .filter(Boolean);
   const seen = new Set<string>();
   return (packages ?? []).filter((p) => {
-    const key = normName(p?.name);
+    const key = compactName(p?.name);
     if (!key) return false;
     if (seen.has(key)) return false;
     seen.add(key);
     const ppp = Number(p?.price_per_person ?? 0) || 0;
-    if (ppp <= 0 && unitNames.has(key)) return false;
+    // Pacote sem valor que espelha um item unitário → não exibe (evita linha duplicada R$ 0,00).
+    if (ppp <= 0 && unitNames.some((u) => similarName(key, u))) return false;
     return true;
   });
 }
+
