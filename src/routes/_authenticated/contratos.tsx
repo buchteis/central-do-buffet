@@ -24,15 +24,15 @@ Endereço: {endereco_cliente}
 Telefone: {telefone_cliente}
 
 CONTRATADO: {buffet}
-Telefone: {telefone_buffet}
 Endereço: {endereco_buffet}
+Telefone: {telefone_buffet}
 
 CLÁUSULA 1 — OBJETO
 O CONTRATADO se obriga a prestar serviços de buffet para o evento a ser realizado em {data_evento} às {hora_evento}, no local {local_evento}, para aproximadamente {convidados} convidados.
+Pacote contratado: {pacote}.
+Descrição do pacote: {descricao_pacote}.
 Cardápio contratado: {cardapio}.
 Descrição do cardápio: {descricao_cardapio}.
-Pacotes contratados:
-{pacotes}
 
 CLÁUSULA 2 — VALOR E PAGAMENTO
 Valor total dos serviços: {valor}.
@@ -40,18 +40,19 @@ Sinal/Entrada: {entrada}.
 Saldo remanescente: {saldo}, a ser pago até a data do evento.
 Forma de pagamento: {forma_pagamento}.
 {dados_pagamento}
+Chave PIX: {pix} (Titular: {pix_titular}).
 
 CLÁUSULA 3 — OBRIGAÇÕES DO CONTRATADO
-Fornecer os alimentos, bebidas e serviços conforme o cardápio contratado, com equipe treinada e higiene adequada.
+Fornecer os alimentos, bebidas e serviços conforme o cardápio e pacote contratados, com equipe treinada e observando os padrões adequados de higiene e segurança.
 
 CLÁUSULA 4 — OBRIGAÇÕES DO CONTRATANTE
-Fornecer local adequado, ponto de energia e água, além de efetuar os pagamentos nas datas acordadas.
+Fornecer local adequado, ponto de energia elétrica e água corrente, além de efetuar os pagamentos nas datas e condições acordadas.
 
 CLÁUSULA 5 — CANCELAMENTO
-Em caso de cancelamento pelo CONTRATANTE com menos de 15 dias de antecedência, o sinal não será devolvido.
+Em caso de cancelamento por parte do CONTRATANTE com menos de 15 dias de antecedência da data do evento, o valor pago a título de sinal/entrada não será devolvido.
 
 CLÁUSULA 6 — DISPOSIÇÕES GERAIS
-As partes elegem o foro da comarca do CONTRATADO para dirimir quaisquer dúvidas oriundas deste contrato.
+As partes elegem o foro da comarca do CONTRATADO para dirimir quaisquer dúvidas ou litígios oriundos deste contrato.
 
 Local e data: ______________________, {data_hoje}
 
@@ -266,13 +267,18 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
   const { data: events } = useQuery({
     queryKey: ["events-for-contract"],
     queryFn: async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("events")
         .select(
-          "id, event_date, event_time, event_address, guest_count, total_value, entry_value, balance_value, client_id, clients(name, address, phone, cpf), packages(name, description)",
+          "id, event_date, event_time, event_address, guest_count, total_value, client_id, clients(name, address, phone, cpf), packages(name, description)",
         )
         .order("event_date", { ascending: false })
         .limit(200);
+
+      if (error) {
+        console.error("Erro ao buscar eventos:", error);
+        return [];
+      }
       return data ?? [];
     },
   });
@@ -400,6 +406,10 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
               .join("\n")
           : pacoteLabel;
 
+        const totalVal = Number(q.total_value ?? 0);
+        const entryVal = q.entry_value != null ? Number(q.entry_value) : totalVal * 0.3;
+        const balanceVal = q.balance_value != null ? Number(q.balance_value) : totalVal - entryVal;
+
         vars = {
           ...vars,
           cliente: q.clients?.name ?? "",
@@ -410,9 +420,9 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
           hora_evento: q.event_time ?? "",
           local_evento: q.event_address ?? "",
           convidados: String(guests),
-          valor: brl(q.total_value),
-          entrada: brl(q.entry_value),
-          saldo: brl(q.balance_value),
+          valor: brl(totalVal),
+          entrada: brl(entryVal),
+          saldo: brl(balanceVal),
           pacote: pacoteLabel,
           pacotes: pacotesDetalhados,
           descricao_pacote: q.packages?.description ?? "",
@@ -420,10 +430,15 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
           descricao_cardapio: q.packages?.description ?? "",
         };
       } else if (source === "event") {
-        const ev = (events ?? []).find((x: any) => x.id === refId);
+        const ev: any = (events ?? []).find((x: any) => x.id === refId);
         if (!ev) throw new Error("Selecione um evento");
         ev_id = ev.id;
         cli_id = ev.client_id;
+
+        const totalVal = Number(ev.total_value ?? 0);
+        const entryVal = ev.entry_value != null ? Number(ev.entry_value) : totalVal * 0.3;
+        const balanceVal = ev.balance_value != null ? Number(ev.balance_value) : totalVal - entryVal;
+
         vars = {
           ...vars,
           cliente: ev.clients?.name ?? "",
@@ -434,9 +449,9 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
           hora_evento: ev.event_time ?? "",
           local_evento: ev.event_address ?? "",
           convidados: String(ev.guest_count ?? ""),
-          valor: brl(ev.total_value),
-          entrada: brl(ev.entry_value ?? 0),
-          saldo: brl(ev.balance_value ?? 0),
+          valor: brl(totalVal),
+          entrada: brl(entryVal),
+          saldo: brl(balanceVal),
           pacote: ev.packages?.name ?? "",
           descricao_pacote: ev.packages?.description ?? "",
           cardapio: ev.packages?.name ?? "",
@@ -529,7 +544,7 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
             <option value="">Selecione um orçamento fechado</option>
             {(quotes ?? []).map((q: any) => (
               <option key={q.id} value={q.id}>
-                {formatDateFullBR(q.event_date)} — {q.clients?.name} — {brl(q.total_value)}
+                {formatDateFullBR(q.event_date)} — {q.clients?.name ?? "Cliente sem nome"} — {brl(q.total_value ?? 0)}
               </option>
             ))}
           </select>
@@ -544,7 +559,7 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
             <option value="">Selecione um evento</option>
             {(events ?? []).map((e: any) => (
               <option key={e.id} value={e.id}>
-                {formatDateFullBR(e.event_date)} — {e.clients?.name}
+                {formatDateFullBR(e.event_date)} — {e.clients?.name ?? "Cliente sem nome"} — {brl(e.total_value ?? 0)}
               </option>
             ))}
           </select>
