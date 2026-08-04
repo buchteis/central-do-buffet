@@ -209,7 +209,7 @@ function TopBar({ menu }: { menu?: ReactNode }) {
 
       <div className="flex items-center gap-2 md:gap-3 shrink-0">
         <Button
-          onClick={() => router.navigate({ to: "/orcamentos/novo" })}
+          onClick={() => router.navigate({ to: "/orcamentos/novo", search: {} })}
           className="rounded-full shadow-lg shadow-primary/20 font-bold text-xs"
           size="sm"
           aria-label="Novo orçamento"
