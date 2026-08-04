@@ -34,6 +34,9 @@ Descrição do pacote: {descricao_pacote}.
 Cardápio contratado: {cardapio}.
 Descrição do cardápio: {descricao_cardapio}.
 
+ITENS ADICIONAIS CONTRATADOS:
+{itens_unitarios}
+
 CLÁUSULA 2 — VALOR E PAGAMENTO
 Valor total dos serviços: {valor}.
 Sinal/Entrada: {entrada}.
@@ -270,7 +273,7 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
       const { data, error } = await supabase
         .from("events")
         .select(
-          "id, event_date, event_time, event_address, guest_count, total_value, client_id, clients(name, address, phone, cpf), packages(name, description)",
+          "id, event_date, event_time, event_address, guest_count, total_value, entry_value, balance_value, client_id, clients(name, address, phone, cpf), packages(name, description)",
         )
         .order("event_date", { ascending: false })
         .limit(200);
@@ -376,6 +379,7 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
         saldo: brl(0),
         pacote: "",
         pacotes: "",
+        itens_unitarios: "",
         descricao_pacote: "",
         cardapio: "",
         descricao_cardapio: "",
@@ -406,6 +410,16 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
               .join("\n")
           : pacoteLabel;
 
+        const itensUnitariosDetalhados = unitSnap.length
+          ? unitSnap
+              .map((item) => {
+                const qtd = Number(item?.quantity ?? 1);
+                const preco = Number(item?.price ?? 0);
+                return `${item?.name ?? "Item"} (${qtd}x) — ${brl(preco * qtd)}`;
+              })
+              .join("\n")
+          : "Nenhum item unitário contratado";
+
         const totalVal = Number(q.total_value ?? 0);
         const entryVal = q.entry_value != null ? Number(q.entry_value) : totalVal * 0.3;
         const balanceVal = q.balance_value != null ? Number(q.balance_value) : totalVal - entryVal;
@@ -425,6 +439,7 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
           saldo: brl(balanceVal),
           pacote: pacoteLabel,
           pacotes: pacotesDetalhados,
+          itens_unitarios: itensUnitariosDetalhados,
           descricao_pacote: q.packages?.description ?? "",
           cardapio: pacoteLabel,
           descricao_cardapio: q.packages?.description ?? "",
