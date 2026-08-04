@@ -33,8 +33,8 @@ Cardápio contratado: {cardapio}.
 Descrição do cardápio: {descricao_cardapio}.
 Pacotes contratados:
 {pacotes}
-Itens com preço unitário:
-{itens_unitarios}
+
+
 
 CLÁUSULA 2 — VALOR E PAGAMENTO
 Valor total dos serviços: {valor}.
