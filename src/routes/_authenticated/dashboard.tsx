@@ -137,42 +137,33 @@ function Dashboard() {
     return { pendentes, aprovados, concluidos, previsiveis };
   });
 
-  // Financeiro baseado nos EVENTOS (fonte da verdade):
-  // - A Receber: eventos agendado + em_andamento
-  // - Receita Recebida: eventos pago + concluido
-  // - Cancelado: ignorado
+  // Financeiro — usa exatamente a mesma regra do Financeiro (src/lib/finance-logic.ts)
   const transactionsData = useDashboardQuery("transactions-data", async () => {
     const { data: evts } = await supabase
       .from("events")
       .select("total_value, status")
-      .not("status", "in", '("cancelado")');
-
-    const recebido =
-      evts
-        ?.filter((e) => ["pago", "concluido"].includes(e.status as string))
-        .reduce((sum, e) => sum + Number(e.total_value || 0), 0) || 0;
-
-    const aReceber =
-      evts
-        ?.filter((e) => ["agendado", "em_andamento"].includes(e.status as string))
-        .reduce((sum, e) => sum + Number(e.total_value || 0), 0) || 0;
+      .in("status", FINANCE_EVENT_STATUSES as any);
 
     const { data: txs } = await supabase
       .from("transactions")
       .select("amount, type, status, due_date");
 
-    const despesasPagas =
-      txs
-        ?.filter((t) => t.type === "saida" && t.status === "pago")
-        .reduce((sum, t) => sum + Number(t.amount || 0), 0) || 0;
+    const totals = computeFinanceTotals(evts ?? [], txs ?? []);
 
     const vencidos =
       txs?.filter(
         (t) => t.type === "entrada" && t.status === "pendente" && t.due_date && t.due_date < today,
       ).length || 0;
 
-    return { recebido, despesasPagas, aReceber, vencidos };
+    return {
+      recebido: totals.recebido,
+      despesasPagas: totals.saidasPagas,
+      aReceber: totals.receber,
+      saldo: totals.saldo,
+      vencidos,
+    };
   });
+
 
   const clientsCount = useDashboardQuery("clients-count", async () => {
     const { count } = await supabase.from("clients").select("id", { count: "exact", head: true });
