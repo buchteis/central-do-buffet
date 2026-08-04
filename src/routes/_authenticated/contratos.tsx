@@ -175,45 +175,48 @@ function ContractsPage() {
                   ),
                 )
                 .map((c: any) => {
-                const clientName = c.events?.clients?.name ?? c.clients?.name ?? "—";
-                const eventDate = c.events?.event_date ? formatDateFullBR(c.events.event_date) : "—";
-                return (
-                  <tr key={c.id} className="hover:bg-muted/30">
-                    <td className="px-5 py-4 text-sm font-semibold">{c.title}</td>
-                    <td className="px-4 py-4 text-sm">{clientName}</td>
-                    <td className="px-4 py-4 text-xs font-mono">{eventDate}</td>
-                    <td className="px-4 py-4">
-                      <span
-                        className={cn("px-2 py-1 text-[10px] rounded-full font-bold uppercase", statusStyles[c.status])}
-                      >
-                        {c.status}
-                      </span>
-                    </td>
-                    <td className="px-4 py-4 text-right whitespace-nowrap">
-                      <button
-                        onClick={() => setPreviewing(c)}
-                        className="inline-flex items-center gap-1 text-xs font-bold text-muted-foreground hover:text-foreground mr-3"
-                      >
-                        <Eye className="size-3.5" /> Visualizar
-                      </button>
-                      <button
-                        onClick={() => setEditing(c)}
-                        className="inline-flex items-center gap-1 text-xs font-bold text-primary hover:underline mr-3"
-                      >
-                        <Pencil className="size-3.5" /> Editar
-                      </button>
-                      <button
-                        onClick={() => {
-                          if (confirm("Excluir contrato?")) del.mutate(c.id);
-                        }}
-                        className="text-xs font-bold text-destructive hover:underline"
-                      >
-                        Excluir
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
+                  const clientName = c.events?.clients?.name ?? c.clients?.name ?? "—";
+                  const eventDate = c.events?.event_date ? formatDateFullBR(c.events.event_date) : "—";
+                  return (
+                    <tr key={c.id} className="hover:bg-muted/30">
+                      <td className="px-5 py-4 text-sm font-semibold">{c.title}</td>
+                      <td className="px-4 py-4 text-sm">{clientName}</td>
+                      <td className="px-4 py-4 text-xs font-mono">{eventDate}</td>
+                      <td className="px-4 py-4">
+                        <span
+                          className={cn(
+                            "px-2 py-1 text-[10px] rounded-full font-bold uppercase",
+                            statusStyles[c.status],
+                          )}
+                        >
+                          {c.status}
+                        </span>
+                      </td>
+                      <td className="px-4 py-4 text-right whitespace-nowrap">
+                        <button
+                          onClick={() => setPreviewing(c)}
+                          className="inline-flex items-center gap-1 text-xs font-bold text-muted-foreground hover:text-foreground mr-3"
+                        >
+                          <Eye className="size-3.5" /> Visualizar
+                        </button>
+                        <button
+                          onClick={() => setEditing(c)}
+                          className="inline-flex items-center gap-1 text-xs font-bold text-primary hover:underline mr-3"
+                        >
+                          <Pencil className="size-3.5" /> Editar
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (confirm("Excluir contrato?")) del.mutate(c.id);
+                          }}
+                          className="text-xs font-bold text-destructive hover:underline"
+                        >
+                          Excluir
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
             </tbody>
           </table>
         )}
@@ -467,10 +470,7 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
       }
 
       let content = fillTemplate(tpl, vars);
-      // Garante que os itens de preço unitário apareçam mesmo em modelos antigos
-      if (vars.itens_unitarios && !tpl.includes("{itens_unitarios}")) {
-        content += `\n\nITENS COM PREÇO UNITÁRIO\n${vars.itens_unitarios}`;
-      }
+
       const { error } = await supabase.from("contracts").insert({
         owner_id: u.user.id,
         event_id: ev_id,
