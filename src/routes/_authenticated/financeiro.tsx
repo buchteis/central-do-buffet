@@ -18,8 +18,12 @@ type PeriodFilter = "todos" | "hoje" | "semana" | "mes" | "ano";
 type TypeFilter = "todos" | "recebido" | "receber" | "saida";
 type SourceFilter = "todos" | "evento" | "transacao";
 
-const RECEIVED_EVENT_STATUSES: string[] = ["pago", "concluido"];
-const ACTIVE_EVENT_STATUSES = [...RECEIVED_EVENT_STATUSES] as any;
+import {
+  RECEIVED_EVENT_STATUSES,
+  FINANCE_EVENT_STATUSES,
+  computeFinanceTotals,
+} from "@/lib/finance-logic";
+
 
 const statusLabels: Record<string, string> = {
   agendado: "Agendado",
