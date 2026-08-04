@@ -374,7 +374,7 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
         saldo: brl(0),
         pacote: "",
         pacotes: "",
-        itens_unitarios: "",
+
         descricao_pacote: "",
         cardapio: "",
         descricao_cardapio: "",
