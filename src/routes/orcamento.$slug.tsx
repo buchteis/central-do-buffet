@@ -101,14 +101,17 @@ function PublicQuoteForm() {
     },
   });
 
-  // Tiers de preço por faixa de convidados
+  const packageIds = useMemo(() => (packages ?? []).map((p) => p.id), [packages]);
+
+  // Tiers de preço por faixa de convidados (apenas dos pacotes deste buffet)
   const { data: tiers } = useQuery({
-    queryKey: ["public-packages-tiers", tenant?.id],
-    enabled: !!tenant?.id,
+    queryKey: ["public-packages-tiers", tenant?.id, packageIds],
+    enabled: packageIds.length > 0,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("package_price_tiers")
         .select("package_id, min_guests, max_guests, price_per_person, position")
+        .in("package_id", packageIds)
         .order("position", { ascending: true });
       if (error) return [];
       return (data ?? []) as {
@@ -121,14 +124,15 @@ function PublicQuoteForm() {
     },
   });
 
-  // Itens de preço unitário dos pacotes ativos
+  // Itens de preço unitário dos pacotes ativos deste buffet
   const { data: unitItemsCatalog } = useQuery({
-    queryKey: ["public-unit-items", tenant?.id],
-    enabled: !!tenant?.id,
+    queryKey: ["public-unit-items", tenant?.id, packageIds],
+    enabled: packageIds.length > 0,
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from("package_unit_items")
         .select("id, package_id, name, unit, unit_price, default_qty, position")
+        .in("package_id", packageIds)
         .order("position", { ascending: true });
       if (error) return [];
       return (data ?? []) as {
@@ -142,6 +146,7 @@ function PublicQuoteForm() {
       }[];
     },
   });
+
 
   const [unitQty, setUnitQty] = useState<Record<string, number>>({});
 
