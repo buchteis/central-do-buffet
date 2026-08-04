@@ -34,6 +34,7 @@ import { Route as AuthenticatedFeedbacksIndexRouteImport } from './routes/_authe
 import { Route as AuthenticatedEventosIndexRouteImport } from './routes/_authenticated/eventos/index'
 import { Route as AuthenticatedClientesIndexRouteImport } from './routes/_authenticated/clientes/index'
 import { Route as AuthenticatedOrcamentosNovoRouteImport } from './routes/_authenticated/orcamentos/novo'
+import { Route as AuthenticatedOrcamentosIdRouteImport } from './routes/_authenticated/orcamentos/$id'
 import { Route as AuthenticatedEventosCreateRouteImport } from './routes/_authenticated/eventos/create'
 import { Route as AuthenticatedClientesNovoRouteImport } from './routes/_authenticated/clientes/novo'
 import { Route as AuthenticatedClientesImportarRouteImport } from './routes/_authenticated/clientes/importar'
@@ -173,6 +174,12 @@ const AuthenticatedOrcamentosNovoRoute =
     path: '/orcamentos/novo',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedOrcamentosIdRoute =
+  AuthenticatedOrcamentosIdRouteImport.update({
+    id: '/orcamentos/$id',
+    path: '/orcamentos/$id',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedEventosCreateRoute =
   AuthenticatedEventosCreateRouteImport.update({
     id: '/eventos/create',
@@ -221,6 +228,7 @@ export interface FileRoutesByFullPath {
   '/clientes/importar': typeof AuthenticatedClientesImportarRoute
   '/clientes/novo': typeof AuthenticatedClientesNovoRoute
   '/eventos/create': typeof AuthenticatedEventosCreateRoute
+  '/orcamentos/$id': typeof AuthenticatedOrcamentosIdRoute
   '/orcamentos/novo': typeof AuthenticatedOrcamentosNovoRoute
   '/clientes/': typeof AuthenticatedClientesIndexRoute
   '/eventos/': typeof AuthenticatedEventosIndexRoute
@@ -251,6 +259,7 @@ export interface FileRoutesByTo {
   '/clientes/importar': typeof AuthenticatedClientesImportarRoute
   '/clientes/novo': typeof AuthenticatedClientesNovoRoute
   '/eventos/create': typeof AuthenticatedEventosCreateRoute
+  '/orcamentos/$id': typeof AuthenticatedOrcamentosIdRoute
   '/orcamentos/novo': typeof AuthenticatedOrcamentosNovoRoute
   '/clientes': typeof AuthenticatedClientesIndexRoute
   '/eventos': typeof AuthenticatedEventosIndexRoute
@@ -283,6 +292,7 @@ export interface FileRoutesById {
   '/_authenticated/clientes/importar': typeof AuthenticatedClientesImportarRoute
   '/_authenticated/clientes/novo': typeof AuthenticatedClientesNovoRoute
   '/_authenticated/eventos/create': typeof AuthenticatedEventosCreateRoute
+  '/_authenticated/orcamentos/$id': typeof AuthenticatedOrcamentosIdRoute
   '/_authenticated/orcamentos/novo': typeof AuthenticatedOrcamentosNovoRoute
   '/_authenticated/clientes/': typeof AuthenticatedClientesIndexRoute
   '/_authenticated/eventos/': typeof AuthenticatedEventosIndexRoute
@@ -315,6 +325,7 @@ export interface FileRouteTypes {
     | '/clientes/importar'
     | '/clientes/novo'
     | '/eventos/create'
+    | '/orcamentos/$id'
     | '/orcamentos/novo'
     | '/clientes/'
     | '/eventos/'
@@ -345,6 +356,7 @@ export interface FileRouteTypes {
     | '/clientes/importar'
     | '/clientes/novo'
     | '/eventos/create'
+    | '/orcamentos/$id'
     | '/orcamentos/novo'
     | '/clientes'
     | '/eventos'
@@ -376,6 +388,7 @@ export interface FileRouteTypes {
     | '/_authenticated/clientes/importar'
     | '/_authenticated/clientes/novo'
     | '/_authenticated/eventos/create'
+    | '/_authenticated/orcamentos/$id'
     | '/_authenticated/orcamentos/novo'
     | '/_authenticated/clientes/'
     | '/_authenticated/eventos/'
@@ -569,6 +582,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedOrcamentosNovoRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/orcamentos/$id': {
+      id: '/_authenticated/orcamentos/$id'
+      path: '/orcamentos/$id'
+      fullPath: '/orcamentos/$id'
+      preLoaderRoute: typeof AuthenticatedOrcamentosIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/eventos/create': {
       id: '/_authenticated/eventos/create'
       path: '/eventos/create'
@@ -619,6 +639,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedClientesImportarRoute: typeof AuthenticatedClientesImportarRoute
   AuthenticatedClientesNovoRoute: typeof AuthenticatedClientesNovoRoute
   AuthenticatedEventosCreateRoute: typeof AuthenticatedEventosCreateRoute
+  AuthenticatedOrcamentosIdRoute: typeof AuthenticatedOrcamentosIdRoute
   AuthenticatedOrcamentosNovoRoute: typeof AuthenticatedOrcamentosNovoRoute
   AuthenticatedClientesIndexRoute: typeof AuthenticatedClientesIndexRoute
   AuthenticatedEventosIndexRoute: typeof AuthenticatedEventosIndexRoute
@@ -646,6 +667,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedClientesImportarRoute: AuthenticatedClientesImportarRoute,
   AuthenticatedClientesNovoRoute: AuthenticatedClientesNovoRoute,
   AuthenticatedEventosCreateRoute: AuthenticatedEventosCreateRoute,
+  AuthenticatedOrcamentosIdRoute: AuthenticatedOrcamentosIdRoute,
   AuthenticatedOrcamentosNovoRoute: AuthenticatedOrcamentosNovoRoute,
   AuthenticatedClientesIndexRoute: AuthenticatedClientesIndexRoute,
   AuthenticatedEventosIndexRoute: AuthenticatedEventosIndexRoute,

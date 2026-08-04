@@ -409,6 +409,7 @@ function QuotesPage() {
           )}
           <Link
             to="/orcamentos/novo"
+            search={{}}
             className="inline-flex items-center gap-1 h-9 px-4 rounded-full bg-primary text-primary-foreground text-xs font-bold shadow-lg shadow-primary/20"
           >
             <Plus className="size-4" /> Novo
