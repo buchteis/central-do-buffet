@@ -101,14 +101,17 @@ function PublicQuoteForm() {
     },
   });
 
-  // Tiers de preço por faixa de convidados
+  const packageIds = useMemo(() => (packages ?? []).map((p) => p.id), [packages]);
+
+  // Tiers de preço por faixa de convidados (apenas dos pacotes deste buffet)
   const { data: tiers } = useQuery({
-    queryKey: ["public-packages-tiers", tenant?.id],
-    enabled: !!tenant?.id,
+    queryKey: ["public-packages-tiers", tenant?.id, packageIds],
+    enabled: packageIds.length > 0,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("package_price_tiers")
         .select("package_id, min_guests, max_guests, price_per_person, position")
+        .in("package_id", packageIds)
         .order("position", { ascending: true });
       if (error) return [];
       return (data ?? []) as {
@@ -121,14 +124,15 @@ function PublicQuoteForm() {
     },
   });
 
-  // Itens de preço unitário dos pacotes ativos
+  // Itens de preço unitário dos pacotes ativos deste buffet
   const { data: unitItemsCatalog } = useQuery({
-    queryKey: ["public-unit-items", tenant?.id],
-    enabled: !!tenant?.id,
+    queryKey: ["public-unit-items", tenant?.id, packageIds],
+    enabled: packageIds.length > 0,
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from("package_unit_items")
         .select("id, package_id, name, unit, unit_price, default_qty, position")
+        .in("package_id", packageIds)
         .order("position", { ascending: true });
       if (error) return [];
       return (data ?? []) as {
@@ -142,6 +146,7 @@ function PublicQuoteForm() {
       }[];
     },
   });
+
 
   const [unitQty, setUnitQty] = useState<Record<string, number>>({});
 
@@ -411,57 +416,72 @@ function PublicQuoteForm() {
                 </p>
               )}
 
-              {selectedPackages.map((item, index) => (
-                <div key={item.id} className="flex items-center gap-2">
-                  <Select value={item.package_id} onValueChange={(val) => updatePackage(item.id, val)}>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder={`Opção de Pacote ${index + 1}`} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {(packages ?? []).map((pkg) => (
-                        <SelectItem key={pkg.id} value={pkg.id}>
-                          {pkg.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => removePackage(item.id)}
-                    className="text-destructive hover:text-destructive"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              ))}
+              <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+                {selectedPackages.map((item, index) => {
+                  const price = item.package_id ? priceForPackage(item.package_id, guestCount) : 0;
+                  return (
+                    <div key={item.id} className="flex items-center gap-2 rounded-xl border p-2">
+                      <div className="min-w-0 flex-1">
+                        <Select value={item.package_id} onValueChange={(val) => updatePackage(item.id, val)}>
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder={`Opção de Pacote ${index + 1}`} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {(packages ?? []).map((pkg) => (
+                              <SelectItem key={pkg.id} value={pkg.id}>
+                                {pkg.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        {price > 0 && (
+                          <p className="mt-1 text-xs text-muted-foreground">{brl(price)} / pessoa</p>
+                        )}
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => removePackage(item.id)}
+                        className="text-destructive hover:text-destructive"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  );
+                })}
+              </div>
 
               {availableUnitItems.length > 0 && (
-                <div className="space-y-2 rounded-xl border p-3">
+                <div className="space-y-3 rounded-xl border p-3">
                   <Label className="text-xs uppercase tracking-wider text-muted-foreground">
                     Itens com preço unitário (opcional)
                   </Label>
-                  {availableUnitItems.map((it) => (
-                    <div key={it.id} className="flex items-center justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-medium">{it.name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {brl(Number(it.unit_price) || 0)} / {it.unit || "un"}
-                        </p>
+                  <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+                    {availableUnitItems.map((it) => (
+                      <div
+                        key={it.id}
+                        className="flex items-center justify-between gap-3 rounded-lg border bg-muted/30 p-2"
+                      >
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium">{it.name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {brl(Number(it.unit_price) || 0)} / {it.unit || "un"}
+                          </p>
+                        </div>
+                        <Input
+                          type="number"
+                          min="0"
+                          className="w-20"
+                          value={unitQty[it.id] ?? ""}
+                          onChange={(e) =>
+                            setUnitQty((old) => ({ ...old, [it.id]: Math.max(0, Number(e.target.value) || 0) }))
+                          }
+                          placeholder="Qtd"
+                        />
                       </div>
-                      <Input
-                        type="number"
-                        min="0"
-                        className="w-24"
-                        value={unitQty[it.id] ?? ""}
-                        onChange={(e) =>
-                          setUnitQty((old) => ({ ...old, [it.id]: Math.max(0, Number(e.target.value) || 0) }))
-                        }
-                        placeholder="Qtd"
-                      />
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                   {unitItemsSubtotal > 0 && (
                     <p className="text-right text-xs text-muted-foreground">
                       Subtotal itens unitários: <strong>{brl(unitItemsSubtotal)}</strong>
@@ -469,6 +489,7 @@ function PublicQuoteForm() {
                   )}
                 </div>
               )}
+
 
               {previewTotal > 0 && (
                 <div className="mt-2 rounded-lg bg-slate-100 p-3 text-right">
