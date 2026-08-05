@@ -476,6 +476,31 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
         const entryVal = ev.entry_value != null ? Number(ev.entry_value) : totalVal * 0.3;
         const balanceVal = ev.balance_value != null ? Number(ev.balance_value) : totalVal - entryVal;
 
+        // Snapshot do orçamento vinculado (pacotes + itens unitários)
+        let evPacotes = ev.packages?.name ?? "—";
+        let evItens = "Nenhum item unitário contratado";
+        if (ev.quote_id) {
+          const { data: qLink } = await supabase
+            .from("quotes")
+            .select("extras, adults, packages(name)")
+            .eq("id", ev.quote_id)
+            .maybeSingle();
+          const ext: any = (qLink as any)?.extras ?? {};
+          const pkgSnap: any[] = Array.isArray(ext.packages) ? ext.packages : [];
+          const unitSnap: any[] = Array.isArray(ext.unit_items) ? ext.unit_items : [];
+          const adults = Number((qLink as any)?.adults ?? ev.guest_count ?? 0) || 0;
+          const pkgClean = dedupePackages(pkgSnap, unitSnap);
+          if (pkgClean.length) {
+            evPacotes = pkgClean
+              .map((p: any) => {
+                const ppp = Number(p?.price_per_person ?? 0) || 0;
+                return `${p?.name ?? "Pacote"} — ${brl(ppp)}/pessoa × ${adults} = ${brl(ppp * adults)}`;
+              })
+              .join("\n");
+          }
+          evItens = formatUnitItems(unitSnap);
+        }
+
         vars = {
           ...vars,
           cliente: ev.clients?.name ?? "",
@@ -490,6 +515,8 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
           entrada: brl(entryVal),
           saldo: brl(balanceVal),
           pacote: ev.packages?.name ?? "—",
+          pacotes: evPacotes,
+          itens_unitarios: evItens,
           descricao_pacote: ev.packages?.description ?? "",
           cardapio: ev.packages?.name ?? "—",
           descricao_cardapio: ev.packages?.description ?? "",
