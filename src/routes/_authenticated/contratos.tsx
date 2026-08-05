@@ -274,8 +274,9 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
       const { data, error } = await supabase
         .from("events")
         .select(
-          "id, event_date, event_time, event_address, guest_count, total_value, entry_value, balance_value, client_id, clients(name, address, phone, cpf), package_id",
+          "id, event_date, event_time, event_address, guest_count, total_value, client_id, clients(name, address, phone, cpf), package_id",
         )
+        .neq("status", "cancelado")
         .order("event_date", { ascending: false })
         .limit(200);
 
