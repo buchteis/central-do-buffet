@@ -141,6 +141,28 @@ export const Chatbot = () => {
         }}
       >
         <Flame className="size-7 text-white" />
+        {pending.length > 0 && (
+          <span
+            style={{
+              position: "absolute",
+              top: -6,
+              right: -6,
+              minWidth: 22,
+              height: 22,
+              padding: "0 6px",
+              borderRadius: 11,
+              background: "#dc2626",
+              color: "white",
+              fontSize: 12,
+              fontWeight: 700,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            {pending.length}
+          </span>
+        )}
       </button>
 
       {isOpen && (
