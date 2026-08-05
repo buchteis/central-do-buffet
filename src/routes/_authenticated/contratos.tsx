@@ -244,6 +244,19 @@ function ContractsPage() {
   );
 }
 
+function formatUnitItems(items: any[]): string {
+  const list = (items ?? []).filter((i) => Number(i?.qty ?? i?.quantity ?? 0) > 0 || Number(i?.unit_price ?? i?.price ?? 0) > 0);
+  if (!list.length) return "Nenhum item unitário contratado";
+  return list
+    .map((item) => {
+      const qtd = Number(item?.qty ?? item?.quantity ?? 1) || 1;
+      const preco = Number(item?.unit_price ?? item?.price ?? 0) || 0;
+      const un = item?.unit ? ` ${item.unit}` : "";
+      return `${item?.name ?? "Item"} — ${qtd}${un} × ${brl(preco)} = ${brl(preco * qtd)}`;
+    })
+    .join("\n");
+}
+
 function NewContractDialog({ onClose }: { onClose: () => void }) {
   const qc = useQueryClient();
   const [source, setSource] = useState<Source>("quote");
