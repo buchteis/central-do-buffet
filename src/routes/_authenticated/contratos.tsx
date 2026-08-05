@@ -244,6 +244,19 @@ function ContractsPage() {
   );
 }
 
+function formatUnitItems(items: any[]): string {
+  const list = (items ?? []).filter((i) => Number(i?.qty ?? i?.quantity ?? 0) > 0 || Number(i?.unit_price ?? i?.price ?? 0) > 0);
+  if (!list.length) return "Nenhum item unitário contratado";
+  return list
+    .map((item) => {
+      const qtd = Number(item?.qty ?? item?.quantity ?? 1) || 1;
+      const preco = Number(item?.unit_price ?? item?.price ?? 0) || 0;
+      const un = item?.unit ? ` ${item.unit}` : "";
+      return `${item?.name ?? "Item"} — ${qtd}${un} × ${brl(preco)} = ${brl(preco * qtd)}`;
+    })
+    .join("\n");
+}
+
 function NewContractDialog({ onClose }: { onClose: () => void }) {
   const qc = useQueryClient();
   const [source, setSource] = useState<Source>("quote");
@@ -274,7 +287,7 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
       const { data, error } = await supabase
         .from("events")
         .select(
-          "id, event_date, event_time, event_address, guest_count, total_value, client_id, clients(name, address, phone, cpf), package_id",
+          "id, event_date, event_time, event_address, guest_count, total_value, client_id, quote_id, clients(name, address, phone, cpf), package_id",
         )
         .neq("status", "cancelado")
         .order("event_date", { ascending: false })
@@ -427,15 +440,7 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
               .join("\n")
           : pacoteLabel;
 
-        const itensUnitariosDetalhados = unitSnap.length
-          ? unitSnap
-              .map((item) => {
-                const qtd = Number(item?.quantity ?? 1);
-                const preco = Number(item?.price ?? 0);
-                return `${item?.name ?? "Item"} (${qtd}x) — ${brl(preco * qtd)}`;
-              })
-              .join("\n")
-          : "Nenhum item unitário contratado";
+        const itensUnitariosDetalhados = formatUnitItems(unitSnap);
 
         const totalVal = Number(q.total_value ?? 0);
         const entryVal = q.entry_value != null ? Number(q.entry_value) : totalVal * 0.3;
@@ -471,6 +476,31 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
         const entryVal = ev.entry_value != null ? Number(ev.entry_value) : totalVal * 0.3;
         const balanceVal = ev.balance_value != null ? Number(ev.balance_value) : totalVal - entryVal;
 
+        // Snapshot do orçamento vinculado (pacotes + itens unitários)
+        let evPacotes = ev.packages?.name ?? "—";
+        let evItens = "Nenhum item unitário contratado";
+        if (ev.quote_id) {
+          const { data: qLink } = await supabase
+            .from("quotes")
+            .select("extras, adults, packages(name)")
+            .eq("id", ev.quote_id)
+            .maybeSingle();
+          const ext: any = (qLink as any)?.extras ?? {};
+          const pkgSnap: any[] = Array.isArray(ext.packages) ? ext.packages : [];
+          const unitSnap: any[] = Array.isArray(ext.unit_items) ? ext.unit_items : [];
+          const adults = Number((qLink as any)?.adults ?? ev.guest_count ?? 0) || 0;
+          const pkgClean = dedupePackages(pkgSnap, unitSnap);
+          if (pkgClean.length) {
+            evPacotes = pkgClean
+              .map((p: any) => {
+                const ppp = Number(p?.price_per_person ?? 0) || 0;
+                return `${p?.name ?? "Pacote"} — ${brl(ppp)}/pessoa × ${adults} = ${brl(ppp * adults)}`;
+              })
+              .join("\n");
+          }
+          evItens = formatUnitItems(unitSnap);
+        }
+
         vars = {
           ...vars,
           cliente: ev.clients?.name ?? "",
@@ -485,6 +515,8 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
           entrada: brl(entryVal),
           saldo: brl(balanceVal),
           pacote: ev.packages?.name ?? "—",
+          pacotes: evPacotes,
+          itens_unitarios: evItens,
           descricao_pacote: ev.packages?.description ?? "",
           cardapio: ev.packages?.name ?? "—",
           descricao_cardapio: ev.packages?.description ?? "",
@@ -506,6 +538,11 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
       }
 
       let content = fillTemplate(tpl, vars);
+      // Garante os itens unitários mesmo em modelos antigos sem a variável
+      const itens = vars.itens_unitarios;
+      if (itens && itens !== "Nenhum item unitário contratado" && !tpl.includes("{itens_unitarios}")) {
+        content += `\n\nITENS UNITÁRIOS CONTRATADOS:\n${itens}`;
+      }
 
       const { error } = await supabase.from("contracts").insert({
         owner_id: u.user.id,
