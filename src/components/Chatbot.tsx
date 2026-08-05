@@ -1,10 +1,30 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
+import { useQuery } from "@tanstack/react-query";
 import { useTenantAccess } from "@/hooks/useTenantAccess";
 import { chatWithAssistant } from "@/lib/chatbot.functions";
+import { getBuffetAlerts, type BuffetAlert } from "@/lib/alerts.functions";
 import { Flame } from "lucide-react";
 
-type Msg = { role: "user" | "assistant"; content: string };
+type Msg = { role: "user" | "assistant"; content: string; alertId?: string };
+
+const ACK_KEY = "cdb_alertas_confirmados";
+
+function readAck(): string[] {
+  try {
+    return JSON.parse(localStorage.getItem(ACK_KEY) ?? "[]");
+  } catch {
+    return [];
+  }
+}
+
+function writeAck(ids: string[]) {
+  try {
+    localStorage.setItem(ACK_KEY, JSON.stringify(ids.slice(-300)));
+  } catch {
+    /* ignore */
+  }
+}
 
 export const Chatbot = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -21,10 +41,52 @@ export const Chatbot = () => {
 
   const { data: access } = useTenantAccess();
   const chat = useServerFn(chatWithAssistant);
+  const fetchAlerts = useServerFn(getBuffetAlerts);
+
+  const [acked, setAcked] = useState<string[]>([]);
+  useEffect(() => {
+    setAcked(readAck());
+  }, []);
+
+  const { data: alertData } = useQuery({
+    queryKey: ["buffet-alerts", access?.tenant?.id ?? null],
+    queryFn: async () => (await fetchAlerts({})) as { alerts: BuffetAlert[] },
+    enabled: !!access?.tenant?.id,
+    staleTime: 5 * 60_000,
+    refetchInterval: 10 * 60_000,
+  });
+
+  const pending: BuffetAlert[] = (alertData?.alerts ?? []).filter((a) => !acked.includes(a.id));
+
+  // Injeta os alertas pendentes na conversa (uma vez cada)
+  useEffect(() => {
+    if (!pending.length) return;
+    setMessages((prev) => {
+      const existing = new Set(prev.map((m) => m.alertId).filter(Boolean) as string[]);
+      const novos = pending
+        .filter((a) => !existing.has(a.id))
+        .map((a) => ({ role: "assistant" as const, content: a.message, alertId: a.id }));
+      return novos.length ? [...prev, ...novos] : prev;
+    });
+  }, [alertData, acked]);
+
+  const ackAlert = (id: string) => {
+    const next = Array.from(new Set([...readAck(), id]));
+    writeAck(next);
+    setAcked(next);
+    setMessages((p) => [...p, { role: "assistant", content: "✅ Alerta confirmado. Não vou avisar novamente sobre este item." }]);
+  };
+
+  const ackAll = () => {
+    const next = Array.from(new Set([...readAck(), ...pending.map((a) => a.id)]));
+    writeAck(next);
+    setAcked(next);
+  };
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages, isLoading]);
+
 
   const sendMessage = async () => {
     const text = input.trim();
