@@ -210,12 +210,30 @@ export const Chatbot = () => {
               </div>
               Assistente — Central do Buffet
             </span>
-            <button
-              onClick={() => setIsOpen(false)}
-              style={{ background: "transparent", border: "none", fontSize: 18, cursor: "pointer" }}
-            >
-              ✕
-            </button>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              {pending.length > 1 && (
+                <button
+                  onClick={ackAll}
+                  style={{
+                    background: "#e5e7eb",
+                    border: "none",
+                    borderRadius: 8,
+                    padding: "4px 8px",
+                    fontSize: 11,
+                    fontWeight: 700,
+                    cursor: "pointer",
+                  }}
+                >
+                  Ciente de todos
+                </button>
+              )}
+              <button
+                onClick={() => setIsOpen(false)}
+                style={{ background: "transparent", border: "none", fontSize: 18, cursor: "pointer" }}
+              >
+                ✕
+              </button>
+            </div>
           </div>
 
           <div
@@ -242,6 +260,25 @@ export const Chatbot = () => {
                   }}
                 >
                   {msg.content}
+                  {msg.alertId && !acked.includes(msg.alertId) && (
+                    <div style={{ marginTop: 8 }}>
+                      <button
+                        onClick={() => ackAlert(msg.alertId!)}
+                        style={{
+                          background: "#FF7A00",
+                          color: "white",
+                          border: "none",
+                          borderRadius: 8,
+                          padding: "6px 12px",
+                          fontSize: 12,
+                          fontWeight: 700,
+                          cursor: "pointer",
+                        }}
+                      >
+                        Ok, estou ciente
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
