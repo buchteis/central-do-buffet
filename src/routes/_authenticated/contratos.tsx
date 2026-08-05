@@ -427,15 +427,7 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
               .join("\n")
           : pacoteLabel;
 
-        const itensUnitariosDetalhados = unitSnap.length
-          ? unitSnap
-              .map((item) => {
-                const qtd = Number(item?.quantity ?? 1);
-                const preco = Number(item?.price ?? 0);
-                return `${item?.name ?? "Item"} (${qtd}x) — ${brl(preco * qtd)}`;
-              })
-              .join("\n")
-          : "Nenhum item unitário contratado";
+        const itensUnitariosDetalhados = formatUnitItems(unitSnap);
 
         const totalVal = Number(q.total_value ?? 0);
         const entryVal = q.entry_value != null ? Number(q.entry_value) : totalVal * 0.3;
