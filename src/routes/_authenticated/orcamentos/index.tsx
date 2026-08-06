@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { brl, formatDateBR } from "@/lib/format";
-import { waLink } from "@/lib/whatsapp";
+import { waLink, fillTemplate } from "@/lib/whatsapp";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useGlobalSearch, normalizeSearch } from "@/lib/search-store";
@@ -527,7 +527,7 @@ function QuotesPage() {
                           <div className="mt-2 flex items-center gap-1">
                             {phone && (
                               <a
-                                href={waLink(phone, whatsappMessage(q))}
+                                href={waLink(phone, whatsappMessage(q, settings))}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 title="WhatsApp"
@@ -626,7 +626,7 @@ function QuotesPage() {
                       <div className="flex items-center justify-center gap-1">
                         {phone && (
                           <a
-                            href={waLink(phone, whatsappMessage(q))}
+                            href={waLink(phone, whatsappMessage(q, settings))}
                             target="_blank"
                             rel="noopener noreferrer"
                             title="WhatsApp"
