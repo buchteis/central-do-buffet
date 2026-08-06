@@ -143,6 +143,14 @@ function QuotesPage() {
   const slug = access?.tenant?.slug;
   const publicUrl = slug && typeof window !== "undefined" ? `${window.location.origin}/orcamento/${slug}` : "";
 
+  const { data: settings } = useQuery({
+    queryKey: ["buffet-settings"],
+    queryFn: async () => {
+      const { data } = await supabase.from("buffet_settings").select("wa_quote_template, pix_key").maybeSingle();
+      return data;
+    },
+  });
+
   const { data } = useQuery({
     queryKey: ["quotes"],
     queryFn: async () => {
