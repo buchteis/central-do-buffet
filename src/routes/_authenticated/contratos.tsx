@@ -31,8 +31,7 @@ CLÁUSULA 1 — OBJETO
 O CONTRATADO se obriga a prestar serviços de buffet para o evento a ser realizado em {data_evento} às {hora_evento}, no local {local_evento}, para aproximadamente {convidados} convidados.
 Pacote contratado: {pacote}.
 Descrição do pacote: {descricao_pacote}.
-Cardápio contratado: {cardapio}.
-Descrição do cardápio: {descricao_cardapio}.
+
 
 ITENS ADICIONAIS CONTRATADOS:
 {itens_unitarios}
@@ -245,7 +244,9 @@ function ContractsPage() {
 }
 
 function formatUnitItems(items: any[]): string {
-  const list = (items ?? []).filter((i) => Number(i?.qty ?? i?.quantity ?? 0) > 0 || Number(i?.unit_price ?? i?.price ?? 0) > 0);
+  const list = (items ?? []).filter(
+    (i) => Number(i?.qty ?? i?.quantity ?? 0) > 0 || Number(i?.unit_price ?? i?.price ?? 0) > 0,
+  );
   if (!list.length) return "Nenhum item unitário contratado";
   return list
     .map((item) => {
