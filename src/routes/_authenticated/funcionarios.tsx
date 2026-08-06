@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { Plus, UserCog, Trash2 } from "lucide-react";
+import { Plus, UserCog, Trash2, MessageCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { brl } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -68,6 +68,7 @@ function FuncionariosPage() {
                 <th className="px-5 py-3 font-bold">Nome</th>
                 <th className="px-4 py-3 font-bold">Cargo</th>
                 <th className="px-4 py-3 font-bold">Telefone</th>
+                <th className="px-4 py-3 font-bold">Chave PIX</th>
                 <th className="px-4 py-3 font-bold text-right">Diária</th>
                 <th className="px-4 py-3 font-bold text-right">Eventos</th>
                 <th className="px-4 py-3 font-bold"></th>
@@ -80,7 +81,23 @@ function FuncionariosPage() {
                 <tr key={e.id} className="hover:bg-muted/30">
                   <td className="px-5 py-4 text-sm font-semibold">{e.name}</td>
                   <td className="px-4 py-4 text-xs uppercase">{e.role}</td>
-                  <td className="px-4 py-4 text-xs font-mono">{e.phone ?? "—"}</td>
+                  <td className="px-4 py-4 text-xs font-mono">
+                    <div className="flex items-center gap-2">
+                      <span>{e.phone ?? "—"}</span>
+                      {e.phone && (
+                        <a
+                          href={`https://wa.me/${String(e.phone).replace(/\D/g, "").replace(/^(?!55)/, "55")}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          title="Enviar WhatsApp"
+                          className="inline-flex items-center justify-center size-7 rounded-full bg-success/10 text-success hover:bg-success/20"
+                        >
+                          <MessageCircle className="size-3.5" />
+                        </a>
+                      )}
+                    </div>
+                  </td>
+                  <td className="px-4 py-4 text-xs font-mono">{e.pix || "—"}</td>
                   <td className="px-4 py-4 text-sm font-mono text-right">{brl(e.daily_rate)}</td>
                   <td className="px-4 py-4 text-xs text-right">{e.event_staff?.length ?? 0}</td>
                   <td className="px-4 py-4 text-right">
