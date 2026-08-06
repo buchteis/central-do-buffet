@@ -473,23 +473,28 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
         ev_id = ev.id;
         cli_id = ev.client_id;
 
-        const totalVal = Number(ev.total_value ?? 0);
-        const entryVal = ev.entry_value != null ? Number(ev.entry_value) : totalVal * 0.3;
-        const balanceVal = ev.balance_value != null ? Number(ev.balance_value) : totalVal - entryVal;
+        let totalVal = Number(ev.total_value ?? 0);
+        let entryVal = totalVal * 0.5;
+        let balanceVal = totalVal - entryVal;
 
-        // Snapshot do orçamento vinculado (pacotes + itens unitários)
+        // Snapshot do orçamento vinculado (pacotes + itens unitários + valores do resumo)
         let evPacotes = ev.packages?.name ?? "—";
         let evItens = "Nenhum item unitário contratado";
         if (ev.quote_id) {
           const { data: qLink } = await supabase
             .from("quotes")
-            .select("extras, adults, packages(name)")
+            .select("extras, adults, total_value, entry_value, balance_value, packages(name)")
             .eq("id", ev.quote_id)
             .maybeSingle();
-          const ext: any = (qLink as any)?.extras ?? {};
+          const ql: any = qLink ?? {};
+          // Entrada/saldo devem vir exatamente como ajustados no resumo do orçamento
+          if (ql.total_value != null) totalVal = Number(ql.total_value);
+          entryVal = ql.entry_value != null ? Number(ql.entry_value) : totalVal * 0.5;
+          balanceVal = ql.balance_value != null ? Number(ql.balance_value) : totalVal - entryVal;
+          const ext: any = ql.extras ?? {};
           const pkgSnap: any[] = Array.isArray(ext.packages) ? ext.packages : [];
           const unitSnap: any[] = Array.isArray(ext.unit_items) ? ext.unit_items : [];
-          const adults = Number((qLink as any)?.adults ?? ev.guest_count ?? 0) || 0;
+          const adults = Number(ql.adults ?? ev.guest_count ?? 0) || 0;
           const pkgClean = dedupePackages(pkgSnap, unitSnap);
           if (pkgClean.length) {
             evPacotes = pkgClean
