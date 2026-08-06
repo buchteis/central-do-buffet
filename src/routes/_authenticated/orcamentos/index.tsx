@@ -32,13 +32,26 @@ export const Route = createFileRoute("/_authenticated/orcamentos/")({
   component: QuotesPage,
 });
 
-function whatsappMessage(q: any) {
+function whatsappMessage(q: any, settings?: { wa_quote_template?: string | null; pix_key?: string | null } | null) {
   const name = q.clients?.name?.split(" ")[0] ?? "tudo bem";
   const date = formatDateBR(q.event_date) ?? "a data definida";
   const pkg = quotePackagesLabel(q);
   const value = brl(q.total_value);
+  const hora = (q.event_time ?? "").toString().slice(0, 5);
+  const tpl = settings?.wa_quote_template?.trim();
+  if (tpl) {
+    return fillTemplate(tpl, {
+      cliente: q.clients?.name ?? name,
+      valor: value,
+      data: date,
+      hora,
+      pix: settings?.pix_key ?? "",
+      pacote: pkg,
+    });
+  }
   return `Olá, ${name}! Tudo bem? Aqui é do Central do Buffet. Estou entrando em contato sobre o orçamento do seu evento em ${date} (${pkg}). O investimento estimado é ${value}. Posso te passar mais detalhes?`;
 }
+
 
 // Retorna o label dos pacotes do orçamento: prioriza extras.packages (lista,
 // pode ter 2, 3, 4...) e cai para a relação packages(name) (pacote único).
