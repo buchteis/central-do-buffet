@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { brl, formatDateBR } from "@/lib/format";
-import { waLink } from "@/lib/whatsapp";
+import { waLink, fillTemplate } from "@/lib/whatsapp";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useGlobalSearch, normalizeSearch } from "@/lib/search-store";
@@ -32,13 +32,26 @@ export const Route = createFileRoute("/_authenticated/orcamentos/")({
   component: QuotesPage,
 });
 
-function whatsappMessage(q: any) {
+function whatsappMessage(q: any, settings?: { wa_quote_template?: string | null; pix_key?: string | null } | null) {
   const name = q.clients?.name?.split(" ")[0] ?? "tudo bem";
   const date = formatDateBR(q.event_date) ?? "a data definida";
   const pkg = quotePackagesLabel(q);
   const value = brl(q.total_value);
+  const hora = (q.event_time ?? "").toString().slice(0, 5);
+  const tpl = settings?.wa_quote_template?.trim();
+  if (tpl) {
+    return fillTemplate(tpl, {
+      cliente: q.clients?.name ?? name,
+      valor: value,
+      data: date,
+      hora,
+      pix: settings?.pix_key ?? "",
+      pacote: pkg,
+    });
+  }
   return `Olá, ${name}! Tudo bem? Aqui é do Central do Buffet. Estou entrando em contato sobre o orçamento do seu evento em ${date} (${pkg}). O investimento estimado é ${value}. Posso te passar mais detalhes?`;
 }
+
 
 // Retorna o label dos pacotes do orçamento: prioriza extras.packages (lista,
 // pode ter 2, 3, 4...) e cai para a relação packages(name) (pacote único).
@@ -129,6 +142,14 @@ function QuotesPage() {
   const { data: access } = useTenantAccess();
   const slug = access?.tenant?.slug;
   const publicUrl = slug && typeof window !== "undefined" ? `${window.location.origin}/orcamento/${slug}` : "";
+
+  const { data: settings } = useQuery({
+    queryKey: ["buffet-settings"],
+    queryFn: async () => {
+      const { data } = await supabase.from("buffet_settings").select("wa_quote_template, pix_key").maybeSingle();
+      return data;
+    },
+  });
 
   const { data } = useQuery({
     queryKey: ["quotes"],
@@ -514,7 +535,7 @@ function QuotesPage() {
                           <div className="mt-2 flex items-center gap-1">
                             {phone && (
                               <a
-                                href={waLink(phone, whatsappMessage(q))}
+                                href={waLink(phone, whatsappMessage(q, settings))}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 title="WhatsApp"
@@ -613,7 +634,7 @@ function QuotesPage() {
                       <div className="flex items-center justify-center gap-1">
                         {phone && (
                           <a
-                            href={waLink(phone, whatsappMessage(q))}
+                            href={waLink(phone, whatsappMessage(q, settings))}
                             target="_blank"
                             rel="noopener noreferrer"
                             title="WhatsApp"
