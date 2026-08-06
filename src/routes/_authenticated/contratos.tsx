@@ -442,8 +442,9 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
 
         const itensUnitariosDetalhados = formatUnitItems(unitSnap);
 
+        // Valores exatamente como ajustados no resumo do orçamento
         const totalVal = Number(q.total_value ?? 0);
-        const entryVal = q.entry_value != null ? Number(q.entry_value) : totalVal * 0.3;
+        const entryVal = q.entry_value != null ? Number(q.entry_value) : totalVal * 0.5;
         const balanceVal = q.balance_value != null ? Number(q.balance_value) : totalVal - entryVal;
 
         vars = {
