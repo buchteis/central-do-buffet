@@ -43,6 +43,8 @@
   --color-warning: var(--warning);
   --color-warning-foreground: var(--warning-foreground);
   --color-surface: var(--surface);
+  --color-field: var(--field);
+  --color-field-border: var(--field-border);
 
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
@@ -96,6 +98,10 @@
   --input: oklch(0.20 0.02 260 / 0.10);
   --ring: oklch(0.68 0.19 45 / 0.35);
 
+  /* Campo de formulário destacado (roxo bem claro) */
+  --field: oklch(0.965 0.028 300);
+  --field-border: oklch(0.80 0.07 300);
+
   --sidebar: oklch(1 0 0);
   --sidebar-foreground: oklch(0.20 0.02 260);
   --sidebar-primary: oklch(0.68 0.19 45);
@@ -127,6 +133,8 @@
   --border: oklch(1 0 0 / 0.10);
   --input: oklch(1 0 0 / 0.15);
   --ring: oklch(0.72 0.19 45 / 0.5);
+  --field: oklch(0.26 0.035 300);
+  --field-border: oklch(0.45 0.06 300);
   --sidebar: oklch(0.18 0.02 260);
   --sidebar-foreground: oklch(0.98 0.005 90);
   --sidebar-primary: oklch(0.72 0.19 45);

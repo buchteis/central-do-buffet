@@ -309,7 +309,7 @@ function SettingsPage() {
         </button>
       </div>
 
-      <style>{`.input{width:100%;height:40px;padding:0 12px;border:1px solid hsl(var(--border));border-radius:8px;background:hsl(var(--background));font-size:14px}textarea.input{padding:10px 12px;height:auto}`}</style>
+      <style>{`.input{width:100%;height:40px;padding:0 12px;border:1px solid var(--field-border);border-radius:8px;background:var(--field);color:var(--foreground);font-size:14px;transition:box-shadow .15s,border-color .15s}.input:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px var(--ring)}textarea.input{padding:10px 12px;height:auto}`}</style>
     </div>
   );
 }
