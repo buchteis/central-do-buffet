@@ -19,7 +19,6 @@ export const Route = createFileRoute("/_authenticated/contratos")({
 // Não existe modelo padrão: o contrato usa exclusivamente o modelo salvo
 // pelo dono do registro em Configurações → Modelo de contrato.
 
-
 const statusStyles: Record<string, string> = {
   rascunho: "bg-muted text-muted-foreground",
   enviado: "bg-info/10 text-info",
@@ -351,7 +350,6 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
         );
       }
 
-
       const payVars = buildPaymentVars(formaPagamento, settings);
 
       let vars: Record<string, string> = {
@@ -510,7 +508,6 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
 
       // Somente o modelo do dono do registro: nada é anexado automaticamente.
       const content = fillTemplate(tpl, vars);
-
 
       const { error } = await supabase.from("contracts").insert({
         owner_id: u.user.id,
@@ -803,7 +800,12 @@ ${logoHtml}
         <div className="flex-1 overflow-auto bg-muted/40 p-6">
           <div
             className="mx-auto max-w-[720px] bg-white text-neutral-900 shadow-lg rounded-md p-12"
-            style={{ fontFamily: "Georgia, 'Times New Roman', serif", lineHeight: 1.65 }}
+            style={{
+              fontFamily: "'Cambria', 'Palatino Linotype', Georgia, serif",
+              fontSize: "15px",
+              lineHeight: 1.9,
+              color: "#222",
+            }}
           >
             {logo && (
               <div className="text-center mb-4">
