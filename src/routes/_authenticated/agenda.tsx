@@ -16,6 +16,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { brl, formatDateFullBR } from "@/lib/format";
 import { waLink } from "@/lib/whatsapp";
+import { dedupePackages } from "@/lib/quote-calc";
+
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 
