@@ -197,55 +197,88 @@ function ContractsPage() {
   );
 }
 
-function formatUnitItems(items: any[]): string {
+function formatUnitItems(items: any[]): { text: string; total: number } {
   const list = (items ?? []).filter(
     (i) => Number(i?.qty ?? i?.quantity ?? 0) > 0 || Number(i?.unit_price ?? i?.price ?? 0) > 0,
   );
-  if (!list.length) return "Nenhum item unitário contratado";
-  return list
+  if (!list.length) return { text: "Nenhum item unitário contratado", total: 0 };
+
+  let total = 0;
+  const text = list
     .map((item) => {
       const qtd = Number(item?.qty ?? item?.quantity ?? 1) || 1;
       const preco = Number(item?.unit_price ?? item?.price ?? 0) || 0;
+      const sub = preco * qtd;
+      total += sub;
       const un = item?.unit ? ` ${item.unit}` : "";
-      return `${item?.name ?? "Item"} — ${qtd}${un} × ${brl(preco)} = ${brl(preco * qtd)}`;
+      return `${item?.name ?? "Item"} — ${qtd}${un} × ${brl(preco)} = ${brl(sub)}`;
     })
     .join("\n");
+
+  return { text, total };
 }
 
-function formatAdditions(extras: any): string {
-  if (!extras) return "Nenhum acréscimo adicional";
+function getAdditionsText(extras: any, totalValue: number, pkgTotal: number, unitTotal: number): string {
+  const list: string[] = [];
 
-  const list: any[] = Array.isArray(extras.additions)
-    ? extras.additions
-    : Array.isArray(extras.surcharges)
-      ? extras.surcharges
-      : Array.isArray(extras.extra_services)
-        ? extras.extra_services
-        : Array.isArray(extras.fees)
-          ? extras.fees
-          : Array.isArray(extras.acrescimos)
-            ? extras.acrescimos
-            : [];
+  if (extras && typeof extras === "object") {
+    const candidateArrays = [
+      extras.additions,
+      extras.surcharges,
+      extras.extra_services,
+      extras.fees,
+      extras.acrescimos,
+      extras.extra_items,
+      extras.adjustments,
+      extras.custom_items,
+    ];
 
-  if (list.length > 0) {
-    const items = list
-      .filter((i) => Number(i?.value ?? i?.price ?? i?.amount ?? 0) > 0)
-      .map((i) => {
-        const name = i?.name ?? i?.title ?? i?.description ?? "Acréscimo";
-        const val = Number(i?.value ?? i?.price ?? i?.amount ?? 0) || 0;
-        return `${name} — ${brl(val)}`;
-      });
-    if (items.length) return items.join("\n");
+    for (const arr of candidateArrays) {
+      if (Array.isArray(arr) && arr.length > 0) {
+        for (const item of arr) {
+          const val = Number(item?.value ?? item?.price ?? item?.amount ?? item?.total ?? 0) || 0;
+          if (val > 0) {
+            const name = item?.name ?? item?.title ?? item?.description ?? item?.label ?? "Acréscimo";
+            list.push(`${name} — ${brl(val)}`);
+          }
+        }
+      }
+    }
+
+    const singleKeys = [
+      "additional_value",
+      "surcharge_value",
+      "surcharge",
+      "acrescimo_total",
+      "acrescimo",
+      "frete",
+      "freight",
+      "taxa_deslocamento",
+      "taxa_entrega",
+    ];
+    for (const key of singleKeys) {
+      if (!list.length && Number(extras[key]) > 0) {
+        const val = Number(extras[key]);
+        const label =
+          key.includes("frete") || key.includes("freight") || key.includes("deslocamento")
+            ? "Taxa de Deslocamento / Frete"
+            : "Acréscimo Adicional";
+        list.push(`${label} — ${brl(val)}`);
+      }
+    }
   }
 
-  const singleVal = Number(
-    extras.additional_value ?? extras.surcharge_value ?? extras.surcharge ?? extras.acrescimo_total ?? 0,
-  );
-  if (singleVal > 0) {
-    return `Acréscimos adicionais: ${brl(singleVal)}`;
+  // Trava de Cálculo: Se o valor do orçamento for maior que a soma de pacotes + itens unitários
+  const diff = Math.round((totalValue - (pkgTotal + unitTotal)) * 100) / 100;
+  if (list.length === 0 && diff > 0.05) {
+    list.push(`Acréscimo / Taxa adicional — ${brl(diff)}`);
   }
 
-  return "Nenhum acréscimo adicional";
+  if (list.length === 0) {
+    return "Nenhum acréscimo adicional";
+  }
+
+  return list.join("\n");
 }
 
 function NewContractDialog({ onClose }: { onClose: () => void }) {
@@ -407,6 +440,8 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
         itens_unitarios: "",
         acrescimos: "Nenhum acréscimo adicional",
         acrescimos_adicionais: "Nenhum acréscimo adicional",
+        acrescimo: "Nenhum acréscimo adicional",
+        taxas: "Nenhum acréscimo adicional",
         descricao_pacote: "",
         cardapio: "",
         descricao_cardapio: "",
@@ -428,19 +463,23 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
         const pkgNames = pkgSnap.map((p) => p?.name).filter(Boolean);
         const pacoteLabel = pkgNames.length ? pkgNames.join(" + ") : (q.packages?.name ?? "");
         const pkgSnapClean = dedupePackages(pkgSnap, unitSnap);
+
+        let pkgTotal = 0;
         const pacotesDetalhados = pkgSnapClean.length
           ? pkgSnapClean
               .map((p) => {
                 const ppp = Number(p?.price_per_person ?? 0) || 0;
-                return `${p?.name ?? "Pacote"} — ${brl(ppp)}/pessoa × ${adults} = ${brl(ppp * adults)}`;
+                const sub = ppp * adults;
+                pkgTotal += sub;
+                return `${p?.name ?? "Pacote"} — ${brl(ppp)}/pessoa × ${adults} = ${brl(sub)}`;
               })
               .join("\n")
           : pacoteLabel;
 
-        const itensUnitariosDetalhados = formatUnitItems(unitSnap);
-        const acrescimosDetalhados = formatAdditions(qExtras);
-
+        const { text: itensUnitariosDetalhados, total: unitTotal } = formatUnitItems(unitSnap);
         const totalVal = Number(q.total_value ?? 0);
+        const acrescimosText = getAdditionsText(qExtras, totalVal, pkgTotal, unitTotal);
+
         const entryVal = q.entry_value != null ? Number(q.entry_value) : totalVal * 0.5;
         const balanceVal = q.balance_value != null ? Number(q.balance_value) : totalVal - entryVal;
 
@@ -460,8 +499,10 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
           pacote: pacoteLabel,
           pacotes: pacotesDetalhados,
           itens_unitarios: itensUnitariosDetalhados,
-          acrescimos: acrescimosDetalhados,
-          acrescimos_adicionais: acrescimosDetalhados,
+          acrescimos: acrescimosText,
+          acrescimos_adicionais: acrescimosText,
+          acrescimo: acrescimosText,
+          taxas: acrescimosText,
           descricao_pacote: q.packages?.description ?? "",
           cardapio: pacoteLabel,
           descricao_cardapio: q.packages?.description ?? "",
@@ -495,16 +536,22 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
           const unitSnap: any[] = Array.isArray(ext.unit_items) ? ext.unit_items : [];
           const adults = Number(ql.adults ?? ev.guest_count ?? 0) || 0;
           const pkgClean = dedupePackages(pkgSnap, unitSnap);
+
+          let pkgTotal = 0;
           if (pkgClean.length) {
             evPacotes = pkgClean
               .map((p: any) => {
                 const ppp = Number(p?.price_per_person ?? 0) || 0;
-                return `${p?.name ?? "Pacote"} — ${brl(ppp)}/pessoa × ${adults} = ${brl(ppp * adults)}`;
+                const sub = ppp * adults;
+                pkgTotal += sub;
+                return `${p?.name ?? "Pacote"} — ${brl(ppp)}/pessoa × ${adults} = ${brl(sub)}`;
               })
               .join("\n");
           }
-          evItens = formatUnitItems(unitSnap);
-          evAcrescimos = formatAdditions(ext);
+
+          const { text: uText, total: uTotal } = formatUnitItems(unitSnap);
+          evItens = uText;
+          evAcrescimos = getAdditionsText(ext, totalVal, pkgTotal, uTotal);
         }
 
         vars = {
@@ -525,6 +572,8 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
           itens_unitarios: evItens,
           acrescimos: evAcrescimos,
           acrescimos_adicionais: evAcrescimos,
+          acrescimo: evAcrescimos,
+          taxas: evAcrescimos,
           descricao_pacote: ev.packages?.description ?? "",
           cardapio: ev.packages?.name ?? "—",
           descricao_cardapio: ev.packages?.description ?? "",
