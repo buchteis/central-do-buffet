@@ -8,6 +8,7 @@ import { Flame, Send, CheckCircle2, Plus, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { getPublicTenantLogo } from "@/lib/public-logo.functions";
 import { brl } from "@/lib/format";
+import { resolveTierPrice } from "@/lib/quote-calc";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -110,16 +111,18 @@ function PublicQuoteForm() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("package_price_tiers")
-        .select("package_id, min_guests, max_guests, price_per_person, position")
+        .select("id, package_id, min_guests, max_guests, price_per_person, position, updated_at")
         .in("package_id", packageIds)
         .order("position", { ascending: true });
       if (error) return [];
       return (data ?? []) as {
+        id: string;
         package_id: string;
         min_guests: number;
         max_guests: number;
         price_per_person: number;
         position: number;
+        updated_at: string | null;
       }[];
     },
   });
@@ -153,15 +156,8 @@ function PublicQuoteForm() {
   // Preço por pessoa de um pacote conforme o nº de convidados
   const priceForPackage = (packageId: string, guests: number): number => {
     const pkgTiers = (tiers ?? []).filter((t) => t.package_id === packageId);
-    if (pkgTiers.length === 0) {
-      const pkg = (packages ?? []).find((p) => p.id === packageId);
-      return Number(pkg?.price_per_person ?? 0) || 0;
-    }
-    const inRange = pkgTiers.find((t) => guests >= t.min_guests && guests <= t.max_guests);
-    if (inRange) return Number(inRange.price_per_person) || 0;
-    const sorted = [...pkgTiers].sort((a, b) => a.min_guests - b.min_guests);
-    if (guests < sorted[0].min_guests) return Number(sorted[0].price_per_person) || 0;
-    return Number(sorted[sorted.length - 1].price_per_person) || 0;
+    const pkg = (packages ?? []).find((p) => p.id === packageId);
+    return resolveTierPrice(pkgTiers, guests, Number(pkg?.price_per_person ?? 0) || 0);
   };
 
   // Pacotes efetivamente escolhidos
