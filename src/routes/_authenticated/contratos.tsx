@@ -16,9 +16,6 @@ export const Route = createFileRoute("/_authenticated/contratos")({
   component: ContractsPage,
 });
 
-// Não existe modelo padrão: o contrato usa exclusivamente o modelo salvo
-// pelo dono do registro em Configurações → Modelo de contrato.
-
 const statusStyles: Record<string, string> = {
   rascunho: "bg-muted text-muted-foreground",
   enviado: "bg-info/10 text-info",
@@ -215,6 +212,42 @@ function formatUnitItems(items: any[]): string {
     .join("\n");
 }
 
+function formatAdditions(extras: any): string {
+  if (!extras) return "Nenhum acréscimo adicional";
+
+  const list: any[] = Array.isArray(extras.additions)
+    ? extras.additions
+    : Array.isArray(extras.surcharges)
+      ? extras.surcharges
+      : Array.isArray(extras.extra_services)
+        ? extras.extra_services
+        : Array.isArray(extras.fees)
+          ? extras.fees
+          : Array.isArray(extras.acrescimos)
+            ? extras.acrescimos
+            : [];
+
+  if (list.length > 0) {
+    const items = list
+      .filter((i) => Number(i?.value ?? i?.price ?? i?.amount ?? 0) > 0)
+      .map((i) => {
+        const name = i?.name ?? i?.title ?? i?.description ?? "Acréscimo";
+        const val = Number(i?.value ?? i?.price ?? i?.amount ?? 0) || 0;
+        return `${name} — ${brl(val)}`;
+      });
+    if (items.length) return items.join("\n");
+  }
+
+  const singleVal = Number(
+    extras.additional_value ?? extras.surcharge_value ?? extras.surcharge ?? extras.acrescimo_total ?? 0,
+  );
+  if (singleVal > 0) {
+    return `Acréscimos adicionais: ${brl(singleVal)}`;
+  }
+
+  return "Nenhum acréscimo adicional";
+}
+
 function NewContractDialog({ onClose }: { onClose: () => void }) {
   const qc = useQueryClient();
   const [source, setSource] = useState<Source>("quote");
@@ -238,7 +271,6 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
     },
   });
 
-  // QUERY CORRIGIDA PARA OS EVENTOS
   const { data: events } = useQuery({
     queryKey: ["events-for-contract"],
     queryFn: async () => {
@@ -373,6 +405,8 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
         pacote: "",
         pacotes: "",
         itens_unitarios: "",
+        acrescimos: "Nenhum acréscimo adicional",
+        acrescimos_adicionais: "Nenhum acréscimo adicional",
         descricao_pacote: "",
         cardapio: "",
         descricao_cardapio: "",
@@ -404,8 +438,8 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
           : pacoteLabel;
 
         const itensUnitariosDetalhados = formatUnitItems(unitSnap);
+        const acrescimosDetalhados = formatAdditions(qExtras);
 
-        // Valores exatamente como ajustados no resumo do orçamento
         const totalVal = Number(q.total_value ?? 0);
         const entryVal = q.entry_value != null ? Number(q.entry_value) : totalVal * 0.5;
         const balanceVal = q.balance_value != null ? Number(q.balance_value) : totalVal - entryVal;
@@ -426,6 +460,8 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
           pacote: pacoteLabel,
           pacotes: pacotesDetalhados,
           itens_unitarios: itensUnitariosDetalhados,
+          acrescimos: acrescimosDetalhados,
+          acrescimos_adicionais: acrescimosDetalhados,
           descricao_pacote: q.packages?.description ?? "",
           cardapio: pacoteLabel,
           descricao_cardapio: q.packages?.description ?? "",
@@ -440,9 +476,10 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
         let entryVal = totalVal * 0.5;
         let balanceVal = totalVal - entryVal;
 
-        // Snapshot do orçamento vinculado (pacotes + itens unitários + valores do resumo)
         let evPacotes = ev.packages?.name ?? "—";
         let evItens = "Nenhum item unitário contratado";
+        let evAcrescimos = "Nenhum acréscimo adicional";
+
         if (ev.quote_id) {
           const { data: qLink } = await supabase
             .from("quotes")
@@ -450,7 +487,6 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
             .eq("id", ev.quote_id)
             .maybeSingle();
           const ql: any = qLink ?? {};
-          // Entrada/saldo devem vir exatamente como ajustados no resumo do orçamento
           if (ql.total_value != null) totalVal = Number(ql.total_value);
           entryVal = ql.entry_value != null ? Number(ql.entry_value) : totalVal * 0.5;
           balanceVal = ql.balance_value != null ? Number(ql.balance_value) : totalVal - entryVal;
@@ -468,6 +504,7 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
               .join("\n");
           }
           evItens = formatUnitItems(unitSnap);
+          evAcrescimos = formatAdditions(ext);
         }
 
         vars = {
@@ -486,6 +523,8 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
           pacote: ev.packages?.name ?? "—",
           pacotes: evPacotes,
           itens_unitarios: evItens,
+          acrescimos: evAcrescimos,
+          acrescimos_adicionais: evAcrescimos,
           descricao_pacote: ev.packages?.description ?? "",
           cardapio: ev.packages?.name ?? "—",
           descricao_cardapio: ev.packages?.description ?? "",
@@ -506,7 +545,6 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
         }
       }
 
-      // Somente o modelo do dono do registro: nada é anexado automaticamente.
       const content = fillTemplate(tpl, vars);
 
       const { error } = await supabase.from("contracts").insert({
@@ -820,7 +858,7 @@ ${logoHtml}
               </div>
             )}
             <h1 className="text-center text-xl font-bold uppercase tracking-wide mb-6">{contract.title}</h1>
-            <div className="whitespace-pre-wrap text-justify text-[14px]">{contract.content}</div>
+            <div className="whitespace-pre-wrap text-justify">{contract.content}</div>
           </div>
         </div>
       </div>
