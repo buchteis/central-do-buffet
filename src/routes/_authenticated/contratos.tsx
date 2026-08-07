@@ -878,21 +878,29 @@ function ContractPreview({ contract, logoValue, onClose }: { contract: any; logo
       toast.error("Permita pop-ups para gerar o PDF");
       return;
     }
+
+    const watermarkHtml = freshLogo
+      ? `<div class="watermark"><img src="${escapeHtml(freshLogo)}" alt="Marca d'água"/></div>`
+      : "";
     const logoHtml = freshLogo
       ? `<div class="logo"><img id="__logo" src="${escapeHtml(freshLogo)}" alt="Logomarca"/></div>`
       : "";
+
     const html = `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(contract.title)}</title>
 <style>
   @page { size: A4; margin: 22mm 20mm; }
   * { box-sizing: border-box; }
-  body { font-family: Georgia, 'Times New Roman', serif; color: #111; line-height: 1.65; font-size: 12pt; margin: 0; }
-  .logo { text-align: center; margin: 0 0 16px; }
+  body { font-family: Georgia, 'Times New Roman', serif; color: #111; line-height: 1.65; font-size: 12pt; margin: 0; position: relative; }
+  .watermark { position: fixed; top: 42%; left: 50%; transform: translate(-50%, -50%) rotate(-20deg); opacity: 0.07; width: 70%; text-align: center; pointer-events: none; z-index: 0; }
+  .watermark img { max-width: 100%; max-height: 450px; object-fit: contain; }
+  .logo { text-align: center; margin: 0 0 16px; position: relative; z-index: 1; }
   .logo img { max-height: 90px; max-width: 60%; object-fit: contain; }
-  h1 { font-size: 16pt; text-align: center; text-transform: uppercase; letter-spacing: 0.5px; margin: 0 0 20px; }
-  .content { white-space: pre-wrap; text-align: justify; }
-  .footer { margin-top: 28px; font-size: 10pt; color: #666; text-align: center; border-top: 1px solid #ddd; padding-top: 8px; }
+  h1 { font-size: 16pt; text-align: center; text-transform: uppercase; letter-spacing: 0.5px; margin: 0 0 20px; position: relative; z-index: 1; }
+  .content { white-space: pre-wrap; text-align: justify; position: relative; z-index: 1; }
+  .footer { margin-top: 28px; font-size: 10pt; color: #666; text-align: center; border-top: 1px solid #ddd; padding-top: 8px; position: relative; z-index: 1; }
   @media print { .no-print { display: none; } }
 </style></head><body>
+${watermarkHtml}
 ${logoHtml}
 <h1>${escapeHtml(contract.title)}</h1>
 <div class="content">${escapeHtml(contract.content)}</div>
@@ -939,7 +947,7 @@ ${logoHtml}
         </div>
         <div className="flex-1 overflow-auto bg-muted/40 p-6">
           <div
-            className="mx-auto max-w-[720px] bg-white text-neutral-900 shadow-lg rounded-md p-12"
+            className="relative mx-auto max-w-[720px] bg-white text-neutral-900 shadow-lg rounded-md p-12 overflow-hidden"
             style={{
               fontFamily: "'Cambria', 'Palatino Linotype', Georgia, serif",
               fontSize: "15px",
@@ -947,8 +955,15 @@ ${logoHtml}
               color: "#222",
             }}
           >
+            {/* Marca d'água na visualização de tela */}
             {logo && (
-              <div className="text-center mb-4">
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-[0.06] pointer-events-none select-none -rotate-12 w-3/4 flex justify-center items-center z-0">
+                <img src={logo} alt="Marca d'água" className="max-h-[400px] object-contain" />
+              </div>
+            )}
+
+            {logo && (
+              <div className="text-center mb-4 relative z-10">
                 <img
                   src={logo}
                   alt="Logomarca"
@@ -959,8 +974,10 @@ ${logoHtml}
                 />
               </div>
             )}
-            <h1 className="text-center text-xl font-bold uppercase tracking-wide mb-6">{contract.title}</h1>
-            <div className="whitespace-pre-wrap text-justify">{contract.content}</div>
+            <h1 className="text-center text-xl font-bold uppercase tracking-wide mb-6 relative z-10">
+              {contract.title}
+            </h1>
+            <div className="whitespace-pre-wrap text-justify relative z-10">{contract.content}</div>
           </div>
         </div>
       </div>
