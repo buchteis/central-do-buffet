@@ -16,51 +16,9 @@ export const Route = createFileRoute("/_authenticated/contratos")({
   component: ContractsPage,
 });
 
-const DEFAULT_TEMPLATE = `CONTRATO DE PRESTAÇÃO DE SERVIÇOS DE BUFFET
+// Não existe modelo padrão: o contrato usa exclusivamente o modelo salvo
+// pelo dono do registro em Configurações → Modelo de contrato.
 
-CONTRATANTE: {cliente}
-CPF: {cpf_cliente}
-Endereço: {endereco_cliente}
-Telefone: {telefone_cliente}
-
-CONTRATADO: {buffet}
-Endereço: {endereco_buffet}
-Telefone: {telefone_buffet}
-
-CLÁUSULA 1 — OBJETO
-O CONTRATADO se obriga a prestar serviços de buffet para o evento a ser realizado em {data_evento} às {hora_evento}, no local {local_evento}, para aproximadamente {convidados} convidados.
-Pacote contratado: {pacote}.
-Descrição do pacote: {descricao_pacote}.
-
-
-ITENS ADICIONAIS CONTRATADOS:
-{itens_unitarios}
-
-CLÁUSULA 2 — VALOR E PAGAMENTO
-Valor total dos serviços: {valor}.
-Sinal/Entrada: {entrada}.
-Saldo remanescente: {saldo}, a ser pago até a data do evento.
-Forma de pagamento: {forma_pagamento}.
-{dados_pagamento}
-Chave PIX: {pix} (Titular: {pix_titular}).
-
-CLÁUSULA 3 — OBRIGAÇÕES DO CONTRATADO
-Fornecer os alimentos, bebidas e serviços conforme o cardápio e pacote contratados, com equipe treinada e observando os padrões adequados de higiene e segurança.
-
-CLÁUSULA 4 — OBRIGAÇÕES DO CONTRATANTE
-Fornecer local adequado, ponto de energia elétrica e água corrente, além de efetuar os pagamentos nas datas e condições acordadas.
-
-CLÁUSULA 5 — CANCELAMENTO
-Em caso de cancelamento por parte do CONTRATANTE com menos de 15 dias de antecedência da data do evento, o valor pago a título de sinal/entrada não será devolvido.
-
-CLÁUSULA 6 — DISPOSIÇÕES GERAIS
-As partes elegem o foro da comarca do CONTRATADO para dirimir quaisquer dúvidas ou litígios oriundos deste contrato.
-
-Local e data: ______________________, {data_hoje}
-
-
-_________________________          _________________________
-       Contratante                        Contratado`;
 
 const statusStyles: Record<string, string> = {
   rascunho: "bg-muted text-muted-foreground",
