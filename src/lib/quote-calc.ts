@@ -130,3 +130,51 @@ export function dedupePackages<T extends { name?: string | null; price_per_perso
   });
 }
 
+
+/* -------------------------------------------------------------------------- */
+/* Faixas de preço por nº de convidados — regra ÚNICA do sistema              */
+/* Usada no link público, em Orçamentos e em Eventos, e espelhada no banco    */
+/* (função submit_public_quote_v2) para que cliente e buffet vejam o mesmo.   */
+/* -------------------------------------------------------------------------- */
+export type PriceTier = {
+  id?: string;
+  package_id?: string;
+  min_guests: number;
+  max_guests: number;
+  price_per_person: number | string | null;
+  position?: number | null;
+  updated_at?: string | null;
+};
+
+/** Ordenação determinística: posição, faixa e, em empate, a faixa editada mais recentemente. */
+function sortTiers(tiers: PriceTier[]): PriceTier[] {
+  return [...tiers].sort((a, b) => {
+    const pa = Number(a.position ?? 0);
+    const pb = Number(b.position ?? 0);
+    if (pa !== pb) return pa - pb;
+    if (a.min_guests !== b.min_guests) return a.min_guests - b.min_guests;
+    const ua = String(a.updated_at ?? "");
+    const ub = String(b.updated_at ?? "");
+    if (ua !== ub) return ua < ub ? 1 : -1; // mais recente primeiro
+    return String(a.id ?? "").localeCompare(String(b.id ?? ""));
+  });
+}
+
+/**
+ * Preço por pessoa de um pacote para um nº de convidados.
+ * - Sem faixas → preço base do pacote.
+ * - Dentro da faixa → preço da faixa.
+ * - Fora das faixas → faixa mais próxima (abaixo/acima).
+ */
+export function resolveTierPrice(tiers: PriceTier[], guests: number, basePrice = 0): number {
+  const list = sortTiers(tiers ?? []);
+  if (list.length === 0) return Number(basePrice) || 0;
+  const g = Number(guests) || 0;
+  const inRange = list.find((t) => g >= t.min_guests && g <= t.max_guests);
+  if (inRange) return Number(inRange.price_per_person) || 0;
+  const byMin = [...list].sort((a, b) => a.min_guests - b.min_guests);
+  if (g < byMin[0].min_guests) return Number(byMin[0].price_per_person) || 0;
+  const below = [...list].filter((t) => t.max_guests < g).sort((a, b) => b.max_guests - a.max_guests);
+  if (below.length) return Number(below[0].price_per_person) || 0;
+  return Number(byMin[byMin.length - 1].price_per_person) || 0;
+}

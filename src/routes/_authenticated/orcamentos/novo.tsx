@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { calcQuote } from "@/lib/quote-calc";
+import { calcQuote, resolveTierPrice } from "@/lib/quote-calc";
 import { brl } from "@/lib/format";
 import { openQuotePdf } from "@/lib/quote-pdf";
 import { useTenantAccess } from "@/hooks/useTenantAccess";
@@ -91,7 +91,7 @@ function NewQuotePage() {
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from("package_price_tiers")
-        .select("id, package_id, min_guests, max_guests, price_per_person, position")
+        .select("id, package_id, min_guests, max_guests, price_per_person, position, updated_at")
         .order("position", { ascending: true })
         .order("min_guests", { ascending: true });
       if (error) throw error;
@@ -102,6 +102,7 @@ function NewQuotePage() {
         max_guests: number;
         price_per_person: number;
         position: number;
+        updated_at: string | null;
       }[];
     },
   });
@@ -162,17 +163,8 @@ function NewQuotePage() {
 
   const priceForPackage = (packageId: string, guests: number): number => {
     const pkgTiers = (tiers ?? []).filter((t) => t.package_id === packageId);
-    if (pkgTiers.length === 0) {
-      // Mesma regra do formulário público: sem faixas, usa o preço base do pacote.
-      const pkg = (packages ?? []).find((p) => p.id === packageId) as any;
-      return Number(pkg?.price_per_person ?? 0) || 0;
-    }
-    const inRange = pkgTiers.find((t) => guests >= t.min_guests && guests <= t.max_guests);
-    if (inRange) return Number(inRange.price_per_person) || 0;
-    // fallback: below smallest → smallest tier; above biggest → biggest tier
-    const sorted = [...pkgTiers].sort((a, b) => a.min_guests - b.min_guests);
-    if (guests < sorted[0].min_guests) return Number(sorted[0].price_per_person) || 0;
-    return Number(sorted[sorted.length - 1].price_per_person) || 0;
+    const pkg = (packages ?? []).find((p) => p.id === packageId) as any;
+    return resolveTierPrice(pkgTiers, guests, Number(pkg?.price_per_person ?? 0) || 0);
   };
 
   const selectedPackages = useMemo(

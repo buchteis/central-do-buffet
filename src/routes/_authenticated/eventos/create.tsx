@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { brl } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { resolveTierPrice } from "@/lib/quote-calc";
 import { toast } from "sonner";
 import { ArrowLeft, Plus, Trash2 } from "lucide-react";
 import { ChecklistPreDefinido } from "@/components/ChecklistPreDefinido";
@@ -64,12 +65,15 @@ function CreateEventPage() {
     queryFn: async () => {
       const { data } = await (supabase as any)
         .from("package_price_tiers")
-        .select("package_id, min_guests, max_guests, price_per_person");
+        .select("id, package_id, min_guests, max_guests, price_per_person, position, updated_at");
       return (data ?? []) as {
+        id: string;
         package_id: string;
         min_guests: number;
         max_guests: number;
         price_per_person: number;
+        position: number | null;
+        updated_at: string | null;
       }[];
     },
   });
@@ -77,12 +81,8 @@ function CreateEventPage() {
   const guests = Number(formData.guest_count) || 0;
   const priceForPackage = (packageId: string): number => {
     const pkgTiers = (tiers ?? []).filter((t) => t.package_id === packageId);
-    if (pkgTiers.length === 0) return 0;
-    const inRange = pkgTiers.find((t) => guests >= t.min_guests && guests <= t.max_guests);
-    if (inRange) return Number(inRange.price_per_person) || 0;
-    const sorted = [...pkgTiers].sort((a, b) => a.min_guests - b.min_guests);
-    if (guests < sorted[0].min_guests) return Number(sorted[0].price_per_person) || 0;
-    return Number(sorted[sorted.length - 1].price_per_person) || 0;
+    const pkg = (packages ?? []).find((p) => p.id === packageId) as any;
+    return resolveTierPrice(pkgTiers, guests, Number(pkg?.price_per_person ?? 0) || 0);
   };
 
   const selectedPackages = useMemo(
