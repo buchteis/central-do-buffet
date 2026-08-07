@@ -282,14 +282,20 @@ function SettingsPage() {
         </Field>
       </Section>
 
-      <Section title="Modelo padrão de contrato">
+      <Section title="Modelo de contrato">
+        <p className="text-xs text-muted-foreground mb-2">
+          O contrato é gerado <strong>exatamente</strong> com o texto abaixo: não existe modelo padrão. Escreva suas
+          cláusulas e use as variáveis onde quiser — cada uma é preenchida automaticamente ao gerar o contrato e o PDF.
+        </p>
         <p className="text-xs text-muted-foreground mb-2">
           Variáveis: {"{cliente}"}, {"{cpf_cliente}"}, {"{endereco_cliente}"}, {"{telefone_cliente}"}, {"{buffet}"},{" "}
           {"{endereco_buffet}"}, {"{telefone_buffet}"}, {"{data_evento}"}, {"{hora_evento}"}, {"{local_evento}"},{" "}
           {"{convidados}"}, {"{valor}"}, {"{entrada}"}, {"{saldo}"}, {"{forma_pagamento}"}, {"{dados_pagamento}"},{" "}
-          {"{pix}"}, {"{pix_titular}"}, {"{data_hoje}"}, {"{pacote}"}, {"{descricao_pacote}"}, {"{cardapio}"},{" "}
-          {"{descricao_cardapio}"}. O endereço do buffet vem do campo “Endereço” em Dados do buffet.
+          {"{pix}"}, {"{pix_titular}"}, {"{data_hoje}"}, {"{pacote}"}, {"{pacotes}"}, {"{itens_unitarios}"},{" "}
+          {"{descricao_pacote}"}, {"{cardapio}"}, {"{descricao_cardapio}"}. O endereço do buffet vem do campo
+          “Endereço” em Dados do buffet.
         </p>
+
 
         <textarea
           rows={10}
