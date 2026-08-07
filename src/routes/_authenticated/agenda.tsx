@@ -721,7 +721,7 @@ function EventPanel({ event, onClose }: { event: any; onClose: () => void }) {
         <div className="space-y-4 text-sm">
           <Info label="Local" value={event.event_address || c?.address || "—"} />
           <Info label="Convidados" value={String(event.guest_count ?? 0)} />
-          <Info label="Pacote" value={event.packages?.name ?? "—"} />
+          <EventItems event={event} />
           <Info label="Valor total" value={brl(event.total_value)} />
           <Info label="Telefone" value={c?.phone || "—"} />
           <Info label="WhatsApp" value={c?.whatsapp || "—"} />
