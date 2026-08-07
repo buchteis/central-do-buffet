@@ -508,12 +508,9 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
         }
       }
 
-      let content = fillTemplate(tpl, vars);
-      // Garante os itens unitários mesmo em modelos antigos sem a variável
-      const itens = vars.itens_unitarios;
-      if (itens && itens !== "Nenhum item unitário contratado" && !tpl.includes("{itens_unitarios}")) {
-        content += `\n\nITENS UNITÁRIOS CONTRATADOS:\n${itens}`;
-      }
+      // Somente o modelo do dono do registro: nada é anexado automaticamente.
+      const content = fillTemplate(tpl, vars);
+
 
       const { error } = await supabase.from("contracts").insert({
         owner_id: u.user.id,
