@@ -344,7 +344,13 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
     mutationFn: async () => {
       const { data: u } = await supabase.auth.getUser();
       if (!u.user) throw new Error("Sem sessão");
-      const tpl = settings?.contract_template || DEFAULT_TEMPLATE;
+      const tpl = (settings?.contract_template ?? "").trim();
+      if (!tpl) {
+        throw new Error(
+          "Nenhum modelo de contrato cadastrado. Vá em Configurações → Modelo de contrato, escreva seu texto com as variáveis e salve.",
+        );
+      }
+
 
       const payVars = buildPaymentVars(formaPagamento, settings);
 
