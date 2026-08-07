@@ -218,10 +218,17 @@ function formatUnitItems(items: any[]): { text: string; total: number } {
   return { text, total };
 }
 
-function getAdditionsText(extras: any, totalValue: number, pkgTotal: number, unitTotal: number): string {
+function getAdditionsText(
+  extras: any,
+  totalValue: number,
+  pkgTotal: number,
+  unitTotal: number,
+  quoteObj?: any,
+): string {
   const list: string[] = [];
 
   if (extras && typeof extras === "object") {
+    // 1. Procura em listas/arrays dentro de extras
     const candidateArrays = [
       extras.additions,
       extras.surcharges,
@@ -231,6 +238,7 @@ function getAdditionsText(extras: any, totalValue: number, pkgTotal: number, uni
       extras.extra_items,
       extras.adjustments,
       extras.custom_items,
+      extras.taxas,
     ];
 
     for (const arr of candidateArrays) {
@@ -238,40 +246,72 @@ function getAdditionsText(extras: any, totalValue: number, pkgTotal: number, uni
         for (const item of arr) {
           const val = Number(item?.value ?? item?.price ?? item?.amount ?? item?.total ?? 0) || 0;
           if (val > 0) {
-            const name = item?.name ?? item?.title ?? item?.description ?? item?.label ?? "Acréscimo";
+            const name =
+              item?.name ??
+              item?.title ??
+              item?.description ??
+              item?.label ??
+              item?.reason ??
+              item?.motivo ??
+              "Acréscimo";
             list.push(`${name} — ${brl(val)}`);
           }
         }
       }
     }
 
-    const singleKeys = [
-      "additional_value",
-      "surcharge_value",
-      "surcharge",
-      "acrescimo_total",
-      "acrescimo",
-      "frete",
-      "freight",
-      "taxa_deslocamento",
-      "taxa_entrega",
+    // 2. Procura em chaves individuais com descrição
+    const singlePairs = [
+      {
+        val: extras.additional_value,
+        desc: extras.additional_description || extras.additional_name || extras.additional_reason,
+      },
+      {
+        val: extras.surcharge_value || extras.surcharge,
+        desc: extras.surcharge_description || extras.surcharge_name || extras.surcharge_reason,
+      },
+      {
+        val: extras.freight || extras.frete || extras.taxa_deslocamento,
+        desc: extras.freight_description || extras.frete_description || "Taxa de Deslocamento / Frete",
+      },
+      {
+        val: extras.acrescimo_total || extras.acrescimo,
+        desc: extras.acrescimo_descricao || extras.acrescimo_nome || extras.descricao_acrescimo,
+      },
+      {
+        val: extras.fee_value || extras.fee,
+        desc: extras.fee_description || extras.fee_name || extras.fee_label,
+      },
     ];
-    for (const key of singleKeys) {
-      if (!list.length && Number(extras[key]) > 0) {
-        const val = Number(extras[key]);
-        const label =
-          key.includes("frete") || key.includes("freight") || key.includes("deslocamento")
-            ? "Taxa de Deslocamento / Frete"
-            : "Acréscimo Adicional";
+
+    for (const pair of singlePairs) {
+      if (!list.length && Number(pair.val) > 0) {
+        const val = Number(pair.val);
+        const label = pair.desc?.trim() || "Acréscimo / Taxa adicional";
         list.push(`${label} — ${brl(val)}`);
       }
     }
   }
 
-  // Trava de Cálculo: Se o valor do orçamento for maior que a soma de pacotes + itens unitários
+  // 3. Trava de cálculo: diferença entre valor total e soma de pacotes e itens unitários
   const diff = Math.round((totalValue - (pkgTotal + unitTotal)) * 100) / 100;
   if (list.length === 0 && diff > 0.05) {
-    list.push(`Acréscimo / Taxa adicional — ${brl(diff)}`);
+    const customDesc =
+      extras?.description ||
+      extras?.notes ||
+      extras?.observation ||
+      extras?.obs ||
+      extras?.reason ||
+      extras?.motivo ||
+      extras?.texto_acrescimo ||
+      extras?.nome_taxa ||
+      extras?.taxa_nome ||
+      quoteObj?.notes ||
+      quoteObj?.observation ||
+      quoteObj?.obs;
+
+    const label = customDesc?.trim() ? customDesc.trim() : "Acréscimo / Taxa adicional";
+    list.push(`${label} — ${brl(diff)}`);
   }
 
   if (list.length === 0) {
@@ -295,7 +335,7 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
       const { data } = await supabase
         .from("quotes")
         .select(
-          "id, event_date, event_time, event_address, adults, children_7_10, children_0_6, total_value, entry_value, balance_value, client_id, payment_method, extras, clients(name, address, phone, cpf), packages(name, description)",
+          "id, event_date, event_time, event_address, adults, children_7_10, children_0_6, total_value, entry_value, balance_value, client_id, payment_method, extras, notes, observation, clients(name, address, phone, cpf), packages(name, description)",
         )
         .eq("status", "fechado")
         .order("event_date", { ascending: false })
@@ -478,7 +518,7 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
 
         const { text: itensUnitariosDetalhados, total: unitTotal } = formatUnitItems(unitSnap);
         const totalVal = Number(q.total_value ?? 0);
-        const acrescimosText = getAdditionsText(qExtras, totalVal, pkgTotal, unitTotal);
+        const acrescimosText = getAdditionsText(qExtras, totalVal, pkgTotal, unitTotal, q);
 
         const entryVal = q.entry_value != null ? Number(q.entry_value) : totalVal * 0.5;
         const balanceVal = q.balance_value != null ? Number(q.balance_value) : totalVal - entryVal;
@@ -524,7 +564,7 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
         if (ev.quote_id) {
           const { data: qLink } = await supabase
             .from("quotes")
-            .select("extras, adults, total_value, entry_value, balance_value, packages(name)")
+            .select("extras, adults, total_value, entry_value, balance_value, notes, observation, packages(name)")
             .eq("id", ev.quote_id)
             .maybeSingle();
           const ql: any = qLink ?? {};
@@ -551,7 +591,7 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
 
           const { text: uText, total: uTotal } = formatUnitItems(unitSnap);
           evItens = uText;
-          evAcrescimos = getAdditionsText(ext, totalVal, pkgTotal, uTotal);
+          evAcrescimos = getAdditionsText(ext, totalVal, pkgTotal, uTotal, ql);
         }
 
         vars = {
