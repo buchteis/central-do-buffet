@@ -639,7 +639,7 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
 
         <p className="text-[11px] text-muted-foreground">
           {source === "blank"
-            ? "O contrato será criado com o modelo padrão. Você poderá editar todo o texto em seguida."
+            ? "O contrato usará o modelo salvo em Configurações. Você poderá editar todo o texto em seguida."
             : "Os dados serão preenchidos automaticamente e permanecerão totalmente editáveis."}
         </p>
 
