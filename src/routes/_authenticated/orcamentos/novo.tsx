@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { calcQuote } from "@/lib/quote-calc";
+import { calcQuote, resolveTierPrice } from "@/lib/quote-calc";
 import { brl } from "@/lib/format";
 import { openQuotePdf } from "@/lib/quote-pdf";
 import { useTenantAccess } from "@/hooks/useTenantAccess";
