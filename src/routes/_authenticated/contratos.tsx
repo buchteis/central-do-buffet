@@ -228,89 +228,104 @@ function getAdditionsText(
   const list: string[] = [];
 
   if (extras && typeof extras === "object") {
-    // 1. Procura em listas/arrays dentro de extras
-    const candidateArrays = [
-      extras.additions,
-      extras.surcharges,
-      extras.extra_services,
-      extras.fees,
-      extras.acrescimos,
-      extras.extra_items,
-      extras.adjustments,
-      extras.custom_items,
-      extras.taxas,
-    ];
-
-    for (const arr of candidateArrays) {
-      if (Array.isArray(arr) && arr.length > 0) {
-        for (const item of arr) {
-          const val = Number(item?.value ?? item?.price ?? item?.amount ?? item?.total ?? 0) || 0;
-          if (val > 0) {
-            const name =
-              item?.name ??
-              item?.title ??
-              item?.description ??
-              item?.label ??
-              item?.reason ??
-              item?.motivo ??
-              "Acréscimo";
-            list.push(`${name} — ${brl(val)}`);
-          }
+    // 1. Procura em arrays dentro de extras
+    const arrayKeys = Object.keys(extras).filter((k) => Array.isArray(extras[k]));
+    for (const k of arrayKeys) {
+      if (["packages", "unit_items"].includes(k)) continue;
+      const arr = extras[k];
+      for (const item of arr) {
+        if (!item || typeof item !== "object") continue;
+        const val = Number(item?.value ?? item?.price ?? item?.amount ?? item?.total ?? 0) || 0;
+        if (val > 0) {
+          const name =
+            item?.name ??
+            item?.title ??
+            item?.description ??
+            item?.label ??
+            item?.reason ??
+            item?.motivo ??
+            "Acréscimo";
+          list.push(`${name} — ${brl(val)}`);
         }
       }
     }
 
-    // 2. Procura em chaves individuais com descrição
-    const singlePairs = [
-      {
-        val: extras.additional_value,
-        desc: extras.additional_description || extras.additional_name || extras.additional_reason,
-      },
-      {
-        val: extras.surcharge_value || extras.surcharge,
-        desc: extras.surcharge_description || extras.surcharge_name || extras.surcharge_reason,
-      },
-      {
-        val: extras.freight || extras.frete || extras.taxa_deslocamento,
-        desc: extras.freight_description || extras.frete_description || "Taxa de Deslocamento / Frete",
-      },
-      {
-        val: extras.acrescimo_total || extras.acrescimo,
-        desc: extras.acrescimo_descricao || extras.acrescimo_nome || extras.descricao_acrescimo,
-      },
-      {
-        val: extras.fee_value || extras.fee,
-        desc: extras.fee_description || extras.fee_name || extras.fee_label,
-      },
-    ];
+    // 2. Procura pares de valor e texto em extras
+    if (list.length === 0) {
+      const singlePairs = [
+        {
+          val: extras.additional_value,
+          desc: extras.additional_description || extras.additional_name || extras.additional_reason || extras.reason,
+        },
+        {
+          val: extras.surcharge_value || extras.surcharge,
+          desc:
+            extras.surcharge_description || extras.surcharge_name || extras.surcharge_reason || extras.surcharge_notes,
+        },
+        {
+          val: extras.freight || extras.frete || extras.taxa_deslocamento || extras.deslocamento,
+          desc:
+            extras.freight_description ||
+            extras.frete_description ||
+            extras.deslocamento_descricao ||
+            "Taxa de Deslocamento / Frete",
+        },
+        {
+          val: extras.acrescimo_total || extras.acrescimo,
+          desc: extras.acrescimo_descricao || extras.acrescimo_nome || extras.descricao_acrescimo || extras.motivo,
+        },
+      ];
 
-    for (const pair of singlePairs) {
-      if (!list.length && Number(pair.val) > 0) {
-        const val = Number(pair.val);
-        const label = pair.desc?.trim() || "Acréscimo / Taxa adicional";
-        list.push(`${label} — ${brl(val)}`);
+      for (const pair of singlePairs) {
+        if (!list.length && Number(pair.val) > 0) {
+          const val = Number(pair.val);
+          const label = pair.desc?.trim() || "Acréscimo / Taxa adicional";
+          list.push(`${label} — ${brl(val)}`);
+        }
       }
     }
   }
 
-  // 3. Trava de cálculo: diferença entre valor total e soma de pacotes e itens unitários
+  // 3. Trava de cálculo + Busca exaustiva de texto no objeto do Orçamento
   const diff = Math.round((totalValue - (pkgTotal + unitTotal)) * 100) / 100;
   if (list.length === 0 && diff > 0.05) {
-    const customDesc =
-      extras?.description ||
-      extras?.notes ||
-      extras?.observation ||
-      extras?.obs ||
-      extras?.reason ||
-      extras?.motivo ||
-      extras?.texto_acrescimo ||
-      extras?.nome_taxa ||
-      extras?.taxa_nome ||
-      quoteObj?.notes ||
-      quoteObj?.observation ||
-      quoteObj?.obs;
+    let foundText = "";
 
-    const label = customDesc?.trim() ? customDesc.trim() : "Acréscimo / Taxa adicional";
+    // Procura qualquer texto descritivo em extras
+    if (extras && typeof extras === "object") {
+      for (const [k, v] of Object.entries(extras)) {
+        if (
+          typeof v === "string" &&
+          v.trim().length > 0 &&
+          !["packages", "unit_items"].includes(k) &&
+          isNaN(Number(v))
+        ) {
+          foundText = v.trim();
+          break;
+        }
+      }
+    }
+
+    // Procura observações e notas no orçamento principal
+    if (!foundText && quoteObj && typeof quoteObj === "object") {
+      const candidateFields = [
+        quoteObj.notes,
+        quoteObj.observation,
+        quoteObj.obs,
+        quoteObj.description,
+        quoteObj.surcharge_notes,
+        quoteObj.addition_notes,
+        quoteObj.reason,
+      ];
+      for (const f of candidateFields) {
+        if (typeof f === "string" && f.trim().length > 0) {
+          foundText = f.trim();
+          break;
+        }
+      }
+    }
+
+    const label = foundText || "Acréscimo / Taxa adicional";
     list.push(`${label} — ${brl(diff)}`);
   }
 
@@ -334,9 +349,7 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
     queryFn: async () => {
       const { data } = await supabase
         .from("quotes")
-        .select(
-          "id, event_date, event_time, event_address, adults, children_7_10, children_0_6, total_value, entry_value, balance_value, client_id, payment_method, extras, notes, observation, clients(name, address, phone, cpf), packages(name, description)",
-        )
+        .select("*, clients(name, address, phone, cpf), packages(name, description)")
         .eq("status", "fechado")
         .order("event_date", { ascending: false })
         .limit(200);
@@ -564,7 +577,7 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
         if (ev.quote_id) {
           const { data: qLink } = await supabase
             .from("quotes")
-            .select("extras, adults, total_value, entry_value, balance_value, notes, observation, packages(name)")
+            .select("*, packages(name)")
             .eq("id", ev.quote_id)
             .maybeSingle();
           const ql: any = qLink ?? {};
