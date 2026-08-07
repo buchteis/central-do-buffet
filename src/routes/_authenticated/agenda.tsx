@@ -16,6 +16,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { brl, formatDateFullBR } from "@/lib/format";
 import { waLink } from "@/lib/whatsapp";
+import { dedupePackages } from "@/lib/quote-calc";
+
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 
@@ -721,7 +723,7 @@ function EventPanel({ event, onClose }: { event: any; onClose: () => void }) {
         <div className="space-y-4 text-sm">
           <Info label="Local" value={event.event_address || c?.address || "—"} />
           <Info label="Convidados" value={String(event.guest_count ?? 0)} />
-          <Info label="Pacote" value={event.packages?.name ?? "—"} />
+          <EventItems event={event} />
           <Info label="Valor total" value={brl(event.total_value)} />
           <Info label="Telefone" value={c?.phone || "—"} />
           <Info label="WhatsApp" value={c?.whatsapp || "—"} />
@@ -951,6 +953,80 @@ function StaffSection({ event }: { event: any }) {
     </div>
   );
 }
+
+/** Todos os pacotes e itens de valor unitário do evento (snapshot do orçamento vinculado). */
+function EventItems({ event }: { event: any }) {
+  const { data: quote } = useQuery({
+    queryKey: ["event-quote-snapshot", event.quote_id],
+    enabled: !!event.quote_id,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("quotes")
+        .select("extras, adults, total_value")
+        .eq("id", event.quote_id)
+        .maybeSingle();
+      return data;
+    },
+  });
+
+  const ext: any = (quote as any)?.extras ?? {};
+  const unitItems: any[] = Array.isArray(ext.unit_items) ? ext.unit_items : [];
+  const rawPackages: any[] = Array.isArray(ext.packages) ? ext.packages : [];
+  const pkgList = dedupePackages(rawPackages, unitItems);
+  const adults = Number((quote as any)?.adults ?? event.guest_count ?? 0) || 0;
+
+  return (
+    <div className="space-y-3">
+      <div>
+        <div className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">
+          Pacotes
+        </div>
+        {pkgList.length > 0 ? (
+          <ul className="mt-1 space-y-1">
+            {pkgList.map((p: any, i: number) => {
+              const ppp = Number(p?.price_per_person ?? 0) || 0;
+              return (
+                <li key={i} className="flex justify-between gap-2 text-sm">
+                  <span className="font-semibold">{p?.name ?? "Pacote"}</span>
+                  <span className="text-xs text-muted-foreground whitespace-nowrap">
+                    {ppp ? `${brl(ppp)}/pessoa × ${adults} = ${brl(ppp * adults)}` : "—"}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        ) : (
+          <div className="text-sm font-semibold">{event.packages?.name ?? "—"}</div>
+        )}
+      </div>
+
+      {unitItems.filter((u) => (Number(u?.qty) || 0) > 0).length > 0 && (
+        <div>
+          <div className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">
+            Itens de valor unitário
+          </div>
+          <ul className="mt-1 space-y-1">
+            {unitItems
+              .filter((u) => (Number(u?.qty) || 0) > 0)
+              .map((u: any, i: number) => {
+                const qty = Number(u.qty) || 0;
+                const price = Number(u.unit_price) || 0;
+                return (
+                  <li key={i} className="flex justify-between gap-2 text-sm">
+                    <span className="font-semibold">{u.name ?? "Item"}</span>
+                    <span className="text-xs text-muted-foreground whitespace-nowrap">
+                      {qty} {u.unit ?? "un"} × {brl(price)} = {brl(qty * price)}
+                    </span>
+                  </li>
+                );
+              })}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
 
 function Info({ label, value }: { label: string; value: string }) {
   return (
