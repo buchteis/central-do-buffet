@@ -25,12 +25,35 @@ const statusStyles: Record<string, string> = {
 
 type Source = "quote" | "event" | "blank";
 
+const CONTRACT_PERIODS: { key: "dia" | "semana" | "mes" | "ano" | "todos"; label: string }[] = [
+  { key: "dia", label: "Dia" },
+  { key: "semana", label: "Semana" },
+  { key: "mes", label: "Mês" },
+  { key: "ano", label: "Ano" },
+  { key: "todos", label: "Tudo" },
+];
+
+function contractStartOf(period: "dia" | "semana" | "mes" | "ano" | "todos") {
+  const now = new Date();
+  if (period === "dia") return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  if (period === "semana") {
+    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    d.setDate(d.getDate() - d.getDay());
+    return d;
+  }
+  if (period === "mes") return new Date(now.getFullYear(), now.getMonth(), 1);
+  if (period === "ano") return new Date(now.getFullYear(), 0, 1);
+  return null;
+}
+
 function ContractsPage() {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<any | null>(null);
   const [previewing, setPreviewing] = useState<any | null>(null);
+  const [period, setPeriod] = useState<"dia" | "semana" | "mes" | "ano" | "todos">("todos");
   const { match } = useSearchFilter();
+
 
   const { data: settings } = useQuery({
     queryKey: ["buffet-settings"],
