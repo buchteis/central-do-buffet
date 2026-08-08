@@ -280,7 +280,7 @@ function Dashboard() {
     alerts.push({ icon: Hourglass, label: `${stats.qPend} orçamento(s) aguardando resposta`, tone: "muted" });
 
   return (
-    <div className="space-y-8 p-4 md:p-6 bg-slate-50/50 min-h-screen">
+    <div className="space-y-8 p-4 md:p-6 bg-slate-50">
       {/* Cabeçalho */}
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
