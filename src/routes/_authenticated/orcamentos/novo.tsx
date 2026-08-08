@@ -650,7 +650,7 @@ function NewQuotePage() {
                   const qty = Number(unitQty[it.id] ?? 0) || 0;
                   return (
                     <div key={it.id} className="flex flex-wrap items-center gap-3 bg-background p-3 rounded-lg border">
-                      <span className="flex-1 min-w-[140px] text-sm">
+                      <span className="flex-1 min-w-0 text-sm">
                         {it.name}{" "}
                         <span className="text-xs text-muted-foreground">
                           ({brl(Number(it.unit_price) || 0)}/{it.unit})
@@ -738,7 +738,7 @@ function NewQuotePage() {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3 pt-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
             <ToggleRow
               label="Possui churrasqueira"
               checked={form.has_grill}

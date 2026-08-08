@@ -181,7 +181,7 @@ function QuoteDetail() {
           <CardHeader>
             <CardTitle className="text-sm font-medium">Valores</CardTitle>
           </CardHeader>
-          <CardContent className="grid grid-cols-3 gap-4 text-sm">
+          <CardContent className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
             <div>
               <div className="text-xs text-muted-foreground">Total</div>
               <div className="font-mono font-bold text-lg">{brl(q.total_value)}</div>

@@ -92,7 +92,7 @@ export function EmitirNFModal({ event, onClose }: { event: NfEvent; onClose: () 
           />
         </label>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <label className="block">
             <span className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground">Valor (R$)</span>
             <input
@@ -118,7 +118,7 @@ export function EmitirNFModal({ event, onClose }: { event: NfEvent; onClose: () 
           </label>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <label className="block">
             <span className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground">
               Forma de pagamento
