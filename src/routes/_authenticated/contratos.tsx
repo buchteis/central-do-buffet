@@ -121,7 +121,25 @@ function ContractsPage() {
         </button>
       </div>
 
+      <div className="flex flex-wrap gap-1 p-1 bg-muted/50 rounded-full w-fit">
+        {CONTRACT_PERIODS.map((p) => (
+          <button
+            key={p.key}
+            onClick={() => setPeriod(p.key)}
+            className={cn(
+              "px-3 py-1.5 rounded-full text-xs font-bold transition-colors",
+              period === p.key
+                ? "bg-primary text-primary-foreground shadow"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            {p.label}
+          </button>
+        ))}
+      </div>
+
       <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
+
         {contracts?.length === 0 ? (
           <div className="p-16 text-center">
             <FileText className="size-8 mx-auto text-muted-foreground mb-3" />
