@@ -394,7 +394,8 @@ function MonthView({
   const [over, setOver] = useState<string | null>(null);
 
   return (
-    <div className="bg-card border border-border rounded-2xl overflow-hidden">
+    <div className="bg-card border border-border rounded-2xl overflow-x-auto">
+      <div className="min-w-[640px]">
       <div className="grid grid-cols-7 border-b border-border bg-muted/30">
         {["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"].map((d) => (
           <div
@@ -473,6 +474,7 @@ function MonthView({
           );
         })}
       </div>
+      </div>
     </div>
   );
 }
@@ -505,8 +507,8 @@ function WeekView({
   const [over, setOver] = useState<string | null>(null);
 
   return (
-    <div className="bg-card border border-border rounded-2xl overflow-hidden">
-      <div className="grid grid-cols-7">
+    <div className="bg-card border border-border rounded-2xl overflow-x-auto">
+      <div className="grid grid-cols-7 min-w-[700px]">
         {days.map((d) => {
           const key = iso(d);
           const ev = byDay.get(key) ?? [];
