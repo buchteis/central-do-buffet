@@ -25,12 +25,35 @@ const statusStyles: Record<string, string> = {
 
 type Source = "quote" | "event" | "blank";
 
+const CONTRACT_PERIODS: { key: "dia" | "semana" | "mes" | "ano" | "todos"; label: string }[] = [
+  { key: "dia", label: "Dia" },
+  { key: "semana", label: "Semana" },
+  { key: "mes", label: "Mês" },
+  { key: "ano", label: "Ano" },
+  { key: "todos", label: "Tudo" },
+];
+
+function contractStartOf(period: "dia" | "semana" | "mes" | "ano" | "todos") {
+  const now = new Date();
+  if (period === "dia") return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  if (period === "semana") {
+    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    d.setDate(d.getDate() - d.getDay());
+    return d;
+  }
+  if (period === "mes") return new Date(now.getFullYear(), now.getMonth(), 1);
+  if (period === "ano") return new Date(now.getFullYear(), 0, 1);
+  return null;
+}
+
 function ContractsPage() {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<any | null>(null);
   const [previewing, setPreviewing] = useState<any | null>(null);
+  const [period, setPeriod] = useState<"dia" | "semana" | "mes" | "ano" | "todos">("todos");
   const { match } = useSearchFilter();
+
 
   const { data: settings } = useQuery({
     queryKey: ["buffet-settings"],
@@ -98,7 +121,25 @@ function ContractsPage() {
         </button>
       </div>
 
+      <div className="flex flex-wrap gap-1 p-1 bg-muted/50 rounded-full w-fit">
+        {CONTRACT_PERIODS.map((p) => (
+          <button
+            key={p.key}
+            onClick={() => setPeriod(p.key)}
+            className={cn(
+              "px-3 py-1.5 rounded-full text-xs font-bold transition-colors",
+              period === p.key
+                ? "bg-primary text-primary-foreground shadow"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            {p.label}
+          </button>
+        ))}
+      </div>
+
       <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
+
         {contracts?.length === 0 ? (
           <div className="p-16 text-center">
             <FileText className="size-8 mx-auto text-muted-foreground mb-3" />
@@ -118,6 +159,12 @@ function ContractsPage() {
             </thead>
             <tbody className="divide-y divide-border">
               {(contracts ?? [])
+                .filter((c: any) => {
+                  const from = contractStartOf(period);
+                  if (!from) return true;
+                  const ref = c.events?.event_date ? new Date(`${c.events.event_date}T00:00:00`) : new Date(c.created_at);
+                  return ref >= from;
+                })
                 .filter((c: any) =>
                   match(
                     c.title,
@@ -129,6 +176,7 @@ function ContractsPage() {
                     c.clients?.cpf,
                   ),
                 )
+
                 .map((c: any) => {
                   const clientName = c.events?.clients?.name ?? c.clients?.name ?? "—";
                   const eventDate = c.events?.event_date ? formatDateFullBR(c.events.event_date) : "—";

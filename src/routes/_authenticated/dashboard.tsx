@@ -280,7 +280,7 @@ function Dashboard() {
     alerts.push({ icon: Hourglass, label: `${stats.qPend} orçamento(s) aguardando resposta`, tone: "muted" });
 
   return (
-    <div className="space-y-8 p-4 md:p-6 bg-slate-50/50 min-h-screen">
+    <div className="space-y-8 p-4 md:p-6 bg-slate-50">
       {/* Cabeçalho */}
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
@@ -292,7 +292,7 @@ function Dashboard() {
         </div>
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-green-100 text-green-800 text-xs font-medium">
-            <span className="size-2 rounded-full bg-green-500 animate-pulse" />
+            <span className="size-2 rounded-full bg-green-500" />
             Ao vivo
           </span>
         </div>
@@ -541,13 +541,33 @@ function Dashboard() {
   );
 }
 
+// Cores estáticas (classes dinâmicas `bg-${color}-500` não são geradas pelo Tailwind)
+const ICON_BG: Record<string, string> = {
+  blue: "bg-blue-500",
+  indigo: "bg-indigo-500",
+  purple: "bg-purple-500",
+  emerald: "bg-emerald-500",
+  amber: "bg-amber-500",
+  rose: "bg-rose-500",
+  sky: "bg-sky-500",
+  orange: "bg-orange-500",
+  green: "bg-green-500",
+  cyan: "bg-cyan-500",
+  teal: "bg-teal-500",
+  violet: "bg-violet-500",
+  fuchsia: "bg-fuchsia-500",
+  gray: "bg-gray-500",
+};
+
+const iconBg = (color?: string) => ICON_BG[color ?? ""] ?? "bg-slate-500";
+
 // Componente Auxiliar para Cards Métricos
 function MetricCard({ label, value, icon: Icon, color, subtitle }: any) {
   return (
     <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-2">
       <div className="flex items-center justify-between">
         <span className="text-xs font-bold uppercase tracking-wider text-slate-500">{label}</span>
-        <div className={cn("p-2 rounded-xl text-white", `bg-${color}-500`)}>
+        <div className={cn("p-2 rounded-xl text-white", iconBg(color))}>
           <Icon className="size-4" />
         </div>
       </div>
@@ -562,14 +582,15 @@ function MetricCard({ label, value, icon: Icon, color, subtitle }: any) {
 // Componente Auxiliar para Cards Financeiros
 function FinanceCard({ label, value, icon: Icon, color }: any) {
   return (
-    <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
-      <div className="space-y-1">
+    <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between gap-3">
+      <div className="space-y-1 min-w-0">
         <span className="text-xs font-bold uppercase tracking-wider text-slate-500">{label}</span>
-        <div className="text-2xl font-black tracking-tight text-slate-800">{value}</div>
+        <div className="text-xl md:text-2xl font-black tracking-tight text-slate-800 break-words">{value}</div>
       </div>
-      <div className={cn("p-3 rounded-2xl text-white", `bg-${color}-500`)}>
+      <div className={cn("p-3 rounded-2xl text-white shrink-0", iconBg(color))}>
         <Icon className="size-6" />
       </div>
     </div>
   );
 }
+
