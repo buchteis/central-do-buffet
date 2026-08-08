@@ -493,7 +493,7 @@ function FinanceiroPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
                     Valor (R$)
@@ -517,7 +517,7 @@ function FinanceiroPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
                     Categoria

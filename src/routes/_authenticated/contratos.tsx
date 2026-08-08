@@ -972,14 +972,14 @@ ${logoHtml}
 
   return (
     <div
-      className="fixed inset-0 z-[60] bg-background/80 backdrop-blur-sm flex items-center justify-center p-4"
+      className="fixed inset-0 z-[60] bg-background/80 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4"
       onClick={onClose}
     >
       <div
         onClick={(e) => e.stopPropagation()}
         className="bg-card border border-border rounded-2xl w-full max-w-3xl max-h-[92vh] flex flex-col overflow-hidden"
       >
-        <div className="flex items-center justify-between px-5 py-3 border-b border-border">
+        <div className="flex flex-wrap items-center justify-between gap-2 px-3 sm:px-5 py-3 border-b border-border">
           <div className="text-sm font-extrabold">Visualização do contrato</div>
           <div className="flex gap-2">
             <button
@@ -993,9 +993,9 @@ ${logoHtml}
             </button>
           </div>
         </div>
-        <div className="flex-1 overflow-auto bg-muted/40 p-6">
+        <div className="flex-1 overflow-auto bg-muted/40 p-2 sm:p-6">
           <div
-            className="relative mx-auto max-w-[720px] bg-white text-neutral-900 shadow-lg rounded-md p-12 overflow-hidden"
+            className="relative mx-auto max-w-[720px] bg-white text-neutral-900 shadow-lg rounded-md p-5 sm:p-12 overflow-hidden"
             style={{
               fontFamily: "'Cambria', 'Palatino Linotype', Georgia, serif",
               fontSize: "15px",

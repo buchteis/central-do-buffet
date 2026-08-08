@@ -439,7 +439,7 @@ function QuotesPage() {
       </div>
 
       {period !== "all" && (
-        <div className="flex items-center justify-center gap-3 bg-muted/30 border border-border rounded-full px-4 py-2 w-fit mx-auto">
+        <div className="flex items-center justify-center gap-2 sm:gap-3 bg-muted/30 border border-border rounded-full px-3 sm:px-4 py-2 max-w-full w-fit mx-auto">
           <button
             onClick={() => setOffset((o) => o - 1)}
             className="p-1 rounded-full hover:bg-background transition"
@@ -447,7 +447,7 @@ function QuotesPage() {
           >
             <ChevronLeft className="size-4" />
           </button>
-          <div className="text-sm font-bold min-w-[180px] text-center">{range?.label ?? "—"}</div>
+          <div className="text-sm font-bold min-w-0 sm:min-w-[180px] text-center truncate">{range?.label ?? "—"}</div>
           <button
             onClick={() => setOffset((o) => o + 1)}
             className="p-1 rounded-full hover:bg-background transition"
