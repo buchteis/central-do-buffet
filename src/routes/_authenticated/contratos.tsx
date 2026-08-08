@@ -159,6 +159,12 @@ function ContractsPage() {
             </thead>
             <tbody className="divide-y divide-border">
               {(contracts ?? [])
+                .filter((c: any) => {
+                  const from = contractStartOf(period);
+                  if (!from) return true;
+                  const ref = c.events?.event_date ? new Date(`${c.events.event_date}T00:00:00`) : new Date(c.created_at);
+                  return ref >= from;
+                })
                 .filter((c: any) =>
                   match(
                     c.title,
@@ -170,6 +176,7 @@ function ContractsPage() {
                     c.clients?.cpf,
                   ),
                 )
+
                 .map((c: any) => {
                   const clientName = c.events?.clients?.name ?? c.clients?.name ?? "—";
                   const eventDate = c.events?.event_date ? formatDateFullBR(c.events.event_date) : "—";
