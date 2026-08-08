@@ -292,7 +292,7 @@ function Dashboard() {
         </div>
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-green-100 text-green-800 text-xs font-medium">
-            <span className="size-2 rounded-full bg-green-500 animate-pulse" />
+            <span className="size-2 rounded-full bg-green-500" />
             Ao vivo
           </span>
         </div>
