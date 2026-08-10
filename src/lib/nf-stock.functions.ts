@@ -280,11 +280,7 @@ export const commitInvoiceStockEntry = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
 
-    const { data: tenant } = await supabase
-      .from("tenants")
-      .select("id")
-      .eq("owner_id", userId)
-      .maybeSingle();
+    const tenant = await resolveTenant(supabase, userId);
     if (!tenant) return { error: "Nenhum buffet vinculado a esta conta." } as const;
 
     const cnpj = onlyDigits(data.header.cnpj ?? null);
