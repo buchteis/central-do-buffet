@@ -74,6 +74,18 @@ function onlyDigits(v: string | null | undefined) {
   return (v ?? "").replace(/\D/g, "") || null;
 }
 
+/** Resolve o buffet do usuário: dono do tenant ou, se não for dono, o tenant visível por RLS. */
+async function resolveTenant(supabase: any, userId: string) {
+  const { data: owned } = await supabase
+    .from("tenants")
+    .select("id, name")
+    .eq("owner_id", userId)
+    .maybeSingle();
+  if (owned) return owned as { id: string; name: string };
+  const { data: any1 } = await supabase.from("tenants").select("id, name").limit(1).maybeSingle();
+  return (any1 as { id: string; name: string } | null) ?? null;
+}
+
 async function extractFromAI(args: { filename: string; mimeType: string; base64: string }) {
   const apiKey = process.env.LOVABLE_API_KEY;
   if (!apiKey) throw new Error("LOVABLE_API_KEY não configurada.");
