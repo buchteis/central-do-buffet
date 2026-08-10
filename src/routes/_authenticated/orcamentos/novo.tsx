@@ -168,14 +168,20 @@ function NewQuotePage() {
       const raw = typeof window !== "undefined" ? sessionStorage.getItem(draftKey) : null;
       if (raw) {
         const d = JSON.parse(raw);
-        if (d?.form) setForm((f) => ({ ...f, ...d.form }));
-        if (Array.isArray(d?.packageLines)) setPackageLines(d.packageLines);
-        if (Array.isArray(d?.customExtras)) setCustomExtras(d.customExtras);
-        if (d?.unitQty && typeof d.unitQty === "object") setUnitQty(d.unitQty);
-        setPriceOverride(d?.priceOverride ?? null);
-        setEntryOverride(d?.entryOverride ?? null);
-        setBalanceOverride(d?.balanceOverride ?? null);
-        setHasDraft(true);
+        // Só restaura rascunhos completos (salvos depois do pré-preenchimento),
+        // evitando sobrescrever pacotes/itens do orçamento com um estado parcial.
+        if (d?.ready === true) {
+          if (d?.form) setForm((f) => ({ ...f, ...d.form }));
+          if (Array.isArray(d?.packageLines)) setPackageLines(d.packageLines);
+          if (Array.isArray(d?.customExtras)) setCustomExtras(d.customExtras);
+          if (d?.unitQty && typeof d.unitQty === "object") setUnitQty(d.unitQty);
+          setPriceOverride(d?.priceOverride ?? null);
+          setEntryOverride(d?.entryOverride ?? null);
+          setBalanceOverride(d?.balanceOverride ?? null);
+          setHasDraft(true);
+        } else {
+          sessionStorage.removeItem(draftKey);
+        }
       }
     } catch {
       /* ignore */
@@ -184,17 +190,31 @@ function NewQuotePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draftKey]);
 
+  // Marcado como pronto assim que o pré-preenchimento (orçamento/lead) terminou.
+  const [draftReady, setDraftReady] = useState(false);
+
   useEffect(() => {
-    if (!draftLoaded || typeof window === "undefined") return;
+    if (!draftLoaded || !draftReady || typeof window === "undefined") return;
     try {
       sessionStorage.setItem(
         draftKey,
-        JSON.stringify({ form, packageLines, customExtras, unitQty, priceOverride, entryOverride, balanceOverride }),
+        JSON.stringify({
+          ready: true,
+          form,
+          packageLines,
+          customExtras,
+          unitQty,
+          priceOverride,
+          entryOverride,
+          balanceOverride,
+        }),
       );
     } catch {
       /* ignore */
     }
   }, [
+    draftReady,
+
     draftLoaded,
     draftKey,
     form,
@@ -536,6 +556,23 @@ function NewQuotePage() {
 
     setPrefilledQuote(true);
   }, [quoteId, existingQuote, prefilledQuote, packages, clients, draftLoaded, hasDraft]);
+
+  // Só começa a gravar rascunho quando o formulário já está completo,
+  // para que voltar de outra aba não apague pacotes/itens carregados.
+  useEffect(() => {
+    if (!draftLoaded || draftReady) return;
+    if (quoteId) {
+      if (prefilledQuote && (unitItemsCatalog ?? null) !== null) setDraftReady(true);
+      return;
+    }
+    if (leadId) {
+      if (prefilled) setDraftReady(true);
+      return;
+    }
+    setDraftReady(true);
+  }, [draftLoaded, draftReady, quoteId, leadId, prefilled, prefilledQuote, unitItemsCatalog]);
+
+
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
