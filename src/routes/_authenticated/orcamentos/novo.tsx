@@ -432,6 +432,11 @@ function NewQuotePage() {
   // Prefill from lead when data arrives (only once). Never creates a client here.
   const [prefilled, setPrefilled] = useState(false);
   useEffect(() => {
+    if (!draftLoaded) return;
+    if (hasDraft) {
+      setPrefilled(true);
+      return;
+    }
     if (!leadId || prefilled || !lead) return;
     // Wait for reference lists so Select components can match ids to items.
     if (!packages || !clients) return;
