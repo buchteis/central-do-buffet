@@ -193,9 +193,14 @@ export const Chatbot = () => {
         content: `✅ Entrada lançada no estoque a partir da nota fiscal.\n\nEstoque atualizado:\n${linhas}`,
       });
       queryClient.invalidateQueries();
+      queryClient.invalidateQueries({ queryKey: ["stock-movements"] });
+      queryClient.invalidateQueries({ queryKey: ["stock-products"] });
     } catch (e: any) {
       console.error(e);
-      push({ role: "assistant", content: "❌ Erro ao lançar a entrada no estoque." });
+      push({
+        role: "assistant",
+        content: `❌ Erro ao lançar a entrada no estoque${e?.message ? `: ${e.message}` : "."}`,
+      });
     } finally {
       setIsLoading(false);
     }
