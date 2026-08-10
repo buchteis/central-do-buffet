@@ -676,7 +676,8 @@ function MovementsTab() {
                         kindStyle[m.kind],
                       )}
                     >
-                      {kindLabel[m.kind] ?? m.kind}
+                      {m.source === "nota_fiscal" ? "Compra (NF)" : (kindLabel[m.kind] ?? m.kind)}
+
                     </span>
                   </td>
                   <td className="px-3 py-3 font-mono text-right">
