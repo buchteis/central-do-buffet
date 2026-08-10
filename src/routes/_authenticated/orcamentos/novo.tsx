@@ -152,6 +152,7 @@ function NewQuotePage() {
   const [packageLines, setPackageLines] = useState<string[]>([""]);
   const [customExtras, setCustomExtras] = useState<{ description: string; value: number }[]>([]);
   const [unitQty, setUnitQty] = useState<Record<string, number>>({});
+  const [unitPriceSnapshot, setUnitPriceSnapshot] = useState<Record<string, number>>({});
 
   // Manual overrides — administrator has total freedom to edit price per person (sum),
   // entry (50%) and balance directly. `null` means "use auto value".
@@ -170,11 +171,14 @@ function NewQuotePage() {
         const d = JSON.parse(raw);
         // Só restaura rascunhos completos (salvos depois do pré-preenchimento),
         // evitando sobrescrever pacotes/itens do orçamento com um estado parcial.
-        if (d?.ready === true) {
+        if (d?.ready === true && d?.version === 2) {
           if (d?.form) setForm((f) => ({ ...f, ...d.form }));
           if (Array.isArray(d?.packageLines)) setPackageLines(d.packageLines);
           if (Array.isArray(d?.customExtras)) setCustomExtras(d.customExtras);
           if (d?.unitQty && typeof d.unitQty === "object") setUnitQty(d.unitQty);
+          if (d?.unitPriceSnapshot && typeof d.unitPriceSnapshot === "object") {
+            setUnitPriceSnapshot(d.unitPriceSnapshot);
+          }
           setPriceOverride(d?.priceOverride ?? null);
           setEntryOverride(d?.entryOverride ?? null);
           setBalanceOverride(d?.balanceOverride ?? null);
@@ -200,10 +204,12 @@ function NewQuotePage() {
         draftKey,
         JSON.stringify({
           ready: true,
+          version: 2,
           form,
           packageLines,
           customExtras,
           unitQty,
+          unitPriceSnapshot,
           priceOverride,
           entryOverride,
           balanceOverride,
@@ -221,6 +227,7 @@ function NewQuotePage() {
     packageLines,
     customExtras,
     unitQty,
+    unitPriceSnapshot,
     priceOverride,
     entryOverride,
     balanceOverride,
@@ -284,11 +291,11 @@ function NewQuotePage() {
           product_id: i.product_id,
           name: i.name,
           unit: i.unit,
-          unit_price: Number(i.unit_price) || 0,
+          unit_price: Number(unitPriceSnapshot[i.id] ?? i.unit_price) || 0,
           qty: Number(unitQty[i.id] ?? 0) || 0,
         }))
         .filter((i) => i.qty > 0),
-    [availableUnitItems, unitQty],
+    [availableUnitItems, unitQty, unitPriceSnapshot],
   );
 
   const autoBreakdown = useMemo(
@@ -508,12 +515,20 @@ function NewQuotePage() {
     const q: any = existingQuote;
     const extras: any = q.extras ?? {};
     const requester: any = extras.requester ?? {};
-    // Packages: prefer extras.packages list; fallback to package_id
+    // Packages: preserve every public selection. Older records may have lost a
+    // zero-price package in extras.packages, so recover it from each selected
+    // unit item's catalog relationship as well.
     let lines: string[] = [];
     if (Array.isArray(extras.packages) && extras.packages.length) {
       lines = extras.packages.map((p: any) => p.package_id).filter(Boolean);
     } else if (q.package_id) {
       lines = [q.package_id];
+    }
+    if (Array.isArray(extras.unit_items) && unitItemsCatalog) {
+      const packageIdsFromItems = extras.unit_items
+        .map((item: any) => unitItemsCatalog.find((catalogItem) => catalogItem.id === item?.item_id)?.package_id)
+        .filter(Boolean) as string[];
+      lines = Array.from(new Set([...lines, ...packageIdsFromItems]));
     }
     if (lines.length === 0) lines = [""];
     setPackageLines(lines);
@@ -537,10 +552,15 @@ function NewQuotePage() {
     if (Array.isArray(extras.custom)) setCustomExtras(extras.custom);
     if (Array.isArray(extras.unit_items)) {
       const map: Record<string, number> = {};
+      const prices: Record<string, number> = {};
       for (const it of extras.unit_items) {
-        if (it?.item_id) map[it.item_id] = Number(it.qty) || 0;
+        if (it?.item_id) {
+          map[it.item_id] = Number(it.qty) || 0;
+          prices[it.item_id] = Number(it.unit_price) || 0;
+        }
       }
       setUnitQty((old) => ({ ...old, ...map }));
+      setUnitPriceSnapshot((old) => ({ ...old, ...prices }));
     }
     if (extras.price_per_person_override != null) {
       setPriceOverride(Number(extras.price_per_person_override));
@@ -555,7 +575,7 @@ function NewQuotePage() {
     if (extras.balance_override != null) setBalanceOverride(Number(extras.balance_override));
 
     setPrefilledQuote(true);
-  }, [quoteId, existingQuote, prefilledQuote, packages, clients, draftLoaded, hasDraft]);
+  }, [quoteId, existingQuote, prefilledQuote, packages, clients, unitItemsCatalog, draftLoaded, hasDraft]);
 
   // Só começa a gravar rascunho quando o formulário já está completo,
   // para que voltar de outra aba não apague pacotes/itens carregados.
