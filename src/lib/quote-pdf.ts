@@ -119,7 +119,7 @@ export async function openQuotePdf(input: QuotePdfInput) {
       <td class="num">${esc(brl(ppp * adults))}</td>
     </tr>`);
     }
-  } else {
+  } else if (bk.adultsSubtotal > 0 || (input.unitItems ?? []).every((u) => (Number(u?.qty) || 0) <= 0)) {
     rows.push(`
     <tr>
       <td>${esc(pkg?.name ?? "Pacote")}<div class="muted">Serviço de buffet</div></td>
@@ -128,6 +128,7 @@ export async function openQuotePdf(input: QuotePdfInput) {
       <td class="num">${esc(brl(bk.adultsSubtotal))}</td>
     </tr>`);
   }
+
 
   if ((ev.childrenCount ?? 0) > 0) {
     rows.push(`
