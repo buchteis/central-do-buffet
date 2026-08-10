@@ -159,6 +159,53 @@ function NewQuotePage() {
   const [entryOverride, setEntryOverride] = useState<number | null>(null);
   const [balanceOverride, setBalanceOverride] = useState<number | null>(null);
 
+  // Rascunho persistente: mantém o que já foi preenchido/carregado ao sair da aba e voltar.
+  const draftKey = `cdb:quote-draft:${quoteId ?? leadId ?? "new"}`;
+  const [draftLoaded, setDraftLoaded] = useState(false);
+  const [hasDraft, setHasDraft] = useState(false);
+  useEffect(() => {
+    try {
+      const raw = typeof window !== "undefined" ? sessionStorage.getItem(draftKey) : null;
+      if (raw) {
+        const d = JSON.parse(raw);
+        if (d?.form) setForm((f) => ({ ...f, ...d.form }));
+        if (Array.isArray(d?.packageLines)) setPackageLines(d.packageLines);
+        if (Array.isArray(d?.customExtras)) setCustomExtras(d.customExtras);
+        if (d?.unitQty && typeof d.unitQty === "object") setUnitQty(d.unitQty);
+        setPriceOverride(d?.priceOverride ?? null);
+        setEntryOverride(d?.entryOverride ?? null);
+        setBalanceOverride(d?.balanceOverride ?? null);
+        setHasDraft(true);
+      }
+    } catch {
+      /* ignore */
+    }
+    setDraftLoaded(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draftKey]);
+
+  useEffect(() => {
+    if (!draftLoaded || typeof window === "undefined") return;
+    try {
+      sessionStorage.setItem(
+        draftKey,
+        JSON.stringify({ form, packageLines, customExtras, unitQty, priceOverride, entryOverride, balanceOverride }),
+      );
+    } catch {
+      /* ignore */
+    }
+  }, [
+    draftLoaded,
+    draftKey,
+    form,
+    packageLines,
+    customExtras,
+    unitQty,
+    priceOverride,
+    entryOverride,
+    balanceOverride,
+  ]);
+
   const totalGuests = (Number(form.adults) || 0) + (Number(form.children_count) || 0);
 
   const priceForPackage = (packageId: string, guests: number): number => {
@@ -194,19 +241,20 @@ function NewQuotePage() {
   // Ao editar um orçamento existente (ex.: vindo do link público), respeita exatamente
   // o que foi escolhido: itens não escolhidos ficam em 0.
   useEffect(() => {
+    if (!draftLoaded) return;
     if (!availableUnitItems.length) return;
     setUnitQty((old) => {
       const next = { ...old };
       let changed = false;
       for (const it of availableUnitItems) {
         if (next[it.id] === undefined) {
-          next[it.id] = quoteId ? 0 : Number(it.default_qty) || 0;
+          next[it.id] = quoteId || hasDraft ? 0 : Number(it.default_qty) || 0;
           changed = true;
         }
       }
       return changed ? next : old;
     });
-  }, [availableUnitItems, quoteId]);
+  }, [availableUnitItems, quoteId, draftLoaded, hasDraft]);
 
   const selectedUnitItems = useMemo(
     () =>
@@ -366,6 +414,11 @@ function NewQuotePage() {
       return data;
     },
     onSuccess: () => {
+      try {
+        sessionStorage.removeItem(draftKey);
+      } catch {
+        /* ignore */
+      }
       qc.invalidateQueries({ queryKey: ["quotes"] });
       qc.invalidateQueries({ queryKey: ["dashboard-stats"] });
       qc.invalidateQueries({ queryKey: ["leads"] });
@@ -384,6 +437,11 @@ function NewQuotePage() {
   // Prefill from lead when data arrives (only once). Never creates a client here.
   const [prefilled, setPrefilled] = useState(false);
   useEffect(() => {
+    if (!draftLoaded) return;
+    if (hasDraft) {
+      setPrefilled(true);
+      return;
+    }
     if (!leadId || prefilled || !lead) return;
     // Wait for reference lists so Select components can match ids to items.
     if (!packages || !clients) return;
@@ -413,11 +471,16 @@ function NewQuotePage() {
       notes: (lead as any).notes ?? f.notes,
     }));
     setPrefilled(true);
-  }, [lead, packages, clients, leadId, prefilled, navigate]);
+  }, [lead, packages, clients, leadId, prefilled, navigate, draftLoaded, hasDraft]);
 
   // Prefill from an existing quote (e.g. pré-orçamento vindo do link público).
   const [prefilledQuote, setPrefilledQuote] = useState(false);
   useEffect(() => {
+    if (!draftLoaded) return;
+    if (hasDraft) {
+      setPrefilledQuote(true);
+      return;
+    }
     if (!quoteId || prefilledQuote || !existingQuote) return;
     // Only prefill once reference lists are available so <Select> values map to items.
     if (!packages || !clients) return;
@@ -472,7 +535,7 @@ function NewQuotePage() {
     if (extras.balance_override != null) setBalanceOverride(Number(extras.balance_override));
 
     setPrefilledQuote(true);
-  }, [quoteId, existingQuote, prefilledQuote, packages, clients]);
+  }, [quoteId, existingQuote, prefilledQuote, packages, clients, draftLoaded, hasDraft]);
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
