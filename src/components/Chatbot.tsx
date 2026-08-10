@@ -252,7 +252,10 @@ export const Chatbot = () => {
       return;
     }
 
-    const history = messages.filter((m) => m.role === "user" || m.role === "assistant").slice(-10);
+    const history = messages
+      .filter((m) => m.role === "user" || m.role === "assistant")
+      .slice(-10)
+      .map((m) => ({ role: m.role, content: m.content }));
     setMessages((p) => [...p, { role: "user", content: text }]);
     setInput("");
     setIsLoading(true);
