@@ -435,6 +435,77 @@ export const Chatbot = () => {
                       </button>
                     </div>
                   )}
+                  {msg.review && (
+                    <div style={{ marginTop: 10, display: "grid", gap: 8 }}>
+                      {msg.review.matches.map((m: any, j: number) => {
+                        const ok = !!m.product_id && m.confidence >= 55;
+                        return (
+                          <div
+                            key={j}
+                            style={{
+                              border: "1px solid #e5e7eb",
+                              borderRadius: 10,
+                              padding: 10,
+                              background: ok ? "#f0fdf4" : "#fff7ed",
+                              fontSize: 12,
+                            }}
+                          >
+                            <div style={{ fontWeight: 700 }}>{m.item.descricao}</div>
+                            <div style={{ color: "#4b5563" }}>
+                              {m.item.quantidade} {m.item.unidade ?? "un"} • {brl(m.item.valor_unitario)} un •
+                              total {brl(m.item.valor_total)}
+                            </div>
+                            {ok ? (
+                              <div style={{ marginTop: 4 }}>
+                                Correspondência: <b>{m.product_name}</b> (estoque atual {m.product_qty}{" "}
+                                {m.product_unit}) — Confiança: <b>{m.confidence}%</b>
+                              </div>
+                            ) : (
+                              <div style={{ marginTop: 4, color: "#9a3412" }}>
+                                Produto não identificado. Deseja relacionar este item a um produto existente ou
+                                cadastrar um novo produto no Estoque?
+                              </div>
+                            )}
+                            <select
+                              value={m.product_id ?? ""}
+                              onChange={(e) => updateMatch(i, j, e.target.value)}
+                              style={{
+                                marginTop: 6,
+                                width: "100%",
+                                padding: "6px 8px",
+                                borderRadius: 8,
+                                border: "1px solid #d1d5db",
+                                fontSize: 12,
+                              }}
+                            >
+                              <option value="">— Não lançar este item —</option>
+                              {msg.review!.products.map((p) => (
+                                <option key={p.id} value={p.id}>
+                                  {p.name} ({p.unit})
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        );
+                      })}
+                      <button
+                        onClick={() => confirmEntry(msg.review!, i)}
+                        disabled={isLoading}
+                        style={{
+                          background: "#22c55e",
+                          color: "white",
+                          border: "none",
+                          borderRadius: 8,
+                          padding: "8px 12px",
+                          fontSize: 12,
+                          fontWeight: 700,
+                          cursor: "pointer",
+                        }}
+                      >
+                        Confirmar entrada no estoque
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
