@@ -466,11 +466,16 @@ function NewQuotePage() {
       notes: (lead as any).notes ?? f.notes,
     }));
     setPrefilled(true);
-  }, [lead, packages, clients, leadId, prefilled, navigate]);
+  }, [lead, packages, clients, leadId, prefilled, navigate, draftLoaded, hasDraft]);
 
   // Prefill from an existing quote (e.g. pré-orçamento vindo do link público).
   const [prefilledQuote, setPrefilledQuote] = useState(false);
   useEffect(() => {
+    if (!draftLoaded) return;
+    if (hasDraft) {
+      setPrefilledQuote(true);
+      return;
+    }
     if (!quoteId || prefilledQuote || !existingQuote) return;
     // Only prefill once reference lists are available so <Select> values map to items.
     if (!packages || !clients) return;
