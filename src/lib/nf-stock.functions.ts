@@ -375,7 +375,7 @@ export const commitInvoiceStockEntry = createServerFn({ method: "POST" })
 
     return {
       ok: true as const,
-      invoice_id: (invoice as any).id,
+      invoice_id: (invoice as any)?.id ?? null,
       updated: (after ?? []).map((p: any) => ({
         name: p.name,
         unit: p.unit,
