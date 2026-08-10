@@ -100,10 +100,147 @@ export const Chatbot = () => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages, isLoading]);
 
+  const push = (m: Msg) => setMessages((p) => [...p, m]);
+
+  const handleFile = async (file: File) => {
+    if (!access?.tenant?.id) {
+      push({ role: "assistant", content: "⚠️ Faça login em um buffet ativo para usar o assistente." });
+      return;
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      push({ role: "assistant", content: "⚠️ Arquivo muito grande (máx. 8 MB)." });
+      return;
+    }
+    push({ role: "user", content: `📄 ${file.name} — leia esta nota e prepare a entrada no estoque.` });
+    setIsLoading(true);
+    try {
+      // O arquivo é lido apenas em memória e usado somente para extração.
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const r = new FileReader();
+        r.onload = () => resolve(String(r.result));
+        r.onerror = () => reject(new Error("read"));
+        r.readAsDataURL(file);
+      });
+      const res: any = await parseNf({
+        data: {
+          filename: file.name,
+          mimeType: file.type || (file.name.endsWith(".xml") ? "application/xml" : "application/octet-stream"),
+          base64,
+        },
+      });
+      if (res?.error) {
+        push({ role: "assistant", content: `⚠️ ${res.error}` });
+        return;
+      }
+      if (res.duplicate) {
+        push({
+          role: "assistant",
+          content: `🚫 Esta nota fiscal já foi lançada neste buffet (registrada em ${new Date(res.duplicate.created_at).toLocaleDateString("pt-BR")}). Lançamento bloqueado para evitar duplicidade.`,
+        });
+        return;
+      }
+      const h = res.header;
+      push({
+        role: "assistant",
+        content: `📑 Nota lida — ${h.fornecedor ?? "fornecedor não identificado"}${h.cnpj ? ` (CNPJ ${h.cnpj})` : ""}\nNF ${h.numero ?? "s/nº"}${h.serie ? ` série ${h.serie}` : ""}${h.data_emissao ? ` • emissão ${h.data_emissao}` : ""}\nValor total: ${brl(h.valor_total)}\n\nConfira os itens abaixo antes de confirmar a entrada:`,
+        review: {
+          header: h,
+          matches: res.matches,
+          products: res.products,
+          duplicate: null,
+        },
+      });
+    } catch (e: any) {
+      console.error(e);
+      push({ role: "assistant", content: `❌ ${e?.message ?? "Não consegui ler a nota fiscal."}` });
+    } finally {
+      setIsLoading(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  };
+
+  const confirmEntry = async (review: NfReview, msgIndex: number) => {
+    const items = review.matches
+      .filter((m) => m.product_id)
+      .map((m) => ({
+        product_id: m.product_id as string,
+        descricao: m.item.descricao,
+        quantidade: Number(m.item.quantidade),
+        unidade: m.item.unidade ?? null,
+        valor_unitario: Number(m.item.valor_unitario || 0),
+        valor_total: Number(m.item.valor_total || 0),
+      }));
+    if (!items.length) {
+      push({ role: "assistant", content: "⚠️ Relacione ao menos um item a um produto do estoque." });
+      return;
+    }
+    setIsLoading(true);
+    try {
+      const res: any = await commitNf({ data: { header: review.header, items } });
+      if (res?.error) {
+        push({ role: "assistant", content: `⚠️ ${res.error}` });
+        return;
+      }
+      setMessages((p) => p.map((m, i) => (i === msgIndex ? { ...m, review: undefined } : m)));
+      const linhas = (res.updated ?? [])
+        .map((u: any) => `• ${u.name}: ${u.physical_qty} ${u.unit}`)
+        .join("\n");
+      push({
+        role: "assistant",
+        content: `✅ Entrada lançada no estoque a partir da nota fiscal.\n\nEstoque atualizado:\n${linhas}`,
+      });
+      queryClient.invalidateQueries();
+    } catch (e: any) {
+      console.error(e);
+      push({ role: "assistant", content: "❌ Erro ao lançar a entrada no estoque." });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const updateMatch = (msgIndex: number, itemIndex: number, productId: string) => {
+    setMessages((p) =>
+      p.map((m, i) => {
+        if (i !== msgIndex || !m.review) return m;
+        const prod = m.review.products.find((x) => x.id === productId);
+        const matches = m.review.matches.map((mt, j) =>
+          j === itemIndex
+            ? {
+                ...mt,
+                product_id: prod?.id ?? null,
+                product_name: prod?.name ?? null,
+                product_unit: prod?.unit ?? null,
+                product_qty: prod?.physical_qty ?? null,
+                confidence: prod ? 100 : 0,
+              }
+            : mt,
+        );
+        return { ...m, review: { ...m.review, matches } };
+      }),
+    );
+  };
 
   const sendMessage = async () => {
     const text = input.trim();
     if (!text || isLoading) return;
+    if (!access?.tenant?.id) {
+      setMessages((p) => [
+        ...p,
+        { role: "assistant", content: "⚠️ Faça login em um buffet ativo para usar o assistente." },
+      ]);
+      return;
+    }
+
+    if (/(nota|nf|danfe)/i.test(text) && /(leia|ler|analis|entrada|adicion|lan[çc])/i.test(text)) {
+      setInput("");
+      push({ role: "user", content: text });
+      push({
+        role: "assistant",
+        content: "Claro! Anexe a foto da nota, o PDF da DANFE ou o XML da NF-e no clipe 📎 abaixo. Eu leio, comparo com o seu estoque e mostro a conferência antes de lançar.",
+      });
+      return;
+    }
+
     if (!access?.tenant?.id) {
       setMessages((p) => [
         ...p,
