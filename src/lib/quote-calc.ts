@@ -118,17 +118,28 @@ export function dedupePackages<T extends { name?: string | null; price_per_perso
     .map((i) => compactName(i?.name))
     .filter(Boolean);
   const seen = new Set<string>();
+  const mirrorsUnitItems = (rawName: string): boolean => {
+    if (unitNames.length === 0) return false;
+    // Nome pode vir combinado ("Barril A + Barril B", "Barril A e Barril B").
+    const parts = String(rawName ?? "")
+      .split(/\s*(?:\+|\/|,|\be\b)\s*/i)
+      .map((p) => compactName(p))
+      .filter(Boolean);
+    if (parts.length === 0) return false;
+    return parts.every((p) => unitNames.some((u) => similarName(p, u)));
+  };
   return (packages ?? []).filter((p) => {
     const key = compactName(p?.name);
     if (!key) return false;
     if (seen.has(key)) return false;
     seen.add(key);
     const ppp = Number(p?.price_per_person ?? 0) || 0;
-    // Pacote sem valor que espelha um item unitário → não exibe (evita linha duplicada R$ 0,00).
-    if (ppp <= 0 && unitNames.some((u) => similarName(key, u))) return false;
+    // Pacote sem valor que espelha um ou mais itens unitários → não exibe (evita linha duplicada R$ 0,00).
+    if (ppp <= 0 && mirrorsUnitItems(String(p?.name ?? ""))) return false;
     return true;
   });
 }
+
 
 
 /* -------------------------------------------------------------------------- */
