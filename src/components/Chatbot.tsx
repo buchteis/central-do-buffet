@@ -537,6 +537,33 @@ export const Chatbot = () => {
             }}
           >
             <input
+              ref={fileRef}
+              type="file"
+              accept="image/*,application/pdf,.xml,text/xml,application/xml"
+              style={{ display: "none" }}
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) void handleFile(f);
+              }}
+            />
+            <button
+              onClick={() => fileRef.current?.click()}
+              disabled={isLoading}
+              title="Enviar nota fiscal (foto, PDF ou XML)"
+              aria-label="Enviar nota fiscal"
+              style={{
+                padding: "10px 12px",
+                background: "#f3f4f6",
+                border: "1px solid #d1d5db",
+                borderRadius: 8,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+              }}
+            >
+              <Paperclip className="size-4" />
+            </button>
+            <input
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && sendMessage()}
