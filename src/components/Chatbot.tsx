@@ -47,10 +47,14 @@ export const Chatbot = () => {
     },
   ]);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   const { data: access } = useTenantAccess();
   const chat = useServerFn(chatWithAssistant);
   const fetchAlerts = useServerFn(getBuffetAlerts);
+  const parseNf = useServerFn(parseInvoiceFile);
+  const commitNf = useServerFn(commitInvoiceStockEntry);
+  const queryClient = useQueryClient();
 
   const [acked, setAcked] = useState<string[]>([]);
   useEffect(() => {
