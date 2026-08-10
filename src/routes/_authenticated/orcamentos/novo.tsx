@@ -159,6 +159,53 @@ function NewQuotePage() {
   const [entryOverride, setEntryOverride] = useState<number | null>(null);
   const [balanceOverride, setBalanceOverride] = useState<number | null>(null);
 
+  // Rascunho persistente: mantém o que já foi preenchido/carregado ao sair da aba e voltar.
+  const draftKey = `cdb:quote-draft:${quoteId ?? leadId ?? "new"}`;
+  const [draftLoaded, setDraftLoaded] = useState(false);
+  const [hasDraft, setHasDraft] = useState(false);
+  useEffect(() => {
+    try {
+      const raw = typeof window !== "undefined" ? sessionStorage.getItem(draftKey) : null;
+      if (raw) {
+        const d = JSON.parse(raw);
+        if (d?.form) setForm((f) => ({ ...f, ...d.form }));
+        if (Array.isArray(d?.packageLines)) setPackageLines(d.packageLines);
+        if (Array.isArray(d?.customExtras)) setCustomExtras(d.customExtras);
+        if (d?.unitQty && typeof d.unitQty === "object") setUnitQty(d.unitQty);
+        setPriceOverride(d?.priceOverride ?? null);
+        setEntryOverride(d?.entryOverride ?? null);
+        setBalanceOverride(d?.balanceOverride ?? null);
+        setHasDraft(true);
+      }
+    } catch {
+      /* ignore */
+    }
+    setDraftLoaded(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draftKey]);
+
+  useEffect(() => {
+    if (!draftLoaded || typeof window === "undefined") return;
+    try {
+      sessionStorage.setItem(
+        draftKey,
+        JSON.stringify({ form, packageLines, customExtras, unitQty, priceOverride, entryOverride, balanceOverride }),
+      );
+    } catch {
+      /* ignore */
+    }
+  }, [
+    draftLoaded,
+    draftKey,
+    form,
+    packageLines,
+    customExtras,
+    unitQty,
+    priceOverride,
+    entryOverride,
+    balanceOverride,
+  ]);
+
   const totalGuests = (Number(form.adults) || 0) + (Number(form.children_count) || 0);
 
   const priceForPackage = (packageId: string, guests: number): number => {
