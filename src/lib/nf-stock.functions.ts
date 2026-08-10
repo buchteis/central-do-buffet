@@ -74,6 +74,18 @@ function onlyDigits(v: string | null | undefined) {
   return (v ?? "").replace(/\D/g, "") || null;
 }
 
+/** Resolve o buffet do usuário: dono do tenant ou, se não for dono, o tenant visível por RLS. */
+async function resolveTenant(supabase: any, userId: string) {
+  const { data: owned } = await supabase
+    .from("tenants")
+    .select("id, name")
+    .eq("owner_id", userId)
+    .maybeSingle();
+  if (owned) return owned as { id: string; name: string };
+  const { data: any1 } = await supabase.from("tenants").select("id, name").limit(1).maybeSingle();
+  return (any1 as { id: string; name: string } | null) ?? null;
+}
+
 async function extractFromAI(args: { filename: string; mimeType: string; base64: string }) {
   const apiKey = process.env.LOVABLE_API_KEY;
   if (!apiKey) throw new Error("LOVABLE_API_KEY não configurada.");
@@ -147,11 +159,7 @@ export const parseInvoiceFile = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
 
-    const { data: tenant } = await supabase
-      .from("tenants")
-      .select("id, name")
-      .eq("owner_id", userId)
-      .maybeSingle();
+    const tenant = await resolveTenant(supabase, userId);
     if (!tenant) return { error: "Nenhum buffet vinculado a esta conta." } as const;
 
     const parsed = await extractFromAI(data);
@@ -272,11 +280,7 @@ export const commitInvoiceStockEntry = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
 
-    const { data: tenant } = await supabase
-      .from("tenants")
-      .select("id")
-      .eq("owner_id", userId)
-      .maybeSingle();
+    const tenant = await resolveTenant(supabase, userId);
     if (!tenant) return { error: "Nenhum buffet vinculado a esta conta." } as const;
 
     const cnpj = onlyDigits(data.header.cnpj ?? null);
@@ -334,14 +338,13 @@ export const commitInvoiceStockEntry = createServerFn({ method: "POST" })
       .select("id")
       .single();
 
-    if (invErr || !invoice) {
-      if ((invErr as any)?.code === "23505" || /duplicate key/i.test(invErr?.message ?? "")) {
-        return { error: "Esta nota fiscal já foi lançada no estoque." } as const;
-      }
-      console.error("purchase_invoices insert", invErr);
-      return { error: "Não consegui registrar a nota fiscal." } as const;
+    if (invErr && ((invErr as any)?.code === "23505" || /duplicate key/i.test(invErr.message ?? ""))) {
+      return { error: "Esta nota fiscal já foi lançada no estoque." } as const;
     }
+    if (invErr) console.error("purchase_invoices insert", invErr);
 
+    // Mesmo que o registro da NF falhe (ex.: permissão), a entrada precisa aparecer
+    // em Movimentações de estoque — é isso que atualiza o saldo do produto.
     const rows = data.items.map((i) => ({
       tenant_id: tenant.id,
       product_id: i.product_id,
@@ -350,16 +353,18 @@ export const commitInvoiceStockEntry = createServerFn({ method: "POST" })
       unit_price: i.valor_unitario,
       total_price: i.valor_total || i.quantidade * i.valor_unitario,
       source: "nota_fiscal",
-      invoice_id: (invoice as any).id,
+      invoice_id: (invoice as any)?.id ?? null,
       created_by: userId,
       notes: `Entrada por NF ${numero ?? "s/nº"}${data.header.fornecedor ? ` — ${data.header.fornecedor}` : ""} (${i.descricao})`,
     }));
 
     const { error: movErr } = await supabase.from("stock_movements").insert(rows as any);
     if (movErr) {
-      await supabase.from("purchase_invoices").delete().eq("id", (invoice as any).id);
+      if (invoice) await supabase.from("purchase_invoices").delete().eq("id", (invoice as any).id);
       console.error("stock_movements insert", movErr);
-      return { error: "Não consegui lançar as entradas no estoque. Nada foi alterado." } as const;
+      return {
+        error: `Não consegui lançar as entradas no estoque (${movErr.message}). Nada foi alterado.`,
+      } as const;
     }
 
     const { data: after } = await supabase
@@ -370,7 +375,7 @@ export const commitInvoiceStockEntry = createServerFn({ method: "POST" })
 
     return {
       ok: true as const,
-      invoice_id: (invoice as any).id,
+      invoice_id: (invoice as any)?.id ?? null,
       updated: (after ?? []).map((p: any) => ({
         name: p.name,
         unit: p.unit,
