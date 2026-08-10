@@ -35,6 +35,9 @@ function writeAck(ids: string[]) {
   }
 }
 
+const brl = (v: number) =>
+  Number(v || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
 export const Chatbot = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState("");
