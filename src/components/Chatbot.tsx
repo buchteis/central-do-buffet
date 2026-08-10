@@ -1,14 +1,23 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTenantAccess } from "@/hooks/useTenantAccess";
 import { chatWithAssistant } from "@/lib/chatbot.functions";
 import { getBuffetAlerts, type BuffetAlert } from "@/lib/alerts.functions";
-import { Flame } from "lucide-react";
+import { parseInvoiceFile, commitInvoiceStockEntry } from "@/lib/nf-stock.functions";
+import { Flame, Paperclip } from "lucide-react";
 
-type Msg = { role: "user" | "assistant"; content: string; alertId?: string };
+type NfReview = {
+  header: any;
+  matches: any[];
+  products: { id: string; name: string; unit: string; physical_qty: number }[];
+  duplicate: { id: string; created_at: string } | null;
+};
+
+type Msg = { role: "user" | "assistant"; content: string; alertId?: string; review?: NfReview };
 
 const ACK_KEY = "cdb_alertas_confirmados";
+
 
 function readAck(): string[] {
   try {
