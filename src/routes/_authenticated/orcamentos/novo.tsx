@@ -241,19 +241,20 @@ function NewQuotePage() {
   // Ao editar um orçamento existente (ex.: vindo do link público), respeita exatamente
   // o que foi escolhido: itens não escolhidos ficam em 0.
   useEffect(() => {
+    if (!draftLoaded) return;
     if (!availableUnitItems.length) return;
     setUnitQty((old) => {
       const next = { ...old };
       let changed = false;
       for (const it of availableUnitItems) {
         if (next[it.id] === undefined) {
-          next[it.id] = quoteId ? 0 : Number(it.default_qty) || 0;
+          next[it.id] = quoteId || hasDraft ? 0 : Number(it.default_qty) || 0;
           changed = true;
         }
       }
       return changed ? next : old;
     });
-  }, [availableUnitItems, quoteId]);
+  }, [availableUnitItems, quoteId, draftLoaded, hasDraft]);
 
   const selectedUnitItems = useMemo(
     () =>
