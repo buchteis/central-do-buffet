@@ -414,6 +414,11 @@ function NewQuotePage() {
       return data;
     },
     onSuccess: () => {
+      try {
+        sessionStorage.removeItem(draftKey);
+      } catch {
+        /* ignore */
+      }
       qc.invalidateQueries({ queryKey: ["quotes"] });
       qc.invalidateQueries({ queryKey: ["dashboard-stats"] });
       qc.invalidateQueries({ queryKey: ["leads"] });
