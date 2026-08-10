@@ -1,14 +1,23 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTenantAccess } from "@/hooks/useTenantAccess";
 import { chatWithAssistant } from "@/lib/chatbot.functions";
 import { getBuffetAlerts, type BuffetAlert } from "@/lib/alerts.functions";
-import { Flame } from "lucide-react";
+import { parseInvoiceFile, commitInvoiceStockEntry } from "@/lib/nf-stock.functions";
+import { Flame, Paperclip } from "lucide-react";
 
-type Msg = { role: "user" | "assistant"; content: string; alertId?: string };
+type NfReview = {
+  header: any;
+  matches: any[];
+  products: { id: string; name: string; unit: string; physical_qty: number }[];
+  duplicate: { id: string; created_at: string } | null;
+};
+
+type Msg = { role: "user" | "assistant"; content: string; alertId?: string; review?: NfReview };
 
 const ACK_KEY = "cdb_alertas_confirmados";
+
 
 function readAck(): string[] {
   try {
@@ -26,6 +35,9 @@ function writeAck(ids: string[]) {
   }
 }
 
+const brl = (v: number) =>
+  Number(v || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
 export const Chatbot = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState("");
@@ -38,10 +50,14 @@ export const Chatbot = () => {
     },
   ]);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   const { data: access } = useTenantAccess();
   const chat = useServerFn(chatWithAssistant);
   const fetchAlerts = useServerFn(getBuffetAlerts);
+  const parseNf = useServerFn(parseInvoiceFile);
+  const commitNf = useServerFn(commitInvoiceStockEntry);
+  const queryClient = useQueryClient();
 
   const [acked, setAcked] = useState<string[]>([]);
   useEffect(() => {
@@ -87,6 +103,125 @@ export const Chatbot = () => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages, isLoading]);
 
+  const push = (m: Msg) => setMessages((p) => [...p, m]);
+
+  const handleFile = async (file: File) => {
+    if (!access?.tenant?.id) {
+      push({ role: "assistant", content: "⚠️ Faça login em um buffet ativo para usar o assistente." });
+      return;
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      push({ role: "assistant", content: "⚠️ Arquivo muito grande (máx. 8 MB)." });
+      return;
+    }
+    push({ role: "user", content: `📄 ${file.name} — leia esta nota e prepare a entrada no estoque.` });
+    setIsLoading(true);
+    try {
+      // O arquivo é lido apenas em memória e usado somente para extração.
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const r = new FileReader();
+        r.onload = () => resolve(String(r.result));
+        r.onerror = () => reject(new Error("read"));
+        r.readAsDataURL(file);
+      });
+      const res: any = await parseNf({
+        data: {
+          filename: file.name,
+          mimeType: file.type || (file.name.endsWith(".xml") ? "application/xml" : "application/octet-stream"),
+          base64,
+        },
+      });
+      if (res?.error) {
+        push({ role: "assistant", content: `⚠️ ${res.error}` });
+        return;
+      }
+      if (res.duplicate) {
+        push({
+          role: "assistant",
+          content: `🚫 Esta nota fiscal já foi lançada neste buffet (registrada em ${new Date(res.duplicate.created_at).toLocaleDateString("pt-BR")}). Lançamento bloqueado para evitar duplicidade.`,
+        });
+        return;
+      }
+      const h = res.header;
+      push({
+        role: "assistant",
+        content: `📑 Nota lida — ${h.fornecedor ?? "fornecedor não identificado"}${h.cnpj ? ` (CNPJ ${h.cnpj})` : ""}\nNF ${h.numero ?? "s/nº"}${h.serie ? ` série ${h.serie}` : ""}${h.data_emissao ? ` • emissão ${h.data_emissao}` : ""}\nValor total: ${brl(h.valor_total)}\n\nConfira os itens abaixo antes de confirmar a entrada:`,
+        review: {
+          header: h,
+          matches: res.matches,
+          products: res.products,
+          duplicate: null,
+        },
+      });
+    } catch (e: any) {
+      console.error(e);
+      push({ role: "assistant", content: `❌ ${e?.message ?? "Não consegui ler a nota fiscal."}` });
+    } finally {
+      setIsLoading(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  };
+
+  const confirmEntry = async (review: NfReview, msgIndex: number) => {
+    const items = review.matches
+      .filter((m) => m.product_id)
+      .map((m) => ({
+        product_id: m.product_id as string,
+        descricao: m.item.descricao,
+        quantidade: Number(m.item.quantidade),
+        unidade: m.item.unidade ?? null,
+        valor_unitario: Number(m.item.valor_unitario || 0),
+        valor_total: Number(m.item.valor_total || 0),
+      }));
+    if (!items.length) {
+      push({ role: "assistant", content: "⚠️ Relacione ao menos um item a um produto do estoque." });
+      return;
+    }
+    setIsLoading(true);
+    try {
+      const res: any = await commitNf({ data: { header: review.header, items } });
+      if (res?.error) {
+        push({ role: "assistant", content: `⚠️ ${res.error}` });
+        return;
+      }
+      setMessages((p) => p.map((m, i) => (i === msgIndex ? { ...m, review: undefined } : m)));
+      const linhas = (res.updated ?? [])
+        .map((u: any) => `• ${u.name}: ${u.physical_qty} ${u.unit}`)
+        .join("\n");
+      push({
+        role: "assistant",
+        content: `✅ Entrada lançada no estoque a partir da nota fiscal.\n\nEstoque atualizado:\n${linhas}`,
+      });
+      queryClient.invalidateQueries();
+    } catch (e: any) {
+      console.error(e);
+      push({ role: "assistant", content: "❌ Erro ao lançar a entrada no estoque." });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const updateMatch = (msgIndex: number, itemIndex: number, productId: string) => {
+    setMessages((p) =>
+      p.map((m, i) => {
+        if (i !== msgIndex || !m.review) return m;
+        const prod = m.review.products.find((x) => x.id === productId);
+        const matches = m.review.matches.map((mt, j) =>
+          j === itemIndex
+            ? {
+                ...mt,
+                product_id: prod?.id ?? null,
+                product_name: prod?.name ?? null,
+                product_unit: prod?.unit ?? null,
+                product_qty: prod?.physical_qty ?? null,
+                confidence: prod ? 100 : 0,
+              }
+            : mt,
+        );
+        return { ...m, review: { ...m.review, matches } };
+      }),
+    );
+  };
 
   const sendMessage = async () => {
     const text = input.trim();
@@ -99,7 +234,28 @@ export const Chatbot = () => {
       return;
     }
 
-    const history = messages.filter((m) => m.role === "user" || m.role === "assistant").slice(-10);
+    if (/(nota|nf|danfe)/i.test(text) && /(leia|ler|analis|entrada|adicion|lan[çc])/i.test(text)) {
+      setInput("");
+      push({ role: "user", content: text });
+      push({
+        role: "assistant",
+        content: "Claro! Anexe a foto da nota, o PDF da DANFE ou o XML da NF-e no clipe 📎 abaixo. Eu leio, comparo com o seu estoque e mostro a conferência antes de lançar.",
+      });
+      return;
+    }
+
+    if (!access?.tenant?.id) {
+      setMessages((p) => [
+        ...p,
+        { role: "assistant", content: "⚠️ Faça login em um buffet ativo para usar o assistente." },
+      ]);
+      return;
+    }
+
+    const history = messages
+      .filter((m) => m.role === "user" || m.role === "assistant")
+      .slice(-10)
+      .map((m) => ({ role: m.role, content: m.content }));
     setMessages((p) => [...p, { role: "user", content: text }]);
     setInput("");
     setIsLoading(true);
@@ -279,6 +435,77 @@ export const Chatbot = () => {
                       </button>
                     </div>
                   )}
+                  {msg.review && (
+                    <div style={{ marginTop: 10, display: "grid", gap: 8 }}>
+                      {msg.review.matches.map((m: any, j: number) => {
+                        const ok = !!m.product_id && m.confidence >= 55;
+                        return (
+                          <div
+                            key={j}
+                            style={{
+                              border: "1px solid #e5e7eb",
+                              borderRadius: 10,
+                              padding: 10,
+                              background: ok ? "#f0fdf4" : "#fff7ed",
+                              fontSize: 12,
+                            }}
+                          >
+                            <div style={{ fontWeight: 700 }}>{m.item.descricao}</div>
+                            <div style={{ color: "#4b5563" }}>
+                              {m.item.quantidade} {m.item.unidade ?? "un"} • {brl(m.item.valor_unitario)} un •
+                              total {brl(m.item.valor_total)}
+                            </div>
+                            {ok ? (
+                              <div style={{ marginTop: 4 }}>
+                                Correspondência: <b>{m.product_name}</b> (estoque atual {m.product_qty}{" "}
+                                {m.product_unit}) — Confiança: <b>{m.confidence}%</b>
+                              </div>
+                            ) : (
+                              <div style={{ marginTop: 4, color: "#9a3412" }}>
+                                Produto não identificado. Deseja relacionar este item a um produto existente ou
+                                cadastrar um novo produto no Estoque?
+                              </div>
+                            )}
+                            <select
+                              value={m.product_id ?? ""}
+                              onChange={(e) => updateMatch(i, j, e.target.value)}
+                              style={{
+                                marginTop: 6,
+                                width: "100%",
+                                padding: "6px 8px",
+                                borderRadius: 8,
+                                border: "1px solid #d1d5db",
+                                fontSize: 12,
+                              }}
+                            >
+                              <option value="">— Não lançar este item —</option>
+                              {msg.review!.products.map((p) => (
+                                <option key={p.id} value={p.id}>
+                                  {p.name} ({p.unit})
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        );
+                      })}
+                      <button
+                        onClick={() => confirmEntry(msg.review!, i)}
+                        disabled={isLoading}
+                        style={{
+                          background: "#22c55e",
+                          color: "white",
+                          border: "none",
+                          borderRadius: 8,
+                          padding: "8px 12px",
+                          fontSize: 12,
+                          fontWeight: 700,
+                          cursor: "pointer",
+                        }}
+                      >
+                        Confirmar entrada no estoque
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
@@ -309,6 +536,33 @@ export const Chatbot = () => {
               gap: 8,
             }}
           >
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/*,application/pdf,.xml,text/xml,application/xml"
+              style={{ display: "none" }}
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) void handleFile(f);
+              }}
+            />
+            <button
+              onClick={() => fileRef.current?.click()}
+              disabled={isLoading}
+              title="Enviar nota fiscal (foto, PDF ou XML)"
+              aria-label="Enviar nota fiscal"
+              style={{
+                padding: "10px 12px",
+                background: "#f3f4f6",
+                border: "1px solid #d1d5db",
+                borderRadius: 8,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+              }}
+            >
+              <Paperclip className="size-4" />
+            </button>
             <input
               value={input}
               onChange={(e) => setInput(e.target.value)}

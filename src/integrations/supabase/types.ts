@@ -1082,6 +1082,65 @@ export type Database = {
         }
         Relationships: []
       }
+      purchase_invoices: {
+        Row: {
+          access_key: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          issue_date: string | null
+          items: Json
+          nf_number: string | null
+          nf_series: string | null
+          owner_id: string
+          supplier_cnpj: string | null
+          supplier_name: string | null
+          tenant_id: string
+          total_value: number
+          updated_at: string
+        }
+        Insert: {
+          access_key?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          issue_date?: string | null
+          items?: Json
+          nf_number?: string | null
+          nf_series?: string | null
+          owner_id: string
+          supplier_cnpj?: string | null
+          supplier_name?: string | null
+          tenant_id: string
+          total_value?: number
+          updated_at?: string
+        }
+        Update: {
+          access_key?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          issue_date?: string | null
+          items?: Json
+          nf_number?: string | null
+          nf_series?: string | null
+          owner_id?: string
+          supplier_cnpj?: string | null
+          supplier_name?: string | null
+          tenant_id?: string
+          total_value?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_invoices_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       quotes: {
         Row: {
           adults: number
@@ -1232,33 +1291,45 @@ export type Database = {
           created_by: string | null
           event_id: string | null
           id: string
+          invoice_id: string | null
           kind: string
           notes: string | null
           product_id: string
           quantity: number
+          source: string | null
           tenant_id: string
+          total_price: number | null
+          unit_price: number | null
         }
         Insert: {
           created_at?: string
           created_by?: string | null
           event_id?: string | null
           id?: string
+          invoice_id?: string | null
           kind: string
           notes?: string | null
           product_id: string
           quantity: number
+          source?: string | null
           tenant_id: string
+          total_price?: number | null
+          unit_price?: number | null
         }
         Update: {
           created_at?: string
           created_by?: string | null
           event_id?: string | null
           id?: string
+          invoice_id?: string | null
           kind?: string
           notes?: string | null
           product_id?: string
           quantity?: number
+          source?: string | null
           tenant_id?: string
+          total_price?: number | null
+          unit_price?: number | null
         }
         Relationships: [
           {
@@ -1266,6 +1337,13 @@ export type Database = {
             columns: ["event_id"]
             isOneToOne: false
             referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_movements_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_invoices"
             referencedColumns: ["id"]
           },
           {
