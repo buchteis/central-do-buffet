@@ -530,7 +530,7 @@ function NewQuotePage() {
     if (extras.balance_override != null) setBalanceOverride(Number(extras.balance_override));
 
     setPrefilledQuote(true);
-  }, [quoteId, existingQuote, prefilledQuote, packages, clients]);
+  }, [quoteId, existingQuote, prefilledQuote, packages, clients, draftLoaded, hasDraft]);
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
