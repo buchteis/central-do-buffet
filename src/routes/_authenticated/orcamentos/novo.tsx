@@ -557,6 +557,23 @@ function NewQuotePage() {
     setPrefilledQuote(true);
   }, [quoteId, existingQuote, prefilledQuote, packages, clients, draftLoaded, hasDraft]);
 
+  // Só começa a gravar rascunho quando o formulário já está completo,
+  // para que voltar de outra aba não apague pacotes/itens carregados.
+  useEffect(() => {
+    if (!draftLoaded || draftReady) return;
+    if (quoteId) {
+      if (prefilledQuote && (unitItemsCatalog ?? null) !== null) setDraftReady(true);
+      return;
+    }
+    if (leadId) {
+      if (prefilled) setDraftReady(true);
+      return;
+    }
+    setDraftReady(true);
+  }, [draftLoaded, draftReady, quoteId, leadId, prefilled, prefilledQuote, unitItemsCatalog]);
+
+
+
   return (
     <div className="max-w-5xl mx-auto space-y-6">
       <Link
