@@ -261,7 +261,7 @@ function NewQuotePage() {
           price_per_person: priceForPackage(p!.id, totalGuests),
         })),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [packageLines, packages, tiers, totalGuests],
+    [packageLines, packages, tiers, totalGuests, packagePriceSnapshot],
   );
   const primaryPackage = selectedPackages[0];
   const packagesSumPerPerson = selectedPackages.reduce((s, p) => s + Number(p.price_per_person ?? 0), 0);
