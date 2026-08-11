@@ -82,8 +82,9 @@ async function resolveTenant(supabase: any, userId: string) {
     .eq("owner_id", userId)
     .maybeSingle();
   if (owned) return owned as { id: string; name: string };
-  const { data: any1 } = await supabase.from("tenants").select("id, name").limit(1).maybeSingle();
-  return (any1 as { id: string; name: string } | null) ?? null;
+  // Sem fallback "primeiro tenant": um usuário sem buffet próprio (ex.: super admin)
+  // não deve lançar estoque em um buffet de outro registro.
+  return null;
 }
 
 async function extractFromAI(args: { filename: string; mimeType: string; base64: string }) {
@@ -298,12 +299,14 @@ export const commitInvoiceStockEntry = createServerFn({ method: "POST" })
       if (d) return { error: "Esta nota fiscal já foi lançada no estoque." } as const;
     }
     if (numero) {
+      // Mesma chave do índice único: tenant + cnpj + número + série
       const { data: d } = await supabase
         .from("purchase_invoices")
         .select("id")
         .eq("tenant_id", tenant.id)
         .eq("nf_number", numero)
         .eq("supplier_cnpj", cnpj ?? "")
+        .eq("nf_series", data.header.serie ?? "")
         .maybeSingle();
       if (d) return { error: "Esta nota fiscal já foi lançada no estoque." } as const;
     }
@@ -329,7 +332,7 @@ export const commitInvoiceStockEntry = createServerFn({ method: "POST" })
         supplier_name: data.header.fornecedor ?? null,
         supplier_cnpj: cnpj ?? "",
         nf_number: numero,
-        nf_series: data.header.serie ?? null,
+        nf_series: data.header.serie ?? "",
         access_key: chave,
         issue_date: data.header.data_emissao || null,
         total_value: Number(data.header.valor_total ?? 0) || 0,

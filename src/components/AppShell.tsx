@@ -30,6 +30,7 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { toast } from "sonner";
 import { useTenantAccess } from "@/hooks/useTenantAccess";
+import { Chatbot } from "@/components/Chatbot";
 
 
 type NavItem = { to: string; label: string; icon: typeof Home };
@@ -142,6 +143,8 @@ export function AppShell({ children }: { children: ReactNode }) {
         />
         <div className="flex-1 p-4 md:p-8 max-w-[1280px] mx-auto w-full min-w-0">{children}</div>
       </main>
+      {/* Assistente (inclui leitura de nota fiscal) disponível em todas as páginas */}
+      <Chatbot />
     </div>
   );
 }
