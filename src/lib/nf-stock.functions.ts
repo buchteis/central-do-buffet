@@ -299,12 +299,14 @@ export const commitInvoiceStockEntry = createServerFn({ method: "POST" })
       if (d) return { error: "Esta nota fiscal já foi lançada no estoque." } as const;
     }
     if (numero) {
+      // Mesma chave do índice único: tenant + cnpj + número + série
       const { data: d } = await supabase
         .from("purchase_invoices")
         .select("id")
         .eq("tenant_id", tenant.id)
         .eq("nf_number", numero)
         .eq("supplier_cnpj", cnpj ?? "")
+        .eq("nf_series", data.header.serie ?? "")
         .maybeSingle();
       if (d) return { error: "Esta nota fiscal já foi lançada no estoque." } as const;
     }
