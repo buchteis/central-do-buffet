@@ -162,17 +162,21 @@ function NewQuotePage() {
   const [balanceOverride, setBalanceOverride] = useState<number | null>(null);
 
   // Rascunho persistente: mantém o que já foi preenchido/carregado ao sair da aba e voltar.
+  // localStorage é usado para o rascunho sobreviver também a recarregamentos e novas sessões.
   const draftKey = `cdb:quote-draft:${quoteId ?? leadId ?? "new"}`;
   const [draftLoaded, setDraftLoaded] = useState(false);
   const [hasDraft, setHasDraft] = useState(false);
   useEffect(() => {
     try {
-      const raw = typeof window !== "undefined" ? sessionStorage.getItem(draftKey) : null;
+      const raw =
+        typeof window !== "undefined"
+          ? localStorage.getItem(draftKey) ?? sessionStorage.getItem(draftKey)
+          : null;
       if (raw) {
         const d = JSON.parse(raw);
         // Só restaura rascunhos completos (salvos depois do pré-preenchimento),
         // evitando sobrescrever pacotes/itens do orçamento com um estado parcial.
-        if (d?.ready === true && d?.version === 3) {
+        if (d?.ready === true && (d?.version === 3 || d?.version === 4)) {
           if (d?.form) setForm((f) => ({ ...f, ...d.form }));
           if (Array.isArray(d?.packageLines)) setPackageLines(d.packageLines);
           if (Array.isArray(d?.customExtras)) setCustomExtras(d.customExtras);
@@ -188,6 +192,7 @@ function NewQuotePage() {
           setBalanceOverride(d?.balanceOverride ?? null);
           setHasDraft(true);
         } else {
+          localStorage.removeItem(draftKey);
           sessionStorage.removeItem(draftKey);
         }
       }
@@ -204,11 +209,11 @@ function NewQuotePage() {
   useEffect(() => {
     if (!draftLoaded || !draftReady || typeof window === "undefined") return;
     try {
-      sessionStorage.setItem(
+      localStorage.setItem(
         draftKey,
         JSON.stringify({
           ready: true,
-          version: 3,
+          version: 4,
           form,
           packageLines,
           customExtras,
@@ -328,6 +333,9 @@ function NewQuotePage() {
 
   const mut = useMutation({
     mutationFn: async () => {
+      if (quoteId && !prefilledQuote) {
+        throw new Error("Aguarde o orçamento do cliente terminar de carregar.");
+      }
       const parsed = schema.safeParse({ ...form, package_ids: packageLines.filter(Boolean) });
       if (!parsed.success) throw new Error(parsed.error.issues[0].message);
 
@@ -451,6 +459,7 @@ function NewQuotePage() {
     },
     onSuccess: () => {
       try {
+        localStorage.removeItem(draftKey);
         sessionStorage.removeItem(draftKey);
       } catch {
         /* ignore */
@@ -513,10 +522,6 @@ function NewQuotePage() {
   const [prefilledQuote, setPrefilledQuote] = useState(false);
   useEffect(() => {
     if (!draftLoaded) return;
-    if (hasDraft) {
-      setPrefilledQuote(true);
-      return;
-    }
     if (!quoteId || prefilledQuote || !existingQuote) return;
     // Only prefill once reference lists are available so <Select> values map to items.
     if (!packages || !clients) return;
@@ -534,7 +539,7 @@ function NewQuotePage() {
       for (const pkg of extras.packages) {
         if (pkg?.package_id) prices[pkg.package_id] = Number(pkg.price_per_person) || 0;
       }
-      setPackagePriceSnapshot(prices);
+      setPackagePriceSnapshot((old) => ({ ...prices, ...old }));
     } else if (q.package_id) {
       lines = [q.package_id];
     }
@@ -545,25 +550,39 @@ function NewQuotePage() {
       lines = Array.from(new Set([...lines, ...packageIdsFromItems]));
     }
     if (lines.length === 0) lines = [""];
-    setPackageLines(lines);
+    // O orçamento público é sempre a fonte mínima: um rascunho parcial nunca
+    // pode apagar pacotes escolhidos pelo cliente. Linhas adicionadas pelo dono
+    // do buffet continuam preservadas no rascunho.
+    setPackageLines((old) => {
+      const draftLines = hasDraft ? old.filter(Boolean) : [];
+      const merged = Array.from(new Set([...lines.filter(Boolean), ...draftLines]));
+      return merged.length > 0 ? merged : [""];
+    });
 
     setForm((f) => ({
       ...f,
-      client_id: q.client_id ?? "",
-      event_date: q.event_date ?? f.event_date,
-      event_time: q.event_time ?? f.event_time,
-      event_address: q.event_address ?? f.event_address,
-      event_type: q.event_type ?? f.event_type,
-      adults: q.adults ?? f.adults,
-      children_count: (q.children_7_10 ?? 0) + (q.children_0_6 ?? 0),
-      child_price: Number(extras.child_price ?? 0),
-      notes: q.notes ?? requester.notes ?? f.notes,
-      has_grill: !!q.has_grill,
-      has_freezer: !!q.has_freezer,
-      payment_method: (q.payment_method ?? f.payment_method) as typeof f.payment_method,
+      client_id: hasDraft && f.client_id ? f.client_id : (q.client_id ?? ""),
+      event_date: hasDraft && f.event_date ? f.event_date : (q.event_date ?? f.event_date),
+      event_time: hasDraft && f.event_time ? f.event_time : (q.event_time ?? f.event_time),
+      event_address: hasDraft && f.event_address ? f.event_address : (q.event_address ?? f.event_address),
+      event_type: hasDraft && f.event_type ? f.event_type : (q.event_type ?? f.event_type),
+      adults: hasDraft && f.adults > 0 ? f.adults : (q.adults ?? f.adults),
+      children_count:
+        hasDraft && f.children_count > 0
+          ? f.children_count
+          : (q.children_7_10 ?? 0) + (q.children_0_6 ?? 0),
+      child_price: hasDraft && f.child_price > 0 ? f.child_price : Number(extras.child_price ?? 0),
+      // Preserva a mensagem editada no rascunho; sem rascunho, restaura a
+      // observação original enviada pelo cliente no link público.
+      notes: hasDraft && f.notes ? f.notes : (q.notes ?? requester.notes ?? f.notes),
+      has_grill: hasDraft ? f.has_grill : !!q.has_grill,
+      has_freezer: hasDraft ? f.has_freezer : !!q.has_freezer,
+      payment_method: (hasDraft ? f.payment_method : (q.payment_method ?? f.payment_method)) as typeof f.payment_method,
     }));
 
-    if (Array.isArray(extras.custom)) setCustomExtras(extras.custom);
+    if (Array.isArray(extras.custom)) {
+      setCustomExtras((old) => (hasDraft && old.length > 0 ? old : extras.custom));
+    }
     if (Array.isArray(extras.unit_items)) {
       const map: Record<string, number> = {};
       const prices: Record<string, number> = {};
@@ -573,15 +592,15 @@ function NewQuotePage() {
           prices[it.item_id] = Number(it.unit_price) || 0;
         }
       }
-      setUnitQty((old) => ({ ...old, ...map }));
-      setUnitPriceSnapshot((old) => ({ ...old, ...prices }));
+      setUnitQty((old) => (hasDraft ? { ...map, ...old } : map));
+      setUnitPriceSnapshot((old) => (hasDraft ? { ...prices, ...old } : prices));
     }
-    if (extras.price_per_person_override != null) {
+    if (!hasDraft && extras.price_per_person_override != null) {
       setPriceOverride(Number(extras.price_per_person_override));
     }
 
-    if (extras.entry_override != null) setEntryOverride(Number(extras.entry_override));
-    if (extras.balance_override != null) setBalanceOverride(Number(extras.balance_override));
+    if (!hasDraft && extras.entry_override != null) setEntryOverride(Number(extras.entry_override));
+    if (!hasDraft && extras.balance_override != null) setBalanceOverride(Number(extras.balance_override));
 
     setPrefilledQuote(true);
   }, [quoteId, existingQuote, prefilledQuote, packages, clients, tiers, unitItemsCatalog, draftLoaded, hasDraft]);
@@ -1038,8 +1057,12 @@ function NewQuotePage() {
             >
               Gerar PDF
             </Button>
-            <Button type="submit" disabled={mut.isPending}>
-              {mut.isPending ? "Salvando…" : "Salvar orçamento"}
+            <Button type="submit" disabled={mut.isPending || (!!quoteId && !prefilledQuote)}>
+              {mut.isPending
+                ? "Salvando…"
+                : quoteId && !prefilledQuote
+                  ? "Carregando orçamento…"
+                  : "Salvar orçamento"}
             </Button>
           </div>
         </form>
