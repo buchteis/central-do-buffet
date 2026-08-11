@@ -26,7 +26,6 @@ import {
   TrendingDown,
   Building2,
 } from "lucide-react";
-import { Chatbot } from "@/components/Chatbot";
 import { FeedbackPieCard } from "@/components/feedback/FeedbackPieCard";
 import { UnifiedReviewsCard } from "@/components/reviews/UnifiedReviewsCard";
 
@@ -536,7 +535,6 @@ function Dashboard() {
 
       <UnifiedReviewsCard />
 
-      <Chatbot />
     </div>
   );
 }
