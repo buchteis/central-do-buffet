@@ -589,8 +589,8 @@ function NewQuotePage() {
           prices[it.item_id] = Number(it.unit_price) || 0;
         }
       }
-      setUnitQty((old) => ({ ...old, ...map }));
-      setUnitPriceSnapshot((old) => ({ ...old, ...prices }));
+      setUnitQty((old) => (hasDraft ? { ...map, ...old } : map));
+      setUnitPriceSnapshot((old) => (hasDraft ? { ...prices, ...old } : prices));
     }
     if (!hasDraft && extras.price_per_person_override != null) {
       setPriceOverride(Number(extras.price_per_person_override));
