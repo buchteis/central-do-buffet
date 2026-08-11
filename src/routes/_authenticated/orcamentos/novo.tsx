@@ -153,6 +153,7 @@ function NewQuotePage() {
   const [customExtras, setCustomExtras] = useState<{ description: string; value: number }[]>([]);
   const [unitQty, setUnitQty] = useState<Record<string, number>>({});
   const [unitPriceSnapshot, setUnitPriceSnapshot] = useState<Record<string, number>>({});
+  const [packagePriceSnapshot, setPackagePriceSnapshot] = useState<Record<string, number>>({});
 
   // Manual overrides — administrator has total freedom to edit price per person (sum),
   // entry (50%) and balance directly. `null` means "use auto value".
@@ -171,13 +172,16 @@ function NewQuotePage() {
         const d = JSON.parse(raw);
         // Só restaura rascunhos completos (salvos depois do pré-preenchimento),
         // evitando sobrescrever pacotes/itens do orçamento com um estado parcial.
-        if (d?.ready === true && d?.version === 2) {
+        if (d?.ready === true && d?.version === 3) {
           if (d?.form) setForm((f) => ({ ...f, ...d.form }));
           if (Array.isArray(d?.packageLines)) setPackageLines(d.packageLines);
           if (Array.isArray(d?.customExtras)) setCustomExtras(d.customExtras);
           if (d?.unitQty && typeof d.unitQty === "object") setUnitQty(d.unitQty);
           if (d?.unitPriceSnapshot && typeof d.unitPriceSnapshot === "object") {
             setUnitPriceSnapshot(d.unitPriceSnapshot);
+          }
+          if (d?.packagePriceSnapshot && typeof d.packagePriceSnapshot === "object") {
+            setPackagePriceSnapshot(d.packagePriceSnapshot);
           }
           setPriceOverride(d?.priceOverride ?? null);
           setEntryOverride(d?.entryOverride ?? null);
@@ -204,12 +208,13 @@ function NewQuotePage() {
         draftKey,
         JSON.stringify({
           ready: true,
-          version: 2,
+          version: 3,
           form,
           packageLines,
           customExtras,
           unitQty,
           unitPriceSnapshot,
+          packagePriceSnapshot,
           priceOverride,
           entryOverride,
           balanceOverride,
@@ -228,6 +233,7 @@ function NewQuotePage() {
     customExtras,
     unitQty,
     unitPriceSnapshot,
+    packagePriceSnapshot,
     priceOverride,
     entryOverride,
     balanceOverride,
@@ -236,6 +242,9 @@ function NewQuotePage() {
   const totalGuests = (Number(form.adults) || 0) + (Number(form.children_count) || 0);
 
   const priceForPackage = (packageId: string, guests: number): number => {
+    if (packagePriceSnapshot[packageId] !== undefined) {
+      return Number(packagePriceSnapshot[packageId]) || 0;
+    }
     const pkgTiers = (tiers ?? []).filter((t) => t.package_id === packageId);
     const pkg = (packages ?? []).find((p) => p.id === packageId) as any;
     return resolveTierPrice(pkgTiers, guests, Number(pkg?.price_per_person ?? 0) || 0);
@@ -471,7 +480,7 @@ function NewQuotePage() {
     }
     if (!leadId || prefilled || !lead) return;
     // Wait for reference lists so Select components can match ids to items.
-    if (!packages || !clients) return;
+    if (!packages || !clients || !tiers || !unitItemsCatalog) return;
     if ((lead as any).converted_quote_id) {
       toast.info("Este lead já possui um orçamento vinculado.");
       navigate({ to: "/orcamentos" });
@@ -521,6 +530,11 @@ function NewQuotePage() {
     let lines: string[] = [];
     if (Array.isArray(extras.packages) && extras.packages.length) {
       lines = extras.packages.map((p: any) => p.package_id).filter(Boolean);
+      const prices: Record<string, number> = {};
+      for (const pkg of extras.packages) {
+        if (pkg?.package_id) prices[pkg.package_id] = Number(pkg.price_per_person) || 0;
+      }
+      setPackagePriceSnapshot(prices);
     } else if (q.package_id) {
       lines = [q.package_id];
     }
@@ -564,18 +578,13 @@ function NewQuotePage() {
     }
     if (extras.price_per_person_override != null) {
       setPriceOverride(Number(extras.price_per_person_override));
-    } else if (Array.isArray(extras.packages) && extras.packages.length) {
-      // Mantém exatamente o valor por pessoa que o cliente viu no link público,
-      // evitando divergência entre o card do orçamento e a tela de edição.
-      const snapSum = extras.packages.reduce((s: number, p: any) => s + (Number(p?.price_per_person) || 0), 0);
-      if (snapSum > 0) setPriceOverride(snapSum);
     }
 
     if (extras.entry_override != null) setEntryOverride(Number(extras.entry_override));
     if (extras.balance_override != null) setBalanceOverride(Number(extras.balance_override));
 
     setPrefilledQuote(true);
-  }, [quoteId, existingQuote, prefilledQuote, packages, clients, unitItemsCatalog, draftLoaded, hasDraft]);
+  }, [quoteId, existingQuote, prefilledQuote, packages, clients, tiers, unitItemsCatalog, draftLoaded, hasDraft]);
 
   // Só começa a gravar rascunho quando o formulário já está completo,
   // para que voltar de outra aba não apague pacotes/itens carregados.
@@ -700,8 +709,11 @@ function NewQuotePage() {
                   <div key={i} className="flex gap-2 items-start">
                     <div className="flex-1">
                       <Select
-                        value={pid}
-                        onValueChange={(v) => setPackageLines((arr) => arr.map((x, idx) => (idx === i ? v : x)))}
+                          value={pid}
+                          onValueChange={(v) => {
+                            setPackageLines((arr) => arr.map((x, idx) => (idx === i ? v : x)));
+                            setPriceOverride(null);
+                          }}
                       >
                         <SelectTrigger>
                           <SelectValue placeholder="Selecione um pacote…" />
@@ -773,7 +785,7 @@ function NewQuotePage() {
                       <span className="flex-1 min-w-0 text-sm">
                         {it.name}{" "}
                         <span className="text-xs text-muted-foreground">
-                          ({brl(Number(it.unit_price) || 0)}/{it.unit})
+                           ({brl(Number(unitPriceSnapshot[it.id] ?? it.unit_price) || 0)}/{it.unit})
                         </span>
                       </span>
                       <Input
@@ -785,7 +797,7 @@ function NewQuotePage() {
                         onChange={(e) => setUnitQty((old) => ({ ...old, [it.id]: Number(e.target.value) || 0 }))}
                       />
                       <span className="w-24 text-right text-sm font-mono font-semibold">
-                        {brl(qty * (Number(it.unit_price) || 0))}
+                        {brl(qty * (Number(unitPriceSnapshot[it.id] ?? it.unit_price) || 0))}
                       </span>
                     </div>
                   );
