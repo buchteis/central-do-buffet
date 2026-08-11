@@ -333,6 +333,9 @@ function NewQuotePage() {
 
   const mut = useMutation({
     mutationFn: async () => {
+      if (quoteId && !prefilledQuote) {
+        throw new Error("Aguarde o orçamento do cliente terminar de carregar.");
+      }
       const parsed = schema.safeParse({ ...form, package_ids: packageLines.filter(Boolean) });
       if (!parsed.success) throw new Error(parsed.error.issues[0].message);
 
@@ -1054,8 +1057,12 @@ function NewQuotePage() {
             >
               Gerar PDF
             </Button>
-            <Button type="submit" disabled={mut.isPending}>
-              {mut.isPending ? "Salvando…" : "Salvar orçamento"}
+            <Button type="submit" disabled={mut.isPending || (!!quoteId && !prefilledQuote)}>
+              {mut.isPending
+                ? "Salvando…"
+                : quoteId && !prefilledQuote
+                  ? "Carregando orçamento…"
+                  : "Salvar orçamento"}
             </Button>
           </div>
         </form>
