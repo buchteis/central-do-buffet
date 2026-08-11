@@ -61,9 +61,12 @@ function AuthPage() {
 
   const [loading, setLoading] = useState(false);
 
+  const [pendingApproval, setPendingApproval] = useState(false);
 
 
   useEffect(() => {
+
+    if (pendingApproval) return;
 
     supabase.auth.getSession()
       .then(({ data }) => {
@@ -80,7 +83,35 @@ function AuthPage() {
       });
 
 
-  }, [navigate]);
+  }, [navigate, pendingApproval]);
+
+  if (pendingApproval) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-6 bg-background">
+        <div className="max-w-md w-full bg-card border border-border rounded-2xl p-8 shadow-lg text-center space-y-4">
+          <div className="mx-auto size-14 rounded-full bg-primary/10 flex items-center justify-center">
+            <Building2 className="size-7 text-primary" />
+          </div>
+          <h1 className="text-xl font-extrabold tracking-tight">Cadastro em análise</h1>
+          <p className="text-sm text-muted-foreground">
+            Sua conta foi criada e está aguardando a autorização da equipe Central do Buffet.
+            Somente o administrador pode liberar o acesso de novos registros. Você será avisado por
+            e-mail assim que o acesso for liberado.
+          </p>
+          <Button
+            variant="outline"
+            className="w-full"
+            onClick={async () => {
+              await supabase.auth.signOut();
+              setPendingApproval(false);
+            }}
+          >
+            Voltar ao login
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
 
 
@@ -236,24 +267,18 @@ function AuthPage() {
 
 
 
+    setPendingApproval(true);
+
     if(data.session){
 
       toast.success(
-        "Conta criada com sucesso!"
+        "Conta criada! Aguarde a liberação da equipe Central do Buffet."
       );
-
-
-      navigate({
-        to:"/dashboard",
-        replace:true
-      });
-
 
     }else{
 
-
       toast.success(
-        "Confira seu e-mail para confirmar o cadastro."
+        "Conta criada! Confirme seu e-mail e aguarde a liberação da equipe."
       );
 
     }
