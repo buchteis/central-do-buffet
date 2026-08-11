@@ -332,7 +332,7 @@ export const commitInvoiceStockEntry = createServerFn({ method: "POST" })
         supplier_name: data.header.fornecedor ?? null,
         supplier_cnpj: cnpj ?? "",
         nf_number: numero,
-        nf_series: data.header.serie ?? null,
+        nf_series: data.header.serie ?? "",
         access_key: chave,
         issue_date: data.header.data_emissao || null,
         total_value: Number(data.header.valor_total ?? 0) || 0,
