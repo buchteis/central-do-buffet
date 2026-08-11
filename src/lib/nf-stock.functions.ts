@@ -82,8 +82,9 @@ async function resolveTenant(supabase: any, userId: string) {
     .eq("owner_id", userId)
     .maybeSingle();
   if (owned) return owned as { id: string; name: string };
-  const { data: any1 } = await supabase.from("tenants").select("id, name").limit(1).maybeSingle();
-  return (any1 as { id: string; name: string } | null) ?? null;
+  // Sem fallback "primeiro tenant": um usuário sem buffet próprio (ex.: super admin)
+  // não deve lançar estoque em um buffet de outro registro.
+  return null;
 }
 
 async function extractFromAI(args: { filename: string; mimeType: string; base64: string }) {
