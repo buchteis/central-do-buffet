@@ -30,6 +30,7 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { toast } from "sonner";
 import { useTenantAccess } from "@/hooks/useTenantAccess";
+import { Chatbot } from "@/components/Chatbot";
 
 
 type NavItem = { to: string; label: string; icon: typeof Home };
