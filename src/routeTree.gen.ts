@@ -14,6 +14,7 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as OrcamentoSlugRouteImport } from './routes/orcamento.$slug'
 import { Route as AvaliarSlugRouteImport } from './routes/avaliar.$slug'
+import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as AuthenticatedRelatoriosRouteImport } from './routes/_authenticated/relatorios'
 import { Route as AuthenticatedPagamentosDiariasRouteImport } from './routes/_authenticated/pagamentos-diarias'
 import { Route as AuthenticatedPacotesRouteImport } from './routes/_authenticated/pacotes'
@@ -63,6 +64,11 @@ const AvaliarSlugRoute = AvaliarSlugRouteImport.update({
   id: '/avaliar/$slug',
   path: '/avaliar/$slug',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AuthCallbackRoute = AuthCallbackRouteImport.update({
+  id: '/callback',
+  path: '/callback',
+  getParentRoute: () => AuthRoute,
 } as any)
 const AuthenticatedRelatoriosRoute = AuthenticatedRelatoriosRouteImport.update({
   id: '/relatorios',
@@ -207,7 +213,7 @@ const AuthenticatedClientesIdEditarRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/auth': typeof AuthRoute
+  '/auth': typeof AuthRouteWithChildren
   '/admin': typeof AuthenticatedAdminRoute
   '/agenda': typeof AuthenticatedAgendaRoute
   '/configuracoes': typeof AuthenticatedConfiguracoesRoute
@@ -223,6 +229,7 @@ export interface FileRoutesByFullPath {
   '/pacotes': typeof AuthenticatedPacotesRoute
   '/pagamentos-diarias': typeof AuthenticatedPagamentosDiariasRoute
   '/relatorios': typeof AuthenticatedRelatoriosRoute
+  '/auth/callback': typeof AuthCallbackRoute
   '/avaliar/$slug': typeof AvaliarSlugRoute
   '/orcamento/$slug': typeof OrcamentoSlugRoute
   '/clientes/importar': typeof AuthenticatedClientesImportarRoute
@@ -238,7 +245,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/auth': typeof AuthRoute
+  '/auth': typeof AuthRouteWithChildren
   '/admin': typeof AuthenticatedAdminRoute
   '/agenda': typeof AuthenticatedAgendaRoute
   '/configuracoes': typeof AuthenticatedConfiguracoesRoute
@@ -254,6 +261,7 @@ export interface FileRoutesByTo {
   '/pacotes': typeof AuthenticatedPacotesRoute
   '/pagamentos-diarias': typeof AuthenticatedPagamentosDiariasRoute
   '/relatorios': typeof AuthenticatedRelatoriosRoute
+  '/auth/callback': typeof AuthCallbackRoute
   '/avaliar/$slug': typeof AvaliarSlugRoute
   '/orcamento/$slug': typeof OrcamentoSlugRoute
   '/clientes/importar': typeof AuthenticatedClientesImportarRoute
@@ -271,7 +279,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
-  '/auth': typeof AuthRoute
+  '/auth': typeof AuthRouteWithChildren
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
   '/_authenticated/agenda': typeof AuthenticatedAgendaRoute
   '/_authenticated/configuracoes': typeof AuthenticatedConfiguracoesRoute
@@ -287,6 +295,7 @@ export interface FileRoutesById {
   '/_authenticated/pacotes': typeof AuthenticatedPacotesRoute
   '/_authenticated/pagamentos-diarias': typeof AuthenticatedPagamentosDiariasRoute
   '/_authenticated/relatorios': typeof AuthenticatedRelatoriosRoute
+  '/auth/callback': typeof AuthCallbackRoute
   '/avaliar/$slug': typeof AvaliarSlugRoute
   '/orcamento/$slug': typeof OrcamentoSlugRoute
   '/_authenticated/clientes/importar': typeof AuthenticatedClientesImportarRoute
@@ -320,6 +329,7 @@ export interface FileRouteTypes {
     | '/pacotes'
     | '/pagamentos-diarias'
     | '/relatorios'
+    | '/auth/callback'
     | '/avaliar/$slug'
     | '/orcamento/$slug'
     | '/clientes/importar'
@@ -351,6 +361,7 @@ export interface FileRouteTypes {
     | '/pacotes'
     | '/pagamentos-diarias'
     | '/relatorios'
+    | '/auth/callback'
     | '/avaliar/$slug'
     | '/orcamento/$slug'
     | '/clientes/importar'
@@ -383,6 +394,7 @@ export interface FileRouteTypes {
     | '/_authenticated/pacotes'
     | '/_authenticated/pagamentos-diarias'
     | '/_authenticated/relatorios'
+    | '/auth/callback'
     | '/avaliar/$slug'
     | '/orcamento/$slug'
     | '/_authenticated/clientes/importar'
@@ -400,7 +412,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
-  AuthRoute: typeof AuthRoute
+  AuthRoute: typeof AuthRouteWithChildren
   AvaliarSlugRoute: typeof AvaliarSlugRoute
   OrcamentoSlugRoute: typeof OrcamentoSlugRoute
 }
@@ -441,6 +453,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/avaliar/$slug'
       preLoaderRoute: typeof AvaliarSlugRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/auth/callback': {
+      id: '/auth/callback'
+      path: '/callback'
+      fullPath: '/auth/callback'
+      preLoaderRoute: typeof AuthCallbackRouteImport
+      parentRoute: typeof AuthRoute
     }
     '/_authenticated/relatorios': {
       id: '/_authenticated/relatorios'
@@ -679,10 +698,20 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
 const AuthenticatedRouteRouteWithChildren =
   AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
 
+interface AuthRouteChildren {
+  AuthCallbackRoute: typeof AuthCallbackRoute
+}
+
+const AuthRouteChildren: AuthRouteChildren = {
+  AuthCallbackRoute: AuthCallbackRoute,
+}
+
+const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
-  AuthRoute: AuthRoute,
+  AuthRoute: AuthRouteWithChildren,
   AvaliarSlugRoute: AvaliarSlugRoute,
   OrcamentoSlugRoute: OrcamentoSlugRoute,
 }

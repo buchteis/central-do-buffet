@@ -236,24 +236,18 @@ function AuthPage() {
 
 
 
+    setPendingApproval(true);
+
     if(data.session){
 
       toast.success(
-        "Conta criada com sucesso!"
+        "Conta criada! Aguarde a liberação da equipe Central do Buffet."
       );
-
-
-      navigate({
-        to:"/dashboard",
-        replace:true
-      });
-
 
     }else{
 
-
       toast.success(
-        "Confira seu e-mail para confirmar o cadastro."
+        "Conta criada! Confirme seu e-mail e aguarde a liberação da equipe."
       );
 
     }
