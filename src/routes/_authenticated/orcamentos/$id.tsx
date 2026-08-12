@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatDateBR, brl } from "@/lib/format";
 import { dedupePackages } from "@/lib/quote-calc";
+import { quoteCustomExtras, quoteUnitItems } from "@/lib/quote-pipeline";
 import { ArrowLeft, User, Calendar, MapPin, Package } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/orcamentos/$id")({
@@ -57,18 +58,8 @@ function QuoteDetail() {
   const adults = q.adults ?? 0;
   const children = (q.children_7_10 ?? 0) + (q.children_0_6 ?? 0);
 
-  const unitItems: { name: string; unit?: string; unit_price: number; qty: number }[] = (() => {
-    const snap = (q.extras as any)?.unit_items;
-    if (!Array.isArray(snap)) return [];
-    return snap
-      .map((i: any) => ({
-        name: i?.name ?? "Item",
-        unit: i?.unit ?? "un",
-        unit_price: Number(i?.unit_price ?? 0) || 0,
-        qty: Number(i?.qty ?? 0) || 0,
-      }))
-      .filter((i) => i.qty > 0);
-  })();
+  const unitItems = quoteUnitItems(q);
+  const customExtras = quoteCustomExtras(q);
 
   // Pacotes do orçamento: prioriza extras.packages (lista, múltiplos) — fallback relação.
   const packagesList: { name: string; price_per_person?: number }[] = (() => {
@@ -162,7 +153,7 @@ function QuoteDetail() {
         {unitItems.length > 0 && (
           <Card className="md:col-span-2">
             <CardHeader>
-              <CardTitle className="text-sm font-medium">Itens com preço unitário</CardTitle>
+              <CardTitle className="text-sm font-medium">Itens adicionais</CardTitle>
             </CardHeader>
             <CardContent className="space-y-1 text-sm">
               {unitItems.map((it, i) => (
@@ -171,6 +162,22 @@ function QuoteDetail() {
                   <span className="text-muted-foreground font-mono">
                     {it.qty} {it.unit} × {brl(it.unit_price)} = {brl(it.qty * it.unit_price)}
                   </span>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        )}
+
+        {customExtras.length > 0 && (
+          <Card className="md:col-span-2">
+            <CardHeader>
+              <CardTitle className="text-sm font-medium">Acréscimos adicionais</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-1 text-sm">
+              {customExtras.map((item, i) => (
+                <div key={i} className="flex justify-between gap-4">
+                  <span className="font-semibold">{item.description}</span>
+                  <span className="text-muted-foreground font-mono">{brl(item.value)}</span>
                 </div>
               ))}
             </CardContent>

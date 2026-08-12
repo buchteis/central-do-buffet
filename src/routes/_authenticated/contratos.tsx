@@ -276,10 +276,20 @@ function getAdditionsText(
   const list: string[] = [];
 
   if (extras && typeof extras === "object") {
-    // 1. Procura em arrays dentro de extras
+    // Formato atual: acréscimos manuais salvos explicitamente em extras.custom.
+    if (Array.isArray(extras.custom)) {
+      for (const item of extras.custom) {
+        const val = Number(item?.value ?? 0) || 0;
+        if (val <= 0) continue;
+        const name = String(item?.description ?? "Acréscimo").trim() || "Acréscimo";
+        list.push(`${name} — ${brl(val)}`);
+      }
+    }
+
+    // Compatibilidade com orçamentos antigos que usavam outras chaves.
     const arrayKeys = Object.keys(extras).filter((k) => Array.isArray(extras[k]));
     for (const k of arrayKeys) {
-      if (["packages", "unit_items"].includes(k)) continue;
+      if (["packages", "unit_items", "custom"].includes(k)) continue;
       const arr = extras[k];
       for (const item of arr) {
         if (!item || typeof item !== "object") continue;
