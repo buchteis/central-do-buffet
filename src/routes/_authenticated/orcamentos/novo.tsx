@@ -183,7 +183,7 @@ function QuoteEditor({ leadId, quoteId }: { leadId?: string; quoteId?: string })
         const d = JSON.parse(raw);
         // Só restaura rascunhos completos (salvos depois do pré-preenchimento),
         // evitando sobrescrever pacotes/itens do orçamento com um estado parcial.
-        if (d?.ready === true && (d?.version === 3 || d?.version === 4 || d?.version === 5)) {
+        if (d?.ready === true && d?.version === 5) {
           if (d?.form) setForm((f) => ({ ...f, ...d.form }));
           if (Array.isArray(d?.packageLines)) setPackageLines(d.packageLines);
           if (Array.isArray(d?.customExtras)) setCustomExtras(d.customExtras);
@@ -760,7 +760,7 @@ function QuoteEditor({ leadId, quoteId }: { leadId?: string; quoteId?: string })
                         </SelectTrigger>
                         <SelectContent>
                           {(() => {
-                            const all = packages ?? [];
+                             const all = (packages ?? []).filter((p: any) => p.active || packageLines.includes(p.id));
                             if (all.length === 0) {
                               return <div className="p-4 text-xs text-muted-foreground">Cadastre um pacote antes.</div>;
                             }
