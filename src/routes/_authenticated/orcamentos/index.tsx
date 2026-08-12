@@ -573,6 +573,16 @@ function QuotesPage() {
           </table>
         </div>
       )}
+
+      <QuoteDetailModal
+        quote={detail}
+        onClose={() => setDetail(null)}
+        onFullEdit={(q) => {
+          setDetail(null);
+          openEdit(q);
+        }}
+      />
     </div>
+
   );
 }
