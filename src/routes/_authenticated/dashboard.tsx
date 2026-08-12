@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { isOpenQuote } from "@/lib/quote-pipeline";
 import { brl, brlCompact, formatDateBR, formatDateFullBR } from "@/lib/format";
 import { FINANCE_EVENT_STATUSES, computeFinanceTotals } from "@/lib/finance-logic";
 import { cn } from "@/lib/utils";
@@ -124,7 +125,7 @@ function Dashboard() {
 
   const quotesData = useDashboardQuery("quotes-data", async () => {
     const { data } = await supabase.from("quotes").select("id, status, total_value, paid");
-    const pendentes = data?.filter((q) => q.status === "novo" || q.status === "em_andamento").length || 0;
+    const pendentes = data?.filter((q) => isOpenQuote(q.status)).length || 0;
     const aprovados = data?.filter((q) => q.status === "fechado").length || 0;
     const concluidos =
       data
@@ -132,7 +133,7 @@ function Dashboard() {
         .reduce((sum, q) => sum + Number(q.total_value || 0), 0) || 0;
     const previsiveis =
       data
-        ?.filter((q) => (q.status === "fechado" && q.paid === true) || q.status === "em_andamento")
+        ?.filter((q) => (q.status === "fechado" && q.paid === true) || isOpenQuote(q.status))
         .reduce((sum, q) => sum + Number(q.total_value || 0), 0) || 0;
     return { pendentes, aprovados, concluidos, previsiveis };
   });

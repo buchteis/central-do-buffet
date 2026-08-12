@@ -26,7 +26,7 @@ import { calcQuote } from "@/lib/quote-calc";
 import { copyToClipboard } from "@/lib/clipboard";
 import { useTenantAccess } from "@/hooks/useTenantAccess";
 import { useEffect } from "react";
-import { PIPELINE, stageOfStatus, type StageId } from "@/lib/quote-pipeline";
+import { PIPELINE, stageOfStatus } from "@/lib/quote-pipeline";
 import { QuoteKanban } from "@/components/orcamentos/QuoteKanban";
 import { QuoteDetailModal } from "@/components/orcamentos/QuoteDetailModal";
 
