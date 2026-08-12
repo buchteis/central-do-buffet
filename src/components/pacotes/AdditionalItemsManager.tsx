@@ -21,7 +21,7 @@ type AdditionalItem = {
   active: boolean;
 };
 
-const emptyForm = { name: "", unit: "un", unit_price: 0, default_qty: 0, product_id: "none" };
+const emptyForm = { name: "", unit: "un", unit_price: 0, product_id: "none" };
 
 export function AdditionalItemsManager() {
   const qc = useQueryClient();
@@ -56,7 +56,7 @@ export function AdditionalItemsManager() {
         name,
         unit: product?.unit ?? (form.unit.trim() || "un"),
         unit_price: Number(form.unit_price) || 0,
-        default_qty: Number(form.default_qty) || 0,
+        default_qty: 0,
         product_id: form.product_id === "none" ? null : form.product_id,
       };
       if (editing) {
@@ -111,7 +111,6 @@ export function AdditionalItemsManager() {
       name: item.name,
       unit: item.unit,
       unit_price: item.unit_price,
-      default_qty: item.default_qty,
       product_id: item.product_id ?? "none",
     });
   };
@@ -150,10 +149,6 @@ export function AdditionalItemsManager() {
           <div className="space-y-1">
             <Label>Preço unitário (R$)</Label>
             <Input type="number" min={0} step="0.01" value={form.unit_price} onChange={(e) => setForm((f) => ({ ...f, unit_price: Number(e.target.value) || 0 }))} />
-          </div>
-          <div className="space-y-1">
-            <Label>Quantidade inicial sugerida</Label>
-            <Input type="number" min={0} step="0.01" value={form.default_qty} onChange={(e) => setForm((f) => ({ ...f, default_qty: Number(e.target.value) || 0 }))} />
           </div>
           <div className="sm:col-span-2 flex justify-end gap-2">
             {editing && <Button type="button" variant="ghost" onClick={() => { setEditing(null); setForm(emptyForm); }}>Cancelar edição</Button>}
