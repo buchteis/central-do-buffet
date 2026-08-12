@@ -68,17 +68,9 @@ function quotePackagesLabel(q: any): string {
   return q?.packages?.name ?? "pacote escolhido";
 }
 
-type Stage = "novo" | "em_andamento" | "fechado";
-const pipeline: { id: Stage; label: string; tone: string }[] = [
-  { id: "novo", label: "Novo", tone: "bg-slate-500/10 text-slate-600 border-slate-500/20" },
-  { id: "em_andamento", label: "Em andamento", tone: "bg-blue-500/10 text-blue-600 border-blue-500/20" },
-  { id: "fechado", label: "Fechado", tone: "bg-emerald-500/10 text-emerald-700 border-emerald-500/20" },
-];
-function stageOf(status: string): Stage {
-  if (status === "fechado" || status === "aprovado") return "fechado";
-  if (status === "novo") return "novo";
-  return "em_andamento";
-}
+const pipeline = PIPELINE;
+const stageOf = stageOfStatus;
+
 
 type Period = "all" | "day" | "week" | "month" | "year";
 
