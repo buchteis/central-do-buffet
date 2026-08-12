@@ -133,7 +133,7 @@ export function AdditionalItemsManager() {
             <Input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="Ex.: Barril de Chope" />
           </div>
           <div className="space-y-1">
-            <Label>Produto de estoque (opcional)</Label>
+            <Label>Produto de estoque</Label>
             <Select value={form.product_id} onValueChange={(value) => setForm((f) => ({ ...f, product_id: value }))}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -141,7 +141,11 @@ export function AdditionalItemsManager() {
                 {(products ?? []).map((product) => <SelectItem key={product.id} value={product.id}>{product.name}</SelectItem>)}
               </SelectContent>
             </Select>
+            <p className="text-[11px] text-muted-foreground">
+              Sem vínculo o item não reserva nem dá baixa no estoque.
+            </p>
           </div>
+
           <div className="space-y-1">
             <Label>Unidade</Label>
             <Input value={form.unit} disabled={form.product_id !== "none"} onChange={(e) => setForm((f) => ({ ...f, unit: e.target.value }))} placeholder="un, litro, barril" />
