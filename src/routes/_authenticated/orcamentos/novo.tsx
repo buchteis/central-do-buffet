@@ -1,7 +1,7 @@
 import { ChecklistPreDefinido } from "@/components/ChecklistPreDefinido";
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -39,9 +39,17 @@ const schema = z
   .passthrough();
 
 function NewQuotePage() {
+  const { leadId, quoteId } = Route.useSearch();
+
+  // A busca muda sem necessariamente desmontar a rota. Uma chave por registro
+  // impede que estado, flags de prefill e rascunhos de outro orçamento vazem
+  // para o orçamento que está sendo aberto agora.
+  return <QuoteEditor key={quoteId ?? leadId ?? "new"} leadId={leadId} quoteId={quoteId} />;
+}
+
+function QuoteEditor({ leadId, quoteId }: { leadId?: string; quoteId?: string }) {
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const { leadId, quoteId } = Route.useSearch();
   const { data: access } = useTenantAccess();
 
   const { data: lead } = useQuery({
@@ -80,8 +88,7 @@ function NewQuotePage() {
     queryFn: async () => {
       const { data } = await supabase
         .from("packages")
-        .select("id, name, price_per_person")
-        .eq("active", true)
+        .select("id, name, price_per_person, active")
         .order("name");
       return data ?? [];
     },
@@ -176,7 +183,7 @@ function NewQuotePage() {
         const d = JSON.parse(raw);
         // Só restaura rascunhos completos (salvos depois do pré-preenchimento),
         // evitando sobrescrever pacotes/itens do orçamento com um estado parcial.
-        if (d?.ready === true && (d?.version === 3 || d?.version === 4)) {
+        if (d?.ready === true && d?.version === 5) {
           if (d?.form) setForm((f) => ({ ...f, ...d.form }));
           if (Array.isArray(d?.packageLines)) setPackageLines(d.packageLines);
           if (Array.isArray(d?.customExtras)) setCustomExtras(d.customExtras);
@@ -206,25 +213,27 @@ function NewQuotePage() {
   // Marcado como pronto assim que o pré-preenchimento (orçamento/lead) terminou.
   const [draftReady, setDraftReady] = useState(false);
 
+  const draftPayload = {
+    ready: true,
+    version: 5,
+    form,
+    packageLines,
+    customExtras,
+    unitQty,
+    unitPriceSnapshot,
+    packagePriceSnapshot,
+    priceOverride,
+    entryOverride,
+    balanceOverride,
+  };
+  const latestDraftRef = useRef(draftPayload);
+  const discardDraftRef = useRef(false);
+  latestDraftRef.current = draftPayload;
+
   useEffect(() => {
     if (!draftLoaded || !draftReady || typeof window === "undefined") return;
     try {
-      localStorage.setItem(
-        draftKey,
-        JSON.stringify({
-          ready: true,
-          version: 4,
-          form,
-          packageLines,
-          customExtras,
-          unitQty,
-          unitPriceSnapshot,
-          packagePriceSnapshot,
-          priceOverride,
-          entryOverride,
-          balanceOverride,
-        }),
-      );
+      localStorage.setItem(draftKey, JSON.stringify(draftPayload));
     } catch {
       /* ignore */
     }
@@ -243,6 +252,20 @@ function NewQuotePage() {
     entryOverride,
     balanceOverride,
   ]);
+
+  // Garante a persistência do último caractere/quantidade mesmo quando o
+  // usuário troca de aba imediatamente após editar um campo.
+  useEffect(() => {
+    if (!draftLoaded || !draftReady || typeof window === "undefined") return;
+    return () => {
+      if (discardDraftRef.current) return;
+      try {
+        localStorage.setItem(draftKey, JSON.stringify(latestDraftRef.current));
+      } catch {
+        /* ignore */
+      }
+    };
+  }, [draftKey, draftLoaded, draftReady]);
 
   const totalGuests = (Number(form.adults) || 0) + (Number(form.children_count) || 0);
 
@@ -458,6 +481,7 @@ function NewQuotePage() {
       return data;
     },
     onSuccess: () => {
+      discardDraftRef.current = true;
       try {
         localStorage.removeItem(draftKey);
         sessionStorage.removeItem(draftKey);
@@ -523,8 +547,10 @@ function NewQuotePage() {
   useEffect(() => {
     if (!draftLoaded) return;
     if (!quoteId || prefilledQuote || !existingQuote) return;
-    // Only prefill once reference lists are available so <Select> values map to items.
-    if (!packages || !clients) return;
+    // Só conclui o prefill quando TODAS as referências usadas na recuperação
+    // estiverem disponíveis. Antes, o efeito podia marcar o orçamento como
+    // preenchido sem o catálogo e nunca mais recuperar os demais itens.
+    if (!packages || !clients || !tiers || !unitItemsCatalog) return;
 
     const q: any = existingQuote;
     const extras: any = q.extras ?? {};
@@ -592,6 +618,8 @@ function NewQuotePage() {
           prices[it.item_id] = Number(it.unit_price) || 0;
         }
       }
+      // O registro público recompõe qualquer chave ausente. O rascunho v5 só
+      // sobrescreve chaves depois de ter sido criado sobre um prefill completo.
       setUnitQty((old) => (hasDraft ? { ...map, ...old } : map));
       setUnitPriceSnapshot((old) => (hasDraft ? { ...prices, ...old } : prices));
     }
@@ -739,7 +767,7 @@ function NewQuotePage() {
                         </SelectTrigger>
                         <SelectContent>
                           {(() => {
-                            const all = packages ?? [];
+                             const all = (packages ?? []).filter((p: any) => p.active || packageLines.includes(p.id));
                             if (all.length === 0) {
                               return <div className="p-4 text-xs text-muted-foreground">Cadastre um pacote antes.</div>;
                             }
