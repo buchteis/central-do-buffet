@@ -142,7 +142,8 @@ export function AdditionalItemsManager() {
               </SelectContent>
             </Select>
             <p className="text-[11px] text-muted-foreground">
-              Sem vínculo o item não reserva nem dá baixa no estoque.
+              Sem vínculo o item não reserva nem dá baixa. Se existir um produto de estoque com o mesmo nome, o
+              vínculo é feito automaticamente ao salvar.
             </p>
           </div>
 
