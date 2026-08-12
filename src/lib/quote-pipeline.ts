@@ -117,7 +117,7 @@ export function quotePhone(q: QuoteAny): string | null {
 export function quotePackagesLabel(q: QuoteAny): string {
   const snap = (q?.extras as any)?.packages;
   if (Array.isArray(snap) && snap.length > 0) {
-    return snap.map((p: any) => p?.name).filter(Boolean).join(" + ") || "pacote escolhido";
+    return snap.map((p: any) => p?.name).filter(Boolean).join(", ") || "pacote escolhido";
   }
   return q?.packages?.name ?? "pacote escolhido";
 }
@@ -133,6 +133,14 @@ export function quoteUnitItems(q: QuoteAny) {
       qty: Number(i?.qty ?? 0) || 0,
     }))
     .filter((i) => i.qty > 0);
+}
+
+export function quoteCustomExtras(q: QuoteAny) {
+  const snap = (q?.extras as any)?.custom;
+  if (!Array.isArray(snap)) return [];
+  return snap
+    .map((item: any) => ({ description: String(item?.description ?? "Acréscimo"), value: Number(item?.value ?? 0) || 0 }))
+    .filter((item) => item.description.trim() || item.value > 0);
 }
 
 export function quoteGuests(q: QuoteAny): number {

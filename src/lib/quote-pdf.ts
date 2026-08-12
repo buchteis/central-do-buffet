@@ -146,7 +146,7 @@ export async function openQuotePdf(input: QuotePdfInput) {
     const price = Number(u.unit_price) || 0;
     rows.push(`
       <tr>
-        <td>${esc(u.name || "Item unitário")}<div class="muted">Item unitário</div></td>
+        <td>${esc(u.name || "Item adicional")}<div class="muted">Item adicional</div></td>
         <td class="num">${esc(qty)} ${esc(u.unit ?? "un")}</td>
         <td class="num">${esc(brl(price))}</td>
         <td class="num">${esc(brl(qty * price))}</td>
@@ -273,7 +273,7 @@ export async function openQuotePdf(input: QuotePdfInput) {
 
     <div class="totals">
       <div class="row sub"><span>Subtotal</span><span>${esc(brl(bk.subtotal))}</span></div>
-      ${bk.unitItemsSubtotal > 0 ? `<div class="row sub"><span>Itens unitários</span><span>${esc(brl(bk.unitItemsSubtotal))}</span></div>` : ""}
+      ${bk.unitItemsSubtotal > 0 ? `<div class="row sub"><span>Itens adicionais</span><span>${esc(brl(bk.unitItemsSubtotal))}</span></div>` : ""}
       ${extrasTotal > 0 ? `<div class="row sub"><span>Acréscimos</span><span>${esc(brl(extrasTotal))}</span></div>` : ""}
       <div class="row total"><span>Total</span><span>${esc(brl(bk.total))}</span></div>
       <div class="row sub"><span>Entrada (50%)</span><span>${esc(brl(bk.entry))}</span></div>

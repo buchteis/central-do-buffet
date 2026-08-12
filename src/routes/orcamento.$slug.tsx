@@ -127,20 +127,20 @@ function PublicQuoteForm() {
     },
   });
 
-  // Itens de preço unitário dos pacotes ativos deste buffet
+  // Itens adicionais independentes dos pacotes
   const { data: unitItemsCatalog } = useQuery({
-    queryKey: ["public-unit-items", tenant?.id, packageIds],
-    enabled: packageIds.length > 0,
+    queryKey: ["public-additional-items", tenant?.id],
+    enabled: !!tenant?.id,
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
-        .from("package_unit_items")
-        .select("id, package_id, name, unit, unit_price, default_qty, position")
-        .in("package_id", packageIds)
+      const { data, error } = await supabase
+        .from("additional_items")
+        .select("id, name, unit, unit_price, default_qty, position")
+        .eq("tenant_id", tenant!.id)
+        .eq("active", true)
         .order("position", { ascending: true });
       if (error) return [];
       return (data ?? []) as {
         id: string;
-        package_id: string;
         name: string;
         unit: string;
         unit_price: number;
@@ -174,11 +174,7 @@ function PublicQuoteForm() {
     [selectedPackages, packages, tiers, guestCount],
   );
 
-  // Itens unitários disponíveis para os pacotes escolhidos
-  const availableUnitItems = useMemo(() => {
-    const ids = new Set(chosenPackages.map((p) => p.id));
-    return (unitItemsCatalog ?? []).filter((i) => ids.has(i.package_id));
-  }, [unitItemsCatalog, chosenPackages]);
+  const availableUnitItems = unitItemsCatalog ?? [];
 
   const selectedUnitItems = useMemo(
     () =>
@@ -451,7 +447,7 @@ function PublicQuoteForm() {
               {availableUnitItems.length > 0 && (
                 <div className="space-y-3 rounded-xl border p-3">
                   <Label className="text-xs uppercase tracking-wider text-muted-foreground">
-                    Itens com preço unitário (opcional)
+                     Itens adicionais (opcional)
                   </Label>
                   <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
                     {availableUnitItems.map((it) => (
@@ -480,7 +476,7 @@ function PublicQuoteForm() {
                   </div>
                   {unitItemsSubtotal > 0 && (
                     <p className="text-right text-xs text-muted-foreground">
-                      Subtotal itens unitários: <strong>{brl(unitItemsSubtotal)}</strong>
+                       Subtotal itens adicionais: <strong>{brl(unitItemsSubtotal)}</strong>
                     </p>
                   )}
                 </div>

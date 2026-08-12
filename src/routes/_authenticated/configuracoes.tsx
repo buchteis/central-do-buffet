@@ -291,8 +291,8 @@ function SettingsPage() {
           Variáveis: {"{cliente}"}, {"{cpf_cliente}"}, {"{endereco_cliente}"}, {"{telefone_cliente}"}, {"{buffet}"},{" "}
           {"{endereco_buffet}"}, {"{telefone_buffet}"}, {"{data_evento}"}, {"{hora_evento}"}, {"{local_evento}"},{" "}
           {"{convidados}"}, {"{valor}"}, {"{entrada}"}, {"{saldo}"}, {"{forma_pagamento}"}, {"{dados_pagamento}"},{" "}
-          {"{pix}"}, {"{pix_titular}"}, {"{data_hoje}"}, {"{pacote}"}, {"{pacotes}"}, {"{itens_unitarios}"},{" "}
-          {"{descricao_pacote}"}, {"{cardapio}"}, {"{descricao_cardapio}"}. O endereço do buffet vem do campo
+          {"{pix}"}, {"{pix_titular}"}, {"{data_hoje}"}, {"{pacote}"}, {"{pacotes}"}, {"{itens_adicionais}"},{" "}
+          {"{acrescimos_adicionais}"}, {"{descricao_pacote}"}, {"{cardapio}"}, {"{descricao_cardapio}"}. O endereço do buffet vem do campo
           “Endereço” em Dados do buffet.
         </p>
 

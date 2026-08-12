@@ -249,7 +249,7 @@ function formatUnitItems(items: any[]): { text: string; total: number } {
   const list = (items ?? []).filter(
     (i) => Number(i?.qty ?? i?.quantity ?? 0) > 0 || Number(i?.unit_price ?? i?.price ?? 0) > 0,
   );
-  if (!list.length) return { text: "Nenhum item unitário contratado", total: 0 };
+  if (!list.length) return { text: "Nenhum item adicional contratado", total: 0 };
 
   let total = 0;
   const text = list
@@ -276,10 +276,20 @@ function getAdditionsText(
   const list: string[] = [];
 
   if (extras && typeof extras === "object") {
-    // 1. Procura em arrays dentro de extras
+    // Formato atual: acréscimos manuais salvos explicitamente em extras.custom.
+    if (Array.isArray(extras.custom)) {
+      for (const item of extras.custom) {
+        const val = Number(item?.value ?? 0) || 0;
+        if (val <= 0) continue;
+        const name = String(item?.description ?? "Acréscimo").trim() || "Acréscimo";
+        list.push(`${name} — ${brl(val)}`);
+      }
+    }
+
+    // Compatibilidade com orçamentos antigos que usavam outras chaves.
     const arrayKeys = Object.keys(extras).filter((k) => Array.isArray(extras[k]));
     for (const k of arrayKeys) {
-      if (["packages", "unit_items"].includes(k)) continue;
+      if (["packages", "unit_items", "custom"].includes(k)) continue;
       const arr = extras[k];
       for (const item of arr) {
         if (!item || typeof item !== "object") continue;
@@ -539,6 +549,7 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
         pacote: "",
         pacotes: "",
         itens_unitarios: "",
+        itens_adicionais: "",
         acrescimos: "Nenhum acréscimo adicional",
         acrescimos_adicionais: "Nenhum acréscimo adicional",
         acrescimo: "Nenhum acréscimo adicional",
@@ -562,7 +573,7 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
         const pkgSnap: any[] = Array.isArray(qExtras.packages) ? qExtras.packages : [];
         const unitSnap: any[] = Array.isArray(qExtras.unit_items) ? qExtras.unit_items : [];
         const pkgNames = pkgSnap.map((p) => p?.name).filter(Boolean);
-        const pacoteLabel = pkgNames.length ? pkgNames.join(" + ") : (q.packages?.name ?? "");
+        const pacoteLabel = pkgNames.length ? pkgNames.join(", ") : (q.packages?.name ?? "");
         const pkgSnapClean = dedupePackages(pkgSnap, unitSnap);
 
         let pkgTotal = 0;
@@ -600,6 +611,7 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
           pacote: pacoteLabel,
           pacotes: pacotesDetalhados,
           itens_unitarios: itensUnitariosDetalhados,
+          itens_adicionais: itensUnitariosDetalhados,
           acrescimos: acrescimosText,
           acrescimos_adicionais: acrescimosText,
           acrescimo: acrescimosText,
@@ -619,7 +631,7 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
         let balanceVal = totalVal - entryVal;
 
         let evPacotes = ev.packages?.name ?? "—";
-        let evItens = "Nenhum item unitário contratado";
+        let evItens = "Nenhum item adicional contratado";
         let evAcrescimos = "Nenhum acréscimo adicional";
 
         if (ev.quote_id) {
@@ -671,6 +683,7 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
           pacote: ev.packages?.name ?? "—",
           pacotes: evPacotes,
           itens_unitarios: evItens,
+          itens_adicionais: evItens,
           acrescimos: evAcrescimos,
           acrescimos_adicionais: evAcrescimos,
           acrescimo: evAcrescimos,
