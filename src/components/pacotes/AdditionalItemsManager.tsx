@@ -171,6 +171,8 @@ export function AdditionalItemsManager() {
                     Sem produto de estoque — não reserva nem dá baixa
                   </div>
                 )}
+              </div>
+
 
               <Button type="button" size="sm" variant={item.active ? "outline" : "secondary"} onClick={() => toggle.mutate(item)}>{item.active ? "Ativo" : "Inativo"}</Button>
               <Button type="button" size="icon" variant="ghost" onClick={() => startEdit(item)} aria-label="Editar item"><Pencil className="size-4" /></Button>
