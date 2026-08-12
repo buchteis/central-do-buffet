@@ -249,7 +249,7 @@ function formatUnitItems(items: any[]): { text: string; total: number } {
   const list = (items ?? []).filter(
     (i) => Number(i?.qty ?? i?.quantity ?? 0) > 0 || Number(i?.unit_price ?? i?.price ?? 0) > 0,
   );
-  if (!list.length) return { text: "Nenhum item unitário contratado", total: 0 };
+  if (!list.length) return { text: "Nenhum item adicional contratado", total: 0 };
 
   let total = 0;
   const text = list
@@ -621,7 +621,7 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
         let balanceVal = totalVal - entryVal;
 
         let evPacotes = ev.packages?.name ?? "—";
-        let evItens = "Nenhum item unitário contratado";
+        let evItens = "Nenhum item adicional contratado";
         let evAcrescimos = "Nenhum acréscimo adicional";
 
         if (ev.quote_id) {

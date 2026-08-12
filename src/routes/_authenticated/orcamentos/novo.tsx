@@ -299,7 +299,8 @@ function QuoteEditor({ leadId, quoteId }: { leadId?: string; quoteId?: string })
   // Itens adicionais pertencem ao buffet, não a um pacote.
   const availableUnitItems = unitItemsCatalog ?? [];
 
-  // Qtd escolhida por item unitário (default = default_qty do pacote).
+  // Quantidade escolhida por item adicional. Novos orçamentos começam em zero;
+  // ao editar, o snapshot salvo é restaurado exatamente.
   // Ao editar um orçamento existente (ex.: vindo do link público), respeita exatamente
   // o que foi escolhido: itens não escolhidos ficam em 0.
   useEffect(() => {
@@ -310,7 +311,7 @@ function QuoteEditor({ leadId, quoteId }: { leadId?: string; quoteId?: string })
       let changed = false;
       for (const it of availableUnitItems) {
         if (next[it.id] === undefined) {
-          next[it.id] = quoteId || hasDraft ? 0 : Number(it.default_qty) || 0;
+          next[it.id] = 0;
           changed = true;
         }
       }

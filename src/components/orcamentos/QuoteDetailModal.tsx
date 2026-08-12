@@ -19,6 +19,7 @@ import {
   type StageId,
 } from "@/lib/quote-pipeline";
 import { cn } from "@/lib/utils";
+import { dedupePackages } from "@/lib/quote-calc";
 import { ExternalLink, Save } from "lucide-react";
 
 type Props = {
@@ -90,6 +91,7 @@ export function QuoteDetailModal({ quote, onClose, onFullEdit }: Props) {
   const unitItems = quoteUnitItems(q);
   const customExtras = quoteCustomExtras(q);
   const pkgSnap: any[] = Array.isArray((q.extras as any)?.packages) ? (q.extras as any).packages : [];
+  const cleanPackages = dedupePackages(pkgSnap, unitItems);
 
   return (
     <Dialog open={!!quote} onOpenChange={(o) => !o && onClose()}>
@@ -242,7 +244,7 @@ export function QuoteDetailModal({ quote, onClose, onFullEdit }: Props) {
           <div className="font-bold uppercase tracking-wider text-[10px] text-muted-foreground">
             Pacotes escolhidos
           </div>
-          {pkgSnap.length > 0 ? pkgSnap.map((p: any, i: number) => (
+          {cleanPackages.length > 0 ? cleanPackages.map((p: any, i: number) => (
             <div key={i} className="flex justify-between gap-3">
               <span>{p?.name}</span>
               <span className="font-mono text-muted-foreground">{brl(Number(p?.price_per_person ?? 0))}/pessoa</span>
