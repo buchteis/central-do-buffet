@@ -184,7 +184,7 @@ function QuoteEditor({ leadId, quoteId }: { leadId?: string; quoteId?: string })
         const d = JSON.parse(raw);
         // Só restaura rascunhos completos (salvos depois do pré-preenchimento),
         // evitando sobrescrever pacotes/itens do orçamento com um estado parcial.
-        if (d?.ready === true && d?.version === 6) {
+        if (d?.ready === true && d?.version === 7) {
           if (d?.form) setForm((f) => ({ ...f, ...d.form }));
           if (Array.isArray(d?.packageLines)) setPackageLines(d.packageLines);
           if (Array.isArray(d?.customExtras)) setCustomExtras(d.customExtras);
@@ -216,7 +216,7 @@ function QuoteEditor({ leadId, quoteId }: { leadId?: string; quoteId?: string })
 
   const draftPayload = {
     ready: true,
-    version: 6,
+    version: 7,
     form,
     packageLines,
     customExtras,
