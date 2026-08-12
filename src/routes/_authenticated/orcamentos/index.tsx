@@ -158,8 +158,7 @@ function QuotesPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("quotes")
-        .select("*, clients(name, phone, whatsapp, cpf, email, address), packages(name)")
-        .neq("status", "cancelado")
+        .select("*, clients(name, phone, whatsapp, cpf, email, address, city), packages(name)")
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data ?? [];
