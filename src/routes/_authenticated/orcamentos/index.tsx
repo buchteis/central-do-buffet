@@ -126,7 +126,14 @@ function parseEventDate(v: string | null | undefined): Date | null {
 }
 
 function QuotesPage() {
-  const [view, setView] = useState<"kanban" | "list">("kanban");
+  const [view, setView] = useState<"kanban" | "list">(() => {
+    if (typeof window === "undefined") return "kanban";
+    return (localStorage.getItem("orcamentos:view") as "kanban" | "list") ?? "kanban";
+  });
+  const [detail, setDetail] = useState<any | null>(null);
+  useEffect(() => {
+    if (typeof window !== "undefined") localStorage.setItem("orcamentos:view", view);
+  }, [view]);
   const [period, setPeriod] = useState<Period>("all");
   const [offset, setOffset] = useState(0);
   const [archived, setArchived] = useState(false);
