@@ -166,7 +166,12 @@ export function AdditionalItemsManager() {
               <div className="min-w-0 flex-1">
                 <div className="font-semibold text-sm">{item.name}</div>
                 <div className="text-xs text-muted-foreground">{brl(item.unit_price)} / {item.unit}</div>
-              </div>
+                {!item.product_id && (
+                  <div className="text-[11px] font-semibold text-destructive mt-0.5">
+                    Sem produto de estoque — não reserva nem dá baixa
+                  </div>
+                )}
+
               <Button type="button" size="sm" variant={item.active ? "outline" : "secondary"} onClick={() => toggle.mutate(item)}>{item.active ? "Ativo" : "Inativo"}</Button>
               <Button type="button" size="icon" variant="ghost" onClick={() => startEdit(item)} aria-label="Editar item"><Pencil className="size-4" /></Button>
               <Button type="button" size="icon" variant="ghost" onClick={() => confirm("Excluir este item adicional?") && remove.mutate(item.id)} aria-label="Excluir item"><Trash2 className="size-4 text-destructive" /></Button>
