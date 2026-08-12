@@ -54,7 +54,7 @@ export function AdditionalItemsManager() {
       const product = (products ?? []).find((p) => p.id === form.product_id);
       const values = {
         name,
-        unit: product?.unit ?? form.unit.trim() || "un",
+        unit: product?.unit ?? (form.unit.trim() || "un"),
         unit_price: Number(form.unit_price) || 0,
         default_qty: Number(form.default_qty) || 0,
         product_id: form.product_id === "none" ? null : form.product_id,
