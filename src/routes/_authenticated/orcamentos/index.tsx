@@ -65,7 +65,7 @@ function quotePackagesLabel(q: any): string {
       snap
         .map((p: any) => p?.name)
         .filter(Boolean)
-        .join(" + ") || "pacote escolhido"
+        .join(", ") || "pacote escolhido"
     );
   }
   return q?.packages?.name ?? "pacote escolhido";

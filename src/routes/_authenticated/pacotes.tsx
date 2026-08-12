@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { AdditionalItemsManager } from "@/components/pacotes/AdditionalItemsManager";
 import {
   Dialog,
   DialogContent,
@@ -171,6 +172,8 @@ function PackagesPage() {
             {packages?.length ?? 0} pacote(s) cadastrado(s)
           </p>
         </div>
+        <div className="flex flex-wrap gap-2">
+        <AdditionalItemsManager />
         <Dialog
           open={open}
           onOpenChange={(o) => {
@@ -213,7 +216,6 @@ function PackagesPage() {
                 <>
                   <PriceTiersEditor packageId={editing.id} />
                   <PackageProductsEditor packageId={editing.id} />
-                  <PackageUnitItemsEditor packageId={editing.id} />
                 </>
               ) : (
                 <p className="text-xs text-muted-foreground bg-muted/40 border border-border rounded-lg p-3">
@@ -232,6 +234,7 @@ function PackagesPage() {
             </form>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       {isLoading ? (

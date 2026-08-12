@@ -114,22 +114,23 @@ function QuoteEditor({ leadId, quoteId }: { leadId?: string; quoteId?: string })
     },
   });
   const { data: unitItemsCatalog } = useQuery({
-    queryKey: ["packages-unit-items-select"],
+    queryKey: ["additional-items-select"],
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
-        .from("package_unit_items")
-        .select("id, package_id, product_id, name, unit, unit_price, default_qty, position")
+      const { data, error } = await supabase
+        .from("additional_items")
+        .select("id, product_id, name, unit, unit_price, default_qty, position, active")
+        .eq("active", true)
         .order("position", { ascending: true });
       if (error) throw error;
       return (data ?? []) as {
         id: string;
-        package_id: string;
         product_id: string | null;
         name: string;
         unit: string;
         unit_price: number;
         default_qty: number;
         position: number;
+        active: boolean;
       }[];
     },
   });
@@ -183,7 +184,7 @@ function QuoteEditor({ leadId, quoteId }: { leadId?: string; quoteId?: string })
         const d = JSON.parse(raw);
         // Só restaura rascunhos completos (salvos depois do pré-preenchimento),
         // evitando sobrescrever pacotes/itens do orçamento com um estado parcial.
-        if (d?.ready === true && d?.version === 5) {
+        if (d?.ready === true && d?.version === 6) {
           if (d?.form) setForm((f) => ({ ...f, ...d.form }));
           if (Array.isArray(d?.packageLines)) setPackageLines(d.packageLines);
           if (Array.isArray(d?.customExtras)) setCustomExtras(d.customExtras);
@@ -215,7 +216,7 @@ function QuoteEditor({ leadId, quoteId }: { leadId?: string; quoteId?: string })
 
   const draftPayload = {
     ready: true,
-    version: 5,
+    version: 6,
     form,
     packageLines,
     customExtras,
@@ -295,11 +296,8 @@ function QuoteEditor({ leadId, quoteId }: { leadId?: string; quoteId?: string })
   const packagesSumPerPerson = selectedPackages.reduce((s, p) => s + Number(p.price_per_person ?? 0), 0);
   const effectivePrice = priceOverride ?? packagesSumPerPerson;
 
-  // Itens unitários disponíveis nos pacotes selecionados (cobrados por unidade).
-  const availableUnitItems = useMemo(() => {
-    const ids = new Set(selectedPackages.map((p) => p.id));
-    return (unitItemsCatalog ?? []).filter((i) => ids.has(i.package_id));
-  }, [unitItemsCatalog, selectedPackages]);
+  // Itens adicionais pertencem ao buffet, não a um pacote.
+  const availableUnitItems = unitItemsCatalog ?? [];
 
   // Qtd escolhida por item unitário (default = default_qty do pacote).
   // Ao editar um orçamento existente (ex.: vindo do link público), respeita exatamente
@@ -569,12 +567,6 @@ function QuoteEditor({ leadId, quoteId }: { leadId?: string; quoteId?: string })
     } else if (q.package_id) {
       lines = [q.package_id];
     }
-    if (Array.isArray(extras.unit_items) && unitItemsCatalog) {
-      const packageIdsFromItems = extras.unit_items
-        .map((item: any) => unitItemsCatalog.find((catalogItem) => catalogItem.id === item?.item_id)?.package_id)
-        .filter(Boolean) as string[];
-      lines = Array.from(new Set([...lines, ...packageIdsFromItems]));
-    }
     if (lines.length === 0) lines = [""];
     // O orçamento público é sempre a fonte mínima: um rascunho parcial nunca
     // pode apagar pacotes escolhidos pelo cliente. Linhas adicionadas pelo dono
@@ -818,7 +810,7 @@ function QuoteEditor({ leadId, quoteId }: { leadId?: string; quoteId?: string })
           {availableUnitItems.length > 0 && (
             <div className="space-y-3 p-4 bg-muted/30 rounded-xl border border-border">
               <div>
-                <Label className="font-semibold">Itens unitários</Label>
+                <Label className="font-semibold">Itens adicionais</Label>
                 <p className="text-[11px] text-muted-foreground mt-0.5">
                   Cobrados por unidade (qtd × preço unitário), independente do nº de convidados. A quantidade é baixada
                   do estoque quando o orçamento é fechado.
@@ -851,7 +843,7 @@ function QuoteEditor({ leadId, quoteId }: { leadId?: string; quoteId?: string })
                 })}
               </div>
               <p className="text-[11px] text-muted-foreground">
-                Subtotal itens unitários: <b>{brl(breakdown.unitItemsSubtotal)}</b>
+                 Subtotal itens adicionais: <b>{brl(breakdown.unitItemsSubtotal)}</b>
               </p>
             </div>
           )}
@@ -1060,7 +1052,7 @@ function QuoteEditor({ leadId, quoteId }: { leadId?: string; quoteId?: string })
                       childrenCount: form.children_count,
                     },
                     package: {
-                      name: selectedPackages.map((p) => p.name).join(" + "),
+                      name: selectedPackages.map((p) => p.name).join(", "),
                       pricePerPerson: effectivePrice,
                     },
                     packages:
@@ -1125,7 +1117,7 @@ function QuoteEditor({ leadId, quoteId }: { leadId?: string; quoteId?: string })
           />
           <SummaryRow label="Preço por pessoa" value={brl(effectivePrice)} />
           {breakdown.unitItemsSubtotal > 0 && (
-            <SummaryRow label="Itens unitários" value={brl(breakdown.unitItemsSubtotal)} />
+             <SummaryRow label="Itens adicionais" value={brl(breakdown.unitItemsSubtotal)} />
           )}
           <SummaryRow label="Subtotal" value={brl(breakdown.subtotal)} />
           {breakdown.extras > 0 && <SummaryRow label="Acréscimos" value={brl(breakdown.extras)} />}

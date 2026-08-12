@@ -10,6 +10,7 @@ import {
   quoteClientName,
   quoteOrigin,
   quotePackagesLabel,
+  quoteCustomExtras,
   quotePhone,
   quoteUnitItems,
   requesterOf,
@@ -87,6 +88,7 @@ export function QuoteDetailModal({ quote, onClose, onFullEdit }: Props) {
   const alerts = quoteAlerts(q);
   const origin = quoteOrigin(q);
   const unitItems = quoteUnitItems(q);
+  const customExtras = quoteCustomExtras(q);
   const pkgSnap: any[] = Array.isArray((q.extras as any)?.packages) ? (q.extras as any).packages : [];
 
   return (
@@ -236,24 +238,29 @@ export function QuoteDetailModal({ quote, onClose, onFullEdit }: Props) {
           </label>
         </div>
 
-        <div className="rounded-2xl border border-border p-3 text-xs space-y-2">
+        <div className="rounded-2xl border border-border p-3 text-xs space-y-3">
           <div className="font-bold uppercase tracking-wider text-[10px] text-muted-foreground">
-            Pacotes e itens escolhidos
+            Pacotes escolhidos
           </div>
-          <div>{quotePackagesLabel(q)}</div>
-          {pkgSnap.length > 0 &&
-            pkgSnap.map((p: any, i: number) => (
-              <div key={i} className="flex justify-between text-muted-foreground">
-                <span>{p?.name}</span>
-                <span className="font-mono">{brl(Number(p?.price_per_person ?? 0))}/pessoa</span>
-              </div>
-            ))}
+          {pkgSnap.length > 0 ? pkgSnap.map((p: any, i: number) => (
+            <div key={i} className="flex justify-between gap-3">
+              <span>{p?.name}</span>
+              <span className="font-mono text-muted-foreground">{brl(Number(p?.price_per_person ?? 0))}/pessoa</span>
+            </div>
+          )) : <div>{quotePackagesLabel(q)}</div>}
+          {unitItems.length > 0 && <div className="border-t border-border pt-2 font-bold uppercase tracking-wider text-[10px] text-muted-foreground">Itens adicionais</div>}
           {unitItems.map((it, i) => (
             <div key={`u${i}`} className="flex justify-between text-muted-foreground">
               <span>
                 {it.name} · {it.qty} {it.unit}
               </span>
               <span className="font-mono">{brl(it.qty * it.unit_price)}</span>
+            </div>
+          ))}
+          {customExtras.length > 0 && <div className="border-t border-border pt-2 font-bold uppercase tracking-wider text-[10px] text-muted-foreground">Acréscimos adicionais</div>}
+          {customExtras.map((item, i) => (
+            <div key={`a${i}`} className="flex justify-between gap-3 text-muted-foreground">
+              <span>{item.description}</span><span className="font-mono">{brl(item.value)}</span>
             </div>
           ))}
           <div className="flex justify-between border-t border-border pt-2 font-bold">
