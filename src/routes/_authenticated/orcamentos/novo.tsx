@@ -227,6 +227,7 @@ function QuoteEditor({ leadId, quoteId }: { leadId?: string; quoteId?: string })
     balanceOverride,
   };
   const latestDraftRef = useRef(draftPayload);
+  const discardDraftRef = useRef(false);
   latestDraftRef.current = draftPayload;
 
   useEffect(() => {
@@ -257,6 +258,7 @@ function QuoteEditor({ leadId, quoteId }: { leadId?: string; quoteId?: string })
   useEffect(() => {
     if (!draftLoaded || !draftReady || typeof window === "undefined") return;
     return () => {
+      if (discardDraftRef.current) return;
       try {
         localStorage.setItem(draftKey, JSON.stringify(latestDraftRef.current));
       } catch {
@@ -479,6 +481,7 @@ function QuoteEditor({ leadId, quoteId }: { leadId?: string; quoteId?: string })
       return data;
     },
     onSuccess: () => {
+      discardDraftRef.current = true;
       try {
         localStorage.removeItem(draftKey);
         sessionStorage.removeItem(draftKey);
