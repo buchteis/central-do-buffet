@@ -291,7 +291,41 @@ function AuthPage() {
 
 
 
+  async function handleForgotPassword(){
+
+    const email = window.prompt(
+      "Informe o e-mail cadastrado para receber o link de redefinição de senha:"
+    );
+
+    if(!email) return;
+
+    const parsed = z.string().trim().email().safeParse(email);
+
+    if(!parsed.success){
+      toast.error("Informe um e-mail válido");
+      return;
+    }
+
+    setLoading(true);
+
+    const { error } = await supabase.auth.resetPasswordForEmail(
+      parsed.data,
+      { redirectTo: `${window.location.origin}/reset-password` }
+    );
+
+    setLoading(false);
+
+    if(error){
+      toast.error(error.message);
+      return;
+    }
+
+    toast.success("Enviamos um link de redefinição para o seu e-mail.");
+  }
+
+
   async function handleGoogle(){
+
 
     setLoading(true);
 
