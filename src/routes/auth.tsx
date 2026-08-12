@@ -589,6 +589,18 @@ Entrar com Google
 
 </Button>
 
+<Button
+type="button"
+variant="ghost"
+className="w-full mt-2 text-sm"
+disabled={loading}
+onClick={handleForgotPassword}
+>
+Esqueci minha senha
+</Button>
+
+
+
 
 
 </TabsContent>
