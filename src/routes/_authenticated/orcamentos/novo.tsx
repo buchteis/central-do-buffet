@@ -605,15 +605,40 @@ function QuoteEditor({ leadId, quoteId }: { leadId?: string; quoteId?: string })
     if (Array.isArray(extras.unit_items)) {
       const map: Record<string, number> = {};
       const prices: Record<string, number> = {};
+      const catalog = unitItemsCatalog ?? [];
+      const norm = (s: any) =>
+        String(s ?? "")
+          .toLowerCase()
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .replace(/[^a-z0-9]+/g, " ")
+          .trim();
       for (const it of extras.unit_items) {
-        if (it?.item_id) {
-          map[it.item_id] = Number(it.qty) || 0;
-          prices[it.item_id] = Number(it.unit_price) || 0;
-        }
+        // O item do snapshot pode ter sido recadastrado (id novo). Recupera pelo
+        // id, depois pelo produto de estoque e por fim pelo nome normalizado,
+        // para que a quantidade escolhida pelo cliente nunca se perca.
+        const byId = it?.item_id ? catalog.find((c) => c.id === it.item_id) : undefined;
+        const byProduct =
+          !byId && it?.product_id ? catalog.find((c) => c.product_id === it.product_id) : undefined;
+        const byName =
+          !byId && !byProduct ? catalog.find((c) => norm(c.name) === norm(it?.name)) : undefined;
+        const key = (byId ?? byProduct ?? byName)?.id ?? it?.item_id;
+        if (!key) continue;
+        map[key] = Number(it.qty) || 0;
+        prices[key] = Number(it.unit_price) || 0;
       }
-      // O registro público recompõe qualquer chave ausente. O rascunho v5 só
+      // O registro público recompõe qualquer chave ausente. O rascunho só
       // sobrescreve chaves depois de ter sido criado sobre um prefill completo.
-      setUnitQty((old) => (hasDraft ? { ...map, ...old } : map));
+      setUnitQty((old) => {
+        if (!hasDraft) return map;
+        const merged = { ...map, ...old };
+        // Quantidades vindas do cliente prevalecem sobre zeros herdados de um
+        // rascunho antigo salvo antes desta recuperação.
+        for (const [k, v] of Object.entries(map)) {
+          if (v > 0 && !(Number(old[k]) > 0)) merged[k] = v;
+        }
+        return merged;
+      });
       setUnitPriceSnapshot((old) => (hasDraft ? { ...prices, ...old } : prices));
     }
     if (!hasDraft && extras.price_per_person_override != null) {
