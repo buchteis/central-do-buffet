@@ -547,8 +547,10 @@ function QuoteEditor({ leadId, quoteId }: { leadId?: string; quoteId?: string })
   useEffect(() => {
     if (!draftLoaded) return;
     if (!quoteId || prefilledQuote || !existingQuote) return;
-    // Only prefill once reference lists are available so <Select> values map to items.
-    if (!packages || !clients) return;
+    // Só conclui o prefill quando TODAS as referências usadas na recuperação
+    // estiverem disponíveis. Antes, o efeito podia marcar o orçamento como
+    // preenchido sem o catálogo e nunca mais recuperar os demais itens.
+    if (!packages || !clients || !tiers || !unitItemsCatalog) return;
 
     const q: any = existingQuote;
     const extras: any = q.extras ?? {};
@@ -616,6 +618,8 @@ function QuoteEditor({ leadId, quoteId }: { leadId?: string; quoteId?: string })
           prices[it.item_id] = Number(it.unit_price) || 0;
         }
       }
+      // O registro público recompõe qualquer chave ausente. O rascunho v5 só
+      // sobrescreve chaves depois de ter sido criado sobre um prefill completo.
       setUnitQty((old) => (hasDraft ? { ...map, ...old } : map));
       setUnitPriceSnapshot((old) => (hasDraft ? { ...prices, ...old } : prices));
     }
