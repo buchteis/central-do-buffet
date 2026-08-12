@@ -14,6 +14,66 @@ export type Database = {
   }
   public: {
     Tables: {
+      additional_items: {
+        Row: {
+          active: boolean
+          created_at: string
+          default_qty: number
+          id: string
+          name: string
+          owner_id: string
+          position: number
+          product_id: string | null
+          tenant_id: string
+          unit: string
+          unit_price: number
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          default_qty?: number
+          id?: string
+          name: string
+          owner_id: string
+          position?: number
+          product_id?: string | null
+          tenant_id: string
+          unit?: string
+          unit_price?: number
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          default_qty?: number
+          id?: string
+          name?: string
+          owner_id?: string
+          position?: number
+          product_id?: string | null
+          tenant_id?: string
+          unit?: string
+          unit_price?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "additional_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "stock_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "additional_items_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       buffet_settings: {
         Row: {
           address: string | null
