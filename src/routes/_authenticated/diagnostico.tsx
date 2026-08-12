@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { isOpenQuote } from "@/lib/quote-pipeline";
 import {
   CheckCircle,
   XCircle,
@@ -146,7 +147,7 @@ function DiagnosticoPage() {
       let valorOrcamentosPendentes = 0;
 
       quotes?.forEach((q: any) => {
-        if (q.status === "novo" || q.status === "em_andamento") {
+        if (isOpenQuote(q.status)) {
           qPendentes++;
           valorOrcamentosPendentes += Number(q.total_value) || 0;
         }
