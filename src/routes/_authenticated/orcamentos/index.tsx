@@ -462,120 +462,15 @@ function QuotesPage() {
       )}
 
       {effectiveView === "kanban" ? (
-        <div className="overflow-x-auto pb-4">
-          <div className="flex gap-3 min-w-max">
-            {activePipeline.map((stage) => {
-              const items = byStage.get(stage.id) ?? [];
-              const total = items.reduce((s, q) => s + Number(q.total_value ?? 0), 0);
-              return (
-                <div
-                  key={stage.id}
-                  className="w-80 shrink-0 bg-muted/30 rounded-2xl border border-border flex flex-col max-h-[75vh]"
-                >
-                  <div className="p-3 border-b border-border">
-                    <div
-                      className={cn(
-                        "inline-block text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-full border",
-                        stage.tone,
-                      )}
-                    >
-                      {stage.label}
-                    </div>
-                    <div className="mt-1 flex justify-between text-[11px] text-muted-foreground">
-                      <span>{items.length} orçamento(s)</span>
-                      <span className="font-mono">{brl(total)}</span>
-                    </div>
-                  </div>
-                  <div className="p-2 space-y-2 overflow-y-auto flex-1">
-                    {items.map((q: any) => {
-                      const requester = (q.extras as any)?.requester ?? {};
-                      const displayName = q.clients?.name ?? requester.name ?? "—";
-                      const phone = q.clients?.whatsapp ?? q.clients?.phone ?? requester.whatsapp;
-                      return (
-                        <div
-                          key={q.id}
-                          className="bg-card border border-border rounded-xl p-3 shadow-sm hover:border-primary/40 transition-colors"
-                        >
-                          <div className="font-semibold text-sm truncate">{displayName}</div>
-                          <div className="text-[11px] text-muted-foreground truncate">
-                            {quotePackagesLabel(q)} · {formatDateBR(q.event_date)}
-                          </div>
-                          <div className="mt-1 flex items-center justify-between gap-2">
-                            <div className="font-mono font-bold text-sm">{brl(q.total_value)}</div>
-                            {stageOf(q.status) === "fechado" && (
-                              <button
-                                onClick={() => togglePaid.mutate({ id: q.id, paid: !q.paid })}
-                                title={q.paid ? "Marcar como não pago" : "Marcar como pago"}
-                                className={cn(
-                                  "inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-full border transition",
-                                  q.paid
-                                    ? "bg-emerald-500 text-white border-emerald-500"
-                                    : "bg-background text-muted-foreground border-border hover:border-emerald-500 hover:text-emerald-600",
-                                )}
-                              >
-                                {q.paid ? <CheckCircle2 className="size-3" /> : <Circle className="size-3" />}
-                                {q.paid ? "Pago" : "Pago?"}
-                              </button>
-                            )}
-                          </div>
-                          <select
-                            value={stageOf(q.status)}
-                            onChange={(e) => move.mutate({ id: q.id, status: e.target.value })}
-                            className="mt-2 w-full text-[11px] border border-border rounded-md bg-background px-2 py-1"
-                          >
-                            {pipeline.map((s) => (
-                              <option key={s.id} value={s.id}>
-                                {s.label}
-                              </option>
-                            ))}
-                          </select>
+        <QuoteKanban
+          quotes={filtered}
+          onOpen={(q) => setDetail(q)}
+          onMove={(q, stage) => {
+            const target = pipeline.find((c) => c.id === stage);
+            if (target) move.mutate({ id: q.id, status: target.status });
+          }}
+        />
 
-                          <div className="mt-2 flex items-center gap-1">
-                            {phone && (
-                              <a
-                                href={waLink(phone, whatsappMessage(q, settings))}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                title="WhatsApp"
-                                className="flex-1 inline-flex items-center justify-center gap-1 text-[11px] font-bold border border-border rounded-md py-1.5 text-emerald-600 hover:bg-emerald-500/10"
-                              >
-                                <MessageCircle className="size-3" /> WhatsApp
-                              </a>
-                            )}
-                            <button
-                              onClick={() => handlePdf(q)}
-                              title="Gerar PDF"
-                              className="p-1.5 border border-border rounded-md text-primary hover:bg-primary/10"
-                            >
-                              <FileText className="size-3.5" />
-                            </button>
-                            <button
-                              onClick={() => openEdit(q)}
-                              title="Abrir/Completar orçamento"
-                              className="p-1.5 border border-border rounded-md text-foreground hover:bg-accent"
-                            >
-                              <Pencil className="size-3.5" />
-                            </button>
-                            <button
-                              onClick={() => confirmDelete(q.id)}
-                              title="Excluir orçamento"
-                              className="p-1.5 border border-border rounded-md text-destructive hover:bg-destructive/10"
-                            >
-                              <Trash2 className="size-3.5" />
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                    {items.length === 0 && (
-                      <div className="text-[11px] text-muted-foreground text-center py-4">Vazio</div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
       ) : (
         <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
           <table className="w-full text-left">
