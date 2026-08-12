@@ -1,0 +1,2 @@
+UPDATE public.tenants SET name = 'Buffet Serena', slug = 'buffet-serena', status = 'ativo'::tenant_status, approved_at = now() WHERE id = '4763e3bd-356c-43dc-b4fb-673cd00ad45c';
+UPDATE public.profiles SET business_name = 'Buffet Serena' WHERE id = 'eee34692-1f53-452e-83fb-23715fa80a74';
