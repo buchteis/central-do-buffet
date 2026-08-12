@@ -228,9 +228,15 @@ function QuotesPage() {
 
   const range = useMemo(() => periodRange(period, offset), [period, offset]);
 
+  const effectiveView: "kanban" | "list" = archived ? "list" : view;
+
   const filtered = (data ?? []).filter((q: any) => {
-    const isClosed = stageOf(q.status) === "fechado";
-    if (archived ? !isClosed : isClosed) return false;
+    const stage = stageOf(q.status);
+    if (effectiveView === "kanban") {
+      // Kanban mostra todas as etapas (inclusive Fechado e Perdido).
+    } else if (archived ? stage !== "fechado" : stage === "fechado" || stage === "perdido") {
+      return false;
+    }
     if (range) {
       const ref = parseEventDate(q.event_date);
       if (!ref || ref < range.start || ref >= range.end) return false;
@@ -249,17 +255,8 @@ function QuotesPage() {
     return true;
   });
 
-  const activePipeline = archived ? pipeline : pipeline.filter((s) => s.id !== "fechado");
-  const effectiveView: "kanban" | "list" = archived ? "list" : view;
+  const totalFilteredValue = filtered.reduce((s: number, q: any) => s + Number(q.total_value ?? 0), 0);
 
-  const byStage = new Map<string, any[]>();
-  activePipeline.forEach((s) => byStage.set(s.id, []));
-  filtered.forEach((q: any) => {
-    const key = stageOf(q.status);
-    if (byStage.has(key)) byStage.get(key)!.push(q);
-  });
-
-  const totalFilteredValue = filtered.reduce((s, q: any) => s + Number(q.total_value ?? 0), 0);
 
   async function handlePdf(q: any) {
     try {
