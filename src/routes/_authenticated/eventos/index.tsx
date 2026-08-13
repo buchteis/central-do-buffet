@@ -96,6 +96,7 @@ const statusLabels: Record<string, string> = {
 function EventsPage() {
   const qc = useQueryClient();
   const [nfEvent, setNfEvent] = useState<NfEvent | null>(null);
+  const [period, setPeriod] = useState<PeriodFilter>("todos");
   const { match } = useSearchFilter();
   const { data: allEvents, isLoading } = useQuery({
     queryKey: ["events"],
@@ -110,6 +111,7 @@ function EventsPage() {
   });
 
   const data = (allEvents ?? []).filter((e: any) =>
+    matchesPeriod(e.event_date, period) &&
     match(
       e.clients?.name,
       e.clients?.cpf,
