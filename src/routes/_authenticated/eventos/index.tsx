@@ -156,6 +156,26 @@ function EventsPage() {
         </Link>
       </div>
 
+      {/* FILTRO DE PERÍODO */}
+      <div className="flex flex-wrap items-center gap-2">
+        <CalendarDays className="size-4 text-muted-foreground" />
+        <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Período:</span>
+        {(Object.keys(periodLabels) as PeriodFilter[]).map((p) => (
+          <button
+            key={p}
+            onClick={() => setPeriod(p)}
+            className={cn(
+              "px-3 py-1.5 rounded-full text-xs font-semibold transition-colors border",
+              period === p
+                ? "bg-primary text-primary-foreground border-primary"
+                : "bg-card text-muted-foreground border-border hover:bg-muted hover:text-foreground",
+            )}
+          >
+            {periodLabels[p]}
+          </button>
+        ))}
+      </div>
+
       {/* TABELA DE EVENTOS */}
       <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
         {isLoading ? (
