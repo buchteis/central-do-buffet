@@ -229,6 +229,38 @@ function EventsPage() {
         ))}
       </div>
 
+      {/* FILTRO DE STATUS EM CARDS */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-3">
+        {statusFilterOrder.map((s) => {
+          const active = statusFilter === s;
+          const count = statusCounts[s];
+          const style = statusStyles[s] ?? "bg-muted text-muted-foreground";
+          return (
+            <button
+              key={s}
+              onClick={() => setStatusFilter(s)}
+              className={cn(
+                "flex flex-col items-center justify-center gap-1 rounded-xl border p-3 text-center transition-all",
+                active
+                  ? "border-primary bg-primary/5 shadow-sm ring-1 ring-primary"
+                  : "border-border bg-card hover:bg-muted/50",
+              )}
+            >
+              <span
+                className={cn(
+                  "px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider",
+                  active ? style : "bg-muted text-muted-foreground",
+                )}
+              >
+                {statusFilterLabels[s]}
+              </span>
+              <span className="text-xl font-extrabold">{count}</span>
+              <span className="text-[10px] text-muted-foreground">evento(s)</span>
+            </button>
+          );
+        })}
+      </div>
+
       {/* TABELA DE EVENTOS */}
       <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
         {isLoading ? (
