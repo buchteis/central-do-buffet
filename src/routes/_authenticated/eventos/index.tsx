@@ -11,6 +11,15 @@ import { useSearchFilter } from "@/lib/search-store";
 
 type PeriodFilter = "todos" | "hoje" | "semana" | "mes" | "ano";
 
+type StatusFilter =
+  | "todos"
+  | "agendado"
+  | "em_andamento"
+  | "pago"
+  | "concluido"
+  | "cancelado"
+  | "realizado";
+
 const periodLabels: Record<PeriodFilter, string> = {
   todos: "Todos",
   hoje: "Hoje",
@@ -18,6 +27,26 @@ const periodLabels: Record<PeriodFilter, string> = {
   mes: "Mês",
   ano: "Ano",
 };
+
+const statusFilterLabels: Record<StatusFilter, string> = {
+  todos: "Todos",
+  agendado: "Agendado",
+  em_andamento: "Em andamento",
+  pago: "Pago",
+  concluido: "Concluído",
+  cancelado: "Cancelado",
+  realizado: "Realizado",
+};
+
+const statusFilterOrder: StatusFilter[] = [
+  "todos",
+  "agendado",
+  "em_andamento",
+  "pago",
+  "concluido",
+  "realizado",
+  "cancelado",
+];
 
 function matchesPeriod(eventDate: string | null | undefined, period: PeriodFilter): boolean {
   if (period === "todos") return true;
@@ -42,6 +71,11 @@ function matchesPeriod(eventDate: string | null | undefined, period: PeriodFilte
     return d.getFullYear() === now.getFullYear();
   }
   return true;
+}
+
+function matchesStatus(eventStatus: string | null | undefined, status: StatusFilter): boolean {
+  if (status === "todos") return true;
+  return eventStatus === status;
 }
 
 // Gera link do Google Agenda pré-preenchido (sem necessidade de OAuth).
