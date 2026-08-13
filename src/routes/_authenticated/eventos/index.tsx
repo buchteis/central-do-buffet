@@ -1,13 +1,48 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
-import { Calendar as CalendarIcon, CalendarPlus, FileText, XCircle } from "lucide-react";
+import { Calendar as CalendarIcon, CalendarPlus, FileText, XCircle, CalendarDays } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { brl, formatDateBR } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { EmitirNFModal, type NfEvent } from "@/components/nf/EmitirNFModal";
 import { useSearchFilter } from "@/lib/search-store";
+
+type PeriodFilter = "todos" | "hoje" | "semana" | "mes" | "ano";
+
+const periodLabels: Record<PeriodFilter, string> = {
+  todos: "Todos",
+  hoje: "Hoje",
+  semana: "Semana",
+  mes: "Mês",
+  ano: "Ano",
+};
+
+function matchesPeriod(eventDate: string | null | undefined, period: PeriodFilter): boolean {
+  if (period === "todos") return true;
+  if (!eventDate) return false;
+  const d = new Date(eventDate + "T00:00:00");
+  if (isNaN(d.getTime())) return false;
+  const now = new Date();
+  if (period === "hoje") return d.toDateString() === now.toDateString();
+  if (period === "semana") {
+    const start = new Date(now);
+    start.setDate(now.getDate() - now.getDay());
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(start);
+    end.setDate(start.getDate() + 6);
+    end.setHours(23, 59, 59, 999);
+    return d >= start && d <= end;
+  }
+  if (period === "mes") {
+    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+  }
+  if (period === "ano") {
+    return d.getFullYear() === now.getFullYear();
+  }
+  return true;
+}
 
 // Gera link do Google Agenda pré-preenchido (sem necessidade de OAuth).
 // Cada evento fechado/pago vira um aviso na agenda do dono do buffet.
