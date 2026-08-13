@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { Calendar as CalendarIcon, CalendarPlus, FileText, XCircle, CalendarDays } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -11,6 +11,15 @@ import { useSearchFilter } from "@/lib/search-store";
 
 type PeriodFilter = "todos" | "hoje" | "semana" | "mes" | "ano";
 
+type StatusFilter =
+  | "todos"
+  | "agendado"
+  | "em_andamento"
+  | "pago"
+  | "concluido"
+  | "cancelado"
+  | "realizado";
+
 const periodLabels: Record<PeriodFilter, string> = {
   todos: "Todos",
   hoje: "Hoje",
@@ -18,6 +27,26 @@ const periodLabels: Record<PeriodFilter, string> = {
   mes: "Mês",
   ano: "Ano",
 };
+
+const statusFilterLabels: Record<StatusFilter, string> = {
+  todos: "Todos",
+  agendado: "Agendado",
+  em_andamento: "Em andamento",
+  pago: "Pago",
+  concluido: "Concluído",
+  cancelado: "Cancelado",
+  realizado: "Realizado",
+};
+
+const statusFilterOrder: StatusFilter[] = [
+  "todos",
+  "agendado",
+  "em_andamento",
+  "pago",
+  "concluido",
+  "realizado",
+  "cancelado",
+];
 
 function matchesPeriod(eventDate: string | null | undefined, period: PeriodFilter): boolean {
   if (period === "todos") return true;
@@ -42,6 +71,11 @@ function matchesPeriod(eventDate: string | null | undefined, period: PeriodFilte
     return d.getFullYear() === now.getFullYear();
   }
   return true;
+}
+
+function matchesStatus(eventStatus: string | null | undefined, status: StatusFilter): boolean {
+  if (status === "todos") return true;
+  return eventStatus === status;
 }
 
 // Gera link do Google Agenda pré-preenchido (sem necessidade de OAuth).
@@ -97,6 +131,7 @@ function EventsPage() {
   const qc = useQueryClient();
   const [nfEvent, setNfEvent] = useState<NfEvent | null>(null);
   const [period, setPeriod] = useState<PeriodFilter>("todos");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("todos");
   const { match } = useSearchFilter();
   const { data: allEvents, isLoading } = useQuery({
     queryKey: ["events"],
@@ -110,8 +145,26 @@ function EventsPage() {
     },
   });
 
+  const statusCounts = useMemo(() => {
+    const counts: Record<StatusFilter, number> = {
+      todos: allEvents?.length ?? 0,
+      agendado: 0,
+      em_andamento: 0,
+      pago: 0,
+      concluido: 0,
+      cancelado: 0,
+      realizado: 0,
+    };
+    for (const e of allEvents ?? []) {
+      const s = e.status as StatusFilter;
+      if (s && s in counts && s !== "todos") counts[s]++;
+    }
+    return counts;
+  }, [allEvents]);
+
   const data = (allEvents ?? []).filter((e: any) =>
     matchesPeriod(e.event_date, period) &&
+    matchesStatus(e.status, statusFilter) &&
     match(
       e.clients?.name,
       e.clients?.cpf,
@@ -174,6 +227,38 @@ function EventsPage() {
             {periodLabels[p]}
           </button>
         ))}
+      </div>
+
+      {/* FILTRO DE STATUS EM CARDS */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-3">
+        {statusFilterOrder.map((s) => {
+          const active = statusFilter === s;
+          const count = statusCounts[s];
+          const style = statusStyles[s] ?? "bg-muted text-muted-foreground";
+          return (
+            <button
+              key={s}
+              onClick={() => setStatusFilter(s)}
+              className={cn(
+                "flex flex-col items-center justify-center gap-1 rounded-xl border p-3 text-center transition-all",
+                active
+                  ? "border-primary bg-primary/5 shadow-sm ring-1 ring-primary"
+                  : "border-border bg-card hover:bg-muted/50",
+              )}
+            >
+              <span
+                className={cn(
+                  "px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider",
+                  active ? style : "bg-muted text-muted-foreground",
+                )}
+              >
+                {statusFilterLabels[s]}
+              </span>
+              <span className="text-xl font-extrabold">{count}</span>
+              <span className="text-[10px] text-muted-foreground">evento(s)</span>
+            </button>
+          );
+        })}
       </div>
 
       {/* TABELA DE EVENTOS */}
