@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { TrendingUp, TrendingDown, Wallet, Calendar, Hourglass, CheckCircle2, Plus, Trash2, X } from "lucide-react";
+import { TrendingUp, TrendingDown, Wallet, Calendar, Hourglass, CheckCircle2, Plus, Trash2, X, Link2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { brl, formatDateBR } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -18,7 +18,7 @@ export const Route = createFileRoute("/_authenticated/financeiro")({
 
 type PeriodFilter = "todos" | "hoje" | "semana" | "mes" | "ano";
 type TypeFilter = "todos" | "recebido" | "receber" | "saida";
-type SourceFilter = "todos" | "evento" | "transacao";
+type SourceFilter = "todos" | "evento" | "transacao" | "parcela";
 
 import {
   RECEIVED_EVENT_STATUSES,
@@ -145,6 +145,10 @@ function FinanceiroPage() {
       .on("postgres_changes", { event: "*", schema: "public", table: "transactions" }, () => {
         qc.invalidateQueries({ queryKey: ["financeiro-transactions"] });
       })
+      .on("postgres_changes", { event: "*", schema: "public", table: "payment_installments" }, () => {
+        qc.invalidateQueries({ queryKey: ["financeiro-installments"] });
+        qc.invalidateQueries({ queryKey: ["installments"] });
+      })
       .subscribe();
     return () => {
       supabase.removeChannel(channel);
@@ -184,10 +188,25 @@ function FinanceiroPage() {
     },
   });
 
+  // Parcelas — histórico das cobranças por link de pagamento
+  const { data: installmentsHistory } = useQuery({
+    queryKey: ["financeiro-installments", tenantId],
+    enabled: !!tenantId || isSuperAdmin,
+    queryFn: async () => {
+      let q = supabase
+        .from("payment_installments")
+        .select("id, label, number, total_count, amount, due_date, paid_at, status, events(event_date, clients(name))")
+        .order("due_date", { ascending: false });
+      if (tenantId && !isSuperAdmin) q = q.eq("tenant_id", tenantId);
+      const { data } = await q;
+      return data ?? [];
+    },
+  });
+
   // Unifica eventos + transações em um formato comum
   type Row = {
     id: string;
-    source: "evento" | "transacao";
+    source: "evento" | "transacao" | "parcela";
     title: string;
     client?: string | null;
     date: string | null;
@@ -229,7 +248,22 @@ function FinanceiroPage() {
     };
   });
 
-  const allRows: Row[] = [...eventRows, ...txRows].sort((a, b) => {
+  const installmentRows: Row[] = (installmentsHistory ?? []).map((i: any) => {
+    const st = String(i.status ?? "pendente").toLowerCase();
+    return {
+      id: `pi-${i.id}`,
+      source: "parcela",
+      title: i.label ?? `Parcela ${i.number}/${i.total_count}`,
+      client: i.events?.clients?.name ?? null,
+      date: (st === "pago" ? (i.paid_at ? String(i.paid_at).slice(0, 10) : i.due_date) : i.due_date) ?? null,
+      status: st,
+      amount: Number(i.amount ?? 0),
+      kind: st === "pago" ? "recebido" : "receber",
+      method: "link de pagamento",
+    };
+  });
+
+  const allRows: Row[] = [...eventRows, ...txRows, ...installmentRows].sort((a, b) => {
     const da = a.date ? new Date(a.date + "T00:00:00").getTime() : 0;
     const db = b.date ? new Date(b.date + "T00:00:00").getTime() : 0;
     return db - da;
@@ -257,7 +291,10 @@ function FinanceiroPage() {
 
   const periodFiltered = allRows.filter(filterByPeriod);
 
-  const totals = periodFiltered.reduce(
+  // Parcelas não entram nos totais (o valor do evento já é contabilizado) — aparecem só no histórico
+  const totals = periodFiltered
+    .filter((r) => r.source !== "parcela")
+    .reduce(
     (acc, r) => {
       if (r.kind === "recebido") acc.recebido += r.amount;
       else if (r.kind === "receber") acc.receber += r.amount;
@@ -329,6 +366,7 @@ function FinanceiroPage() {
             { id: "todos", label: "Todos" },
             { id: "evento", label: "Eventos" },
             { id: "transacao", label: "Transações" },
+            { id: "parcela", label: "Parcelas" },
           ] as const).map((f) => (
             <button
               key={f.id}
@@ -411,6 +449,8 @@ function FinanceiroPage() {
                     <span className="inline-flex items-center gap-1">
                       {r.source === "evento" ? (
                         <><CheckCircle2 className="size-3" /> Evento</>
+                      ) : r.source === "parcela" ? (
+                        <><Link2 className="size-3" /> Parcela</>
                       ) : (
                         <><Wallet className="size-3" /> Transação</>
                       )}
