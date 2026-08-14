@@ -454,11 +454,70 @@ um único lugar.
 
 </p>
 
+<p className="mt-4 text-base font-bold leading-snug drop-shadow-[0_2px_10px_rgba(0,0,0,0.15)]">
+  A plataforma mais democrática do Brasil, para pequenos, médios e grandes buffets.
+</p>
+
 <div className="mt-8 flex gap-2 flex-wrap">
   <span className="px-3 py-1 rounded-full text-xs font-bold bg-white/20 backdrop-blur ring-1 ring-white/30 animate-[pulse_2.5s_ease-in-out_infinite]">🚀 Rápido</span>
   <span className="px-3 py-1 rounded-full text-xs font-bold bg-white/20 backdrop-blur ring-1 ring-white/30 animate-[pulse_2.5s_ease-in-out_infinite_.4s]">🎯 Simples</span>
   <span className="px-3 py-1 rounded-full text-xs font-bold bg-white/20 backdrop-blur ring-1 ring-white/30 animate-[pulse_2.5s_ease-in-out_infinite_.8s]">💛 Feito pra você</span>
 </div>
+
+<div className="relative mt-10 h-56 hidden sm:block select-none pointer-events-none">
+  {/* Calendário flutuante */}
+  <div className="absolute left-0 top-0 w-44 rounded-2xl bg-white/95 shadow-2xl shadow-black/20 ring-1 ring-white/60 p-3 animate-[float_7s_ease-in-out_infinite]">
+    <div className="flex gap-1 justify-center -mt-5 mb-2">
+      <span className="w-1.5 h-4 rounded-full bg-white/90 ring-1 ring-black/5" />
+      <span className="w-1.5 h-4 rounded-full bg-white/90 ring-1 ring-black/5" />
+    </div>
+    <div className="h-2 w-16 rounded-full bg-primary/70 mb-2" />
+    <div className="grid grid-cols-7 gap-1">
+      {Array.from({ length: 28 }).map((_, i) => (
+        <span
+          key={i}
+          className={
+            i === 17
+              ? "aspect-square rounded-[3px] bg-primary animate-[pulse_2s_ease-in-out_infinite]"
+              : "aspect-square rounded-[3px] bg-foreground/10"
+          }
+        />
+      ))}
+    </div>
+  </div>
+
+  {/* Checklist */}
+  <div className="absolute left-36 top-16 w-40 rounded-2xl bg-white/95 shadow-2xl shadow-black/20 ring-1 ring-white/60 p-3 space-y-2 animate-[float_9s_ease-in-out_infinite_reverse]">
+    {[0, 1, 2].map((i) => (
+      <div key={i} className="flex items-center gap-2">
+        <span className="size-3.5 rounded-full bg-primary/90 shrink-0" />
+        <span className="h-1.5 flex-1 rounded-full bg-foreground/10" />
+      </div>
+    ))}
+  </div>
+
+  {/* Mini gráfico */}
+  <div className="absolute left-6 top-36 w-36 rounded-2xl bg-white/95 shadow-2xl shadow-black/20 ring-1 ring-white/60 p-3 flex items-end gap-1.5 h-20 animate-[float_11s_ease-in-out_infinite]">
+    {[30, 50, 40, 70, 90].map((h, i) => (
+      <span
+        key={i}
+        style={{ height: `${h}%` }}
+        className="flex-1 rounded-t-sm bg-gradient-to-t from-primary/60 to-primary"
+      />
+    ))}
+  </div>
+
+  {/* Recomendação */}
+  <div className="absolute right-0 top-24 w-52 rounded-2xl bg-white/95 shadow-2xl shadow-black/20 ring-1 ring-white/60 p-3 flex gap-2 animate-[float_8s_ease-in-out_infinite_reverse]">
+    <div className="size-8 rounded-lg bg-primary/15 text-primary flex items-center justify-center text-sm shrink-0">
+      📅
+    </div>
+    <p className="text-[11px] leading-tight text-foreground font-semibold">
+      Recomendação: centralize sua agenda e evite imprevistos
+    </p>
+  </div>
+</div>
+
 
 
 </div>
