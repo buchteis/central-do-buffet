@@ -244,7 +244,22 @@ function FinanceiroPage() {
     };
   });
 
-  const allRows: Row[] = [...eventRows, ...txRows].sort((a, b) => {
+  const installmentRows: Row[] = (installmentsHistory ?? []).map((i: any) => {
+    const st = String(i.status ?? "pendente").toLowerCase();
+    return {
+      id: `pi-${i.id}`,
+      source: "parcela",
+      title: i.label ?? `Parcela ${i.number}/${i.total_count}`,
+      client: i.events?.clients?.name ?? null,
+      date: (st === "pago" ? (i.paid_at ? String(i.paid_at).slice(0, 10) : i.due_date) : i.due_date) ?? null,
+      status: st,
+      amount: Number(i.amount ?? 0),
+      kind: st === "pago" ? "recebido" : "receber",
+      method: "link de pagamento",
+    };
+  });
+
+  const allRows: Row[] = [...eventRows, ...txRows, ...installmentRows].sort((a, b) => {
     const da = a.date ? new Date(a.date + "T00:00:00").getTime() : 0;
     const db = b.date ? new Date(b.date + "T00:00:00").getTime() : 0;
     return db - da;
