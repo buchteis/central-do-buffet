@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { TrendingUp, TrendingDown, Wallet, Calendar, Hourglass, CheckCircle2, Plus, Trash2, X } from "lucide-react";
+import { TrendingUp, TrendingDown, Wallet, Calendar, Hourglass, CheckCircle2, Plus, Trash2, X, Link2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { brl, formatDateBR } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -144,6 +144,10 @@ function FinanceiroPage() {
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "transactions" }, () => {
         qc.invalidateQueries({ queryKey: ["financeiro-transactions"] });
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "payment_installments" }, () => {
+        qc.invalidateQueries({ queryKey: ["financeiro-installments"] });
+        qc.invalidateQueries({ queryKey: ["installments"] });
       })
       .subscribe();
     return () => {
