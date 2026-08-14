@@ -172,7 +172,12 @@ function SettingsPage() {
                     if (upErr) throw upErr;
                     const { error: saveErr } = await supabase
                       .from("buffet_settings")
-                      .upsert({ ...f, logo_url: path, owner_id: u.user.id });
+                      .upsert({
+                        ...f,
+                        installments_due_day: f.installments_due_day === "" ? null : Number(f.installments_due_day),
+                        logo_url: path,
+                        owner_id: u.user.id,
+                      });
                     if (saveErr) throw saveErr;
                     setF({ ...f, logo_url: path });
                     qc.invalidateQueries({ queryKey: ["buffet-settings"] });
