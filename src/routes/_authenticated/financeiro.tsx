@@ -184,10 +184,25 @@ function FinanceiroPage() {
     },
   });
 
+  // Parcelas — histórico das cobranças por link de pagamento
+  const { data: installmentsHistory } = useQuery({
+    queryKey: ["financeiro-installments", tenantId],
+    enabled: !!tenantId || isSuperAdmin,
+    queryFn: async () => {
+      let q = supabase
+        .from("payment_installments")
+        .select("id, label, number, total_count, amount, due_date, paid_at, status, events(event_date, clients(name))")
+        .order("due_date", { ascending: false });
+      if (tenantId && !isSuperAdmin) q = q.eq("tenant_id", tenantId);
+      const { data } = await q;
+      return data ?? [];
+    },
+  });
+
   // Unifica eventos + transações em um formato comum
   type Row = {
     id: string;
-    source: "evento" | "transacao";
+    source: "evento" | "transacao" | "parcela";
     title: string;
     client?: string | null;
     date: string | null;
