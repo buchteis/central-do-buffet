@@ -85,6 +85,8 @@ export type Database = {
           contract_template: string | null
           created_at: string
           google_place_id: string | null
+          installments_default_count: number
+          installments_due_day: number | null
           logo_url: string | null
           owner_id: string
           phone: string | null
@@ -92,6 +94,7 @@ export type Database = {
           pix_key: string | null
           tenant_id: string | null
           updated_at: string
+          wa_installment_template: string | null
           wa_pix_template: string | null
           wa_quote_template: string | null
           wa_reminder_template: string | null
@@ -107,6 +110,8 @@ export type Database = {
           contract_template?: string | null
           created_at?: string
           google_place_id?: string | null
+          installments_default_count?: number
+          installments_due_day?: number | null
           logo_url?: string | null
           owner_id: string
           phone?: string | null
@@ -114,6 +119,7 @@ export type Database = {
           pix_key?: string | null
           tenant_id?: string | null
           updated_at?: string
+          wa_installment_template?: string | null
           wa_pix_template?: string | null
           wa_quote_template?: string | null
           wa_reminder_template?: string | null
@@ -129,6 +135,8 @@ export type Database = {
           contract_template?: string | null
           created_at?: string
           google_place_id?: string | null
+          installments_default_count?: number
+          installments_due_day?: number | null
           logo_url?: string | null
           owner_id?: string
           phone?: string | null
@@ -136,6 +144,7 @@ export type Database = {
           pix_key?: string | null
           tenant_id?: string | null
           updated_at?: string
+          wa_installment_template?: string | null
           wa_pix_template?: string | null
           wa_quote_template?: string | null
           wa_reminder_template?: string | null
@@ -1118,6 +1127,101 @@ export type Database = {
           },
         ]
       }
+      payment_installments: {
+        Row: {
+          amount: number
+          client_id: string | null
+          created_at: string
+          due_date: string | null
+          event_id: string | null
+          id: string
+          label: string | null
+          number: number
+          owner_id: string
+          paid_at: string | null
+          payer_note: string | null
+          quote_id: string | null
+          receipt_path: string | null
+          receipt_uploaded_at: string | null
+          status: string
+          tenant_id: string
+          token: string
+          total_count: number
+          updated_at: string
+        }
+        Insert: {
+          amount?: number
+          client_id?: string | null
+          created_at?: string
+          due_date?: string | null
+          event_id?: string | null
+          id?: string
+          label?: string | null
+          number?: number
+          owner_id: string
+          paid_at?: string | null
+          payer_note?: string | null
+          quote_id?: string | null
+          receipt_path?: string | null
+          receipt_uploaded_at?: string | null
+          status?: string
+          tenant_id: string
+          token?: string
+          total_count?: number
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          client_id?: string | null
+          created_at?: string
+          due_date?: string | null
+          event_id?: string | null
+          id?: string
+          label?: string | null
+          number?: number
+          owner_id?: string
+          paid_at?: string | null
+          payer_note?: string | null
+          quote_id?: string | null
+          receipt_path?: string | null
+          receipt_uploaded_at?: string | null
+          status?: string
+          tenant_id?: string
+          token?: string
+          total_count?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_installments_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_installments_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_installments_quote_id_fkey"
+            columns: ["quote_id"]
+            isOneToOne: false
+            referencedRelation: "quotes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_installments_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           business_name: string | null
@@ -1646,6 +1750,7 @@ export type Database = {
     Functions: {
       current_tenant_id: { Args: never; Returns: string }
       generate_unique_slug: { Args: { base: string }; Returns: string }
+      get_public_installment: { Args: { p_token: string }; Returns: Json }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
