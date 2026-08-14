@@ -445,6 +445,8 @@ function FinanceiroPage() {
                     <span className="inline-flex items-center gap-1">
                       {r.source === "evento" ? (
                         <><CheckCircle2 className="size-3" /> Evento</>
+                      ) : r.source === "parcela" ? (
+                        <><Link2 className="size-3" /> Parcela</>
                       ) : (
                         <><Wallet className="size-3" /> Transação</>
                       )}
