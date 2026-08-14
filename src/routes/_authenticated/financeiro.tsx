@@ -314,6 +314,10 @@ function FinanceiroPage() {
         />
       </div>
 
+      <InstallmentsSection tenantId={tenantId} ownerId={access?.userId ?? null} isSuperAdmin={isSuperAdmin} />
+
+
+
 
       {/* Barra de Filtros */}
       <div className="flex flex-wrap items-center justify-between gap-3 bg-card p-3 rounded-2xl border border-border shadow-sm">
