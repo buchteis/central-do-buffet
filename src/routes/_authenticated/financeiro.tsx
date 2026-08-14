@@ -8,6 +8,8 @@ import { brl, formatDateBR } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { useTenantAccess } from "@/hooks/useTenantAccess";
 import { useSearchFilter } from "@/lib/search-store";
+import InstallmentsSection from "@/components/financeiro/InstallmentsSection";
+
 
 export const Route = createFileRoute("/_authenticated/financeiro")({
   head: () => ({ meta: [{ title: "Financeiro — Central do Buffet" }] }),
@@ -313,6 +315,10 @@ function FinanceiroPage() {
           tone="primary"
         />
       </div>
+
+      <InstallmentsSection tenantId={tenantId} ownerId={access?.userId ?? null} isSuperAdmin={isSuperAdmin} />
+
+
 
 
       {/* Barra de Filtros */}
