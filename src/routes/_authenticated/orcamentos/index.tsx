@@ -173,13 +173,21 @@ function QuotesPage() {
         .eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: (_d, vars) => {
       qc.invalidateQueries({ queryKey: ["quotes"] });
       qc.invalidateQueries({ queryKey: ["leads"] });
       qc.invalidateQueries({ queryKey: ["agenda"] });
+      qc.invalidateQueries({ queryKey: ["events"] });
+      qc.invalidateQueries({ queryKey: ["stock-products"] });
+      qc.invalidateQueries({ queryKey: ["stock-movements"] });
       qc.invalidateQueries({ queryKey: ["dashboard-stats-v2"] });
-      toast.success("Etapa atualizada");
+      if (vars.status === "cancelado" || vars.status === "recusado") {
+        toast.success("Orçamento cancelado. Estoque devolvido automaticamente.");
+      } else {
+        toast.success("Etapa atualizada");
+      }
     },
+
     onError: (e: any) => toast.error(e.message),
   });
 
