@@ -170,14 +170,27 @@ function SideLink({ item, active }: { item: NavItem; active: boolean }) {
     <Link
       to={item.to}
       className={cn(
-        "flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors",
+        "group relative flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all duration-200 ease-out",
+        "hover:translate-x-1 hover:scale-[1.02] hover:shadow-md hover:bg-card hover:z-10",
         active
-          ? "bg-primary/10 text-primary font-semibold"
-          : "text-muted-foreground hover:bg-accent hover:text-foreground",
+          ? "bg-primary/10 text-primary font-semibold shadow-sm"
+          : "text-muted-foreground hover:text-foreground",
       )}
     >
-      <Icon className="size-4 shrink-0" />
+      <span
+        className={cn(
+          "flex items-center justify-center size-7 rounded-md transition-colors duration-200",
+          active
+            ? "bg-primary/15 text-primary"
+            : "bg-transparent text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary",
+        )}
+      >
+        <Icon className="size-4 shrink-0" />
+      </span>
       <span className="truncate flex-1">{item.label}</span>
+      {active && (
+        <span className="absolute right-2 top-1/2 -translate-y-1/2 w-1 h-5 rounded-full bg-primary" />
+      )}
     </Link>
   );
 }
