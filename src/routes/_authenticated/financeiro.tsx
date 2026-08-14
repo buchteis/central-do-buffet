@@ -287,7 +287,10 @@ function FinanceiroPage() {
 
   const periodFiltered = allRows.filter(filterByPeriod);
 
-  const totals = periodFiltered.reduce(
+  // Parcelas não entram nos totais (o valor do evento já é contabilizado) — aparecem só no histórico
+  const totals = periodFiltered
+    .filter((r) => r.source !== "parcela")
+    .reduce(
     (acc, r) => {
       if (r.kind === "recebido") acc.recebido += r.amount;
       else if (r.kind === "receber") acc.receber += r.amount;
