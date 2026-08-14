@@ -39,6 +39,9 @@ function SettingsPage() {
     wa_quote_template: "",
     wa_reminder_template: "",
     wa_pix_template: "",
+    wa_installment_template: "",
+    installments_default_count: 2,
+    installments_due_day: "",
   });
   const [uploading, setUploading] = useState(false);
 
@@ -60,6 +63,9 @@ function SettingsPage() {
         wa_quote_template: data.wa_quote_template ?? "",
         wa_reminder_template: data.wa_reminder_template ?? "",
         wa_pix_template: data.wa_pix_template ?? "",
+        wa_installment_template: (data as any).wa_installment_template ?? "",
+        installments_default_count: Number((data as any).installments_default_count ?? 2),
+        installments_due_day: (data as any).installments_due_day ?? "",
       });
   }, [data]);
 
@@ -67,7 +73,12 @@ function SettingsPage() {
     mutationFn: async () => {
       const { data: u } = await supabase.auth.getUser();
       if (!u.user) throw new Error("Sem sessão");
-      const { error } = await supabase.from("buffet_settings").upsert({ ...f, owner_id: u.user.id });
+      const payload: any = {
+        ...f,
+        installments_default_count: Math.max(1, Math.min(24, Number(f.installments_default_count) || 1)),
+        installments_due_day: f.installments_due_day === "" ? null : Number(f.installments_due_day),
+      };
+      const { error } = await supabase.from("buffet_settings").upsert({ ...payload, owner_id: u.user.id });
       if (error) throw error;
     },
     onSuccess: () => {
@@ -278,6 +289,44 @@ function SettingsPage() {
             value={f.wa_pix_template}
             onChange={(e) => setF({ ...f, wa_pix_template: e.target.value })}
             className="input min-h-[70px]"
+          />
+        </Field>
+      </Section>
+
+      <Section title="Parcelas & Link de pagamento">
+        <p className="text-xs text-muted-foreground">
+          Padrões usados ao gerar as parcelas do evento em Financeiro. Variáveis da mensagem: {"{cliente}"},{" "}
+          {"{parcela}"}, {"{valor}"}, {"{vencimento}"}, {"{data}"}, {"{pix}"}, {"{link}"}.
+        </p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <Field label="Nº padrão de parcelas">
+            <input
+              type="number"
+              min={1}
+              max={24}
+              value={f.installments_default_count}
+              onChange={(e) => setF({ ...f, installments_default_count: Number(e.target.value) })}
+              className="input"
+            />
+          </Field>
+          <Field label="Dia padrão de vencimento">
+            <input
+              type="number"
+              min={1}
+              max={31}
+              value={f.installments_due_day}
+              onChange={(e) => setF({ ...f, installments_due_day: e.target.value })}
+              className="input"
+            />
+          </Field>
+        </div>
+        <Field label="Mensagem de cobrança (WhatsApp)">
+          <textarea
+            rows={3}
+            value={f.wa_installment_template}
+            onChange={(e) => setF({ ...f, wa_installment_template: e.target.value })}
+            placeholder="Olá {cliente}! Segue o link para pagamento da {parcela} no valor de {valor}, com vencimento em {vencimento}: {link}"
+            className="input min-h-[80px]"
           />
         </Field>
       </Section>
