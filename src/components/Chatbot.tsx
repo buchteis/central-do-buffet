@@ -256,6 +256,109 @@ export const Chatbot = () => {
     );
   };
 
+  /* ---------------- Escala automática de funcionários ---------------- */
+
+  const requestStaffing = async (eventId?: string) => {
+    setIsLoading(true);
+    try {
+      const res: any = await suggestStaff({ data: eventId ? { eventId } : {} });
+      if (res?.error) {
+        push({ role: "assistant", content: `⚠️ ${res.error}` });
+        return;
+      }
+      const ev = res.event;
+      const data = new Date(`${ev.data}T00:00:00`).toLocaleDateString("pt-BR");
+      push({
+        role: "assistant",
+        content:
+          `👥 Vamos montar a escala do evento de ${data}${ev.cliente ? ` — ${ev.cliente}` : ""}.\n` +
+          `Convidados: ${ev.convidados} • Status: ${ev.status}${ev.ja_escalados ? ` • já escalados: ${ev.ja_escalados}` : ""}\n\n` +
+          `Calculei a demanda pelo nº de convidados. Escolha a estratégia — ao escolher, escalo a equipe automaticamente:`,
+        staffing: {
+          event: ev,
+          employees: res.employees,
+          strategies: res.strategies,
+          selected: res.strategies?.find((s: any) => s.id === "equilibrada")?.id ?? res.strategies?.[0]?.id ?? null,
+        },
+      });
+    } catch (e: any) {
+      console.error(e);
+      push({ role: "assistant", content: `❌ Não consegui montar a escala${e?.message ? `: ${e.message}` : "."}` });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const selectStrategy = (msgIndex: number, strategyId: string) => {
+    setMessages((p) =>
+      p.map((m, i) => (i === msgIndex && m.staffing ? { ...m, staffing: { ...m.staffing, selected: strategyId } } : m)),
+    );
+  };
+
+  const updateSlot = (msgIndex: number, strategyId: string, slotIndex: number, employeeId: string) => {
+    setMessages((p) =>
+      p.map((m, i) => {
+        if (i !== msgIndex || !m.staffing) return m;
+        const emp = m.staffing.employees.find((e) => e.id === employeeId);
+        const strategies = m.staffing.strategies.map((s) =>
+          s.id !== strategyId
+            ? s
+            : {
+                ...s,
+                slots: s.slots.map((sl, j) =>
+                  j === slotIndex
+                    ? {
+                        ...sl,
+                        employee_id: emp?.id ?? null,
+                        employee_name: emp?.name ?? null,
+                        amount: Number(emp?.daily_rate ?? 0),
+                      }
+                    : sl,
+                ),
+              },
+        );
+        return { ...m, staffing: { ...m.staffing, strategies } };
+      }),
+    );
+  };
+
+  const confirmStaffing = async (staffing: StaffingReview, msgIndex: number) => {
+    const strategy = staffing.strategies.find((s) => s.id === staffing.selected);
+    if (!strategy) return;
+    const assignments = strategy.slots
+      .filter((s) => s.employee_id)
+      .map((s) => ({ employee_id: s.employee_id as string, role: s.role, amount: Number(s.amount || 0) }));
+    if (!assignments.length) {
+      push({ role: "assistant", content: "⚠️ Selecione ao menos um funcionário para escalar." });
+      return;
+    }
+    setIsLoading(true);
+    try {
+      const res: any = await assignStaff({ data: { eventId: staffing.event.id, assignments } });
+      if (res?.error) {
+        push({ role: "assistant", content: `⚠️ ${res.error}` });
+        return;
+      }
+      setMessages((p) => p.map((m, i) => (i === msgIndex ? { ...m, staffing: undefined } : m)));
+      const ok = (res.inserted ?? [])
+        .map((x: any) => `• ${x.name} — ${x.role} (${brl(x.amount)})`)
+        .join("\n");
+      const fail = (res.failed ?? []).map((x: any) => `• ${x.name}: ${x.reason}`).join("\n");
+      push({
+        role: "assistant",
+        content:
+          `✅ Equipe escalada automaticamente no evento.\n\n${ok || "—"}` +
+          (fail ? `\n\n⚠️ Não escalados:\n${fail}` : ""),
+      });
+      queryClient.invalidateQueries();
+    } catch (e: any) {
+      console.error(e);
+      push({ role: "assistant", content: `❌ Erro ao escalar a equipe${e?.message ? `: ${e.message}` : "."}` });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const sendMessage = async () => {
     const text = input.trim();
     if (!text || isLoading) return;
@@ -267,7 +370,18 @@ export const Chatbot = () => {
       return;
     }
 
+    if (
+      /(escal|equipe|funcion[áa]rio|garç|garc|staff)/i.test(text) &&
+      /(escal|monta|sugir|sugest|prec|quantos|quantas|automat|organiz|defin)/i.test(text)
+    ) {
+      setInput("");
+      push({ role: "user", content: text });
+      await requestStaffing();
+      return;
+    }
+
     if (/(nota|nf|danfe)/i.test(text) && /(leia|ler|analis|entrada|adicion|lan[çc])/i.test(text)) {
+
       setInput("");
       push({ role: "user", content: text });
       push({
