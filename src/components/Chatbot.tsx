@@ -5,6 +5,7 @@ import { useTenantAccess } from "@/hooks/useTenantAccess";
 import { chatWithAssistant } from "@/lib/chatbot.functions";
 import { getBuffetAlerts, type BuffetAlert } from "@/lib/alerts.functions";
 import { parseInvoiceFile, commitInvoiceStockEntry } from "@/lib/nf-stock.functions";
+import { suggestEventStaffing, assignEventStaffing } from "@/lib/staffing.functions";
 import { Flame, Paperclip } from "lucide-react";
 
 type NfReview = {
@@ -14,7 +15,31 @@ type NfReview = {
   duplicate: { id: string; created_at: string } | null;
 };
 
-type Msg = { role: "user" | "assistant"; content: string; alertId?: string; review?: NfReview };
+type StaffSlot = { role: string; employee_id: string | null; employee_name: string | null; amount: number };
+
+type StaffingReview = {
+  event: any;
+  employees: { id: string; name: string; role: string; daily_rate: number }[];
+  strategies: {
+    id: string;
+    nome: string;
+    descricao: string;
+    total_profissionais: number;
+    custo_estimado: number;
+    vagas_sem_funcionario: number;
+    slots: StaffSlot[];
+  }[];
+  selected: string | null;
+};
+
+type Msg = {
+  role: "user" | "assistant";
+  content: string;
+  alertId?: string;
+  review?: NfReview;
+  staffing?: StaffingReview;
+};
+
 
 const ACK_KEY = "cdb_alertas_confirmados";
 
