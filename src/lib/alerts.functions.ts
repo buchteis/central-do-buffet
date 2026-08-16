@@ -23,7 +23,7 @@ export const getBuffetAlerts = createServerFn({ method: "GET" })
     const tid = (tenant as any).id as string;
     const alerts: BuffetAlert[] = [];
 
-    const [{ data: stock }, { data: events }] = await Promise.all([
+    const [{ data: stock }, { data: events }, { data: installments }] = await Promise.all([
       supabase
         .from("stock_products")
         .select("id, name, unit, physical_qty, reserved_qty, min_qty, active")
@@ -35,7 +35,15 @@ export const getBuffetAlerts = createServerFn({ method: "GET" })
         .neq("status", "cancelado")
         .order("event_date", { ascending: true })
         .limit(50),
+      supabase
+        .from("payment_installments")
+        .select("id, label, number, total_count, amount, due_date, status, clients(name)")
+        .or(`tenant_id.eq.${tid},owner_id.eq.${userId}`)
+        .neq("status", "pago")
+        .order("due_date", { ascending: true })
+        .limit(100),
     ]);
+
 
     for (const p of (stock ?? []) as any[]) {
       if (p.active === false) continue;
