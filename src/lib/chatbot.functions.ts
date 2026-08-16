@@ -75,6 +75,13 @@ async function buildContext(supabase: any, userId: string) {
     .order("created_at", { ascending: false })
     .limit(100);
 
+  const { data: installmentsData } = await (supabase as any)
+    .from("payment_installments")
+    .select("id, label, number, total_count, amount, due_date, status, paid_at, receipt_uploaded_at, event_id, clients(name, whatsapp, phone), events(event_date)")
+    .or(`tenant_id.eq.${tid},owner_id.eq.${userId}`)
+    .order("due_date", { ascending: true })
+    .limit(300);
+
   const clients = clientsRes.data ?? [];
   const events = eventsRes.data ?? [];
   const quotes = quotesRes.data ?? [];
@@ -84,6 +91,8 @@ async function buildContext(supabase: any, userId: string) {
   const priceTiers = (tiersRes as any)?.data ?? [];
   const movements = movementsRes.data ?? [];
   const feedbacks = (feedbacksData ?? []) as any[];
+  const installments = (installmentsData ?? []) as any[];
+
 
 
   // Metrics
