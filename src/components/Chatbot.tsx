@@ -5,6 +5,7 @@ import { useTenantAccess } from "@/hooks/useTenantAccess";
 import { chatWithAssistant } from "@/lib/chatbot.functions";
 import { getBuffetAlerts, type BuffetAlert } from "@/lib/alerts.functions";
 import { parseInvoiceFile, commitInvoiceStockEntry } from "@/lib/nf-stock.functions";
+import { suggestEventStaffing, assignEventStaffing } from "@/lib/staffing.functions";
 import { Flame, Paperclip } from "lucide-react";
 
 type NfReview = {
@@ -14,7 +15,31 @@ type NfReview = {
   duplicate: { id: string; created_at: string } | null;
 };
 
-type Msg = { role: "user" | "assistant"; content: string; alertId?: string; review?: NfReview };
+type StaffSlot = { role: string; employee_id: string | null; employee_name: string | null; amount: number };
+
+type StaffingReview = {
+  event: any;
+  employees: { id: string; name: string; role: string; daily_rate: number }[];
+  strategies: {
+    id: string;
+    nome: string;
+    descricao: string;
+    total_profissionais: number;
+    custo_estimado: number;
+    vagas_sem_funcionario: number;
+    slots: StaffSlot[];
+  }[];
+  selected: string | null;
+};
+
+type Msg = {
+  role: "user" | "assistant";
+  content: string;
+  alertId?: string;
+  review?: NfReview;
+  staffing?: StaffingReview;
+};
+
 
 const ACK_KEY = "cdb_alertas_confirmados";
 
@@ -57,7 +82,10 @@ export const Chatbot = () => {
   const fetchAlerts = useServerFn(getBuffetAlerts);
   const parseNf = useServerFn(parseInvoiceFile);
   const commitNf = useServerFn(commitInvoiceStockEntry);
+  const suggestStaff = useServerFn(suggestEventStaffing);
+  const assignStaff = useServerFn(assignEventStaffing);
   const queryClient = useQueryClient();
+
 
   const [acked, setAcked] = useState<string[]>([]);
   useEffect(() => {
@@ -228,6 +256,109 @@ export const Chatbot = () => {
     );
   };
 
+  /* ---------------- Escala automática de funcionários ---------------- */
+
+  const requestStaffing = async (eventId?: string) => {
+    setIsLoading(true);
+    try {
+      const res: any = await suggestStaff({ data: eventId ? { eventId } : {} });
+      if (res?.error) {
+        push({ role: "assistant", content: `⚠️ ${res.error}` });
+        return;
+      }
+      const ev = res.event;
+      const data = new Date(`${ev.data}T00:00:00`).toLocaleDateString("pt-BR");
+      push({
+        role: "assistant",
+        content:
+          `👥 Vamos montar a escala do evento de ${data}${ev.cliente ? ` — ${ev.cliente}` : ""}.\n` +
+          `Convidados: ${ev.convidados} • Status: ${ev.status}${ev.ja_escalados ? ` • já escalados: ${ev.ja_escalados}` : ""}\n\n` +
+          `Calculei a demanda pelo nº de convidados. Escolha a estratégia — ao escolher, escalo a equipe automaticamente:`,
+        staffing: {
+          event: ev,
+          employees: res.employees,
+          strategies: res.strategies,
+          selected: res.strategies?.find((s: any) => s.id === "equilibrada")?.id ?? res.strategies?.[0]?.id ?? null,
+        },
+      });
+    } catch (e: any) {
+      console.error(e);
+      push({ role: "assistant", content: `❌ Não consegui montar a escala${e?.message ? `: ${e.message}` : "."}` });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const selectStrategy = (msgIndex: number, strategyId: string) => {
+    setMessages((p) =>
+      p.map((m, i) => (i === msgIndex && m.staffing ? { ...m, staffing: { ...m.staffing, selected: strategyId } } : m)),
+    );
+  };
+
+  const updateSlot = (msgIndex: number, strategyId: string, slotIndex: number, employeeId: string) => {
+    setMessages((p) =>
+      p.map((m, i) => {
+        if (i !== msgIndex || !m.staffing) return m;
+        const emp = m.staffing.employees.find((e) => e.id === employeeId);
+        const strategies = m.staffing.strategies.map((s) =>
+          s.id !== strategyId
+            ? s
+            : {
+                ...s,
+                slots: s.slots.map((sl, j) =>
+                  j === slotIndex
+                    ? {
+                        ...sl,
+                        employee_id: emp?.id ?? null,
+                        employee_name: emp?.name ?? null,
+                        amount: Number(emp?.daily_rate ?? 0),
+                      }
+                    : sl,
+                ),
+              },
+        );
+        return { ...m, staffing: { ...m.staffing, strategies } };
+      }),
+    );
+  };
+
+  const confirmStaffing = async (staffing: StaffingReview, msgIndex: number) => {
+    const strategy = staffing.strategies.find((s) => s.id === staffing.selected);
+    if (!strategy) return;
+    const assignments = strategy.slots
+      .filter((s) => s.employee_id)
+      .map((s) => ({ employee_id: s.employee_id as string, role: s.role, amount: Number(s.amount || 0) }));
+    if (!assignments.length) {
+      push({ role: "assistant", content: "⚠️ Selecione ao menos um funcionário para escalar." });
+      return;
+    }
+    setIsLoading(true);
+    try {
+      const res: any = await assignStaff({ data: { eventId: staffing.event.id, assignments } });
+      if (res?.error) {
+        push({ role: "assistant", content: `⚠️ ${res.error}` });
+        return;
+      }
+      setMessages((p) => p.map((m, i) => (i === msgIndex ? { ...m, staffing: undefined } : m)));
+      const ok = (res.inserted ?? [])
+        .map((x: any) => `• ${x.name} — ${x.role} (${brl(x.amount)})`)
+        .join("\n");
+      const fail = (res.failed ?? []).map((x: any) => `• ${x.name}: ${x.reason}`).join("\n");
+      push({
+        role: "assistant",
+        content:
+          `✅ Equipe escalada automaticamente no evento.\n\n${ok || "—"}` +
+          (fail ? `\n\n⚠️ Não escalados:\n${fail}` : ""),
+      });
+      queryClient.invalidateQueries();
+    } catch (e: any) {
+      console.error(e);
+      push({ role: "assistant", content: `❌ Erro ao escalar a equipe${e?.message ? `: ${e.message}` : "."}` });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const sendMessage = async () => {
     const text = input.trim();
     if (!text || isLoading) return;
@@ -239,7 +370,18 @@ export const Chatbot = () => {
       return;
     }
 
+    if (
+      /(escal|equipe|funcion[áa]rio|garç|garc|staff)/i.test(text) &&
+      /(escal|monta|sugir|sugest|prec|quantos|quantas|automat|organiz|defin)/i.test(text)
+    ) {
+      setInput("");
+      push({ role: "user", content: text });
+      await requestStaffing();
+      return;
+    }
+
     if (/(nota|nf|danfe)/i.test(text) && /(leia|ler|analis|entrada|adicion|lan[çc])/i.test(text)) {
+
       setInput("");
       push({ role: "user", content: text });
       push({
@@ -511,6 +653,100 @@ export const Chatbot = () => {
                       </button>
                     </div>
                   )}
+                  {msg.staffing && (
+                    <div style={{ marginTop: 10, display: "grid", gap: 8 }}>
+                      <div style={{ display: "grid", gap: 6 }}>
+                        {msg.staffing.strategies.map((s) => {
+                          const active = msg.staffing!.selected === s.id;
+                          return (
+                            <button
+                              key={s.id}
+                              onClick={() => selectStrategy(i, s.id)}
+                              style={{
+                                textAlign: "left",
+                                border: `1px solid ${active ? "#FF7A00" : "#e5e7eb"}`,
+                                background: active ? "#fff7ed" : "white",
+                                borderRadius: 10,
+                                padding: 10,
+                                cursor: "pointer",
+                                fontSize: 12,
+                              }}
+                            >
+                              <div style={{ fontWeight: 700 }}>
+                                {s.nome} — {s.total_profissionais} profissionais
+                              </div>
+                              <div style={{ color: "#4b5563" }}>{s.descricao}</div>
+                              <div style={{ color: "#4b5563" }}>
+                                Custo estimado: <b>{brl(s.custo_estimado)}</b>
+                                {s.vagas_sem_funcionario > 0
+                                  ? ` • ${s.vagas_sem_funcionario} vaga(s) sem funcionário disponível`
+                                  : ""}
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {(() => {
+                        const sel = msg.staffing!.strategies.find((s) => s.id === msg.staffing!.selected);
+                        if (!sel) return null;
+                        return (
+                          <div style={{ display: "grid", gap: 6 }}>
+                            {sel.slots.map((sl, j) => (
+                              <div
+                                key={j}
+                                style={{
+                                  border: "1px solid #e5e7eb",
+                                  borderRadius: 10,
+                                  padding: 8,
+                                  background: sl.employee_id ? "#f0fdf4" : "#fff7ed",
+                                  fontSize: 12,
+                                }}
+                              >
+                                <div style={{ fontWeight: 700 }}>{sl.role}</div>
+                                <select
+                                  value={sl.employee_id ?? ""}
+                                  onChange={(e) => updateSlot(i, sel.id, j, e.target.value)}
+                                  style={{
+                                    marginTop: 4,
+                                    width: "100%",
+                                    padding: "6px 8px",
+                                    borderRadius: 8,
+                                    border: "1px solid #d1d5db",
+                                    fontSize: 12,
+                                  }}
+                                >
+                                  <option value="">— Não escalar —</option>
+                                  {msg.staffing!.employees.map((e) => (
+                                    <option key={e.id} value={e.id}>
+                                      {e.name} — {e.role} ({brl(e.daily_rate)})
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                            ))}
+                            <button
+                              onClick={() => confirmStaffing(msg.staffing!, i)}
+                              disabled={isLoading}
+                              style={{
+                                background: "#22c55e",
+                                color: "white",
+                                border: "none",
+                                borderRadius: 8,
+                                padding: "8px 12px",
+                                fontSize: 12,
+                                fontWeight: 700,
+                                cursor: "pointer",
+                              }}
+                            >
+                              Escalar equipe automaticamente
+                            </button>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
+
                 </div>
               </div>
             ))}
