@@ -75,6 +75,13 @@ async function buildContext(supabase: any, userId: string) {
     .order("created_at", { ascending: false })
     .limit(100);
 
+  const { data: installmentsData } = await (supabase as any)
+    .from("payment_installments")
+    .select("id, label, number, total_count, amount, due_date, status, paid_at, receipt_uploaded_at, event_id, clients(name, whatsapp, phone), events(event_date)")
+    .or(`tenant_id.eq.${tid},owner_id.eq.${userId}`)
+    .order("due_date", { ascending: true })
+    .limit(300);
+
   const clients = clientsRes.data ?? [];
   const events = eventsRes.data ?? [];
   const quotes = quotesRes.data ?? [];
@@ -84,6 +91,8 @@ async function buildContext(supabase: any, userId: string) {
   const priceTiers = (tiersRes as any)?.data ?? [];
   const movements = movementsRes.data ?? [];
   const feedbacks = (feedbacksData ?? []) as any[];
+  const installments = (installmentsData ?? []) as any[];
+
 
 
   // Metrics
@@ -174,9 +183,46 @@ async function buildContext(supabase: any, userId: string) {
       criado_em: q.created_at,
     }));
 
+  const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0);
+  const diasAte = (due: string | null) =>
+    due ? Math.round((new Date(`${due}T00:00:00`).getTime() - hoje.getTime()) / 86400000) : null;
+
+  const parcelasDetalhadas = installments.map((p: any) => {
+    const dias = diasAte(p.due_date);
+    return {
+      cliente: p.clients?.name ?? null,
+      whatsapp: p.clients?.whatsapp ?? p.clients?.phone ?? null,
+      parcela: p.label ?? `Parcela ${p.number}/${p.total_count}`,
+      numero: p.number,
+      total_parcelas: p.total_count,
+      valor: Number(p.amount || 0),
+      vencimento: p.due_date,
+      dias_para_vencer: dias,
+      status: p.status,
+      comprovante_enviado: !!p.receipt_uploaded_at,
+      pago_em: p.paid_at,
+      data_evento: p.events?.event_date ?? null,
+    };
+  });
+
+  const parcelasAbertas = parcelasDetalhadas.filter((p) => p.status !== "pago");
+  const parcelasVencendo3Dias = parcelasAbertas.filter(
+    (p) => p.dias_para_vencer !== null && p.dias_para_vencer >= 0 && p.dias_para_vencer <= 3,
+  );
+  const parcelasVencidas = parcelasAbertas.filter(
+    (p) => p.dias_para_vencer !== null && p.dias_para_vencer < 0,
+  );
+
   const context = {
 
     buffet: { nome: tenant.name, status: tenant.status },
+    hoje: hoje.toISOString().slice(0, 10),
+    parcelas: parcelasDetalhadas,
+    parcelas_abertas: parcelasAbertas,
+    parcelas_vencendo_em_3_dias: parcelasVencendo3Dias,
+    parcelas_vencidas: parcelasVencidas,
+
     metricas: {
       total_clientes: clients.length,
       clientes_via_link_publico: clients.filter((c: any) => c.origem === "link_orcamento").length,
@@ -249,6 +295,7 @@ Se a pergunta for sobre quantidade de eventos, estoque, clientes ou faturamento,
 Formate valores monetários em R$ (ex: R$ 1.500,00). Se algo não estiver nos dados, diga que não há registro.
 Ao se apresentar, diga apenas que é o assistente virtual da Central do Buffet, sem mencionar o nome específico do buffet.
 Para perguntas sobre clientes, use "clientes" (cadastro manual e vindos do link público, veja o campo origem) e "solicitantes_link_publico" (pedidos recebidos pelo link que ainda podem não ter cadastro).
+Para cobranças e pagamentos, use "parcelas", "parcelas_abertas", "parcelas_vencendo_em_3_dias" e "parcelas_vencidas" (campo dias_para_vencer é relativo ao campo "hoje"). Sempre que houver itens em "parcelas_vencendo_em_3_dias" ou "parcelas_vencidas", avise o dono do buffet citando cliente, parcela, valor e data de vencimento, e sugira cobrar pelo WhatsApp.
 
 
 DADOS ATUAIS DO BUFFET (JSON):
