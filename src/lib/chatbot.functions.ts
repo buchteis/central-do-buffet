@@ -183,9 +183,46 @@ async function buildContext(supabase: any, userId: string) {
       criado_em: q.created_at,
     }));
 
+  const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0);
+  const diasAte = (due: string | null) =>
+    due ? Math.round((new Date(`${due}T00:00:00`).getTime() - hoje.getTime()) / 86400000) : null;
+
+  const parcelasDetalhadas = installments.map((p: any) => {
+    const dias = diasAte(p.due_date);
+    return {
+      cliente: p.clients?.name ?? null,
+      whatsapp: p.clients?.whatsapp ?? p.clients?.phone ?? null,
+      parcela: p.label ?? `Parcela ${p.number}/${p.total_count}`,
+      numero: p.number,
+      total_parcelas: p.total_count,
+      valor: Number(p.amount || 0),
+      vencimento: p.due_date,
+      dias_para_vencer: dias,
+      status: p.status,
+      comprovante_enviado: !!p.receipt_uploaded_at,
+      pago_em: p.paid_at,
+      data_evento: p.events?.event_date ?? null,
+    };
+  });
+
+  const parcelasAbertas = parcelasDetalhadas.filter((p) => p.status !== "pago");
+  const parcelasVencendo3Dias = parcelasAbertas.filter(
+    (p) => p.dias_para_vencer !== null && p.dias_para_vencer >= 0 && p.dias_para_vencer <= 3,
+  );
+  const parcelasVencidas = parcelasAbertas.filter(
+    (p) => p.dias_para_vencer !== null && p.dias_para_vencer < 0,
+  );
+
   const context = {
 
     buffet: { nome: tenant.name, status: tenant.status },
+    hoje: hoje.toISOString().slice(0, 10),
+    parcelas: parcelasDetalhadas,
+    parcelas_abertas: parcelasAbertas,
+    parcelas_vencendo_em_3_dias: parcelasVencendo3Dias,
+    parcelas_vencidas: parcelasVencidas,
+
     metricas: {
       total_clientes: clients.length,
       clientes_via_link_publico: clients.filter((c: any) => c.origem === "link_orcamento").length,
