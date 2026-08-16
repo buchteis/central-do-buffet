@@ -653,6 +653,100 @@ export const Chatbot = () => {
                       </button>
                     </div>
                   )}
+                  {msg.staffing && (
+                    <div style={{ marginTop: 10, display: "grid", gap: 8 }}>
+                      <div style={{ display: "grid", gap: 6 }}>
+                        {msg.staffing.strategies.map((s) => {
+                          const active = msg.staffing!.selected === s.id;
+                          return (
+                            <button
+                              key={s.id}
+                              onClick={() => selectStrategy(i, s.id)}
+                              style={{
+                                textAlign: "left",
+                                border: `1px solid ${active ? "#FF7A00" : "#e5e7eb"}`,
+                                background: active ? "#fff7ed" : "white",
+                                borderRadius: 10,
+                                padding: 10,
+                                cursor: "pointer",
+                                fontSize: 12,
+                              }}
+                            >
+                              <div style={{ fontWeight: 700 }}>
+                                {s.nome} — {s.total_profissionais} profissionais
+                              </div>
+                              <div style={{ color: "#4b5563" }}>{s.descricao}</div>
+                              <div style={{ color: "#4b5563" }}>
+                                Custo estimado: <b>{brl(s.custo_estimado)}</b>
+                                {s.vagas_sem_funcionario > 0
+                                  ? ` • ${s.vagas_sem_funcionario} vaga(s) sem funcionário disponível`
+                                  : ""}
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {(() => {
+                        const sel = msg.staffing!.strategies.find((s) => s.id === msg.staffing!.selected);
+                        if (!sel) return null;
+                        return (
+                          <div style={{ display: "grid", gap: 6 }}>
+                            {sel.slots.map((sl, j) => (
+                              <div
+                                key={j}
+                                style={{
+                                  border: "1px solid #e5e7eb",
+                                  borderRadius: 10,
+                                  padding: 8,
+                                  background: sl.employee_id ? "#f0fdf4" : "#fff7ed",
+                                  fontSize: 12,
+                                }}
+                              >
+                                <div style={{ fontWeight: 700 }}>{sl.role}</div>
+                                <select
+                                  value={sl.employee_id ?? ""}
+                                  onChange={(e) => updateSlot(i, sel.id, j, e.target.value)}
+                                  style={{
+                                    marginTop: 4,
+                                    width: "100%",
+                                    padding: "6px 8px",
+                                    borderRadius: 8,
+                                    border: "1px solid #d1d5db",
+                                    fontSize: 12,
+                                  }}
+                                >
+                                  <option value="">— Não escalar —</option>
+                                  {msg.staffing!.employees.map((e) => (
+                                    <option key={e.id} value={e.id}>
+                                      {e.name} — {e.role} ({brl(e.daily_rate)})
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                            ))}
+                            <button
+                              onClick={() => confirmStaffing(msg.staffing!, i)}
+                              disabled={isLoading}
+                              style={{
+                                background: "#22c55e",
+                                color: "white",
+                                border: "none",
+                                borderRadius: 8,
+                                padding: "8px 12px",
+                                fontSize: 12,
+                                fontWeight: 700,
+                                cursor: "pointer",
+                              }}
+                            >
+                              Escalar equipe automaticamente
+                            </button>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
+
                 </div>
               </div>
             ))}
