@@ -104,5 +104,5 @@ export const getBuffetAlerts = createServerFn({ method: "GET" })
 
 
 
-    return { alerts: alerts.slice(0, 12) };
+    return { alerts: alerts.slice(0, 20) };
   });
