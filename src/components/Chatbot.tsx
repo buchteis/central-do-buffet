@@ -82,7 +82,10 @@ export const Chatbot = () => {
   const fetchAlerts = useServerFn(getBuffetAlerts);
   const parseNf = useServerFn(parseInvoiceFile);
   const commitNf = useServerFn(commitInvoiceStockEntry);
+  const suggestStaff = useServerFn(suggestEventStaffing);
+  const assignStaff = useServerFn(assignEventStaffing);
   const queryClient = useQueryClient();
+
 
   const [acked, setAcked] = useState<string[]>([]);
   useEffect(() => {
