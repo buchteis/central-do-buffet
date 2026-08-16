@@ -3,9 +3,10 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 export type BuffetAlert = {
   id: string;
-  kind: "estoque" | "evento";
+  kind: "estoque" | "evento" | "parcela";
   message: string;
 };
+
 
 export const getBuffetAlerts = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
