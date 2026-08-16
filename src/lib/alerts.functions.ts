@@ -77,5 +77,32 @@ export const getBuffetAlerts = createServerFn({ method: "GET" })
       });
     }
 
+    const brl = (n: number) =>
+      n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+    for (const p of (installments ?? []) as any[]) {
+      if (!p.due_date) continue;
+      const d = new Date(`${p.due_date}T00:00:00`);
+      const dias = Math.round((d.getTime() - today.getTime()) / 86400000);
+      if (dias > 3) continue;
+      const nome = p.clients?.name ?? "Cliente";
+      const rotulo = p.label ?? `Parcela ${p.number}/${p.total_count}`;
+      const quando =
+        dias < 0
+          ? `🔴 VENCIDA há ${Math.abs(dias)} dia(s)`
+          : dias === 0
+            ? "🔴 vence HOJE"
+            : dias === 1
+              ? "🟠 vence AMANHÃ"
+              : `🟠 vence em ${dias} dias`;
+      alerts.push({
+        id: `parcela:${p.id}:${p.due_date}`,
+        kind: "parcela",
+        message: `💰 Cobrança: ${nome} — ${rotulo} de ${brl(Number(p.amount ?? 0))} ${quando} (${d.toLocaleDateString("pt-BR")}). Status: ${p.status}.`,
+      });
+    }
+
+
+
     return { alerts: alerts.slice(0, 12) };
   });
