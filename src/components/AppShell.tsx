@@ -141,7 +141,10 @@ export function AppShell({ children }: { children: ReactNode }) {
             </Sheet>
           }
         />
-        <div className="flex-1 p-4 md:p-8 max-w-[1280px] mx-auto w-full min-w-0">{children}</div>
+        <div className="flex-1 p-4 md:p-8 max-w-[1280px] mx-auto w-full min-w-0">
+          <PageTutorial pathname={pathname} />
+          {children}
+        </div>
       </main>
       {/* Assistente (inclui leitura de nota fiscal) disponível em todas as páginas */}
       <Chatbot />
