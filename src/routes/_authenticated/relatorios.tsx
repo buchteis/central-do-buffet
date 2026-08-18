@@ -203,9 +203,199 @@ function RelatoriosPage() {
           </div>
         </>
       )}
+
+      <PurchaseOrderSection />
     </div>
   );
 }
+
+function PurchaseOrderSection() {
+  const { data, isFetching, refetch } = useQuery({
+    queryKey: ["purchase-order-stock"],
+    queryFn: async () => {
+      const [{ data: products }, { data: moves }, { data: settings }] = await Promise.all([
+        supabase
+          .from("stock_products")
+          .select("id, name, unit, physical_qty, reserved_qty, min_qty, active, stock_categories(name)")
+          .eq("active", true)
+          .order("name"),
+        supabase
+          .from("stock_movements")
+          .select("product_id, unit_price, created_at")
+          .eq("kind", "purchase")
+          .not("unit_price", "is", null)
+          .order("created_at", { ascending: false })
+          .limit(500),
+        supabase
+          .from("buffet_settings")
+          .select("business_name, phone, whatsapp, address, logo_url")
+          .maybeSingle(),
+      ]);
+
+      const lastPrice = new Map<string, number>();
+      for (const m of moves ?? []) {
+        const pid = (m as any).product_id as string;
+        if (!lastPrice.has(pid)) lastPrice.set(pid, Number((m as any).unit_price ?? 0) || 0);
+      }
+
+      const lines: PurchaseOrderLine[] = (products ?? [])
+        .map((p: any) => {
+          const physical = Number(p.physical_qty ?? 0);
+          const reserved = Number(p.reserved_qty ?? 0);
+          const min = Number(p.min_qty ?? 0);
+          const available = physical - reserved;
+          const target = min * 2;
+          const suggested = Math.max(Math.ceil((target - available) * 100) / 100, 0);
+          const unitPrice = lastPrice.has(p.id) ? lastPrice.get(p.id)! : null;
+          return {
+            name: p.name as string,
+            unit: (p.unit as string) ?? "un",
+            category: p.stock_categories?.name ?? null,
+            physical_qty: physical,
+            reserved_qty: reserved,
+            available,
+            min_qty: min,
+            target_qty: target,
+            suggested_qty: suggested,
+            unit_price: unitPrice,
+            estimated_total: unitPrice != null ? unitPrice * suggested : 0,
+            critical: min > 0 && available <= min,
+          } satisfies PurchaseOrderLine;
+        })
+        .filter((l) => l.min_qty > 0 && l.suggested_qty > 0)
+        .sort((a, b) => Number(b.critical) - Number(a.critical) || a.name.localeCompare(b.name));
+
+      return { lines, settings: (settings as any) ?? null };
+    },
+  });
+
+  const lines = data?.lines ?? [];
+  const totalEstimado = lines.reduce((s, l) => s + l.estimated_total, 0);
+
+  async function handlePdf() {
+    if (!lines.length) {
+      toast.info("Nenhum insumo abaixo do nível operacional.");
+      return;
+    }
+    try {
+      await openPurchaseOrderPdf({
+        orderNumber: `OC-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}`,
+        lines,
+        buffet: data?.settings ?? null,
+      });
+    } catch (e: any) {
+      toast.error(e?.message ?? "Não consegui gerar o PDF.");
+    }
+  }
+
+  return (
+    <section className="bg-card border border-border rounded-2xl p-5 space-y-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="text-base font-extrabold tracking-tight flex items-center gap-2">
+            <ClipboardList className="size-4 text-primary" />
+            Ordem de compra do estoque
+          </h2>
+          <p className="text-xs text-muted-foreground mt-1">
+            Insumos abaixo do nível operacional (2× o estoque mínimo). Quantidade sugerida para
+            recompor o estoque.
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="rounded-full text-xs font-bold"
+            onClick={() => refetch()}
+            disabled={isFetching}
+          >
+            <RefreshCw className={cn("size-4 mr-1", isFetching && "animate-spin")} />
+            Atualizar
+          </Button>
+          <Button
+            size="sm"
+            className="rounded-full text-xs font-bold shadow-lg shadow-primary/20"
+            onClick={handlePdf}
+            disabled={isFetching || lines.length === 0}
+          >
+            <FileDown className="size-4 mr-1" />
+            Gerar ordem de compra (PDF)
+          </Button>
+        </div>
+      </div>
+
+      {isFetching && lines.length === 0 ? (
+        <div className="text-xs text-muted-foreground py-6 text-center">Calculando reposição…</div>
+      ) : lines.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-border p-8 text-center">
+          <PackageCheck className="size-7 mx-auto text-success mb-2" />
+          <div className="text-sm font-semibold">Estoque em nível operacional</div>
+          <div className="text-xs text-muted-foreground mt-1">
+            Nenhum insumo precisa de reposição no momento.
+          </div>
+        </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            <Kpi label="Itens a repor" value={String(lines.length)} icon={ClipboardList} />
+            <Kpi
+              label="Itens críticos"
+              value={String(lines.filter((l) => l.critical).length)}
+              icon={Hourglass}
+              tone={lines.some((l) => l.critical) ? "warn" : undefined}
+            />
+            <Kpi label="Custo estimado" value={brl(totalEstimado)} icon={DollarSign} accent />
+          </div>
+
+          <div className="overflow-x-auto -mx-5 px-5">
+            <table className="w-full min-w-[640px] text-sm">
+              <thead>
+                <tr className="text-[10px] uppercase tracking-widest text-muted-foreground">
+                  <th className="text-left py-2 font-bold">Insumo</th>
+                  <th className="text-right py-2 font-bold">Disponível</th>
+                  <th className="text-right py-2 font-bold">Mínimo</th>
+                  <th className="text-right py-2 font-bold">Comprar</th>
+                  <th className="text-right py-2 font-bold">Estimado</th>
+                </tr>
+              </thead>
+              <tbody>
+                {lines.map((l) => (
+                  <tr key={l.name} className="border-t border-border/60">
+                    <td className="py-2 pr-2">
+                      <div className="font-semibold">{l.name}</div>
+                      <div className="text-[10px] text-muted-foreground">
+                        {l.category ?? "Sem categoria"}
+                        {l.critical ? " • crítico" : ""}
+                      </div>
+                    </td>
+                    <td
+                      className={cn(
+                        "text-right py-2 font-mono tabular-nums",
+                        l.critical ? "text-destructive font-bold" : "",
+                      )}
+                    >
+                      {l.available} {l.unit}
+                    </td>
+                    <td className="text-right py-2 font-mono tabular-nums text-muted-foreground">
+                      {l.min_qty}
+                    </td>
+                    <td className="text-right py-2 font-mono tabular-nums font-bold">
+                      {l.suggested_qty} {l.unit}
+                    </td>
+                    <td className="text-right py-2 font-mono tabular-nums">
+                      {l.unit_price != null ? brl(l.estimated_total) : "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+    </section>
+  );
+}
+
 
 function Kpi({
   label,
