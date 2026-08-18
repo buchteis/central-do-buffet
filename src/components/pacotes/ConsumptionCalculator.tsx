@@ -44,6 +44,7 @@ const fmt = (v: number) =>
 export function ConsumptionCalculator() {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const [packageId, setPackageId] = useState<string>("");
   const [guests, setGuests] = useState<number>(50);
   const [edits, setEdits] = useState<Record<string, { per: number; fixed: number }>>({});
