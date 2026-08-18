@@ -318,8 +318,13 @@ export function ConsumptionCalculator() {
           </div>
           <div className="flex flex-wrap gap-2">
             {dirtyRows.length > 0 && (
-              <Button size="sm" variant="outline" onClick={() => save.mutate()} disabled={save.isPending}>
-                <Save className="size-3.5 mr-1" /> Salvar no pacote ({dirtyRows.length})
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setConfirmOpen(true)}
+                disabled={save.isPending}
+              >
+                <Save className="size-3.5 mr-1" /> Confirmar e salvar no pacote ({dirtyRows.length})
               </Button>
             )}
             <Button size="sm" onClick={gerarRelatorio} disabled={computed.length === 0}>
