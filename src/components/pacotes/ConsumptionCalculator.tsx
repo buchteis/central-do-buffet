@@ -15,6 +15,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 type Row = {
   id: string;
@@ -34,6 +44,7 @@ const fmt = (v: number) =>
 export function ConsumptionCalculator() {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const [packageId, setPackageId] = useState<string>("");
   const [guests, setGuests] = useState<number>(50);
   const [edits, setEdits] = useState<Record<string, { per: number; fixed: number }>>({});
@@ -143,6 +154,7 @@ export function ConsumptionCalculator() {
     },
     onSuccess: () => {
       setEdits({});
+      setConfirmOpen(false);
       qc.invalidateQueries({ queryKey: ["calc-rows", activePackageId] });
       qc.invalidateQueries({ queryKey: ["pkg-products", activePackageId] });
       toast.success("Consumo atualizado no pacote");
@@ -306,8 +318,13 @@ export function ConsumptionCalculator() {
           </div>
           <div className="flex flex-wrap gap-2">
             {dirtyRows.length > 0 && (
-              <Button size="sm" variant="outline" onClick={() => save.mutate()} disabled={save.isPending}>
-                <Save className="size-3.5 mr-1" /> Salvar no pacote ({dirtyRows.length})
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setConfirmOpen(true)}
+                disabled={save.isPending}
+              >
+                <Save className="size-3.5 mr-1" /> Confirmar e salvar no pacote ({dirtyRows.length})
               </Button>
             )}
             <Button size="sm" onClick={gerarRelatorio} disabled={computed.length === 0}>
@@ -316,9 +333,36 @@ export function ConsumptionCalculator() {
           </div>
         </div>
         <p className="text-[10px] text-muted-foreground">
-          Necessário = (por pessoa × convidados) + fixo. "Comprar" desconta o estoque disponível
-          (físico − reservado). Custo estimado usa o último preço de compra registrado.
+          Simulação: alterar os campos aqui não mexe no estoque. Nada é gravado até você clicar em
+          "Confirmar e salvar no pacote". Necessário = (por pessoa × convidados) + fixo. "Comprar"
+          desconta o estoque disponível (físico − reservado). Custo estimado usa o último preço de
+          compra registrado.
         </p>
+
+        <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Confirmar alteração do pacote?</AlertDialogTitle>
+              <AlertDialogDescription>
+                {dirtyRows.length} insumo(s) terão o consumo atualizado no pacote. Isso passa a valer
+                para os próximos eventos e pode alterar as reservas de estoque. A simulação atual não
+                é gravada até você confirmar.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={save.isPending}>Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={(e) => {
+                  e.preventDefault();
+                  save.mutate();
+                }}
+                disabled={save.isPending}
+              >
+                {save.isPending ? "Salvando…" : "Confirmar"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </DialogContent>
     </Dialog>
   );
