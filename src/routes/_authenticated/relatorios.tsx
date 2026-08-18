@@ -10,16 +10,38 @@ import {
   ArrowUpCircle,
   RefreshCw,
   DollarSign,
+  ClipboardList,
+  FileDown,
+  PackageCheck,
 } from "lucide-react";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { brl } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { openPurchaseOrderPdf, type PurchaseOrderLine } from "@/lib/purchase-order-pdf";
 
 export const Route = createFileRoute("/_authenticated/relatorios")({
-  head: () => ({ meta: [{ title: "Relatórios — Central do Buffet" }] }),
+  head: () => ({
+    meta: [
+      { title: "Relatórios e ordem de compra — Central do Buffet" },
+      {
+        name: "description",
+        content:
+          "KPIs do buffet e ordem de compra automática dos insumos abaixo do estoque mínimo.",
+      },
+      { property: "og:title", content: "Relatórios e ordem de compra — Central do Buffet" },
+      {
+        property: "og:description",
+        content: "Acompanhe KPIs e gere a ordem de compra para repor o estoque ao nível operacional.",
+      },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
+    ],
+  }),
   component: RelatoriosPage,
 });
+
 
 function RelatoriosPage() {
   const qc = useQueryClient();
