@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { AdditionalItemsManager } from "@/components/pacotes/AdditionalItemsManager";
+import { ConsumptionCalculator } from "@/components/pacotes/ConsumptionCalculator";
 import {
   Dialog,
   DialogContent,
