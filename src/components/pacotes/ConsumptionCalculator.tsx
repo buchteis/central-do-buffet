@@ -333,9 +333,36 @@ export function ConsumptionCalculator() {
           </div>
         </div>
         <p className="text-[10px] text-muted-foreground">
-          Necessário = (por pessoa × convidados) + fixo. "Comprar" desconta o estoque disponível
-          (físico − reservado). Custo estimado usa o último preço de compra registrado.
+          Simulação: alterar os campos aqui não mexe no estoque. Nada é gravado até você clicar em
+          "Confirmar e salvar no pacote". Necessário = (por pessoa × convidados) + fixo. "Comprar"
+          desconta o estoque disponível (físico − reservado). Custo estimado usa o último preço de
+          compra registrado.
         </p>
+
+        <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Confirmar alteração do pacote?</AlertDialogTitle>
+              <AlertDialogDescription>
+                {dirtyRows.length} insumo(s) terão o consumo atualizado no pacote. Isso passa a valer
+                para os próximos eventos e pode alterar as reservas de estoque. A simulação atual não
+                é gravada até você confirmar.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={save.isPending}>Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={(e) => {
+                  e.preventDefault();
+                  save.mutate();
+                }}
+                disabled={save.isPending}
+              >
+                {save.isPending ? "Salvando…" : "Confirmar"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </DialogContent>
     </Dialog>
   );
