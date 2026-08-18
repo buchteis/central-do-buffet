@@ -174,6 +174,7 @@ function PackagesPage() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+        <ConsumptionCalculator />
         <AdditionalItemsManager />
         <Dialog
           open={open}
