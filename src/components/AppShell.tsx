@@ -31,6 +31,7 @@ import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/s
 import { toast } from "sonner";
 import { useTenantAccess } from "@/hooks/useTenantAccess";
 import { Chatbot } from "@/components/Chatbot";
+import { PageTutorial } from "@/components/PageTutorial";
 
 
 type NavItem = { to: string; label: string; icon: typeof Home };
