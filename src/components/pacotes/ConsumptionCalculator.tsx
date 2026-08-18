@@ -154,6 +154,7 @@ export function ConsumptionCalculator() {
     },
     onSuccess: () => {
       setEdits({});
+      setConfirmOpen(false);
       qc.invalidateQueries({ queryKey: ["calc-rows", activePackageId] });
       qc.invalidateQueries({ queryKey: ["pkg-products", activePackageId] });
       toast.success("Consumo atualizado no pacote");
