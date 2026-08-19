@@ -50,7 +50,6 @@ export const CONTRACT_VARIABLES: { group: string; items: { key: string; label: s
       { key: "pix", label: "Chave PIX" },
       { key: "pix_titular", label: "Titular do PIX" },
       { key: "dados_bancarios", label: "Dados bancários" },
-      { key: "parcelas", label: "Parcelas" },
     ],
   },
   {
