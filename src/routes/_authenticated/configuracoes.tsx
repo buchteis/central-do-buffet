@@ -28,7 +28,9 @@ function SettingsPage() {
     business_name: "",
     phone: "",
     whatsapp: "",
+    cnpj: "",
     address: "",
+
     pix_key: "",
     pix_holder: "",
     bank_name: "",
