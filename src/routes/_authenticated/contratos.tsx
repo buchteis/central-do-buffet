@@ -10,6 +10,7 @@ import { fillTemplate } from "@/lib/whatsapp";
 import { useLogoDisplayUrl, getLogoDisplayUrl } from "@/lib/logo";
 import { useSearchFilter } from "@/lib/search-store";
 import { dedupePackages } from "@/lib/quote-calc";
+import { DEFAULT_CONTRACT_TEMPLATE } from "@/lib/contract-template";
 
 export const Route = createFileRoute("/_authenticated/contratos")({
   head: () => ({ meta: [{ title: "Contratos — Meu Churras" }] }),
