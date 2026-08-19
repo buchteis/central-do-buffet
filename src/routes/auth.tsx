@@ -35,6 +35,7 @@ function normalizeEmail(value: unknown) {
   return value
     .replace(/[\u200B-\u200D\uFEFF\u00A0]/g, "")
     .replace(/\s+/g, "")
+    .replace(/^[,;:]+|[,;:]+$/g, "")
     .toLowerCase();
 }
 
@@ -318,7 +319,7 @@ function AuthPage() {
 
     if(!email) return;
 
-    const parsed = z.string().trim().email().safeParse(email);
+    const parsed = z.preprocess(normalizeEmail, z.string().email()).safeParse(email);
 
     if(!parsed.success){
       toast.error("Informe um e-mail válido");
