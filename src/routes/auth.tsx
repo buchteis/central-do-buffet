@@ -179,7 +179,7 @@ function AuthPage() {
     if(error){
 
       toast.error(
-        error.message
+        translateAuthError(error.message)
       );
 
       return;
@@ -277,7 +277,7 @@ function AuthPage() {
     if(error){
 
       toast.error(
-        error.message
+        translateAuthError(error.message)
       );
 
       return;
@@ -335,7 +335,7 @@ function AuthPage() {
     setLoading(false);
 
     if(error){
-      toast.error(error.message);
+      toast.error(translateAuthError(error.message));
       return;
     }
 
