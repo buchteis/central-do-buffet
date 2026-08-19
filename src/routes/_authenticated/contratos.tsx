@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Plus, FileText, Printer, Eye, Pencil } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { brl, formatDateFullBR } from "@/lib/format";
@@ -11,6 +11,7 @@ import { useLogoDisplayUrl, getLogoDisplayUrl } from "@/lib/logo";
 import { useSearchFilter } from "@/lib/search-store";
 import { dedupePackages } from "@/lib/quote-calc";
 import { DEFAULT_CONTRACT_TEMPLATE } from "@/lib/contract-template";
+import VariableInserter from "@/components/VariableInserter";
 
 export const Route = createFileRoute("/_authenticated/contratos")({
   head: () => ({ meta: [{ title: "Contratos — Meu Churras" }] }),
@@ -406,6 +407,7 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
   const [tplDraft, setTplDraft] = useState("");
   const [tplLoaded, setTplLoaded] = useState(false);
   const [showTpl, setShowTpl] = useState(false);
+  const tplRef = useRef<HTMLTextAreaElement>(null);
 
   const { data: quotes } = useQuery({
     queryKey: ["quotes-closed-for-contract"],
@@ -888,7 +890,9 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
                 {"{convidados}"}, {"{pacotes}"}, {"{itens_adicionais}"}, {"{acrescimos_adicionais}"}, {"{valor}"},{" "}
                 {"{entrada}"}, {"{saldo}"}, {"{forma_pagamento}"}, {"{dados_pagamento}"}, {"{pix}"}, {"{data_hoje}"}.
               </p>
+              <VariableInserter textareaRef={tplRef} value={tplDraft} onChange={setTplDraft} />
               <textarea
+                ref={tplRef}
                 rows={10}
                 value={tplDraft}
                 onChange={(e) => setTplDraft(e.target.value)}
