@@ -54,7 +54,9 @@ function SettingsPage() {
         business_name: data.business_name ?? "",
         phone: data.phone ?? "",
         whatsapp: data.whatsapp ?? "",
+        cnpj: (data as any).cnpj ?? "",
         address: data.address ?? "",
+
         pix_key: data.pix_key ?? "",
         pix_holder: data.pix_holder ?? "",
         bank_name: (data as any).bank_name ?? "",
