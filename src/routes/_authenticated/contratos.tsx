@@ -711,6 +711,14 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
         let evPacotes = ev.packages?.name ?? "—";
         let evItens = "Nenhum item adicional contratado";
         let evAcrescimos = "Nenhum acréscimo adicional";
+        let evTipo = "";
+        let evAdults = Number(ev.guest_count ?? 0) || 0;
+        let evKids710 = 0;
+        let evKids06 = 0;
+        let evPpp = 0;
+        let evChildPrice = 0;
+        let evCustomTotal = 0;
+        let evInclusos = ev.packages?.name ?? "";
 
         if (ev.quote_id) {
           const { data: qLink } = await supabase
@@ -743,7 +751,21 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
           const { text: uText, total: uTotal } = formatUnitItems(unitSnap);
           evItens = uText;
           evAcrescimos = getAdditionsText(ext, totalVal, pkgTotal, uTotal, ql);
+
+          evTipo = ql.event_type ?? "";
+          evAdults = adults;
+          evKids710 = Number(ql.children_7_10 ?? 0) || 0;
+          evKids06 = Number(ql.children_0_6 ?? 0) || 0;
+          evPpp = pkgClean.reduce((s: number, p: any) => s + (Number(p?.price_per_person ?? 0) || 0), 0);
+          evChildPrice = Number(ext.child_price ?? 0) || 0;
+          evCustomTotal = (Array.isArray(ext.custom) ? ext.custom : []).reduce(
+            (s: number, e: any) => s + (Number(e?.value) || 0),
+            0,
+          );
+          evInclusos = buildIncludedItems(pkgClean, unitSnap, ev.packages?.name);
         }
+
+        const evHoraInicio = (ev.event_time ?? "").toString().slice(0, 5);
 
         vars = {
           ...vars,
@@ -769,7 +791,19 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
           descricao_pacote: ev.packages?.description ?? "",
           cardapio: ev.packages?.name ?? "—",
           descricao_cardapio: ev.packages?.description ?? "",
+          tipo_festa: evTipo,
+          endereco_evento: ev.event_address ?? "",
+          hora_inicio: evHoraInicio,
+          hora_fim: extraFields.hora_fim || addHoursToTime(evHoraInicio, 4),
+          quantidade_adultos: String(evAdults),
+          quantidade_criancas: String(evKids710 + evKids06),
+          faixa_etaria_criancas: describeKids(evKids710, evKids06),
+          itens_inclusos: evInclusos,
+          valor_adulto_extra: brl(evPpp),
+          valor_crianca_extra: brl(evChildPrice),
+          valor_extras: brl(evCustomTotal),
         };
+
       } else {
         if (clientId) {
           const cli = (clients ?? []).find((c: any) => c.id === clientId);
