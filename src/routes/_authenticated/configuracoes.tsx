@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { copyToClipboard } from "@/lib/clipboard";
@@ -8,6 +8,7 @@ import { useTenantAccess } from "@/hooks/useTenantAccess";
 import { useLogoDisplayUrl } from "@/lib/logo";
 import { DEFAULT_CONTRACT_TEMPLATE } from "@/lib/contract-template";
 import { maskCpfCnpj } from "@/lib/doc";
+import VariableInserter from "@/components/VariableInserter";
 
 
 export const Route = createFileRoute("/_authenticated/configuracoes")({
@@ -49,6 +50,7 @@ function SettingsPage() {
     installments_due_day: "",
   });
   const [uploading, setUploading] = useState(false);
+  const contractRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     if (data)
