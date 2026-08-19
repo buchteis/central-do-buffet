@@ -986,6 +986,53 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
           )}
         </div>
 
+        <div className="rounded-xl border border-border">
+          <button
+            type="button"
+            onClick={() => setShowExtras((v) => !v)}
+            className="w-full h-10 px-3 flex items-center justify-between text-xs font-bold"
+          >
+            Dados complementares do contrato
+            <span className="text-muted-foreground">{showExtras ? "−" : "+"}</span>
+          </button>
+          {showExtras && (
+            <div className="p-3 pt-0 grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {(
+                [
+                  ["rg_cliente", "RG do cliente"],
+                  ["nome_aniversariante", "Nome do aniversariante"],
+                  ["idade_aniversariante", "Idade do aniversariante"],
+                  ["tema_festa", "Tema da festa"],
+                  ["hora_fim", "Hora de término (ex.: 22:00)"],
+                  ["quantidade_mesas", "Quantidade de mesas"],
+                  ["toalhas", "Toalhas"],
+                  ["quantidade_adultos_extras", "Adultos extras"],
+                  ["quantidade_criancas_extras", "Crianças extras"],
+                  ["tolerancia_horario", "Tolerância de horário"],
+                  ["valor_hora_excedente", "Valor da hora excedente"],
+                  ["valor_funcionario_excedente", "Valor do funcionário excedente"],
+                  ["cidade_contrato", "Cidade do contrato"],
+                  ["foro", "Foro"],
+                ] as [string, string][]
+              ).map(([key, label]) => (
+                <input
+                  key={key}
+                  placeholder={label}
+                  value={extraFields[key] ?? ""}
+                  onChange={(e) => setExtra(key, e.target.value)}
+                  className="h-9 px-2 border border-border rounded-lg bg-background text-xs"
+                />
+              ))}
+              <p className="sm:col-span-2 text-[11px] text-muted-foreground">
+                Os demais dados (adultos, crianças, valores, horários e itens) vêm automaticamente do orçamento
+                selecionado.
+              </p>
+            </div>
+          )}
+        </div>
+
+
+
         <p className="text-[11px] text-muted-foreground">
           {source === "blank"
             ? "O contrato usará o modelo salvo em Configurações. Você poderá editar todo o texto em seguida."
