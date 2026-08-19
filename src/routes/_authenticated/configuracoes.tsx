@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { copyToClipboard } from "@/lib/clipboard";
 import { useTenantAccess } from "@/hooks/useTenantAccess";
 import { useLogoDisplayUrl } from "@/lib/logo";
+import { DEFAULT_CONTRACT_TEMPLATE } from "@/lib/contract-template";
 
 export const Route = createFileRoute("/_authenticated/configuracoes")({
   head: () => ({ meta: [{ title: "Configurações — Meu Churras" }] }),
@@ -350,6 +351,16 @@ function SettingsPage() {
           “Endereço” em Dados do buffet.
         </p>
 
+
+        <div className="mb-2">
+          <button
+            type="button"
+            onClick={() => setF({ ...f, contract_template: DEFAULT_CONTRACT_TEMPLATE })}
+            className="h-9 px-3 rounded-lg border border-border text-xs font-bold"
+          >
+            Inserir modelo padrão (com variáveis)
+          </button>
+        </div>
 
         <textarea
           rows={10}
