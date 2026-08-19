@@ -368,7 +368,7 @@ function SettingsPage() {
         </p>
 
 
-        <div className="mb-2">
+        <div className="mb-2 flex flex-wrap items-center gap-2">
           <button
             type="button"
             onClick={() => setF({ ...f, contract_template: DEFAULT_CONTRACT_TEMPLATE })}
@@ -376,9 +376,15 @@ function SettingsPage() {
           >
             Inserir modelo padrão (com variáveis)
           </button>
+          <VariableInserter
+            textareaRef={contractRef}
+            value={f.contract_template}
+            onChange={(next) => setF({ ...f, contract_template: next })}
+          />
         </div>
 
         <textarea
+          ref={contractRef}
           rows={10}
           value={f.contract_template}
           onChange={(e) => setF({ ...f, contract_template: e.target.value })}
