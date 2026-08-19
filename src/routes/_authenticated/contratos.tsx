@@ -586,8 +586,36 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
         descricao_pacote: "",
         cardapio: "",
         descricao_cardapio: "",
+        // Novas variáveis — dados do buffet / contrato
+        cnpj_buffet: fiscal?.cnpj ?? "",
+        cidade_contrato: extraFields.cidade_contrato || fiscal?.address_city || "",
+        foro: extraFields.foro || extraFields.cidade_contrato || fiscal?.address_city || "",
+        // Novas variáveis — dados do evento (preenchidas pelo orçamento/evento)
+        tipo_festa: "",
+        nome_aniversariante: extraFields.nome_aniversariante,
+        idade_aniversariante: extraFields.idade_aniversariante,
+        tema_festa: extraFields.tema_festa,
+        rg_cliente: extraFields.rg_cliente,
+        hora_inicio: "",
+        hora_fim: extraFields.hora_fim,
+        endereco_evento: "",
+        quantidade_adultos: "0",
+        quantidade_criancas: "0",
+        faixa_etaria_criancas: "",
+        quantidade_mesas: extraFields.quantidade_mesas,
+        toalhas: extraFields.toalhas,
+        itens_inclusos: "",
+        valor_adulto_extra: brl(0),
+        valor_crianca_extra: brl(0),
+        quantidade_adultos_extras: extraFields.quantidade_adultos_extras || "0",
+        quantidade_criancas_extras: extraFields.quantidade_criancas_extras || "0",
+        valor_extras: brl(0),
+        tolerancia_horario: extraFields.tolerancia_horario,
+        valor_hora_excedente: extraFields.valor_hora_excedente,
+        valor_funcionario_excedente: extraFields.valor_funcionario_excedente,
         ...payVars,
       };
+
 
       let ev_id: string | null = null;
       let cli_id: string | null = null;
