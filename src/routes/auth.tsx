@@ -28,12 +28,30 @@ export const Route = createFileRoute("/auth")({
 });
 
 
+// Normaliza e-mail: remove espaços (inclusive invisíveis colados por autofill/teclado
+// de celular), converte para minúsculas e limpa caracteres de controle.
+function normalizeEmail(value: unknown) {
+  if (typeof value !== "string") return value;
+  return value
+    .replace(/[\u200B-\u200D\uFEFF\u00A0]/g, "")
+    .replace(/\s+/g, "")
+    .toLowerCase();
+}
+
+function translateAuthError(message: string) {
+  const m = message.toLowerCase();
+  if (m.includes("invalid login credentials")) return "E-mail ou senha incorretos.";
+  if (m.includes("email not confirmed")) return "E-mail ainda não confirmado. Fale com o suporte.";
+  if (m.includes("invalid email") || m.includes("email address") || m.includes("is invalid"))
+    return "Informe um e-mail válido (sem espaços).";
+  if (m.includes("rate limit") || m.includes("too many"))
+    return "Muitas tentativas. Aguarde alguns segundos e tente novamente.";
+  return message;
+}
+
 const signInSchema = z.object({
   email: z
-    .string()
-    .trim()
-    .email("Informe um e-mail válido")
-    .max(255),
+    .preprocess(normalizeEmail, z.string().email("Informe um e-mail válido").max(255)),
 
   password: z
     .string()
@@ -161,7 +179,7 @@ function AuthPage() {
     if(error){
 
       toast.error(
-        error.message
+        translateAuthError(error.message)
       );
 
       return;
@@ -259,7 +277,7 @@ function AuthPage() {
     if(error){
 
       toast.error(
-        error.message
+        translateAuthError(error.message)
       );
 
       return;
@@ -317,7 +335,7 @@ function AuthPage() {
     setLoading(false);
 
     if(error){
-      toast.error(error.message);
+      toast.error(translateAuthError(error.message));
       return;
     }
 
@@ -587,6 +605,11 @@ E-mail
 <Input
 name="email"
 type="email"
+autoComplete="email"
+inputMode="email"
+autoCapitalize="none"
+autoCorrect="off"
+spellCheck={false}
 />
 
 
