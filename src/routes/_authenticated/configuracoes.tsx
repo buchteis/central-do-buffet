@@ -140,9 +140,19 @@ function SettingsPage() {
             <input value={f.whatsapp} onChange={(e) => setF({ ...f, whatsapp: e.target.value })} className="input" />
           </Field>
         </div>
+        <Field label="CNPJ do buffet">
+          <input
+            value={f.cnpj}
+            onChange={(e) => setF({ ...f, cnpj: maskCpfCnpj(e.target.value) })}
+            placeholder="00.000.000/0000-00"
+            inputMode="numeric"
+            className="input"
+          />
+        </Field>
         <Field label="Endereço">
           <input value={f.address} onChange={(e) => setF({ ...f, address: e.target.value })} className="input" />
         </Field>
+
         <Field label="Logomarca">
           <div className="flex items-center gap-3">
             <label className="h-10 px-4 rounded-lg bg-primary text-primary-foreground text-xs font-bold whitespace-nowrap cursor-pointer inline-flex items-center">
