@@ -472,6 +472,33 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
   });
 
   useEffect(() => {
+    if (tplLoaded || settings === undefined) return;
+    setTplDraft((settings?.contract_template ?? "").trim());
+    setTplLoaded(true);
+  }, [settings, tplLoaded]);
+
+  const saveTemplate = async (text: string) => {
+    try {
+      setSavingTpl(true);
+      const { data: u } = await supabase.auth.getUser();
+      if (!u.user) throw new Error("Sem sessão");
+      const { error } = await supabase
+        .from("buffet_settings")
+        .upsert({ owner_id: u.user.id, contract_template: text }, { onConflict: "owner_id" });
+      if (error) throw error;
+      setTplDraft(text);
+      await qc.invalidateQueries({ queryKey: ["buffet-settings"] });
+      toast.success("Modelo salvo como padrão para todos os contratos.");
+    } catch (err: any) {
+      toast.error(err?.message ?? "Não foi possível salvar o modelo");
+    } finally {
+      setSavingTpl(false);
+    }
+  };
+
+
+
+  useEffect(() => {
     if (source !== "quote" || !refId) return;
     const q: any = (quotes ?? []).find((x: any) => x.id === refId);
     const pm = q?.payment_method;
