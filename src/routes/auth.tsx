@@ -605,6 +605,11 @@ E-mail
 <Input
 name="email"
 type="email"
+autoComplete="email"
+inputMode="email"
+autoCapitalize="none"
+autoCorrect="off"
+spellCheck={false}
 />
 
 
