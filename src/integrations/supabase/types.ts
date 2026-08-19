@@ -82,6 +82,7 @@ export type Database = {
           bank_holder: string | null
           bank_name: string | null
           business_name: string | null
+          cnpj: string | null
           contract_template: string | null
           created_at: string
           google_place_id: string | null
@@ -107,6 +108,7 @@ export type Database = {
           bank_holder?: string | null
           bank_name?: string | null
           business_name?: string | null
+          cnpj?: string | null
           contract_template?: string | null
           created_at?: string
           google_place_id?: string | null
@@ -132,6 +134,7 @@ export type Database = {
           bank_holder?: string | null
           bank_name?: string | null
           business_name?: string | null
+          cnpj?: string | null
           contract_template?: string | null
           created_at?: string
           google_place_id?: string | null
