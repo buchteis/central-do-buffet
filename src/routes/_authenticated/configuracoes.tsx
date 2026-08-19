@@ -7,6 +7,8 @@ import { copyToClipboard } from "@/lib/clipboard";
 import { useTenantAccess } from "@/hooks/useTenantAccess";
 import { useLogoDisplayUrl } from "@/lib/logo";
 import { DEFAULT_CONTRACT_TEMPLATE } from "@/lib/contract-template";
+import { maskCpfCnpj } from "@/lib/doc";
+
 
 export const Route = createFileRoute("/_authenticated/configuracoes")({
   head: () => ({ meta: [{ title: "Configurações — Meu Churras" }] }),
@@ -28,7 +30,9 @@ function SettingsPage() {
     business_name: "",
     phone: "",
     whatsapp: "",
+    cnpj: "",
     address: "",
+
     pix_key: "",
     pix_holder: "",
     bank_name: "",
@@ -52,7 +56,9 @@ function SettingsPage() {
         business_name: data.business_name ?? "",
         phone: data.phone ?? "",
         whatsapp: data.whatsapp ?? "",
+        cnpj: (data as any).cnpj ?? "",
         address: data.address ?? "",
+
         pix_key: data.pix_key ?? "",
         pix_holder: data.pix_holder ?? "",
         bank_name: (data as any).bank_name ?? "",
@@ -140,9 +146,19 @@ function SettingsPage() {
             <input value={f.whatsapp} onChange={(e) => setF({ ...f, whatsapp: e.target.value })} className="input" />
           </Field>
         </div>
+        <Field label="CNPJ do buffet">
+          <input
+            value={f.cnpj}
+            onChange={(e) => setF({ ...f, cnpj: maskCpfCnpj(e.target.value) })}
+            placeholder="00.000.000/0000-00"
+            inputMode="numeric"
+            className="input"
+          />
+        </Field>
         <Field label="Endereço">
           <input value={f.address} onChange={(e) => setF({ ...f, address: e.target.value })} className="input" />
         </Field>
+
         <Field label="Logomarca">
           <div className="flex items-center gap-3">
             <label className="h-10 px-4 rounded-lg bg-primary text-primary-foreground text-xs font-bold whitespace-nowrap cursor-pointer inline-flex items-center">

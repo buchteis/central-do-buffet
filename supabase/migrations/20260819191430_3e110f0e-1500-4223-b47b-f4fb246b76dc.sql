@@ -1,0 +1,1 @@
+ALTER TABLE public.buffet_settings ADD COLUMN IF NOT EXISTS cnpj text;

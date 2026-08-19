@@ -558,6 +558,9 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
       let vars: Record<string, string> = {
         buffet: settings?.business_name ?? "Buffet",
         telefone_buffet: settings?.phone ?? settings?.whatsapp ?? "",
+        cnpj_buffet: ((settings as any)?.cnpj ?? "").trim(),
+        cnpj: ((settings as any)?.cnpj ?? "").trim(),
+
         endereco_buffet: (settings?.address ?? "").trim() || "(endereço não cadastrado em Configurações)",
         pix: settings?.pix_key ?? "",
         pix_titular: settings?.pix_holder ?? "",
