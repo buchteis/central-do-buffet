@@ -551,7 +551,7 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
     mutationFn: async () => {
       const { data: u } = await supabase.auth.getUser();
       if (!u.user) throw new Error("Sem sessão");
-      const tpl = (settings?.contract_template ?? "").trim() || DEFAULT_CONTRACT_TEMPLATE;
+      const tpl = tplDraft.trim() || (settings?.contract_template ?? "").trim() || DEFAULT_CONTRACT_TEMPLATE;
 
       const payVars = buildPaymentVars(formaPagamento, settings);
 
