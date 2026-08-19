@@ -652,6 +652,15 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
         const entryVal = q.entry_value != null ? Number(q.entry_value) : totalVal * 0.5;
         const balanceVal = q.balance_value != null ? Number(q.balance_value) : totalVal - entryVal;
 
+        const pppTotal = pkgSnapClean.reduce((s: number, p: any) => s + (Number(p?.price_per_person ?? 0) || 0), 0);
+        const kids710 = Number(q.children_7_10 ?? 0) || 0;
+        const kids06 = Number(q.children_0_6 ?? 0) || 0;
+        const customTotal = (Array.isArray(qExtras.custom) ? qExtras.custom : []).reduce(
+          (s: number, e: any) => s + (Number(e?.value) || 0),
+          0,
+        );
+        const horaInicio = (q.event_time ?? "").toString().slice(0, 5);
+
         vars = {
           ...vars,
           cliente: q.clients?.name ?? "",
@@ -676,7 +685,19 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
           descricao_pacote: q.packages?.description ?? "",
           cardapio: pacoteLabel,
           descricao_cardapio: q.packages?.description ?? "",
+          tipo_festa: q.event_type ?? "",
+          endereco_evento: q.event_address ?? "",
+          hora_inicio: horaInicio,
+          hora_fim: extraFields.hora_fim || addHoursToTime(horaInicio, 4),
+          quantidade_adultos: String(adults),
+          quantidade_criancas: String(kids710 + kids06),
+          faixa_etaria_criancas: describeKids(kids710, kids06),
+          itens_inclusos: buildIncludedItems(pkgSnapClean, unitSnap, q.packages?.name),
+          valor_adulto_extra: brl(pppTotal),
+          valor_crianca_extra: brl(Number(qExtras.child_price ?? 0) || 0),
+          valor_extras: brl(customTotal),
         };
+
       } else if (source === "event") {
         const ev: any = (events ?? []).find((x: any) => x.id === refId);
         if (!ev) throw new Error("Selecione um evento");
