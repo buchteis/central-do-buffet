@@ -2,8 +2,10 @@
 export const DEFAULT_CONTRACT_TEMPLATE = `CONTRATO DE PRESTAÇÃO DE SERVIÇOS DE BUFFET
 
 CONTRATADA: {buffet}
+CNPJ: {cnpj_buffet}
 Endereço: {endereco_buffet}
 Telefone: {telefone_buffet}
+
 
 CONTRATANTE: {cliente}
 CPF/CNPJ: {cpf_cliente}
