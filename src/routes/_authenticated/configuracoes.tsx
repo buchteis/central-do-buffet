@@ -351,6 +351,16 @@ function SettingsPage() {
         </p>
 
 
+        <div className="mb-2">
+          <button
+            type="button"
+            onClick={() => setF({ ...f, contract_template: DEFAULT_CONTRACT_TEMPLATE })}
+            className="h-9 px-3 rounded-lg border border-border text-xs font-bold"
+          >
+            Inserir modelo padrão (com variáveis)
+          </button>
+        </div>
+
         <textarea
           rows={10}
           value={f.contract_template}
