@@ -466,6 +466,35 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
     },
   });
 
+  const { data: fiscal } = useQuery({
+    queryKey: ["fiscal-settings-for-contract"],
+    queryFn: async () => {
+      const { data } = await supabase.from("fiscal_settings").select("cnpj, address_city").maybeSingle();
+      return data;
+    },
+  });
+
+  const [extraFields, setExtraFields] = useState<Record<string, string>>({
+    rg_cliente: "",
+    nome_aniversariante: "",
+    idade_aniversariante: "",
+    tema_festa: "",
+    hora_fim: "",
+    quantidade_mesas: "",
+    toalhas: "",
+    tolerancia_horario: "",
+    valor_hora_excedente: "",
+    valor_funcionario_excedente: "",
+    quantidade_adultos_extras: "0",
+    quantidade_criancas_extras: "0",
+    cidade_contrato: "",
+    foro: "",
+  });
+  const [showExtras, setShowExtras] = useState(false);
+  const setExtra = (k: string, v: string) => setExtraFields((f) => ({ ...f, [k]: v }));
+
+
+
   useEffect(() => {
     if (source !== "quote" || !refId) return;
     const q: any = (quotes ?? []).find((x: any) => x.id === refId);
