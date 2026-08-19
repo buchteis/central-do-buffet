@@ -7,6 +7,8 @@ import { copyToClipboard } from "@/lib/clipboard";
 import { useTenantAccess } from "@/hooks/useTenantAccess";
 import { useLogoDisplayUrl } from "@/lib/logo";
 import { DEFAULT_CONTRACT_TEMPLATE } from "@/lib/contract-template";
+import { maskCpfCnpj } from "@/lib/doc";
+
 
 export const Route = createFileRoute("/_authenticated/configuracoes")({
   head: () => ({ meta: [{ title: "Configurações — Meu Churras" }] }),
