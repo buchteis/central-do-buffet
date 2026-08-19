@@ -831,9 +831,42 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
           )}
         </div>
 
+        {!(settings?.contract_template ?? "").trim() && (
+          <div className="rounded-lg border border-border bg-muted/40 p-3 space-y-2">
+            <p className="text-[11px] text-muted-foreground">
+              Você ainda não tem um modelo próprio. O contrato será gerado com o <strong>modelo padrão</strong>, já com
+              todas as variáveis (cliente, pacotes, itens adicionais, valores, pagamento) preenchidas pelo orçamento.
+            </p>
+            <button
+              type="button"
+              disabled={savingTpl}
+              onClick={async () => {
+                try {
+                  setSavingTpl(true);
+                  const { data: u } = await supabase.auth.getUser();
+                  if (!u.user) throw new Error("Sem sessão");
+                  const { error } = await supabase
+                    .from("buffet_settings")
+                    .upsert({ owner_id: u.user.id, contract_template: DEFAULT_CONTRACT_TEMPLATE });
+                  if (error) throw error;
+                  qc.invalidateQueries({ queryKey: ["buffet-settings"] });
+                  toast.success("Modelo padrão salvo. Edite quando quiser em Configurações.");
+                } catch (err: any) {
+                  toast.error(err?.message ?? "Não foi possível salvar o modelo");
+                } finally {
+                  setSavingTpl(false);
+                }
+              }}
+              className="h-9 px-3 rounded-lg bg-primary text-primary-foreground text-xs font-bold disabled:opacity-50"
+            >
+              {savingTpl ? "Salvando..." : "Salvar modelo padrão nas Configurações"}
+            </button>
+          </div>
+        )}
+
         <p className="text-[11px] text-muted-foreground">
           {source === "blank"
-            ? "O contrato usará o modelo salvo em Configurações. Você poderá editar todo o texto em seguida."
+            ? "O contrato usará o modelo salvo em Configurações (ou o padrão). Você poderá editar todo o texto em seguida."
             : "Os dados serão preenchidos automaticamente e permanecerão totalmente editáveis."}
         </p>
 
