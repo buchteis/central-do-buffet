@@ -394,6 +394,45 @@ function getAdditionsText(
   return list.join("\n");
 }
 
+/** Soma horas a um horário "HH:MM" (usado para estimar a hora de término). */
+function addHoursToTime(time: string, hours: number): string {
+  const m = /^(\d{1,2}):(\d{2})/.exec(String(time ?? ""));
+  if (!m) return "";
+  const total = (Number(m[1]) * 60 + Number(m[2]) + hours * 60) % (24 * 60);
+  const h = Math.floor(total / 60);
+  const min = total % 60;
+  return `${String(h).padStart(2, "0")}:${String(min).padStart(2, "0")}`;
+}
+
+/** Descreve a faixa etária das crianças do orçamento. */
+function describeKids(kids710: number, kids06: number): string {
+  const parts: string[] = [];
+  if (kids710 > 0) parts.push(`${kids710} de 7 a 10 anos`);
+  if (kids06 > 0) parts.push(`${kids06} de 0 a 6 anos`);
+  return parts.length ? parts.join(" e ") : "Nenhuma criança";
+}
+
+/** Lista pacotes + itens unitários contratados, para a variável {itens_inclusos}. */
+function buildIncludedItems(
+  packages: any[],
+  unitItems: any[],
+  fallbackName?: string | null,
+): string {
+  const lines: string[] = [];
+  (packages ?? []).forEach((p: any) => {
+    if (p?.name) lines.push(`• ${p.name}`);
+  });
+  (unitItems ?? []).forEach((i: any) => {
+    const qty = Number(i?.qty ?? 0) || 0;
+    if (!i?.name || qty <= 0) return;
+    lines.push(`• ${i.name} — ${qty} ${i.unit ?? "un"}`);
+  });
+  if (lines.length === 0 && fallbackName) lines.push(`• ${fallbackName}`);
+  return lines.join("\n");
+}
+
+
+
 function NewContractDialog({ onClose }: { onClose: () => void }) {
   const qc = useQueryClient();
   const [source, setSource] = useState<Source>("quote");
@@ -465,6 +504,35 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
       return data;
     },
   });
+
+  const { data: fiscal } = useQuery({
+    queryKey: ["fiscal-settings-for-contract"],
+    queryFn: async () => {
+      const { data } = await supabase.from("fiscal_settings").select("cnpj, address_city").maybeSingle();
+      return data;
+    },
+  });
+
+  const [extraFields, setExtraFields] = useState<Record<string, string>>({
+    rg_cliente: "",
+    nome_aniversariante: "",
+    idade_aniversariante: "",
+    tema_festa: "",
+    hora_fim: "",
+    quantidade_mesas: "",
+    toalhas: "",
+    tolerancia_horario: "",
+    valor_hora_excedente: "",
+    valor_funcionario_excedente: "",
+    quantidade_adultos_extras: "0",
+    quantidade_criancas_extras: "0",
+    cidade_contrato: "",
+    foro: "",
+  });
+  const [showExtras, setShowExtras] = useState(false);
+  const setExtra = (k: string, v: string) => setExtraFields((f) => ({ ...f, [k]: v }));
+
+
 
   useEffect(() => {
     if (source !== "quote" || !refId) return;
@@ -557,8 +625,36 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
         descricao_pacote: "",
         cardapio: "",
         descricao_cardapio: "",
+        // Novas variáveis — dados do buffet / contrato
+        cnpj_buffet: fiscal?.cnpj ?? "",
+        cidade_contrato: extraFields.cidade_contrato || fiscal?.address_city || "",
+        foro: extraFields.foro || extraFields.cidade_contrato || fiscal?.address_city || "",
+        // Novas variáveis — dados do evento (preenchidas pelo orçamento/evento)
+        tipo_festa: "",
+        nome_aniversariante: extraFields.nome_aniversariante,
+        idade_aniversariante: extraFields.idade_aniversariante,
+        tema_festa: extraFields.tema_festa,
+        rg_cliente: extraFields.rg_cliente,
+        hora_inicio: "",
+        hora_fim: extraFields.hora_fim,
+        endereco_evento: "",
+        quantidade_adultos: "0",
+        quantidade_criancas: "0",
+        faixa_etaria_criancas: "",
+        quantidade_mesas: extraFields.quantidade_mesas,
+        toalhas: extraFields.toalhas,
+        itens_inclusos: "",
+        valor_adulto_extra: brl(0),
+        valor_crianca_extra: brl(0),
+        quantidade_adultos_extras: extraFields.quantidade_adultos_extras || "0",
+        quantidade_criancas_extras: extraFields.quantidade_criancas_extras || "0",
+        valor_extras: brl(0),
+        tolerancia_horario: extraFields.tolerancia_horario,
+        valor_hora_excedente: extraFields.valor_hora_excedente,
+        valor_funcionario_excedente: extraFields.valor_funcionario_excedente,
         ...payVars,
       };
+
 
       let ev_id: string | null = null;
       let cli_id: string | null = null;
@@ -595,6 +691,15 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
         const entryVal = q.entry_value != null ? Number(q.entry_value) : totalVal * 0.5;
         const balanceVal = q.balance_value != null ? Number(q.balance_value) : totalVal - entryVal;
 
+        const pppTotal = pkgSnapClean.reduce((s: number, p: any) => s + (Number(p?.price_per_person ?? 0) || 0), 0);
+        const kids710 = Number(q.children_7_10 ?? 0) || 0;
+        const kids06 = Number(q.children_0_6 ?? 0) || 0;
+        const customTotal = (Array.isArray(qExtras.custom) ? qExtras.custom : []).reduce(
+          (s: number, e: any) => s + (Number(e?.value) || 0),
+          0,
+        );
+        const horaInicio = (q.event_time ?? "").toString().slice(0, 5);
+
         vars = {
           ...vars,
           cliente: q.clients?.name ?? "",
@@ -619,7 +724,19 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
           descricao_pacote: q.packages?.description ?? "",
           cardapio: pacoteLabel,
           descricao_cardapio: q.packages?.description ?? "",
+          tipo_festa: q.event_type ?? "",
+          endereco_evento: q.event_address ?? "",
+          hora_inicio: horaInicio,
+          hora_fim: extraFields.hora_fim || addHoursToTime(horaInicio, 4),
+          quantidade_adultos: String(adults),
+          quantidade_criancas: String(kids710 + kids06),
+          faixa_etaria_criancas: describeKids(kids710, kids06),
+          itens_inclusos: buildIncludedItems(pkgSnapClean, unitSnap, q.packages?.name),
+          valor_adulto_extra: brl(pppTotal),
+          valor_crianca_extra: brl(Number(qExtras.child_price ?? 0) || 0),
+          valor_extras: brl(customTotal),
         };
+
       } else if (source === "event") {
         const ev: any = (events ?? []).find((x: any) => x.id === refId);
         if (!ev) throw new Error("Selecione um evento");
@@ -633,6 +750,14 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
         let evPacotes = ev.packages?.name ?? "—";
         let evItens = "Nenhum item adicional contratado";
         let evAcrescimos = "Nenhum acréscimo adicional";
+        let evTipo = "";
+        let evAdults = Number(ev.guest_count ?? 0) || 0;
+        let evKids710 = 0;
+        let evKids06 = 0;
+        let evPpp = 0;
+        let evChildPrice = 0;
+        let evCustomTotal = 0;
+        let evInclusos = ev.packages?.name ?? "";
 
         if (ev.quote_id) {
           const { data: qLink } = await supabase
@@ -665,7 +790,21 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
           const { text: uText, total: uTotal } = formatUnitItems(unitSnap);
           evItens = uText;
           evAcrescimos = getAdditionsText(ext, totalVal, pkgTotal, uTotal, ql);
+
+          evTipo = ql.event_type ?? "";
+          evAdults = adults;
+          evKids710 = Number(ql.children_7_10 ?? 0) || 0;
+          evKids06 = Number(ql.children_0_6 ?? 0) || 0;
+          evPpp = pkgClean.reduce((s: number, p: any) => s + (Number(p?.price_per_person ?? 0) || 0), 0);
+          evChildPrice = Number(ext.child_price ?? 0) || 0;
+          evCustomTotal = (Array.isArray(ext.custom) ? ext.custom : []).reduce(
+            (s: number, e: any) => s + (Number(e?.value) || 0),
+            0,
+          );
+          evInclusos = buildIncludedItems(pkgClean, unitSnap, ev.packages?.name);
         }
+
+        const evHoraInicio = (ev.event_time ?? "").toString().slice(0, 5);
 
         vars = {
           ...vars,
@@ -691,7 +830,19 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
           descricao_pacote: ev.packages?.description ?? "",
           cardapio: ev.packages?.name ?? "—",
           descricao_cardapio: ev.packages?.description ?? "",
+          tipo_festa: evTipo,
+          endereco_evento: ev.event_address ?? "",
+          hora_inicio: evHoraInicio,
+          hora_fim: extraFields.hora_fim || addHoursToTime(evHoraInicio, 4),
+          quantidade_adultos: String(evAdults),
+          quantidade_criancas: String(evKids710 + evKids06),
+          faixa_etaria_criancas: describeKids(evKids710, evKids06),
+          itens_inclusos: evInclusos,
+          valor_adulto_extra: brl(evPpp),
+          valor_crianca_extra: brl(evChildPrice),
+          valor_extras: brl(evCustomTotal),
         };
+
       } else {
         if (clientId) {
           const cli = (clients ?? []).find((c: any) => c.id === clientId);
@@ -834,6 +985,53 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
             </p>
           )}
         </div>
+
+        <div className="rounded-xl border border-border">
+          <button
+            type="button"
+            onClick={() => setShowExtras((v) => !v)}
+            className="w-full h-10 px-3 flex items-center justify-between text-xs font-bold"
+          >
+            Dados complementares do contrato
+            <span className="text-muted-foreground">{showExtras ? "−" : "+"}</span>
+          </button>
+          {showExtras && (
+            <div className="p-3 pt-0 grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {(
+                [
+                  ["rg_cliente", "RG do cliente"],
+                  ["nome_aniversariante", "Nome do aniversariante"],
+                  ["idade_aniversariante", "Idade do aniversariante"],
+                  ["tema_festa", "Tema da festa"],
+                  ["hora_fim", "Hora de término (ex.: 22:00)"],
+                  ["quantidade_mesas", "Quantidade de mesas"],
+                  ["toalhas", "Toalhas"],
+                  ["quantidade_adultos_extras", "Adultos extras"],
+                  ["quantidade_criancas_extras", "Crianças extras"],
+                  ["tolerancia_horario", "Tolerância de horário"],
+                  ["valor_hora_excedente", "Valor da hora excedente"],
+                  ["valor_funcionario_excedente", "Valor do funcionário excedente"],
+                  ["cidade_contrato", "Cidade do contrato"],
+                  ["foro", "Foro"],
+                ] as [string, string][]
+              ).map(([key, label]) => (
+                <input
+                  key={key}
+                  placeholder={label}
+                  value={extraFields[key] ?? ""}
+                  onChange={(e) => setExtra(key, e.target.value)}
+                  className="h-9 px-2 border border-border rounded-lg bg-background text-xs"
+                />
+              ))}
+              <p className="sm:col-span-2 text-[11px] text-muted-foreground">
+                Os demais dados (adultos, crianças, valores, horários e itens) vêm automaticamente do orçamento
+                selecionado.
+              </p>
+            </div>
+          )}
+        </div>
+
+
 
         <p className="text-[11px] text-muted-foreground">
           {source === "blank"

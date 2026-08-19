@@ -346,9 +346,18 @@ function SettingsPage() {
           {"{endereco_buffet}"}, {"{telefone_buffet}"}, {"{data_evento}"}, {"{hora_evento}"}, {"{local_evento}"},{" "}
           {"{convidados}"}, {"{valor}"}, {"{entrada}"}, {"{saldo}"}, {"{forma_pagamento}"}, {"{dados_pagamento}"},{" "}
           {"{pix}"}, {"{pix_titular}"}, {"{data_hoje}"}, {"{pacote}"}, {"{pacotes}"}, {"{itens_adicionais}"},{" "}
-          {"{acrescimos_adicionais}"}, {"{descricao_pacote}"}, {"{cardapio}"}, {"{descricao_cardapio}"}. O endereço do buffet vem do campo
-          “Endereço” em Dados do buffet.
+          {"{acrescimos_adicionais}"}, {"{descricao_pacote}"}, {"{cardapio}"}, {"{descricao_cardapio}"},{" "}
+          {"{rg_cliente}"}, {"{cnpj_buffet}"}, {"{tipo_festa}"}, {"{nome_aniversariante}"},{" "}
+          {"{idade_aniversariante}"}, {"{hora_inicio}"}, {"{hora_fim}"}, {"{endereco_evento}"}, {"{tema_festa}"},{" "}
+          {"{quantidade_adultos}"}, {"{quantidade_criancas}"}, {"{faixa_etaria_criancas}"}, {"{quantidade_mesas}"},{" "}
+          {"{toalhas}"}, {"{itens_inclusos}"}, {"{valor_adulto_extra}"}, {"{valor_crianca_extra}"},{" "}
+          {"{quantidade_adultos_extras}"}, {"{quantidade_criancas_extras}"}, {"{valor_extras}"},{" "}
+          {"{tolerancia_horario}"}, {"{valor_hora_excedente}"}, {"{valor_funcionario_excedente}"},{" "}
+          {"{cidade_contrato}"}, {"{foro}"}. Os valores e quantidades vêm do orçamento; os campos de política (mesas,
+          toalhas, tolerância, hora/funcionário excedente, foro) são preenchidos ao criar o contrato. O endereço do
+          buffet vem do campo “Endereço” em Dados do buffet.
         </p>
+
 
 
         <textarea
