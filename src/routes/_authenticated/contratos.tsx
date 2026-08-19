@@ -403,6 +403,9 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
   const [title, setTitle] = useState("Contrato de prestação de serviços");
   const [formaPagamento, setFormaPagamento] = useState<"PIX" | "Dados Bancários" | "Dinheiro">("PIX");
   const [savingTpl, setSavingTpl] = useState(false);
+  const [tplDraft, setTplDraft] = useState("");
+  const [tplLoaded, setTplLoaded] = useState(false);
+  const [showTpl, setShowTpl] = useState(false);
 
   const { data: quotes } = useQuery({
     queryKey: ["quotes-closed-for-contract"],
@@ -469,6 +472,33 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
   });
 
   useEffect(() => {
+    if (tplLoaded || settings === undefined) return;
+    setTplDraft((settings?.contract_template ?? "").trim());
+    setTplLoaded(true);
+  }, [settings, tplLoaded]);
+
+  const saveTemplate = async (text: string) => {
+    try {
+      setSavingTpl(true);
+      const { data: u } = await supabase.auth.getUser();
+      if (!u.user) throw new Error("Sem sessão");
+      const { error } = await supabase
+        .from("buffet_settings")
+        .upsert({ owner_id: u.user.id, contract_template: text }, { onConflict: "owner_id" });
+      if (error) throw error;
+      setTplDraft(text);
+      await qc.invalidateQueries({ queryKey: ["buffet-settings"] });
+      toast.success("Modelo salvo como padrão para todos os contratos.");
+    } catch (err: any) {
+      toast.error(err?.message ?? "Não foi possível salvar o modelo");
+    } finally {
+      setSavingTpl(false);
+    }
+  };
+
+
+
+  useEffect(() => {
     if (source !== "quote" || !refId) return;
     const q: any = (quotes ?? []).find((x: any) => x.id === refId);
     const pm = q?.payment_method;
@@ -521,7 +551,7 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
     mutationFn: async () => {
       const { data: u } = await supabase.auth.getUser();
       if (!u.user) throw new Error("Sem sessão");
-      const tpl = (settings?.contract_template ?? "").trim() || DEFAULT_CONTRACT_TEMPLATE;
+      const tpl = tplDraft.trim() || (settings?.contract_template ?? "").trim() || DEFAULT_CONTRACT_TEMPLATE;
 
       const payVars = buildPaymentVars(formaPagamento, settings);
 
@@ -832,38 +862,58 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
           )}
         </div>
 
-        {!(settings?.contract_template ?? "").trim() && (
-          <div className="rounded-lg border border-border bg-muted/40 p-3 space-y-2">
-            <p className="text-[11px] text-muted-foreground">
-              Você ainda não tem um modelo próprio. O contrato será gerado com o <strong>modelo padrão</strong>, já com
-              todas as variáveis (cliente, pacotes, itens adicionais, valores, pagamento) preenchidas pelo orçamento.
+        <div className="rounded-lg border border-border bg-muted/40 p-3 space-y-2">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-[11px] font-bold">
+              {tplDraft.trim() ? "Seu modelo (padrão para todos os contratos)" : "Nenhum modelo próprio — usando modelo padrão"}
             </p>
             <button
               type="button"
-              disabled={savingTpl}
-              onClick={async () => {
-                try {
-                  setSavingTpl(true);
-                  const { data: u } = await supabase.auth.getUser();
-                  if (!u.user) throw new Error("Sem sessão");
-                  const { error } = await supabase
-                    .from("buffet_settings")
-                    .upsert({ owner_id: u.user.id, contract_template: DEFAULT_CONTRACT_TEMPLATE });
-                  if (error) throw error;
-                  qc.invalidateQueries({ queryKey: ["buffet-settings"] });
-                  toast.success("Modelo padrão salvo. Edite quando quiser em Configurações.");
-                } catch (err: any) {
-                  toast.error(err?.message ?? "Não foi possível salvar o modelo");
-                } finally {
-                  setSavingTpl(false);
-                }
-              }}
-              className="h-9 px-3 rounded-lg bg-primary text-primary-foreground text-xs font-bold disabled:opacity-50"
+              onClick={() => setShowTpl((v) => !v)}
+              className="h-8 px-3 rounded-lg border border-border text-[11px] font-bold whitespace-nowrap"
             >
-              {savingTpl ? "Salvando..." : "Salvar modelo padrão nas Configurações"}
+              {showTpl ? "Fechar" : tplDraft.trim() ? "Editar modelo" : "Colar meu modelo"}
             </button>
           </div>
-        )}
+
+          {showTpl && (
+            <div className="space-y-2">
+              <p className="text-[10px] text-muted-foreground leading-relaxed">
+                Cole seu contrato e use as variáveis onde quiser — elas são preenchidas com os dados reais do orçamento:{" "}
+                {"{cliente}"}, {"{cpf_cliente}"}, {"{endereco_cliente}"}, {"{telefone_cliente}"}, {"{buffet}"},{" "}
+                {"{endereco_buffet}"}, {"{telefone_buffet}"}, {"{data_evento}"}, {"{hora_evento}"}, {"{local_evento}"},{" "}
+                {"{convidados}"}, {"{pacotes}"}, {"{itens_adicionais}"}, {"{acrescimos_adicionais}"}, {"{valor}"},{" "}
+                {"{entrada}"}, {"{saldo}"}, {"{forma_pagamento}"}, {"{dados_pagamento}"}, {"{pix}"}, {"{data_hoje}"}.
+              </p>
+              <textarea
+                rows={10}
+                value={tplDraft}
+                onChange={(e) => setTplDraft(e.target.value)}
+                placeholder="Cole aqui o texto do seu contrato com as variáveis..."
+                className="w-full min-h-[200px] p-3 border border-border rounded-lg bg-background font-mono text-[11px]"
+              />
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  disabled={savingTpl || !tplDraft.trim()}
+                  onClick={() => saveTemplate(tplDraft.trim())}
+                  className="h-9 px-3 rounded-lg bg-primary text-primary-foreground text-xs font-bold disabled:opacity-50"
+                >
+                  {savingTpl ? "Salvando..." : "Salvar como meu modelo padrão"}
+                </button>
+                <button
+                  type="button"
+                  disabled={savingTpl}
+                  onClick={() => setTplDraft(DEFAULT_CONTRACT_TEMPLATE)}
+                  className="h-9 px-3 rounded-lg border border-border text-xs font-bold disabled:opacity-50"
+                >
+                  Carregar modelo padrão como base
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
 
         <p className="text-[11px] text-muted-foreground">
           {source === "blank"
