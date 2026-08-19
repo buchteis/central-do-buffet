@@ -394,6 +394,45 @@ function getAdditionsText(
   return list.join("\n");
 }
 
+/** Soma horas a um horário "HH:MM" (usado para estimar a hora de término). */
+function addHoursToTime(time: string, hours: number): string {
+  const m = /^(\d{1,2}):(\d{2})/.exec(String(time ?? ""));
+  if (!m) return "";
+  const total = (Number(m[1]) * 60 + Number(m[2]) + hours * 60) % (24 * 60);
+  const h = Math.floor(total / 60);
+  const min = total % 60;
+  return `${String(h).padStart(2, "0")}:${String(min).padStart(2, "0")}`;
+}
+
+/** Descreve a faixa etária das crianças do orçamento. */
+function describeKids(kids710: number, kids06: number): string {
+  const parts: string[] = [];
+  if (kids710 > 0) parts.push(`${kids710} de 7 a 10 anos`);
+  if (kids06 > 0) parts.push(`${kids06} de 0 a 6 anos`);
+  return parts.length ? parts.join(" e ") : "Nenhuma criança";
+}
+
+/** Lista pacotes + itens unitários contratados, para a variável {itens_inclusos}. */
+function buildIncludedItems(
+  packages: any[],
+  unitItems: any[],
+  fallbackName?: string | null,
+): string {
+  const lines: string[] = [];
+  (packages ?? []).forEach((p: any) => {
+    if (p?.name) lines.push(`• ${p.name}`);
+  });
+  (unitItems ?? []).forEach((i: any) => {
+    const qty = Number(i?.qty ?? 0) || 0;
+    if (!i?.name || qty <= 0) return;
+    lines.push(`• ${i.name} — ${qty} ${i.unit ?? "un"}`);
+  });
+  if (lines.length === 0 && fallbackName) lines.push(`• ${fallbackName}`);
+  return lines.join("\n");
+}
+
+
+
 function NewContractDialog({ onClose }: { onClose: () => void }) {
   const qc = useQueryClient();
   const [source, setSource] = useState<Source>("quote");
