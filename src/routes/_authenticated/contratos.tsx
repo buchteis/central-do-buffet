@@ -402,6 +402,7 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
   const [clientId, setClientId] = useState("");
   const [title, setTitle] = useState("Contrato de prestação de serviços");
   const [formaPagamento, setFormaPagamento] = useState<"PIX" | "Dados Bancários" | "Dinheiro">("PIX");
+  const [savingTpl, setSavingTpl] = useState(false);
 
   const { data: quotes } = useQuery({
     queryKey: ["quotes-closed-for-contract"],
