@@ -888,7 +888,9 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
                 {"{convidados}"}, {"{pacotes}"}, {"{itens_adicionais}"}, {"{acrescimos_adicionais}"}, {"{valor}"},{" "}
                 {"{entrada}"}, {"{saldo}"}, {"{forma_pagamento}"}, {"{dados_pagamento}"}, {"{pix}"}, {"{data_hoje}"}.
               </p>
+              <VariableInserter textareaRef={tplRef} value={tplDraft} onChange={setTplDraft} />
               <textarea
+                ref={tplRef}
                 rows={10}
                 value={tplDraft}
                 onChange={(e) => setTplDraft(e.target.value)}
