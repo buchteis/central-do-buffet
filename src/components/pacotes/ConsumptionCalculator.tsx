@@ -47,6 +47,7 @@ export function ConsumptionCalculator() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [packageId, setPackageId] = useState<string>("");
   const [guests, setGuests] = useState<number>(50);
+  const [eventId, setEventId] = useState<string>("");
   const [edits, setEdits] = useState<Record<string, { per: number; fixed: number }>>({});
 
   const { data: packages } = useQuery({
@@ -60,6 +61,21 @@ export function ConsumptionCalculator() {
         .order("name");
       if (error) throw error;
       return (data ?? []) as { id: string; name: string }[];
+    },
+  });
+
+  const { data: events } = useQuery({
+    queryKey: ["calc-events"],
+    enabled: open,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("events")
+        .select("id, event_date, guest_count, package_id, status, clients(name)")
+        .not("status", "in", "(cancelado,concluido)")
+        .order("event_date", { ascending: true })
+        .limit(60);
+      if (error) throw error;
+      return (data ?? []) as any[];
     },
   });
 
