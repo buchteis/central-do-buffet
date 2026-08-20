@@ -208,17 +208,23 @@ export function ConsumptionCalculator() {
     onSuccess: () => {
       setEdits({});
       setConfirmOpen(false);
-      qc.invalidateQueries({ queryKey: ["calc-rows", activePackageId] });
-      qc.invalidateQueries({ queryKey: ["pkg-products", activePackageId] });
+      qc.invalidateQueries({ queryKey: ["calc-rows"] });
+      for (const pid of activePackageIds) qc.invalidateQueries({ queryKey: ["pkg-products", pid] });
       toast.success("Consumo atualizado no pacote");
     },
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const activePackageNames = useMemo(() => {
+    const byId = new Map((packages ?? []).map((p) => [p.id, p.name]));
+    const fromRows = new Map((rows ?? []).map((r) => [r.package_id, r.package_name]));
+    return activePackageIds.map((id) => fromRows.get(id) ?? byId.get(id) ?? "Pacote");
+  }, [activePackageIds, packages, rows]);
+
   async function gerarRelatorio() {
     const toBuy = computed.filter((r) => r.missing > 0);
     if (toBuy.length === 0) return toast.info("Estoque suficiente para esse número de convidados");
-    const pkgName = (packages ?? []).find((p) => p.id === activePackageId)?.name ?? "Pacote";
+    const pkgLabel = activePackageNames.join(" + ") || "Pacote";
     const ev = (events ?? []).find((x) => x.id === eventId);
     const evLabel = ev
       ? ` · Evento ${new Date(`${ev.event_date}T12:00:00`).toLocaleDateString("pt-BR")} (${ev.clients?.name ?? "Cliente"})`
@@ -226,12 +232,12 @@ export function ConsumptionCalculator() {
     const lines: PurchaseOrderLine[] = toBuy.map((r) => ({
       name: r.name,
       unit: r.unit,
-      category: `${pkgName} · ${guests} conv.${evLabel}`,
+      category: `${pkgLabel} · ${guests} conv.${evLabel}`,
       physical_qty: r.available,
       reserved_qty: 0,
       available: r.available,
-      min_qty: r.needed,
-      target_qty: r.needed,
+      min_qty: r.totalNeeded,
+      target_qty: r.totalNeeded,
       suggested_qty: r.missing,
       unit_price: r.unit_price,
       estimated_total: r.cost,
@@ -243,6 +249,7 @@ export function ConsumptionCalculator() {
       toast.error((e as Error).message);
     }
   }
+
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
