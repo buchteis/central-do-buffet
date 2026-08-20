@@ -371,13 +371,19 @@ export function ConsumptionCalculator() {
               <Button
                 size="sm"
                 variant="outline"
+                className="rounded-full bg-card shadow-md hover:shadow-lg active:shadow-inner active:translate-y-px transition-all"
                 onClick={() => setConfirmOpen(true)}
                 disabled={save.isPending}
               >
                 <Save className="size-3.5 mr-1" /> Confirmar e salvar no pacote ({dirtyRows.length})
               </Button>
             )}
-            <Button size="sm" onClick={gerarRelatorio} disabled={computed.length === 0}>
+            <Button
+              size="sm"
+              className="rounded-full shadow-md hover:shadow-lg active:shadow-inner active:translate-y-px transition-all"
+              onClick={gerarRelatorio}
+              disabled={computed.length === 0}
+            >
               <FileDown className="size-3.5 mr-1" /> Gerar relatório (PDF)
             </Button>
           </div>
