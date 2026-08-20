@@ -28,7 +28,10 @@ import {
 
 type Row = {
   id: string;
+  package_id: string;
+  package_name: string;
   product_id: string;
+
   name: string;
   unit: string;
   qty_per_person: number;
@@ -46,6 +49,7 @@ export function ConsumptionCalculator() {
   const [open, setOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [packageId, setPackageId] = useState<string>("");
+  const [eventPackageIds, setEventPackageIds] = useState<string[]>([]);
   const [guests, setGuests] = useState<number>(50);
   const [eventId, setEventId] = useState<string>("");
   const [edits, setEdits] = useState<Record<string, { per: number; fixed: number }>>({});
@@ -70,7 +74,9 @@ export function ConsumptionCalculator() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("events")
-        .select("id, event_date, guest_count, package_id, status, clients(name)")
+        .select(
+          "id, event_date, guest_count, package_id, quote_id, status, clients(name), quotes(id, package_id, extras, adults, children_7_10, children_0_6)",
+        )
         .not("status", "in", "(cancelado,concluido)")
         .order("event_date", { ascending: true })
         .limit(60);
@@ -79,25 +85,32 @@ export function ConsumptionCalculator() {
     },
   });
 
-  const activePackageId = packageId || packages?.[0]?.id || "";
+  // Pacotes considerados: todos os do orçamento do evento, ou o pacote escolhido na simulação livre.
+  const activePackageIds = useMemo(() => {
+    if (eventPackageIds.length > 0) return eventPackageIds;
+    const single = packageId || packages?.[0]?.id || "";
+    return single ? [single] : [];
+  }, [eventPackageIds, packageId, packages]);
+  const activePackageId = activePackageIds[0] ?? "";
 
   const { data: rows, isFetching } = useQuery({
-    queryKey: ["calc-rows", activePackageId],
-    enabled: open && !!activePackageId,
+    queryKey: ["calc-rows", activePackageIds.join(",")],
+    enabled: open && activePackageIds.length > 0,
     queryFn: async () => {
-      const [{ data: items, error }, { data: moves }] = await Promise.all([
+      const [{ data: items, error }, { data: moves }, { data: pkgs }] = await Promise.all([
         (supabase as any)
           .from("package_products")
           .select(
-            "id, product_id, qty_per_person, qty_fixed, stock_products(name, unit, physical_qty, reserved_qty)",
+            "id, package_id, product_id, qty_per_person, qty_fixed, stock_products(name, unit, physical_qty, reserved_qty)",
           )
-          .eq("package_id", activePackageId),
+          .in("package_id", activePackageIds),
         (supabase as any)
           .from("stock_movements")
           .select("product_id, unit_price, created_at")
           .not("unit_price", "is", null)
           .order("created_at", { ascending: false })
           .limit(500),
+        (supabase as any).from("packages").select("id, name").in("id", activePackageIds),
       ]);
       if (error) throw error;
 
@@ -105,10 +118,15 @@ export function ConsumptionCalculator() {
       for (const m of (moves ?? []) as any[]) {
         if (!lastPrice.has(m.product_id)) lastPrice.set(m.product_id, Number(m.unit_price) || 0);
       }
+      const pkgName = new Map<string, string>(
+        ((pkgs ?? []) as any[]).map((p) => [p.id, p.name as string]),
+      );
 
       return ((items ?? []) as any[])
         .map((i) => ({
           id: i.id,
+          package_id: i.package_id,
+          package_name: pkgName.get(i.package_id) ?? "Pacote",
           product_id: i.product_id,
           name: i.stock_products?.name ?? "Produto",
           unit: i.stock_products?.unit ?? "un",
@@ -119,7 +137,9 @@ export function ConsumptionCalculator() {
             (Number(i.stock_products?.reserved_qty) || 0),
           unit_price: lastPrice.has(i.product_id) ? lastPrice.get(i.product_id)! : null,
         }))
-        .sort((a, b) => a.name.localeCompare(b.name)) as Row[];
+        .sort(
+          (a, b) => a.name.localeCompare(b.name) || a.package_name.localeCompare(b.package_name),
+        ) as Row[];
     },
   });
 
@@ -137,26 +157,43 @@ export function ConsumptionCalculator() {
 
   const computed = useMemo(() => {
     const g = Math.max(0, Number(guests) || 0);
-    return (rows ?? []).map((r) => {
+    const base = (rows ?? []).map((r) => {
       const e = edits[r.id];
       const per = e ? e.per : r.qty_per_person;
       const fixed = e ? e.fixed : r.qty_fixed;
-      const needed = n2(per * g + fixed);
-      const missing = Math.max(0, n2(needed - r.available));
       return {
         ...r,
         per,
         fixed,
-        needed,
+        needed: n2(per * g + fixed),
+        dirty: !!e && (per !== r.qty_per_person || fixed !== r.qty_fixed),
+      };
+    });
+
+    // Necessidade total por produto (soma de todos os pacotes do evento).
+    const totalByProduct = new Map<string, number>();
+    for (const r of base)
+      totalByProduct.set(r.product_id, n2((totalByProduct.get(r.product_id) ?? 0) + r.needed));
+
+    const seen = new Set<string>();
+    return base.map((r) => {
+      const totalNeeded = totalByProduct.get(r.product_id) ?? r.needed;
+      const first = !seen.has(r.product_id);
+      seen.add(r.product_id);
+      const missing = first ? Math.max(0, n2(totalNeeded - r.available)) : 0;
+      return {
+        ...r,
+        totalNeeded,
+        firstOfProduct: first,
         missing,
         cost: r.unit_price != null ? r.unit_price * missing : 0,
-        dirty: !!e && (per !== r.qty_per_person || fixed !== r.qty_fixed),
       };
     });
   }, [rows, edits, guests]);
 
   const totalCost = computed.reduce((s, r) => s + r.cost, 0);
   const dirtyRows = computed.filter((r) => r.dirty);
+
 
   const save = useMutation({
     mutationFn: async () => {
@@ -171,17 +208,23 @@ export function ConsumptionCalculator() {
     onSuccess: () => {
       setEdits({});
       setConfirmOpen(false);
-      qc.invalidateQueries({ queryKey: ["calc-rows", activePackageId] });
-      qc.invalidateQueries({ queryKey: ["pkg-products", activePackageId] });
+      qc.invalidateQueries({ queryKey: ["calc-rows"] });
+      for (const pid of activePackageIds) qc.invalidateQueries({ queryKey: ["pkg-products", pid] });
       toast.success("Consumo atualizado no pacote");
     },
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const activePackageNames = useMemo(() => {
+    const byId = new Map((packages ?? []).map((p) => [p.id, p.name]));
+    const fromRows = new Map((rows ?? []).map((r) => [r.package_id, r.package_name]));
+    return activePackageIds.map((id) => fromRows.get(id) ?? byId.get(id) ?? "Pacote");
+  }, [activePackageIds, packages, rows]);
+
   async function gerarRelatorio() {
     const toBuy = computed.filter((r) => r.missing > 0);
     if (toBuy.length === 0) return toast.info("Estoque suficiente para esse número de convidados");
-    const pkgName = (packages ?? []).find((p) => p.id === activePackageId)?.name ?? "Pacote";
+    const pkgLabel = activePackageNames.join(" + ") || "Pacote";
     const ev = (events ?? []).find((x) => x.id === eventId);
     const evLabel = ev
       ? ` · Evento ${new Date(`${ev.event_date}T12:00:00`).toLocaleDateString("pt-BR")} (${ev.clients?.name ?? "Cliente"})`
@@ -189,12 +232,12 @@ export function ConsumptionCalculator() {
     const lines: PurchaseOrderLine[] = toBuy.map((r) => ({
       name: r.name,
       unit: r.unit,
-      category: `${pkgName} · ${guests} conv.${evLabel}`,
+      category: `${pkgLabel} · ${guests} conv.${evLabel}`,
       physical_qty: r.available,
       reserved_qty: 0,
       available: r.available,
-      min_qty: r.needed,
-      target_qty: r.needed,
+      min_qty: r.totalNeeded,
+      target_qty: r.totalNeeded,
       suggested_qty: r.missing,
       unit_price: r.unit_price,
       estimated_total: r.cost,
@@ -206,6 +249,7 @@ export function ConsumptionCalculator() {
       toast.error((e as Error).message);
     }
   }
+
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -233,11 +277,32 @@ export function ConsumptionCalculator() {
                 const id = e.target.value;
                 setEventId(id);
                 setEdits({});
-                const ev = (events ?? []).find((x) => x.id === id);
-                if (ev) {
-                  if (ev.package_id) setPackageId(ev.package_id);
-                  if (ev.guest_count) setGuests(Number(ev.guest_count) || 0);
+                if (!id) {
+                  setEventPackageIds([]);
+                  return;
                 }
+                const ev = (events ?? []).find((x) => x.id === id);
+                if (!ev) return;
+                const q = ev.quotes as any;
+                // Lê o orçamento do cliente: todos os pacotes (extras.packages), com fallbacks.
+                const snap = Array.isArray(q?.extras?.packages) ? q.extras.packages : [];
+                const ids = Array.from(
+                  new Set(
+                    [
+                      ...snap.map((p: any) => p?.package_id).filter(Boolean),
+                      q?.package_id,
+                      ev.package_id,
+                    ].filter(Boolean) as string[],
+                  ),
+                );
+                setEventPackageIds(ids);
+                if (ids[0]) setPackageId(ids[0]);
+                const quoteGuests =
+                  (Number(q?.adults) || 0) +
+                  (Number(q?.children_7_10) || 0) +
+                  (Number(q?.children_0_6) || 0);
+                const g = quoteGuests || Number(ev.guest_count) || 0;
+                if (g) setGuests(g);
               }}
             >
               <option value="">Simulação livre</option>
@@ -251,20 +316,33 @@ export function ConsumptionCalculator() {
           </div>
           <div className="space-y-1.5">
             <Label className="text-xs">Pacote</Label>
-            <select
-              className="w-full h-10 px-3 rounded-md border border-input bg-card text-sm shadow-sm"
-              value={activePackageId}
-              onChange={(e) => {
-                setPackageId(e.target.value);
-                setEdits({});
-              }}
-            >
-              {(packages ?? []).map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
+            {eventPackageIds.length > 0 ? (
+              <div className="min-h-10 rounded-md border border-input bg-card px-2 py-1.5 shadow-sm flex flex-wrap gap-1 items-center">
+                {activePackageNames.map((nm, i) => (
+                  <span
+                    key={`${nm}-${i}`}
+                    className="rounded-full bg-accent px-2 py-0.5 text-[10px] font-bold"
+                  >
+                    {nm}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <select
+                className="w-full h-10 px-3 rounded-md border border-input bg-card text-sm shadow-sm"
+                value={activePackageId}
+                onChange={(e) => {
+                  setPackageId(e.target.value);
+                  setEdits({});
+                }}
+              >
+                {(packages ?? []).map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
           <div className="space-y-1.5">
             <Label className="text-xs">Convidados</Label>
@@ -277,6 +355,7 @@ export function ConsumptionCalculator() {
             />
           </div>
         </div>
+
 
         <div className="max-h-[45vh] overflow-y-auto -mx-1 px-1">
           {isFetching ? (
