@@ -47,6 +47,7 @@ export function ConsumptionCalculator() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [packageId, setPackageId] = useState<string>("");
   const [guests, setGuests] = useState<number>(50);
+  const [eventId, setEventId] = useState<string>("");
   const [edits, setEdits] = useState<Record<string, { per: number; fixed: number }>>({});
 
   const { data: packages } = useQuery({
@@ -60,6 +61,21 @@ export function ConsumptionCalculator() {
         .order("name");
       if (error) throw error;
       return (data ?? []) as { id: string; name: string }[];
+    },
+  });
+
+  const { data: events } = useQuery({
+    queryKey: ["calc-events"],
+    enabled: open,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("events")
+        .select("id, event_date, guest_count, package_id, status, clients(name)")
+        .not("status", "in", "(cancelado,concluido)")
+        .order("event_date", { ascending: true })
+        .limit(60);
+      if (error) throw error;
+      return (data ?? []) as any[];
     },
   });
 
@@ -166,10 +182,14 @@ export function ConsumptionCalculator() {
     const toBuy = computed.filter((r) => r.missing > 0);
     if (toBuy.length === 0) return toast.info("Estoque suficiente para esse número de convidados");
     const pkgName = (packages ?? []).find((p) => p.id === activePackageId)?.name ?? "Pacote";
+    const ev = (events ?? []).find((x) => x.id === eventId);
+    const evLabel = ev
+      ? ` · Evento ${new Date(`${ev.event_date}T12:00:00`).toLocaleDateString("pt-BR")} (${ev.clients?.name ?? "Cliente"})`
+      : "";
     const lines: PurchaseOrderLine[] = toBuy.map((r) => ({
       name: r.name,
       unit: r.unit,
-      category: `${pkgName} · ${guests} conv.`,
+      category: `${pkgName} · ${guests} conv.${evLabel}`,
       physical_qty: r.available,
       reserved_qty: 0,
       available: r.available,
@@ -190,20 +210,49 @@ export function ConsumptionCalculator() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="rounded-full text-xs font-bold">
+        <Button
+          variant="outline"
+          size="sm"
+          className="rounded-full text-xs font-bold shadow-md hover:shadow-lg active:shadow-inner transition-all"
+        >
           <Calculator className="size-4 mr-1" /> Calculadora de consumo
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-3xl">
+      <DialogContent className="max-w-3xl bg-surface">
         <DialogHeader>
           <DialogTitle>Calculadora de produtos consumidos</DialogTitle>
         </DialogHeader>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 rounded-xl bg-accent/40 p-3 shadow-sm">
+          <div className="space-y-1.5">
+            <Label className="text-xs">Evento (opcional)</Label>
+            <select
+              className="w-full h-10 px-3 rounded-md border border-input bg-card text-sm shadow-sm"
+              value={eventId}
+              onChange={(e) => {
+                const id = e.target.value;
+                setEventId(id);
+                setEdits({});
+                const ev = (events ?? []).find((x) => x.id === id);
+                if (ev) {
+                  if (ev.package_id) setPackageId(ev.package_id);
+                  if (ev.guest_count) setGuests(Number(ev.guest_count) || 0);
+                }
+              }}
+            >
+              <option value="">Simulação livre</option>
+              {(events ?? []).map((ev) => (
+                <option key={ev.id} value={ev.id}>
+                  {new Date(`${ev.event_date}T12:00:00`).toLocaleDateString("pt-BR")} ·{" "}
+                  {ev.clients?.name ?? "Cliente"} ({ev.guest_count ?? 0} conv.)
+                </option>
+              ))}
+            </select>
+          </div>
           <div className="space-y-1.5">
             <Label className="text-xs">Pacote</Label>
             <select
-              className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm"
+              className="w-full h-10 px-3 rounded-md border border-input bg-card text-sm shadow-sm"
               value={activePackageId}
               onChange={(e) => {
                 setPackageId(e.target.value);
@@ -222,6 +271,7 @@ export function ConsumptionCalculator() {
             <Input
               type="number"
               min={0}
+              className="bg-card shadow-sm"
               value={guests}
               onChange={(e) => setGuests(Number(e.target.value) || 0)}
             />
@@ -321,13 +371,19 @@ export function ConsumptionCalculator() {
               <Button
                 size="sm"
                 variant="outline"
+                className="rounded-full bg-card shadow-md hover:shadow-lg active:shadow-inner active:translate-y-px transition-all"
                 onClick={() => setConfirmOpen(true)}
                 disabled={save.isPending}
               >
                 <Save className="size-3.5 mr-1" /> Confirmar e salvar no pacote ({dirtyRows.length})
               </Button>
             )}
-            <Button size="sm" onClick={gerarRelatorio} disabled={computed.length === 0}>
+            <Button
+              size="sm"
+              className="rounded-full shadow-md hover:shadow-lg active:shadow-inner active:translate-y-px transition-all"
+              onClick={gerarRelatorio}
+              disabled={computed.length === 0}
+            >
               <FileDown className="size-3.5 mr-1" /> Gerar relatório (PDF)
             </Button>
           </div>
