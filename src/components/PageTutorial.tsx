@@ -143,12 +143,12 @@ function baseKey(pathname: string) {
 export function PageTutorial({ pathname }: { pathname: string }) {
   const { data: access } = useTenantAccess();
   const route = baseKey(pathname);
-  const storageKey =
-    route && access?.userId ? `cdb_tutorial_v1:${access.userId}:${route}` : null;
+  // O tutorial aparece apenas uma única vez por usuário, logo após o registro/primeiro acesso.
+  const storageKey = access?.userId ? `cdb_tutorial_v1:${access.userId}:done` : null;
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    if (!storageKey) {
+    if (!storageKey || !route) {
       setVisible(false);
       return;
     }
@@ -157,7 +157,7 @@ export function PageTutorial({ pathname }: { pathname: string }) {
     } catch {
       setVisible(false);
     }
-  }, [storageKey]);
+  }, [storageKey, route]);
 
   if (!visible || !route || !storageKey) return null;
   const tip = TIPS[route]!;
