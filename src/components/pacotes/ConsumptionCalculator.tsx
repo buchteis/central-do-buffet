@@ -28,7 +28,10 @@ import {
 
 type Row = {
   id: string;
+  package_id: string;
+  package_name: string;
   product_id: string;
+
   name: string;
   unit: string;
   qty_per_person: number;
