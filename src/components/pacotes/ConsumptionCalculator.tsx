@@ -277,11 +277,32 @@ export function ConsumptionCalculator() {
                 const id = e.target.value;
                 setEventId(id);
                 setEdits({});
-                const ev = (events ?? []).find((x) => x.id === id);
-                if (ev) {
-                  if (ev.package_id) setPackageId(ev.package_id);
-                  if (ev.guest_count) setGuests(Number(ev.guest_count) || 0);
+                if (!id) {
+                  setEventPackageIds([]);
+                  return;
                 }
+                const ev = (events ?? []).find((x) => x.id === id);
+                if (!ev) return;
+                const q = ev.quotes as any;
+                // Lê o orçamento do cliente: todos os pacotes (extras.packages), com fallbacks.
+                const snap = Array.isArray(q?.extras?.packages) ? q.extras.packages : [];
+                const ids = Array.from(
+                  new Set(
+                    [
+                      ...snap.map((p: any) => p?.package_id).filter(Boolean),
+                      q?.package_id,
+                      ev.package_id,
+                    ].filter(Boolean) as string[],
+                  ),
+                );
+                setEventPackageIds(ids);
+                if (ids[0]) setPackageId(ids[0]);
+                const quoteGuests =
+                  (Number(q?.adults) || 0) +
+                  (Number(q?.children_7_10) || 0) +
+                  (Number(q?.children_0_6) || 0);
+                const g = quoteGuests || Number(ev.guest_count) || 0;
+                if (g) setGuests(g);
               }}
             >
               <option value="">Simulação livre</option>
@@ -295,20 +316,33 @@ export function ConsumptionCalculator() {
           </div>
           <div className="space-y-1.5">
             <Label className="text-xs">Pacote</Label>
-            <select
-              className="w-full h-10 px-3 rounded-md border border-input bg-card text-sm shadow-sm"
-              value={activePackageId}
-              onChange={(e) => {
-                setPackageId(e.target.value);
-                setEdits({});
-              }}
-            >
-              {(packages ?? []).map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
+            {eventPackageIds.length > 0 ? (
+              <div className="min-h-10 rounded-md border border-input bg-card px-2 py-1.5 shadow-sm flex flex-wrap gap-1 items-center">
+                {activePackageNames.map((nm, i) => (
+                  <span
+                    key={`${nm}-${i}`}
+                    className="rounded-full bg-accent px-2 py-0.5 text-[10px] font-bold"
+                  >
+                    {nm}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <select
+                className="w-full h-10 px-3 rounded-md border border-input bg-card text-sm shadow-sm"
+                value={activePackageId}
+                onChange={(e) => {
+                  setPackageId(e.target.value);
+                  setEdits({});
+                }}
+              >
+                {(packages ?? []).map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
           <div className="space-y-1.5">
             <Label className="text-xs">Convidados</Label>
@@ -321,6 +355,7 @@ export function ConsumptionCalculator() {
             />
           </div>
         </div>
+
 
         <div className="max-h-[45vh] overflow-y-auto -mx-1 px-1">
           {isFetching ? (
