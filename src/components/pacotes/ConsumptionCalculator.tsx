@@ -182,10 +182,14 @@ export function ConsumptionCalculator() {
     const toBuy = computed.filter((r) => r.missing > 0);
     if (toBuy.length === 0) return toast.info("Estoque suficiente para esse número de convidados");
     const pkgName = (packages ?? []).find((p) => p.id === activePackageId)?.name ?? "Pacote";
+    const ev = (events ?? []).find((x) => x.id === eventId);
+    const evLabel = ev
+      ? ` · Evento ${new Date(`${ev.event_date}T12:00:00`).toLocaleDateString("pt-BR")} (${ev.clients?.name ?? "Cliente"})`
+      : "";
     const lines: PurchaseOrderLine[] = toBuy.map((r) => ({
       name: r.name,
       unit: r.unit,
-      category: `${pkgName} · ${guests} conv.`,
+      category: `${pkgName} · ${guests} conv.${evLabel}`,
       physical_qty: r.available,
       reserved_qty: 0,
       available: r.available,
