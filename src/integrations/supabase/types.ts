@@ -1592,6 +1592,47 @@ export type Database = {
           },
         ]
       }
+      tenant_logins: {
+        Row: {
+          created_at: string
+          device: string
+          last_login_at: string
+          login_count: number
+          tenant_id: string | null
+          updated_at: string
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          device?: string
+          last_login_at?: string
+          login_count?: number
+          tenant_id?: string | null
+          updated_at?: string
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          device?: string
+          last_login_at?: string
+          login_count?: number
+          tenant_id?: string | null
+          updated_at?: string
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tenant_logins_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tenants: {
         Row: {
           approved_at: string | null

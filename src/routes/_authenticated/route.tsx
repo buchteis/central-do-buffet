@@ -1,4 +1,6 @@
 import { createFileRoute, Outlet, redirect, useNavigate } from "@tanstack/react-router";
+import { useEffect } from "react";
+import { recordLogin } from "@/lib/login-tracking";
 import { supabase } from "@/integrations/supabase/client";
 import { AppShell } from "@/components/AppShell";
 import { useTenantAccess } from "@/hooks/useTenantAccess";
@@ -21,6 +23,13 @@ export const Route = createFileRoute("/_authenticated")({
 function AuthenticatedLayout() {
   const { data: access, isLoading } = useTenantAccess();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (access?.userId) {
+      void recordLogin(access.userId, access.tenant?.id ?? null);
+    }
+  }, [access?.userId, access?.tenant?.id]);
+
 
   if (isLoading || !access) {
     return (
