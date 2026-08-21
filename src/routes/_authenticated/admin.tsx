@@ -21,7 +21,7 @@ const statusStyles: Record<string, string> = {
   suspenso: "bg-muted text-muted-foreground",
 };
 
-type Tab = "buffets" | "usuarios";
+type Tab = "buffets" | "usuarios" | "acessos";
 
 function AdminPage() {
   const { data: access, isLoading } = useTenantAccess();
