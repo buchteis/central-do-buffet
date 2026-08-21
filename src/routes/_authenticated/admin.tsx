@@ -122,6 +122,8 @@ function AdminPage() {
       )}
 
       {tab === "usuarios" && <UsersTab currentUserId={access.userId} />}
+
+      {tab === "acessos" && <AccessTab />}
     </div>
   );
 }
