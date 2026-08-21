@@ -7,7 +7,19 @@ import { formatDateBR } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Check, Pause, Play, Shield, ShieldCheck, ShieldOff, UserCog, X } from "lucide-react";
+import {
+  Check,
+  Monitor,
+  Pause,
+  Play,
+  Shield,
+  ShieldCheck,
+  ShieldOff,
+  Smartphone,
+  Tablet,
+  UserCog,
+  X,
+} from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   head: () => ({ meta: [{ title: "Super Admin — Central do Buffet" }] }),
