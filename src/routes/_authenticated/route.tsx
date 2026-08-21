@@ -22,6 +22,13 @@ function AuthenticatedLayout() {
   const { data: access, isLoading } = useTenantAccess();
   const navigate = useNavigate();
 
+  useEffect(() => {
+    if (access?.userId) {
+      void recordLogin(access.userId, access.tenant?.id ?? null);
+    }
+  }, [access?.userId, access?.tenant?.id]);
+
+
   if (isLoading || !access) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
