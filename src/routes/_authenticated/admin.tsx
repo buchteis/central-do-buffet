@@ -95,6 +95,9 @@ function AdminPage() {
         <TabButton active={tab === "usuarios"} onClick={() => setTab("usuarios")} icon={UserCog}>
           Usuários & Permissões
         </TabButton>
+        <TabButton active={tab === "acessos"} onClick={() => setTab("acessos")} icon={Monitor}>
+          Acessos & Dispositivos
+        </TabButton>
       </div>
 
       {tab === "buffets" && (
