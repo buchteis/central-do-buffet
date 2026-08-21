@@ -428,3 +428,171 @@ function Kpi({ label, value, tone }: { label: string; value: number; tone?: "war
     </div>
   );
 }
+
+function formatDateTimeBR(v?: string | null) {
+  if (!v) return "—";
+  return new Date(v).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
+}
+
+function relativeBR(v?: string | null) {
+  if (!v) return "";
+  const diff = Date.now() - new Date(v).getTime();
+  const min = Math.floor(diff / 60000);
+  if (min < 1) return "agora";
+  if (min < 60) return `há ${min} min`;
+  const h = Math.floor(min / 60);
+  if (h < 24) return `há ${h} h`;
+  const d = Math.floor(h / 24);
+  return `há ${d} dia(s)`;
+}
+
+function DeviceBadge({ device }: { device: string }) {
+  const Icon = device === "celular" ? Smartphone : device === "tablet" ? Tablet : Monitor;
+  const label = device === "celular" ? "Celular" : device === "tablet" ? "Tablet" : device === "computador" ? "Computador" : "Desconhecido";
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider",
+        device === "celular"
+          ? "bg-primary/15 text-primary"
+          : device === "tablet"
+            ? "bg-warning/20 text-warning-foreground"
+            : "bg-muted text-foreground",
+      )}
+    >
+      <Icon className="size-3" />
+      {label}
+    </span>
+  );
+}
+
+function AccessTab() {
+  const { data, isLoading } = useQuery({
+    queryKey: ["admin-access-logins"],
+    refetchInterval: 60_000,
+    queryFn: async () => {
+      const [{ data: logins, error }, { data: tenants }, { data: profiles }] = await Promise.all([
+        supabase.from("tenant_logins").select("*").order("last_login_at", { ascending: false }),
+        supabase.from("tenants").select("id, owner_id, name, slug, status"),
+        supabase.from("profiles").select("id, full_name, business_name"),
+      ]);
+      if (error) throw error;
+      const tenantByOwner = new Map<string, any>();
+      (tenants ?? []).forEach((t: any) => tenantByOwner.set(t.owner_id, t));
+      const profileById = new Map<string, any>();
+      (profiles ?? []).forEach((p: any) => profileById.set(p.id, p));
+
+      const rows = (logins ?? []).map((l: any) => ({
+        ...l,
+        tenant: tenantByOwner.get(l.user_id),
+        profile: profileById.get(l.user_id),
+      }));
+      const loggedIds = new Set(rows.map((r: any) => r.user_id));
+      const never = (tenants ?? [])
+        .filter((t: any) => !loggedIds.has(t.owner_id))
+        .map((t: any) => ({
+          user_id: t.owner_id,
+          tenant: t,
+          profile: profileById.get(t.owner_id),
+          last_login_at: null,
+          device: "desconhecido",
+          login_count: 0,
+        }));
+      return [...rows, ...never];
+    },
+  });
+
+  if (isLoading) return <div className="p-10 text-center text-sm">Carregando acessos…</div>;
+
+  const rows = data ?? [];
+  const online = rows.filter(
+    (r: any) => r.last_login_at && Date.now() - new Date(r.last_login_at).getTime() < 15 * 60 * 1000,
+  );
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <Kpi label="Ativos agora (15 min)" value={online.length} />
+        <Kpi label="Pelo celular" value={rows.filter((r: any) => r.device === "celular").length} />
+        <Kpi label="Pelo computador" value={rows.filter((r: any) => r.device === "computador").length} />
+        <Kpi label="Nunca acessaram" value={rows.filter((r: any) => !r.last_login_at).length} />
+      </div>
+
+      <section className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
+        <div className="p-5 border-b border-border">
+          <h2 className="font-extrabold text-lg tracking-tight">Acessos & Dispositivos</h2>
+          <p className="text-xs text-muted-foreground mt-1">
+            Visível apenas para administradores da plataforma. Mostra qual buffet acessou, por qual
+            dispositivo e quando foi o último login.
+          </p>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left">
+            <thead>
+              <tr className="text-[10px] uppercase tracking-widest text-muted-foreground border-b border-border bg-muted/30">
+                <th className="px-5 py-3 font-bold">Buffet / Usuário</th>
+                <th className="px-4 py-3 font-bold">Dispositivo</th>
+                <th className="px-4 py-3 font-bold">Último login</th>
+                <th className="px-4 py-3 font-bold">Acessos</th>
+                <th className="px-4 py-3 font-bold">Status</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {rows.map((r: any) => {
+                const isOnline =
+                  r.last_login_at && Date.now() - new Date(r.last_login_at).getTime() < 15 * 60 * 1000;
+                return (
+                  <tr key={r.user_id} className="hover:bg-muted/30">
+                    <td className="px-5 py-4">
+                      <div className="text-sm font-semibold">
+                        {r.tenant?.name ?? r.profile?.business_name ?? "—"}
+                      </div>
+                      <div className="text-[11px] text-muted-foreground">
+                        {r.profile?.full_name ?? "—"}
+                        {r.tenant?.slug ? ` · /${r.tenant.slug}` : ""}
+                      </div>
+                    </td>
+                    <td className="px-4 py-4">
+                      <DeviceBadge device={r.device} />
+                      {r.user_agent && (
+                        <div
+                          className="text-[10px] text-muted-foreground mt-1 max-w-[240px] truncate"
+                          title={r.user_agent}
+                        >
+                          {r.user_agent}
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-4 py-4">
+                      <div className="text-xs font-mono">{formatDateTimeBR(r.last_login_at)}</div>
+                      <div className="text-[10px] text-muted-foreground">{relativeBR(r.last_login_at)}</div>
+                    </td>
+                    <td className="px-4 py-4 text-xs font-bold">{r.login_count ?? 0}</td>
+                    <td className="px-4 py-4">
+                      {isOnline ? (
+                        <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-success/10 text-success">
+                          <span className="size-1.5 rounded-full bg-success animate-pulse" /> Logado
+                        </span>
+                      ) : (
+                        <span className="px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-muted text-muted-foreground">
+                          {r.last_login_at ? "Offline" : "Sem acesso"}
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+              {rows.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="p-10 text-center text-xs text-muted-foreground">
+                    Nenhum acesso registrado ainda
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  );
+}
