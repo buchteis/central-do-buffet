@@ -1,4 +1,6 @@
 import { createFileRoute, Outlet, redirect, useNavigate } from "@tanstack/react-router";
+import { useEffect } from "react";
+import { recordLogin } from "@/lib/login-tracking";
 import { supabase } from "@/integrations/supabase/client";
 import { AppShell } from "@/components/AppShell";
 import { useTenantAccess } from "@/hooks/useTenantAccess";
