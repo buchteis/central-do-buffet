@@ -5,8 +5,13 @@ const saveMutation = useMutation({
         throw new Error("Selecione ao menos um pacote");
       }
 
-      // Payload limpo contendo apenas as colunas padrão existentes no banco
+      // 1. Obtém o usuário autenticado no Supabase
+      const { data: userRes } = await supabase.auth.getUser();
+      if (!userRes.user) throw new Error("Sessão expirada. Faça login novamente.");
+
+      // 2. Inclui o owner_id para liberar o acesso pelas regras de RLS
       const payload = {
+        owner_id: userRes.user.id,
         client_id: clientId || null,
         package_id: validPackageIds[0],
         event_date: eventDate,
@@ -18,8 +23,8 @@ const saveMutation = useMutation({
         notes: notes || null,
         extras: {
           package_ids: validPackageIds,
-          children_count: childrenCount, // Guardado dentro do extras
-          child_price: childrenPrice,     // Guardado dentro do extras
+          children_count: childrenCount,
+          child_price: childrenPrice,
         },
       };
 
