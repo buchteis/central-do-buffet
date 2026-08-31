@@ -30,6 +30,7 @@ export const Route = createFileRoute("/_authenticated/pacotes")({
 const schema = z.object({
   name: z.string().trim().min(2).max(80),
   description: z.string().trim().max(500).optional(),
+  pricing_type: z.enum(["per_person", "fixed"]),
 });
 
 type Pack = {
@@ -37,6 +38,7 @@ type Pack = {
   name: string;
   description: string | null;
   active: boolean;
+  pricing_type: "per_person" | "fixed";
 };
 
 type Tier = {
@@ -45,6 +47,7 @@ type Tier = {
   min_guests: number;
   max_guests: number;
   price_per_person: number;
+  price_fixed: number;
   position: number;
 };
 
@@ -152,6 +155,7 @@ function PackagesPage() {
     const parsed = schema.safeParse({
       name: f.get("name"),
       description: f.get("description") || undefined,
+      pricing_type: f.get("pricing_type"),
     });
     if (!parsed.success) return toast.error(parsed.error.issues[0].message);
     save.mutate(parsed.data);
@@ -174,68 +178,81 @@ function PackagesPage() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-        <ConsumptionCalculator />
-        <AdditionalItemsManager />
-        <Dialog
-          open={open}
-          onOpenChange={(o) => {
-            setOpen(o);
-            if (!o) setEditing(null);
-          }}
-        >
-          <DialogTrigger asChild>
-            <Button
-              onClick={openNew}
-              className="rounded-full shadow-lg shadow-primary/20 text-xs font-bold"
-              size="sm"
-            >
-              <Plus className="size-4 mr-1" /> Novo pacote
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>{editing ? "Editar pacote" : "Novo pacote"}</DialogTitle>
-            </DialogHeader>
-            <form onSubmit={onSubmit} className="space-y-4" key={editing?.id ?? "new"}>
-              <div className="space-y-2">
-                <Label>Nome *</Label>
-                <Input
-                  name="name"
-                  required
-                  defaultValue={editing?.name ?? ""}
-                  placeholder="Ex.: Churrasco Premium"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Descrição</Label>
-                <Textarea
-                  name="description"
-                  rows={3}
-                  defaultValue={editing?.description ?? ""}
-                />
-              </div>
-              {editing ? (
-                <>
-                  <PriceTiersEditor packageId={editing.id} />
-                  <PackageProductsEditor packageId={editing.id} />
-                </>
-              ) : (
-                <p className="text-xs text-muted-foreground bg-muted/40 border border-border rounded-lg p-3">
-                  💡 Após criar o pacote, você poderá adicionar as <b>faixas de preço</b> e os
-                  produtos consumidos editando-o.
-                </p>
-              )}
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-                  Cancelar
-                </Button>
-                <Button type="submit" disabled={save.isPending}>
-                  {save.isPending ? "Salvando…" : editing ? "Salvar alterações" : "Criar pacote"}
-                </Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
+          <ConsumptionCalculator />
+          <AdditionalItemsManager />
+          <Dialog
+            open={open}
+            onOpenChange={(o) => {
+              setOpen(o);
+              if (!o) setEditing(null);
+            }}
+          >
+            <DialogTrigger asChild>
+              <Button
+                onClick={openNew}
+                className="rounded-full shadow-lg shadow-primary/20 text-xs font-bold"
+                size="sm"
+              >
+                <Plus className="size-4 mr-1" /> Novo pacote
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>{editing ? "Editar pacote" : "Novo pacote"}</DialogTitle>
+              </DialogHeader>
+              <form onSubmit={onSubmit} className="space-y-4" key={editing?.id ?? "new"}>
+                <div className="space-y-2">
+                  <Label>Nome *</Label>
+                  <Input
+                    name="name"
+                    required
+                    defaultValue={editing?.name ?? ""}
+                    placeholder="Ex.: Churrasco Premium"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Modelo de Cobrança *</Label>
+                  <select
+                    name="pricing_type"
+                    className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm font-medium"
+                    defaultValue={editing?.pricing_type ?? "per_person"}
+                  >
+                    <option value="per_person">Multiplicar por Pessoa (Ex: R$ 80/convidado)</option>
+                    <option value="fixed">Preço Fechado por Faixa (Ex: Até 70 pessoas = R$ 7.000 fixo)</option>
+                  </select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Descrição</Label>
+                  <Textarea
+                    name="description"
+                    rows={3}
+                    defaultValue={editing?.description ?? ""}
+                  />
+                </div>
+                {editing ? (
+                  <>
+                    <PriceTiersEditor pack={editing} />
+                    <PackageProductsEditor packageId={editing.id} />
+                  </>
+                ) : (
+                  <p className="text-xs text-muted-foreground bg-muted/40 border border-border rounded-lg p-3">
+                    💡 Após criar o pacote, você poderá adicionar as <b>faixas de preço</b> e os
+                    produtos consumidos editando-o.
+                  </p>
+                )}
+                <DialogFooter>
+                  <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+                    Cancelar
+                  </Button>
+                  <Button type="submit" disabled={save.isPending}>
+                    {save.isPending ? "Salvando…" : editing ? "Salvar alterações" : "Criar pacote"}
+                  </Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
 
@@ -253,6 +270,7 @@ function PackagesPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {packages!.map((p) => {
             const tiers = tiersByPackage.get(p.id) ?? [];
+            const isFixed = p.pricing_type === "fixed";
             return (
               <div
                 key={p.id}
@@ -265,15 +283,20 @@ function PackagesPage() {
                       {p.description ?? "—"}
                     </p>
                   </div>
-                  <span
-                    className={`px-2 py-0.5 text-[10px] rounded-full font-bold uppercase ${
-                      p.active
-                        ? "bg-success/10 text-success"
-                        : "bg-muted text-muted-foreground"
-                    }`}
-                  >
-                    {p.active ? "Ativo" : "Inativo"}
-                  </span>
+                  <div className="flex flex-col items-end gap-1">
+                    <span
+                      className={`px-2 py-0.5 text-[10px] rounded-full font-bold uppercase ${
+                        p.active
+                          ? "bg-success/10 text-success"
+                          : "bg-muted text-muted-foreground"
+                      }`}
+                    >
+                      {p.active ? "Ativo" : "Inativo"}
+                    </span>
+                    <span className="text-[10px] font-semibold text-muted-foreground bg-muted/60 px-1.5 py-0.5 rounded">
+                      {isFixed ? "Preço Fechado" : "Por Pessoa"}
+                    </span>
+                  </div>
                 </div>
                 <div className="space-y-1">
                   {tiers.length === 0 ? (
@@ -290,7 +313,9 @@ function PackagesPage() {
                           {t.min_guests}–{t.max_guests} conv.
                         </span>
                         <span className="font-mono font-bold text-primary">
-                          {brl(t.price_per_person)}/pessoa
+                          {isFixed
+                            ? `${brl(t.price_fixed ?? 0)} (Total)`
+                            : `${brl(t.price_per_person)}/pessoa`}
                         </span>
                       </div>
                     ))
@@ -332,8 +357,11 @@ function PackagesPage() {
   );
 }
 
-function PriceTiersEditor({ packageId }: { packageId: string }) {
+function PriceTiersEditor({ pack }: { pack: Pack }) {
   const qc = useQueryClient();
+  const packageId = pack.id;
+  const isFixed = pack.pricing_type === "fixed";
+
   const { data: tiers } = useQuery({
     queryKey: ["pkg-tiers", packageId],
     queryFn: async () => {
@@ -366,7 +394,8 @@ function PriceTiersEditor({ packageId }: { packageId: string }) {
         min_guests: nextMin,
         max_guests: nextMin + 30,
         price_per_person: 0,
-        position: (tiers?.length ?? 0),
+        price_fixed: 0,
+        position: tiers?.length ?? 0,
       });
       if (error) throw error;
     },
@@ -402,7 +431,7 @@ function PriceTiersEditor({ packageId }: { packageId: string }) {
     <div className="border-t border-border pt-4 space-y-2">
       <div className="flex items-center justify-between">
         <Label className="text-xs uppercase tracking-widest font-bold text-muted-foreground">
-          Faixas de Preço
+          Faixas de Preço ({isFixed ? "Preço Fechado" : "Por Pessoa"})
         </Label>
         <Button type="button" variant="outline" size="sm" onClick={() => add.mutate()}>
           <Plus className="size-3 mr-1" /> Nova faixa
@@ -444,13 +473,13 @@ function PriceTiersEditor({ packageId }: { packageId: string }) {
                 type="number"
                 step="0.01"
                 min={0}
-                defaultValue={t.price_per_person}
+                defaultValue={isFixed ? t.price_fixed : t.price_per_person}
                 className="h-9 pl-8"
-                placeholder="Valor/pessoa"
+                placeholder={isFixed ? "Valor total fixo" : "Valor/pessoa"}
                 onBlur={(e) =>
                   upd.mutate({
                     id: t.id,
-                    field: "price_per_person",
+                    field: isFixed ? "price_fixed" : "price_per_person",
                     value: Number(e.target.value) || 0,
                   })
                 }
@@ -469,8 +498,9 @@ function PriceTiersEditor({ packageId }: { packageId: string }) {
         ))}
       </div>
       <p className="text-[10px] text-muted-foreground">
-        Ex.: 30–69 conv. = R$ 80/pessoa · 70–119 = R$ 75 · 120–300 = R$ 70. O valor por pessoa é
-        aplicado automaticamente conforme o número de convidados do orçamento.
+        {isFixed
+          ? "Ex.: 1 a 70 conv. = R$ 7.000 total · 71 a 100 conv. = R$ 8.000 total (não multiplica pela quantidade de pessoas)."
+          : "Ex.: 30–69 conv. = R$ 80/pessoa · 70–119 = R$ 75/pessoa. O valor é multiplicado pelo número de convidados."}
       </p>
     </div>
   );
@@ -606,4 +636,3 @@ function PackageProductsEditor({ packageId }: { packageId: string }) {
     </div>
   );
 }
-
