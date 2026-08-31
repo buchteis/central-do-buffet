@@ -1,7 +1,7 @@
 import { ChecklistPreDefinido } from "@/components/ChecklistPreDefinido";
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -10,16 +10,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { calcQuote, resolveTierPrice } from "@/lib/quote-calc";
 import { brl } from "@/lib/format";
 import { openQuotePdf } from "@/lib/quote-pdf";
 import { useTenantAccess } from "@/hooks/useTenantAccess";
-import { maskCpfCnpj } from "@/lib/doc";
+import { BreakdownPreco } from "./BreakdownPreco";
 
 export const Route = createFileRoute("/_authenticated/orcamentos/novo")({
-  head: () => ({ meta: [{ title: "Novo orçamento — Meu Churras" }] }),
+  head: () => ({ meta: [{ title: "Novo orçamento — Central do Buffet" }] }),
   validateSearch: (s: Record<string, unknown>) => ({
     leadId: typeof s.leadId === "string" ? s.leadId : undefined,
     quoteId: typeof s.quoteId === "string" ? s.quoteId : undefined,
@@ -38,12 +36,25 @@ const schema = z
   })
   .passthrough();
 
+type PackageItem = {
+  id: string;
+  name: string;
+  pricing_type: "per_person" | "fixed";
+  price_per_person: number;
+};
+
+type PriceTier = {
+  id: string;
+  package_id: string;
+  min_guests: number;
+  max_guests: number;
+  price_per_person: number;
+  price_fixed: number;
+};
+
 function NewQuotePage() {
   const { leadId, quoteId } = Route.useSearch();
 
-  // A busca muda sem necessariamente desmontar a rota. Uma chave por registro
-  // impede que estado, flags de prefill e rascunhos de outro orçamento vazem
-  // para o orçamento que está sendo aberto agora.
   return <QuoteEditor key={quoteId ?? leadId ?? "new"} leadId={leadId} quoteId={quoteId} />;
 }
 
@@ -52,6 +63,22 @@ function QuoteEditor({ leadId, quoteId }: { leadId?: string; quoteId?: string })
   const qc = useQueryClient();
   const { data: access } = useTenantAccess();
 
+  // ESTADOS DO FORMULÁRIO
+  const [clientId, setClientId] = useState<string>("");
+  const [eventDate, setEventDate] = useState<string>("");
+  const [eventTime, setEventTime] = useState<string>("");
+  const [eventType, setEventType] = useState<string>("Casa");
+  const [eventAddress, setEventAddress] = useState<string>("");
+  const [notes, setNotes] = useState<string>("");
+
+  const [adults, setAdults] = useState<number>(70);
+  const [childrenCount, setChildrenCount] = useState<number>(0);
+  const [childrenPrice, setChildrenPrice] = useState<number>(0);
+
+  // Lista de pacotes selecionados
+  const [selectedPackageIds, setSelectedPackageIds] = useState<string[]>([]);
+
+  // PREFILL DE LEAD (SE VIER DA TELA DE LEADS)
   const { data: lead } = useQuery({
     queryKey: ["lead-prefill", leadId],
     enabled: !!leadId,
@@ -62,1168 +89,407 @@ function QuoteEditor({ leadId, quoteId }: { leadId?: string; quoteId?: string })
     },
   });
 
-  const { data: existingQuote } = useQuery({
-    queryKey: ["quote-prefill", quoteId],
-    enabled: !!quoteId,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("quotes")
-        .select("*, clients(id, name, cpf, phone, whatsapp, email, address, city)")
-        .eq("id", quoteId!)
-        .maybeSingle();
-      if (error) throw error;
-      return data;
-    },
-  });
+  useEffect(() => {
+    if (lead) {
+      if (lead.event_date) setEventDate(lead.event_date);
+      if (lead.guest_count) setAdults(Number(lead.guest_count) || 70);
+      if (lead.event_address) setEventAddress(lead.event_address);
+      if (lead.notes) setNotes(lead.notes);
+    }
+  }, [lead]);
 
+  // QUERY - LISTA DE CLIENTES
   const { data: clients } = useQuery({
-    queryKey: ["clients-select-full"],
+    queryKey: ["clients-select"],
     queryFn: async () => {
-      const { data } = await supabase.from("clients").select("id, name, cpf, address, phone, email").order("name");
+      const { data, error } = await supabase.from("clients").select("id, name").order("name");
+      if (error) throw error;
       return data ?? [];
     },
   });
+
+  // QUERY - PACOTES (INCLUINDO pricing_type)
   const { data: packages } = useQuery({
     queryKey: ["packages-select"],
     queryFn: async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("packages")
-        .select("id, name, price_per_person, active")
+        .select("id, name, pricing_type, price_per_person")
+        .eq("active", true)
         .order("name");
-      return data ?? [];
-    },
-  });
-  const { data: tiers } = useQuery({
-    queryKey: ["packages-tiers-select"],
-    queryFn: async () => {
-      const { data, error } = await (supabase as any)
-        .from("package_price_tiers")
-        .select("id, package_id, min_guests, max_guests, price_per_person, position, updated_at")
-        .order("position", { ascending: true })
-        .order("min_guests", { ascending: true });
       if (error) throw error;
-      return (data ?? []) as {
-        id: string;
-        package_id: string;
-        min_guests: number;
-        max_guests: number;
-        price_per_person: number;
-        position: number;
-        updated_at: string | null;
-      }[];
+      return (data ?? []) as PackageItem[];
     },
   });
-  const { data: unitItemsCatalog } = useQuery({
-    queryKey: ["additional-items-select"],
+
+  // QUERY - FAIXAS DE PREÇO (INCLUINDO price_fixed)
+  const { data: tiers } = useQuery({
+    queryKey: ["package-tiers-select"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("additional_items")
-        .select("id, product_id, name, unit, unit_price, default_qty, position, active")
-        .eq("active", true)
-        .order("position", { ascending: true });
+        .from("package_price_tiers")
+        .select("id, package_id, min_guests, max_guests, price_per_person, price_fixed");
       if (error) throw error;
-      return (data ?? []) as {
-        id: string;
-        product_id: string | null;
-        name: string;
-        unit: string;
-        unit_price: number;
-        default_qty: number;
-        position: number;
-        active: boolean;
-      }[];
-    },
-  });
-  const { data: settings } = useQuery({
-    queryKey: ["buffet-settings"],
-    queryFn: async () => {
-      const { data } = await supabase.from("buffet_settings").select("*").maybeSingle();
-      return data;
+      return (data ?? []) as PriceTier[];
     },
   });
 
-  const [form, setForm] = useState({
-    client_id: "",
-    event_date: "",
-    event_time: "",
-    event_address: "",
-    event_type: "",
-    adults: 0,
-    children_count: 0,
-    child_price: 0,
-    notes: "",
-    has_grill: false,
-    has_freezer: false,
-    payment_method: "PIX" as "PIX" | "Dados Bancários" | "Dinheiro",
-  });
-  // Multiple packages support: list of selected package ids (empty string = "pick one" row).
-  const [packageLines, setPackageLines] = useState<string[]>([""]);
-  const [customExtras, setCustomExtras] = useState<{ description: string; value: number }[]>([]);
-  const [unitQty, setUnitQty] = useState<Record<string, number>>({});
-  const [unitPriceSnapshot, setUnitPriceSnapshot] = useState<Record<string, number>>({});
-  const [packagePriceSnapshot, setPackagePriceSnapshot] = useState<Record<string, number>>({});
+  const totalGuests = adults + childrenCount;
 
-  // Manual overrides — administrator has total freedom to edit price per person (sum),
-  // entry (50%) and balance directly. `null` means "use auto value".
-  const [priceOverride, setPriceOverride] = useState<number | null>(null);
-  const [entryOverride, setEntryOverride] = useState<number | null>(null);
-  const [balanceOverride, setBalanceOverride] = useState<number | null>(null);
+  // FUNÇÃO AUXILIAR - Resolve valores do pacote dinamicamente conforme convidados
+  const resolvePackageDetails = (pkg: PackageItem) => {
+    const pkgTiers = (tiers ?? []).filter((t) => t.package_id === pkg.id);
+    const tier = pkgTiers.find((t) => totalGuests >= t.min_guests && totalGuests <= t.max_guests);
 
-  // Rascunho persistente: mantém o que já foi preenchido/carregado ao sair da aba e voltar.
-  // localStorage é usado para o rascunho sobreviver também a recarregamentos e novas sessões.
-  const draftKey = `cdb:quote-draft:${quoteId ?? leadId ?? "new"}`;
-  const [draftLoaded, setDraftLoaded] = useState(false);
-  const [hasDraft, setHasDraft] = useState(false);
-  useEffect(() => {
-    try {
-      const raw =
-        typeof window !== "undefined"
-          ? localStorage.getItem(draftKey) ?? sessionStorage.getItem(draftKey)
-          : null;
-      if (raw) {
-        const d = JSON.parse(raw);
-        // Só restaura rascunhos completos (salvos depois do pré-preenchimento),
-        // evitando sobrescrever pacotes/itens do orçamento com um estado parcial.
-        if (d?.ready === true && d?.version === 7) {
-          if (d?.form) setForm((f) => ({ ...f, ...d.form }));
-          if (Array.isArray(d?.packageLines)) setPackageLines(d.packageLines);
-          if (Array.isArray(d?.customExtras)) setCustomExtras(d.customExtras);
-          if (d?.unitQty && typeof d.unitQty === "object") setUnitQty(d.unitQty);
-          if (d?.unitPriceSnapshot && typeof d.unitPriceSnapshot === "object") {
-            setUnitPriceSnapshot(d.unitPriceSnapshot);
-          }
-          if (d?.packagePriceSnapshot && typeof d.packagePriceSnapshot === "object") {
-            setPackagePriceSnapshot(d.packagePriceSnapshot);
-          }
-          setPriceOverride(d?.priceOverride ?? null);
-          setEntryOverride(d?.entryOverride ?? null);
-          setBalanceOverride(d?.balanceOverride ?? null);
-          setHasDraft(true);
-        } else {
-          localStorage.removeItem(draftKey);
-          sessionStorage.removeItem(draftKey);
-        }
-      }
-    } catch {
-      /* ignore */
+    const isFixed = pkg.pricing_type === "fixed";
+
+    if (isFixed) {
+      const price_fixed = tier ? Number(tier.price_fixed) || 0 : 0;
+      const price_per_person = totalGuests > 0 ? price_fixed / totalGuests : 0;
+      return {
+        id: pkg.id,
+        name: pkg.name,
+        pricing_type: pkg.pricing_type,
+        price_per_person,
+        price_fixed,
+        tierFound: !!tier,
+      };
+    } else {
+      const price_per_person = tier
+        ? Number(tier.price_per_person) || 0
+        : Number(pkg.price_per_person) || 0;
+      return {
+        id: pkg.id,
+        name: pkg.name,
+        pricing_type: pkg.pricing_type,
+        price_per_person,
+        price_fixed: 0,
+        tierFound: !!tier,
+      };
     }
-    setDraftLoaded(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [draftKey]);
-
-  // Marcado como pronto assim que o pré-preenchimento (orçamento/lead) terminou.
-  const [draftReady, setDraftReady] = useState(false);
-
-  const draftPayload = {
-    ready: true,
-    version: 7,
-    form,
-    packageLines,
-    customExtras,
-    unitQty,
-    unitPriceSnapshot,
-    packagePriceSnapshot,
-    priceOverride,
-    entryOverride,
-    balanceOverride,
-  };
-  const latestDraftRef = useRef(draftPayload);
-  const discardDraftRef = useRef(false);
-  latestDraftRef.current = draftPayload;
-
-  useEffect(() => {
-    if (!draftLoaded || !draftReady || typeof window === "undefined") return;
-    try {
-      localStorage.setItem(draftKey, JSON.stringify(draftPayload));
-    } catch {
-      /* ignore */
-    }
-  }, [
-    draftReady,
-
-    draftLoaded,
-    draftKey,
-    form,
-    packageLines,
-    customExtras,
-    unitQty,
-    unitPriceSnapshot,
-    packagePriceSnapshot,
-    priceOverride,
-    entryOverride,
-    balanceOverride,
-  ]);
-
-  // Garante a persistência do último caractere/quantidade mesmo quando o
-  // usuário troca de aba imediatamente após editar um campo.
-  useEffect(() => {
-    if (!draftLoaded || !draftReady || typeof window === "undefined") return;
-    return () => {
-      if (discardDraftRef.current) return;
-      try {
-        localStorage.setItem(draftKey, JSON.stringify(latestDraftRef.current));
-      } catch {
-        /* ignore */
-      }
-    };
-  }, [draftKey, draftLoaded, draftReady]);
-
-  const totalGuests = (Number(form.adults) || 0) + (Number(form.children_count) || 0);
-
-  const priceForPackage = (packageId: string, guests: number): number => {
-    if (packagePriceSnapshot[packageId] !== undefined) {
-      return Number(packagePriceSnapshot[packageId]) || 0;
-    }
-    const pkgTiers = (tiers ?? []).filter((t) => t.package_id === packageId);
-    const pkg = (packages ?? []).find((p) => p.id === packageId) as any;
-    return resolveTierPrice(pkgTiers, guests, Number(pkg?.price_per_person ?? 0) || 0);
   };
 
-  const selectedPackages = useMemo(
-    () =>
-      packageLines
-        .map((id) => (packages ?? []).find((p) => p.id === id))
-        .filter(Boolean)
-        .map((p) => ({
-          id: p!.id,
-          name: p!.name,
-          price_per_person: priceForPackage(p!.id, totalGuests),
-        })),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [packageLines, packages, tiers, totalGuests, packagePriceSnapshot],
-  );
-  const primaryPackage = selectedPackages[0];
-  const packagesSumPerPerson = selectedPackages.reduce((s, p) => s + Number(p.price_per_person ?? 0), 0);
-  const effectivePrice = priceOverride ?? packagesSumPerPerson;
+  // Monta lista detalhada dos pacotes selecionados
+  const selectedPackagesDetailed = useMemo(() => {
+    return selectedPackageIds
+      .map((id) => packages?.find((p) => p.id === id))
+      .filter(Boolean)
+      .map((pkg) => resolvePackageDetails(pkg!));
+  }, [selectedPackageIds, packages, tiers, totalGuests]);
 
-  // Itens adicionais pertencem ao buffet, não a um pacote.
-  const availableUnitItems = unitItemsCatalog ?? [];
+  // Manipulação de adição/remoção de pacotes
+  function addPackageSelect() {
+    setSelectedPackageIds((old) => [...old, ""]);
+  }
 
-  // Quantidade escolhida por item adicional. Novos orçamentos começam em zero;
-  // ao editar, o snapshot salvo é restaurado exatamente.
-  // Ao editar um orçamento existente (ex.: vindo do link público), respeita exatamente
-  // o que foi escolhido: itens não escolhidos ficam em 0.
-  useEffect(() => {
-    if (!draftLoaded) return;
-    if (!availableUnitItems.length) return;
-    setUnitQty((old) => {
-      const next = { ...old };
-      let changed = false;
-      for (const it of availableUnitItems) {
-        if (next[it.id] === undefined) {
-          next[it.id] = 0;
-          changed = true;
-        }
-      }
-      return changed ? next : old;
+  function updatePackageSelect(index: number, packageId: string) {
+    setSelectedPackageIds((old) => {
+      const next = [...old];
+      next[index] = packageId;
+      return next;
     });
-  }, [availableUnitItems, quoteId, draftLoaded, hasDraft]);
+  }
 
-  const selectedUnitItems = useMemo(
-    () =>
-      availableUnitItems
-        .map((i) => ({
-          item_id: i.id,
-          product_id: i.product_id,
-          name: i.name,
-          unit: i.unit,
-          unit_price: Number(unitPriceSnapshot[i.id] ?? i.unit_price) || 0,
-          qty: Number(unitQty[i.id] ?? 0) || 0,
-        }))
-        .filter((i) => i.qty > 0),
-    [availableUnitItems, unitQty, unitPriceSnapshot],
-  );
+  function removePackageSelect(index: number) {
+    setSelectedPackageIds((old) => old.filter((_, i) => i !== index));
+  }
 
-  const autoBreakdown = useMemo(
-    () =>
-      calcQuote({
-        pricePerPerson: effectivePrice,
-        adults: Number(form.adults) || 0,
-        childrenCount: Number(form.children_count) || 0,
-        childPrice: Number(form.child_price) || 0,
-        customExtras,
-        unitItems: selectedUnitItems,
-      }),
-    [effectivePrice, form.adults, form.children_count, form.child_price, customExtras, selectedUnitItems],
-  );
+  // CÁLCULO TOTAL DO ORÇAMENTO
+  const packagesSubtotal = useMemo(() => {
+    return selectedPackagesDetailed.reduce((sum, pkg) => {
+      if (pkg.pricing_type === "fixed") {
+        return sum + pkg.price_fixed;
+      }
+      return sum + adults * pkg.price_per_person;
+    }, 0);
+  }, [selectedPackagesDetailed, adults]);
 
-  const breakdown = useMemo(() => {
-    const entry = entryOverride ?? autoBreakdown.entry;
-    const balance = balanceOverride ?? Math.round((autoBreakdown.total - entry) * 100) / 100;
-    return { ...autoBreakdown, entry, balance };
-  }, [autoBreakdown, entryOverride, balanceOverride]);
+  const childrenSubtotal = childrenCount * childrenPrice;
+  const grandTotal = packagesSubtotal + childrenSubtotal;
 
-  const mut = useMutation({
+  // SALVAR ORÇAMENTO
+  const saveMutation = useMutation({
     mutationFn: async () => {
-      if (quoteId && !prefilledQuote) {
-        throw new Error("Aguarde o orçamento do cliente terminar de carregar.");
+      const validPackageIds = selectedPackageIds.filter((id) => id.trim() !== "");
+      if (validPackageIds.length === 0) {
+        throw new Error("Selecione ao menos um pacote");
       }
-      const parsed = schema.safeParse({ ...form, package_ids: packageLines.filter(Boolean) });
-      if (!parsed.success) throw new Error(parsed.error.issues[0].message);
 
-      const { data: userRes } = await supabase.auth.getUser();
-      if (!userRes.user) throw new Error("Sessão expirada");
-
-      if (!form.client_id && !lead && !existingQuote?.client_id) {
-        throw new Error("Selecione um cliente");
-      }
-      const clientId: string | null = form.client_id || (existingQuote?.client_id as string) || null;
-
-      const valid = new Date();
-      valid.setDate(valid.getDate() + 7);
-
-      const pkgIds = packageLines.filter((id) => !!id);
-      const pkgList = pkgIds
-        .map((id) => (packages ?? []).find((p) => p.id === id))
-        .filter(Boolean)
-        .map((p) => ({
-          package_id: p!.id,
-          name: p!.name,
-          price_per_person: priceForPackage(p!.id, totalGuests),
-        }));
-
-      const prevExtras = ((existingQuote as any)?.extras ?? {}) as any;
-      const payload: any = {
-        client_id: clientId,
-        package_id: pkgList[0]?.package_id ?? null,
-        event_date: form.event_date,
-        event_time: form.event_time || null,
-        event_address: form.event_address || null,
-        event_type: form.event_type || null,
-        adults: form.adults,
-        children_7_10: form.children_count,
-        children_0_6: 0,
-        has_grill: form.has_grill,
-        has_freezer: form.has_freezer,
+      const payload = {
+        client_id: clientId || null,
+        package_id: validPackageIds[0], // Compatibilidade com pacote principal
+        event_date: eventDate,
+        event_time: eventTime || null,
+        event_type: eventType || null,
+        event_address: eventAddress || null,
+        adults: adults,
+        children_count: childrenCount,
+        child_price: childrenPrice,
+        total_value: grandTotal,
+        notes: notes || null,
         extras: {
-          ...prevExtras,
-          child_price: form.child_price,
-          price_per_person_override: priceOverride,
-          entry_override: entryOverride,
-          balance_override: balanceOverride,
-          packages: pkgList,
-          custom: customExtras.filter((e) => e.description.trim() !== "" || Number(e.value) > 0),
-          unit_items: selectedUnitItems,
+          package_ids: validPackageIds,
         },
-        notes: form.notes || null,
-        total_value: breakdown.total,
-        entry_value: breakdown.entry,
-        balance_value: breakdown.balance,
-        valid_until: valid.toISOString().slice(0, 10),
-        payment_method: form.payment_method,
       };
 
-      let data: any;
-      if (quoteId) {
-        // Completing / editing an existing quote (e.g. pre-orçamento from public form).
-        // Move it out of "novo" so it enters the pipeline as active.
-        const nextStatus = existingQuote?.status === "novo" ? "em_andamento" : existingQuote?.status;
-        const { data: upd, error } = await supabase
-          .from("quotes")
-          .update({ ...payload, status: nextStatus as any })
-          .eq("id", quoteId)
-          .select()
-          .single();
-        if (error) throw error;
-        data = upd;
-      } else {
-        const { data: ins, error } = await supabase
-          .from("quotes")
-          .insert({
-            ...payload,
-            owner_id: userRes.user.id,
-            status: "novo" as const,
-          } as any)
-          .select()
-          .single();
-        if (error) throw error;
-        data = ins;
-      }
-
-      // When creating from a lead: convert the lead and auto-create the linked event.
-      if (leadId && data?.id) {
-        try {
-          await supabase
-            .from("leads")
-            .update({ status: "convertido" as any, converted_quote_id: data.id } as any)
-            .eq("id", leadId);
-
-          const guestCount = (Number(form.adults) || 0) + (Number(form.children_count) || 0);
-
-          const { data: existingEvent } = await supabase
-            .from("events")
-            .select("id")
-            .eq("quote_id", data.id)
-            .maybeSingle();
-
-          if (!existingEvent) {
-            await supabase.from("events").insert({
-              owner_id: userRes.user.id,
-              tenant_id: access?.tenant?.id ?? null,
-              client_id: clientId,
-              quote_id: data.id,
-              package_id: pkgList[0]?.package_id ?? null,
-              event_date: form.event_date,
-              event_time: form.event_time || null,
-              event_address: form.event_address || null,
-              guest_count: guestCount,
-              total_value: breakdown.total,
-              status: "agendado" as any,
-              notes: form.notes || null,
-            } as any);
-          }
-        } catch (e) {
-          console.warn("[quote-from-lead] post-save link failed", e);
-        }
-      }
-
+      const { data, error } = await supabase.from("quotes").insert([payload]).select().single();
+      if (error) throw error;
       return data;
     },
     onSuccess: () => {
-      discardDraftRef.current = true;
-      try {
-        localStorage.removeItem(draftKey);
-        sessionStorage.removeItem(draftKey);
-      } catch {
-        /* ignore */
-      }
       qc.invalidateQueries({ queryKey: ["quotes"] });
-      qc.invalidateQueries({ queryKey: ["dashboard-stats"] });
-      qc.invalidateQueries({ queryKey: ["leads"] });
-      qc.invalidateQueries({ queryKey: ["events"] });
-      qc.invalidateQueries({ queryKey: ["agenda"] });
-      qc.invalidateQueries({ queryKey: ["clients"] });
-      qc.invalidateQueries({ queryKey: ["clients-select-full"] });
-      toast.success(
-        quoteId ? "Orçamento atualizado!" : leadId ? "Orçamento criado e evento agendado!" : "Orçamento criado!",
-      );
-      navigate({ to: leadId ? "/agenda" : "/orcamentos" });
+      toast.success("Orçamento criado com sucesso!");
+      navigate({ to: "/orcamentos" });
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (err: Error) => toast.error(err.message || "Erro ao salvar orçamento"),
   });
 
-  // Prefill from lead when data arrives (only once). Never creates a client here.
-  const [prefilled, setPrefilled] = useState(false);
-  useEffect(() => {
-    if (!draftLoaded) return;
-    if (hasDraft) {
-      setPrefilled(true);
-      return;
-    }
-    if (!leadId || prefilled || !lead) return;
-    // Wait for reference lists so Select components can match ids to items.
-    if (!packages || !clients || !tiers || !unitItemsCatalog) return;
-    if ((lead as any).converted_quote_id) {
-      toast.info("Este lead já possui um orçamento vinculado.");
-      navigate({ to: "/orcamentos" });
-      return;
-    }
-    // Resolve package: prefer package_id from lead; otherwise match by name (package_desired)
-    let pkgId: string = (lead as any).package_id ?? "";
-    if (!pkgId && (lead as any).package_desired && packages?.length) {
-      const target = String((lead as any).package_desired)
-        .trim()
-        .toLowerCase();
-      const match = packages.find((p) => p.name.trim().toLowerCase() === target);
-      if (match) pkgId = match.id;
-    }
-    if (pkgId) setPackageLines([pkgId]);
-    setForm((f) => ({
-      ...f,
-      client_id: "",
-      event_date: (lead as any).event_date ?? f.event_date,
-      event_time: (lead as any).event_time ?? f.event_time,
-      event_address: (lead as any).event_address ?? f.event_address,
-      event_type: (lead as any).event_type ?? f.event_type,
-      adults: (lead as any).guest_count ?? f.adults,
-      notes: (lead as any).notes ?? f.notes,
-    }));
-    setPrefilled(true);
-  }, [lead, packages, clients, leadId, prefilled, navigate, draftLoaded, hasDraft]);
-
-  // Prefill from an existing quote (e.g. pré-orçamento vindo do link público).
-  const [prefilledQuote, setPrefilledQuote] = useState(false);
-  useEffect(() => {
-    if (!draftLoaded) return;
-    if (!quoteId || prefilledQuote || !existingQuote) return;
-    // Só conclui o prefill quando TODAS as referências usadas na recuperação
-    // estiverem disponíveis. Antes, o efeito podia marcar o orçamento como
-    // preenchido sem o catálogo e nunca mais recuperar os demais itens.
-    if (!packages || !clients || !tiers || !unitItemsCatalog) return;
-
-    const q: any = existingQuote;
-    const extras: any = q.extras ?? {};
-    const requester: any = extras.requester ?? {};
-    // Packages: preserve every public selection. Older records may have lost a
-    // zero-price package in extras.packages, so recover it from each selected
-    // unit item's catalog relationship as well.
-    let lines: string[] = [];
-    if (Array.isArray(extras.packages) && extras.packages.length) {
-      lines = extras.packages.map((p: any) => p.package_id).filter(Boolean);
-      const prices: Record<string, number> = {};
-      for (const pkg of extras.packages) {
-        if (pkg?.package_id) prices[pkg.package_id] = Number(pkg.price_per_person) || 0;
-      }
-      setPackagePriceSnapshot((old) => ({ ...prices, ...old }));
-    } else if (q.package_id) {
-      lines = [q.package_id];
-    }
-    if (lines.length === 0) lines = [""];
-    // O orçamento público é sempre a fonte mínima: um rascunho parcial nunca
-    // pode apagar pacotes escolhidos pelo cliente. Linhas adicionadas pelo dono
-    // do buffet continuam preservadas no rascunho.
-    setPackageLines((old) => {
-      const draftLines = hasDraft ? old.filter(Boolean) : [];
-      const merged = Array.from(new Set([...lines.filter(Boolean), ...draftLines]));
-      return merged.length > 0 ? merged : [""];
-    });
-
-    setForm((f) => ({
-      ...f,
-      client_id: hasDraft && f.client_id ? f.client_id : (q.client_id ?? ""),
-      event_date: hasDraft && f.event_date ? f.event_date : (q.event_date ?? f.event_date),
-      event_time: hasDraft && f.event_time ? f.event_time : (q.event_time ?? f.event_time),
-      event_address: hasDraft && f.event_address ? f.event_address : (q.event_address ?? f.event_address),
-      event_type: hasDraft && f.event_type ? f.event_type : (q.event_type ?? f.event_type),
-      adults: hasDraft && f.adults > 0 ? f.adults : (q.adults ?? f.adults),
-      children_count:
-        hasDraft && f.children_count > 0
-          ? f.children_count
-          : (q.children_7_10 ?? 0) + (q.children_0_6 ?? 0),
-      child_price: hasDraft && f.child_price > 0 ? f.child_price : Number(extras.child_price ?? 0),
-      // Preserva a mensagem editada no rascunho; sem rascunho, restaura a
-      // observação original enviada pelo cliente no link público.
-      notes: hasDraft && f.notes ? f.notes : (q.notes ?? requester.notes ?? f.notes),
-      has_grill: hasDraft ? f.has_grill : !!q.has_grill,
-      has_freezer: hasDraft ? f.has_freezer : !!q.has_freezer,
-      payment_method: (hasDraft ? f.payment_method : (q.payment_method ?? f.payment_method)) as typeof f.payment_method,
-    }));
-
-    if (Array.isArray(extras.custom)) {
-      setCustomExtras((old) => (hasDraft && old.length > 0 ? old : extras.custom));
-    }
-    if (Array.isArray(extras.unit_items)) {
-      const map: Record<string, number> = {};
-      const prices: Record<string, number> = {};
-      const catalog = unitItemsCatalog ?? [];
-      const norm = (s: any) =>
-        String(s ?? "")
-          .toLowerCase()
-          .normalize("NFD")
-          .replace(/[\u0300-\u036f]/g, "")
-          .replace(/[^a-z0-9]+/g, " ")
-          .trim();
-      for (const it of extras.unit_items) {
-        // O item do snapshot pode ter sido recadastrado (id novo). Recupera pelo
-        // id, depois pelo produto de estoque e por fim pelo nome normalizado,
-        // para que a quantidade escolhida pelo cliente nunca se perca.
-        const byId = it?.item_id ? catalog.find((c) => c.id === it.item_id) : undefined;
-        const byProduct =
-          !byId && it?.product_id ? catalog.find((c) => c.product_id === it.product_id) : undefined;
-        const byName =
-          !byId && !byProduct ? catalog.find((c) => norm(c.name) === norm(it?.name)) : undefined;
-        const key = (byId ?? byProduct ?? byName)?.id ?? it?.item_id;
-        if (!key) continue;
-        map[key] = Number(it.qty) || 0;
-        prices[key] = Number(it.unit_price) || 0;
-      }
-      // O registro público recompõe qualquer chave ausente. O rascunho só
-      // sobrescreve chaves depois de ter sido criado sobre um prefill completo.
-      setUnitQty((old) => {
-        if (!hasDraft) return map;
-        const merged = { ...map, ...old };
-        // Quantidades vindas do cliente prevalecem sobre zeros herdados de um
-        // rascunho antigo salvo antes desta recuperação.
-        for (const [k, v] of Object.entries(map)) {
-          if (v > 0 && !(Number(old[k]) > 0)) merged[k] = v;
-        }
-        return merged;
-      });
-      setUnitPriceSnapshot((old) => (hasDraft ? { ...prices, ...old } : prices));
-    }
-    if (!hasDraft && extras.price_per_person_override != null) {
-      setPriceOverride(Number(extras.price_per_person_override));
-    }
-
-    if (!hasDraft && extras.entry_override != null) setEntryOverride(Number(extras.entry_override));
-    if (!hasDraft && extras.balance_override != null) setBalanceOverride(Number(extras.balance_override));
-
-    setPrefilledQuote(true);
-  }, [quoteId, existingQuote, prefilledQuote, packages, clients, tiers, unitItemsCatalog, draftLoaded, hasDraft]);
-
-  // Só começa a gravar rascunho quando o formulário já está completo,
-  // para que voltar de outra aba não apague pacotes/itens carregados.
-  useEffect(() => {
-    if (!draftLoaded || draftReady) return;
-    if (quoteId) {
-      if (prefilledQuote && (unitItemsCatalog ?? null) !== null) setDraftReady(true);
-      return;
-    }
-    if (leadId) {
-      if (prefilled) setDraftReady(true);
-      return;
-    }
-    setDraftReady(true);
-  }, [draftLoaded, draftReady, quoteId, leadId, prefilled, prefilledQuote, unitItemsCatalog]);
-
-
-
   return (
-    <div className="max-w-5xl mx-auto space-y-6">
-      <Link
-        to="/orcamentos"
-        className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
-      >
-        <ArrowLeft className="size-3" /> Voltar
-      </Link>
-      <div>
-        <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">
-          {quoteId ? "Completar orçamento" : "Novo orçamento"}
-        </h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          {quoteId
-            ? "Dados do solicitante preenchidos. Ajuste pacotes, preços e salve."
-            : "Cálculo automático de valor total, entrada e saldo."}
-        </p>
+    <div className="space-y-6 pb-12">
+      {/* CABEÇALHO DE NAVEGAÇÃO */}
+      <div className="flex items-center justify-between border-b pb-4">
+        <div className="flex items-center gap-3">
+          <Button variant="outline" size="icon" asChild>
+            <Link to="/orcamentos">
+              <ArrowLeft className="size-4" />
+            </Link>
+          </Button>
+          <div>
+            <h1 className="text-xl md:text-2xl font-bold tracking-tight">Novo Orçamento</h1>
+            <p className="text-xs text-muted-foreground">Preencha os dados abaixo para gerar a proposta</p>
+          </div>
+        </div>
       </div>
-
-      {quoteId &&
-        existingQuote &&
-        (() => {
-          const q: any = existingQuote;
-          const cli: any = q.clients ?? {};
-          const req: any = (q.extras as any)?.requester ?? {};
-          const rows: Array<[string, string]> = [
-            ["Nome", cli.name ?? req.name ?? "—"],
-            ["CPF/CNPJ", maskCpfCnpj(cli.cpf ?? req.cpf ?? "") || "—"],
-            ["Telefone", cli.phone ?? req.phone ?? "—"],
-            ["WhatsApp", cli.whatsapp ?? req.whatsapp ?? "—"],
-            ["E-mail", cli.email ?? req.email ?? "—"],
-            ["Endereço", cli.address ?? req.address ?? "—"],
-            ["Cidade", cli.city ?? req.city ?? "—"],
-          ];
-          return (
-            <div className="bg-muted/40 border border-border rounded-2xl p-4">
-              <div className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground mb-3">
-                Dados do solicitante (link público)
-              </div>
-              <dl className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2 text-sm">
-                {rows.map(([k, v]) => (
-                  <div key={k} className="flex gap-2">
-                    <dt className="text-muted-foreground min-w-24">{k}:</dt>
-                    <dd className="font-medium break-all">{v || "—"}</dd>
-                  </div>
-                ))}
-              </dl>
-            </div>
-          );
-        })()}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            mut.mutate();
-          }}
-          className="lg:col-span-2 bg-card border border-border rounded-2xl p-6 space-y-4"
-        >
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2 md:col-span-2">
-              <Label>Cliente / Solicitante *</Label>
-              {lead && !form.client_id ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <Input readOnly value={(lead as any).name ?? ""} placeholder="Nome do solicitante" />
-                  <Input readOnly value={maskCpfCnpj((lead as any).cpf ?? "")} placeholder="CPF/CNPJ" />
-                  <Input readOnly value={(lead as any).phone ?? ""} placeholder="Telefone" />
-                  <Input readOnly value={(lead as any).email ?? ""} placeholder="E-mail" />
-                </div>
-              ) : (
-                <Select value={form.client_id} onValueChange={(v) => setForm((f) => ({ ...f, client_id: v }))}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione…" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {(clients ?? []).map((c) => (
-                      <SelectItem key={c.id} value={c.id}>
-                        {c.name}
-                      </SelectItem>
-                    ))}
-                    {(clients ?? []).length === 0 && (
-                      <div className="p-4 text-xs text-muted-foreground">Cadastre um cliente antes.</div>
-                    )}
-                  </SelectContent>
-                </Select>
-              )}
-            </div>
-
-            <div className="space-y-2 md:col-span-2">
-              <div className="flex items-center justify-between">
-                <Label>Pacotes *</Label>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setPackageLines((l) => [...l, ""])}
-                  disabled={(packages ?? []).length === 0}
-                >
-                  <Plus className="size-3.5" /> Adicionar pacote
-                </Button>
-              </div>
-              <div className="space-y-2">
-                {packageLines.map((pid, i) => (
-                  <div key={i} className="flex gap-2 items-start">
-                    <div className="flex-1">
-                      <Select
-                          value={pid}
-                          onValueChange={(v) => {
-                            setPackageLines((arr) => arr.map((x, idx) => (idx === i ? v : x)));
-                            setPriceOverride(null);
-                          }}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione um pacote…" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {(() => {
-                             const all = (packages ?? []).filter((p: any) => p.active || packageLines.includes(p.id));
-                            if (all.length === 0) {
-                              return <div className="p-4 text-xs text-muted-foreground">Cadastre um pacote antes.</div>;
-                            }
-                            return all.map((p: any) => {
-                              const applied = priceForPackage(p.id, totalGuests);
-                              return (
-                                <SelectItem
-                                  key={p.id}
-                                  value={p.id}
-                                  disabled={packageLines.includes(p.id) && p.id !== pid}
-                                >
-                                  {p.name}
-                                  {applied > 0 && totalGuests > 0 && (
-                                    <span className="text-muted-foreground">
-                                      {" · "}
-                                      {brl(applied)}/pessoa
-                                    </span>
-                                  )}
-                                </SelectItem>
-                              );
-                            });
-                          })()}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    {packageLines.length > 1 && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => setPackageLines((arr) => arr.filter((_, idx) => idx !== i))}
-                        aria-label="Remover pacote"
-                      >
-                        <Trash2 className="size-4" />
-                      </Button>
-                    )}
-                  </div>
-                ))}
-              </div>
-              {selectedPackages.length > 1 && (
-                <p className="text-[11px] text-muted-foreground">
-                  Total por pessoa: <b>{brl(packagesSumPerPerson)}</b> (soma de {selectedPackages.length} pacotes)
-                </p>
-              )}
-            </div>
-          </div>
-
-          {availableUnitItems.length > 0 && (
-            <div className="space-y-3 p-4 bg-muted/30 rounded-xl border border-border">
-              <div>
-                <Label className="font-semibold">Itens adicionais</Label>
-                <p className="text-[11px] text-muted-foreground mt-0.5">
-                  Cobrados por unidade (qtd × preço unitário), independente do nº de convidados. A quantidade é baixada
-                  do estoque quando o orçamento é fechado.
-                </p>
-              </div>
-              <div className="space-y-2">
-                {availableUnitItems.map((it) => {
-                  const qty = Number(unitQty[it.id] ?? 0) || 0;
-                  return (
-                    <div key={it.id} className="flex flex-wrap items-center gap-3 bg-background p-3 rounded-lg border">
-                      <span className="flex-1 min-w-0 text-sm">
-                        {it.name}{" "}
-                        <span className="text-xs text-muted-foreground">
-                           ({brl(Number(unitPriceSnapshot[it.id] ?? it.unit_price) || 0)}/{it.unit})
-                        </span>
-                      </span>
-                      <Input
-                        type="number"
-                        min={0}
-                        step="0.01"
-                        className="w-24"
-                        value={unitQty[it.id] ?? 0}
-                        onChange={(e) => setUnitQty((old) => ({ ...old, [it.id]: Number(e.target.value) || 0 }))}
-                      />
-                      <span className="w-24 text-right text-sm font-mono font-semibold">
-                        {brl(qty * (Number(unitPriceSnapshot[it.id] ?? it.unit_price) || 0))}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-              <p className="text-[11px] text-muted-foreground">
-                 Subtotal itens adicionais: <b>{brl(breakdown.unitItemsSubtotal)}</b>
-              </p>
-            </div>
-          )}
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label>Data do evento *</Label>
-              <Input
-                type="date"
-                value={form.event_date}
-                onChange={(e) => setForm((f) => ({ ...f, event_date: e.target.value }))}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Horário</Label>
-              <Input
-                type="time"
-                value={form.event_time}
-                onChange={(e) => setForm((f) => ({ ...f, event_time: e.target.value }))}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Tipo</Label>
-              <Input
-                placeholder="Aniversário, casamento…"
-                value={form.event_type}
-                onChange={(e) => setForm((f) => ({ ...f, event_type: e.target.value }))}
-              />
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label>Endereço do evento</Label>
-            <Input
-              value={form.event_address}
-              onChange={(e) => setForm((f) => ({ ...f, event_address: e.target.value }))}
-            />
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <NumField label="Adultos" value={form.adults} onChange={(v) => setForm((f) => ({ ...f, adults: v }))} />
-            <div className="space-y-2">
-              <Label>Preço por pessoa (R$)</Label>
-              <Input
-                type="number"
-                min={0}
-                step="0.01"
-                value={effectivePrice}
-                onChange={(e) => setPriceOverride(Number(e.target.value) || 0)}
-              />
-              <p className="text-[10px] text-muted-foreground">Edite livremente o valor por adulto.</p>
-            </div>
-            <NumField
-              label="Nº de crianças"
-              value={form.children_count}
-              onChange={(v) => setForm((f) => ({ ...f, children_count: v }))}
-            />
-            <NumField
-              label="Valor por criança (R$)"
-              value={form.child_price}
-              onChange={(v) => setForm((f) => ({ ...f, child_price: v }))}
-              step="0.01"
-            />
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-            <ToggleRow
-              label="Possui churrasqueira"
-              checked={form.has_grill}
-              onChange={(v) => setForm((f) => ({ ...f, has_grill: v }))}
-            />
-            <ToggleRow
-              label="Possui freezer"
-              checked={form.has_freezer}
-              onChange={(v) => setForm((f) => ({ ...f, has_freezer: v }))}
-            />
-          </div>
-
-          <div className="space-y-3 pt-2">
-            <div className="flex items-center justify-between">
-              <Label>Acréscimos manuais</Label>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setCustomExtras((arr) => [...arr, { description: "", value: 0 }])}
-              >
-                <Plus className="size-3.5" /> Adicionar
-              </Button>
-            </div>
-            {customExtras.length === 0 && (
-              <p className="text-xs text-muted-foreground">
-                Nenhum acréscimo. Clique em "Adicionar" para incluir itens extras (ex.: taxa de deslocamento,
-                decoração).
-              </p>
-            )}
-            {customExtras.map((ex, i) => (
-              <div key={i} className="grid grid-cols-[1fr_140px_auto] gap-2 items-end">
-                <div className="space-y-1">
-                  <Label className="text-xs">Descrição</Label>
-                  <Input
-                    value={ex.description}
-                    placeholder="Ex.: Taxa de deslocamento"
-                    onChange={(e) =>
-                      setCustomExtras((arr) =>
-                        arr.map((it, idx) => (idx === i ? { ...it, description: e.target.value } : it)),
-                      )
-                    }
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">Valor (R$)</Label>
-                  <Input
-                    type="number"
-                    min={0}
-                    step="0.01"
-                    value={ex.value}
-                    onChange={(e) =>
-                      setCustomExtras((arr) =>
-                        arr.map((it, idx) => (idx === i ? { ...it, value: Number(e.target.value) || 0 } : it)),
-                      )
-                    }
-                  />
-                </div>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setCustomExtras((arr) => arr.filter((_, idx) => idx !== i))}
-                >
-                  <Trash2 className="size-4" />
-                </Button>
-              </div>
-            ))}
-          </div>
-
-          <div className="space-y-2">
-            <Label>Forma de pagamento *</Label>
-            <Select
-              value={form.payment_method}
-              onValueChange={(v) => setForm((f) => ({ ...f, payment_method: v as typeof f.payment_method }))}
-            >
+        {/* COLUNA ESQUERDA - FORMULÁRIO */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* SELEÇÃO DO CLIENTE */}
+          <div className="space-y-2 bg-card border rounded-2xl p-5 shadow-sm">
+            <Label className="font-bold">Cliente</Label>
+            <Select value={clientId} onValueChange={setClientId}>
               <SelectTrigger>
-                <SelectValue />
+                <SelectValue placeholder="Selecione um cliente cadastrado (opcional)..." />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="PIX">PIX</SelectItem>
-                <SelectItem value="Dados Bancários">Dados Bancários</SelectItem>
-                <SelectItem value="Dinheiro">Dinheiro</SelectItem>
+                {clients?.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.name}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
-            <p className="text-[11px] text-muted-foreground">
-              Esta opção será usada automaticamente na geração do contrato.
-            </p>
           </div>
 
-          <div className="space-y-2">
-            <Label>Observações</Label>
-            <Textarea rows={3} value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} />
+          {/* PACOTES DESEJADOS */}
+          <div className="space-y-4 bg-card border rounded-2xl p-5 shadow-sm">
+            <div className="flex items-center justify-between">
+              <div>
+                <Label className="font-bold text-base">Pacotes *</Label>
+                <p className="text-xs text-muted-foreground">Adicione um ou mais pacotes para o evento</p>
+              </div>
+              <Button type="button" variant="outline" size="sm" onClick={addPackageSelect}>
+                <Plus className="size-4 mr-1" /> Adicionar pacote
+              </Button>
+            </div>
+
+            {selectedPackageIds.length === 0 && (
+              <p className="text-xs text-muted-foreground italic bg-muted/40 p-3 rounded-lg border text-center">
+                Nenhum pacote adicionado. Clique acima para escolher os pacotes do orçamento.
+              </p>
+            )}
+
+            <div className="space-y-3">
+              {selectedPackageIds.map((selectedId, idx) => {
+                const pkg = packages?.find((p) => p.id === selectedId);
+                const info = pkg ? resolvePackageDetails(pkg) : null;
+
+                return (
+                  <div key={idx} className="flex gap-2 items-center bg-muted/20 p-3 rounded-xl border">
+                    <div className="flex-1 space-y-1">
+                      <Select
+                        value={selectedId}
+                        onValueChange={(val) => updatePackageSelect(idx, val)}
+                      >
+                        <SelectTrigger className="bg-background">
+                          <SelectValue placeholder={`Selecione o pacote ${idx + 1}...`} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {packages?.map((p) => {
+                            const details = resolvePackageDetails(p);
+                            const label =
+                              p.pricing_type === "fixed"
+                                ? `${p.name} · ${brl(details.price_fixed)} (Preço Fechado)`
+                                : `${p.name} · ${brl(details.price_per_person)}/pessoa`;
+
+                            return (
+                              <SelectItem key={p.id} value={p.id}>
+                                {label}
+                              </SelectItem>
+                            );
+                          })}
+                        </SelectContent>
+                      </Select>
+
+                      {info && (
+                        <p className="text-xs text-muted-foreground pl-1">
+                          {info.pricing_type === "fixed" ? (
+                            <span className="font-medium text-primary">
+                              Preço Fechado: {brl(info.price_fixed)} para {totalGuests} convidados
+                            </span>
+                          ) : (
+                            <span>Valor unitário: {brl(info.price_per_person)} por pessoa</span>
+                          )}
+                        </p>
+                      )}
+                    </div>
+
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="text-destructive hover:text-destructive"
+                      onClick={() => removePackageSelect(idx)}
+                    >
+                      <Trash2 className="size-4" />
+                    </Button>
+                  </div>
+                );
+              })}
+            </div>
           </div>
 
-          <div className="flex flex-wrap justify-end gap-2 pt-4">
-            <Button type="button" variant="outline" onClick={() => navigate({ to: "/orcamentos" })}>
-              Cancelar
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={async () => {
-                try {
-                  if (selectedPackages.length === 0) {
-                    toast.error("Selecione ao menos um pacote para gerar o PDF");
-                    return;
-                  }
-                  const cli = (clients ?? []).find((c: any) => c.id === form.client_id) as any;
-                  const clientForPdf = cli
-                    ? { name: cli.name, cpf: cli.cpf, address: cli.address, phone: cli.phone, email: cli.email }
-                    : lead
-                      ? {
-                          name: (lead as any).name,
-                          cpf: null,
-                          address: (lead as any).event_address ?? (lead as any).city ?? null,
-                          phone: (lead as any).phone ?? (lead as any).whatsapp ?? null,
-                          email: (lead as any).email ?? null,
-                        }
-                      : null;
-                  if (!clientForPdf) {
-                    toast.error("Selecione um cliente para gerar o PDF");
-                    return;
-                  }
-                  await openQuotePdf({
-                    issuedAt: new Date(),
-                    validUntil: (() => {
-                      const d = new Date();
-                      d.setDate(d.getDate() + 7);
-                      return d;
-                    })(),
-                    client: clientForPdf,
+          {/* DADOS DO EVENTO */}
+          <div className="space-y-4 bg-card border rounded-2xl p-5 shadow-sm">
+            <h3 className="font-bold text-sm uppercase tracking-wider text-muted-foreground">
+              Detalhes do Evento
+            </h3>
 
-                    event: {
-                      date: form.event_date || null,
-                      time: form.event_time || null,
-                      address: form.event_address || null,
-                      type: form.event_type || null,
-                      adults: form.adults,
-                      childrenCount: form.children_count,
-                    },
-                    package: {
-                      name: selectedPackages.map((p) => p.name).join(", "),
-                      pricePerPerson: effectivePrice,
-                    },
-                    packages:
-                      priceOverride == null
-                        ? selectedPackages.map((p) => ({ name: p.name, price_per_person: p.price_per_person }))
-                        : undefined,
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label>Data do Evento *</Label>
+                <Input
+                  type="date"
+                  required
+                  value={eventDate}
+                  onChange={(e) => setEventDate(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Horário</Label>
+                <Input
+                  type="time"
+                  value={eventTime}
+                  onChange={(e) => setEventTime(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Tipo de Local</Label>
+                <Input
+                  placeholder="Ex.: Casa, Chácara"
+                  value={eventType}
+                  onChange={(e) => setEventType(e.target.value)}
+                />
+              </div>
+            </div>
 
-                    childPrice: form.child_price,
-                    extras: customExtras.filter((e) => e.description.trim() !== "" || Number(e.value) > 0),
-                    unitItems: selectedUnitItems,
-                    breakdown,
-                    paymentMethod: form.payment_method,
-                    notes: form.notes,
-                    hasGrill: form.has_grill,
-                    hasFreezer: form.has_freezer,
-                    buffet: (settings as any) ?? null,
-                  });
-                } catch (err: any) {
-                  toast.error(err?.message ?? "Falha ao gerar PDF");
-                }
-              }}
-            >
-              Gerar PDF
-            </Button>
-            <Button type="submit" disabled={mut.isPending || (!!quoteId && !prefilledQuote)}>
-              {mut.isPending
-                ? "Salvando…"
-                : quoteId && !prefilledQuote
-                  ? "Carregando orçamento…"
-                  : "Salvar orçamento"}
-            </Button>
+            <div className="space-y-2">
+              <Label>Endereço do evento</Label>
+              <Input
+                placeholder="Rua, número, bairro e cidade"
+                value={eventAddress}
+                onChange={(e) => setEventAddress(e.target.value)}
+              />
+            </div>
           </div>
-        </form>
 
-        <div className="lg:col-span-2">
-          <ChecklistPreDefinido
-            guests={(Number(form.adults) || 0) + (Number(form.children_count) || 0)}
-            eventName={form.event_type || null}
-            clientName={(clients ?? []).find((c: any) => c.id === form.client_id)?.name ?? (lead as any)?.name ?? null}
-            eventDate={form.event_date || null}
-            eventTime={form.event_time || null}
-            eventAddress={form.event_address || null}
-            phone={
-              (clients ?? []).find((c: any) => c.id === form.client_id)?.phone ??
-              (lead as any)?.phone ??
-              (lead as any)?.whatsapp ??
-              null
-            }
-          />
+          {/* QUANTIDADE DE CONVIDADOS */}
+          <div className="space-y-4 bg-card border rounded-2xl p-5 shadow-sm">
+            <h3 className="font-bold text-sm uppercase tracking-wider text-muted-foreground">
+              Convidados e Valores
+            </h3>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label>Nº de Adultos</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  value={adults}
+                  onChange={(e) => setAdults(Number(e.target.value) || 0)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Nº de Crianças</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  value={childrenCount}
+                  onChange={(e) => setChildrenCount(Number(e.target.value) || 0)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Valor por Criança (R$)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={childrenPrice}
+                  onChange={(e) => setChildrenPrice(Number(e.target.value) || 0)}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* CHECKLIST E OBSERVAÇÕES */}
+          <div className="space-y-4 bg-card border rounded-2xl p-5 shadow-sm">
+            <ChecklistPreDefinido guestCount={totalGuests} />
+
+            <div className="space-y-2 pt-2">
+              <Label>Observações adicionais</Label>
+              <Textarea
+                rows={3}
+                placeholder="Aotações sobre preferências, adicionais ou negociação..."
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+              />
+            </div>
+          </div>
         </div>
 
-        <aside className="bg-card border border-border rounded-2xl p-6 space-y-4 h-fit sticky top-20">
-          <div>
-            <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">Resumo</div>
-            <div className="text-xs text-muted-foreground mt-1">Cálculo automático em tempo real</div>
-          </div>
+        {/* COLUNA DIREITA - PAINEL DE RESUMO DO PREÇO */}
+        <div className="space-y-6">
+          <div className="bg-card border rounded-2xl p-5 space-y-4 sticky top-6 shadow-sm">
+            <BreakdownPreco
+              packages={selectedPackagesDetailed}
+              adults={adults}
+              childrenCount={childrenCount}
+              childrenPrice={childrenPrice}
+            />
 
-          <SummaryRow label="Adultos" value={brl(breakdown.adultsSubtotal)} />
-          <SummaryRow
-            label={`Crianças (${form.children_count} × ${brl(form.child_price)})`}
-            value={brl(breakdown.childrenSubtotal)}
-          />
-          <SummaryRow label="Preço por pessoa" value={brl(effectivePrice)} />
-          {breakdown.unitItemsSubtotal > 0 && (
-             <SummaryRow label="Itens adicionais" value={brl(breakdown.unitItemsSubtotal)} />
-          )}
-          <SummaryRow label="Subtotal" value={brl(breakdown.subtotal)} />
-          {breakdown.extras > 0 && <SummaryRow label="Acréscimos" value={brl(breakdown.extras)} />}
+            <div className="border-t pt-4 space-y-3">
+              <div className="flex justify-between items-baseline">
+                <span className="font-extrabold uppercase text-xs tracking-wider">TOTAL ESTIMADO</span>
+                <span className="text-2xl font-extrabold font-mono text-primary">
+                  {brl(grandTotal)}
+                </span>
+              </div>
 
-          <div className="h-px bg-border" />
-
-          <div className="flex justify-between items-baseline">
-            <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Total</span>
-            <span className="text-2xl font-extrabold text-primary font-mono">{brl(breakdown.total)}</span>
-          </div>
-
-          <div className="pt-2 space-y-2 text-xs">
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-muted-foreground shrink-0">Entrada</span>
-              <Input
-                type="number"
-                min={0}
-                step="0.01"
-                value={breakdown.entry}
-                onChange={(e) => {
-                  const v = e.target.value === "" ? null : Number(e.target.value);
-                  setEntryOverride(v);
-                }}
-                className="h-8 w-32 text-right font-mono"
-              />
-            </div>
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-muted-foreground shrink-0">Saldo</span>
-              <Input
-                type="number"
-                min={0}
-                step="0.01"
-                value={breakdown.balance}
-                onChange={(e) => {
-                  const v = e.target.value === "" ? null : Number(e.target.value);
-                  setBalanceOverride(v);
-                }}
-                className="h-8 w-32 text-right font-mono"
-              />
+              <Button
+                type="button"
+                className="w-full font-bold"
+                size="lg"
+                disabled={saveMutation.isPending}
+                onClick={() => saveMutation.mutate()}
+              >
+                {saveMutation.isPending ? "Salvar orçamento..." : "Salvar orçamento"}
+              </Button>
             </div>
           </div>
-        </aside>
+        </div>
       </div>
-    </div>
-  );
-}
-
-function NumField({
-  label,
-  value,
-  onChange,
-  step = "1",
-}: {
-  label: string;
-  value: number;
-  onChange: (v: number) => void;
-  step?: string;
-}) {
-  return (
-    <div className="space-y-2">
-      <Label>{label}</Label>
-      <Input type="number" min={0} step={step} value={value} onChange={(e) => onChange(Number(e.target.value) || 0)} />
-    </div>
-  );
-}
-
-function ToggleRow({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
-  return (
-    <label className="flex items-center gap-2 border border-border rounded-lg px-3 py-2 cursor-pointer hover:bg-muted/40">
-      <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} className="size-4" />
-      <span className="text-sm">{label}</span>
-    </label>
-  );
-}
-
-function SummaryRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex justify-between items-center text-sm">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="font-mono">{value}</span>
     </div>
   );
 }
