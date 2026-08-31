@@ -8,7 +8,6 @@ import { Flame, Send, CheckCircle2, Plus, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { getPublicTenantLogo } from "@/lib/public-logo.functions";
 import { brl } from "@/lib/format";
-import { resolveTierPrice } from "@/lib/quote-calc";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -51,6 +50,24 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>;
 
+type PackageItem = {
+  id: string;
+  name: string;
+  pricing_type: "per_person" | "fixed";
+  price_per_person: number;
+};
+
+type PriceTier = {
+  id: string;
+  package_id: string;
+  min_guests: number;
+  max_guests: number;
+  price_per_person: number;
+  price_fixed: number;
+  position: number;
+  updated_at: string | null;
+};
+
 function PublicQuoteForm() {
   const { slug } = Route.useParams();
   const [sent, setSent] = useState(false);
@@ -86,44 +103,36 @@ function PublicQuoteForm() {
     },
   });
 
-  // QUERY - MOSTRA TODOS OS PACOTES
+  // QUERY - BUSCA PACOTES INCLUINDO PRICING_TYPE
   const { data: packages } = useQuery({
     queryKey: ["public-packages", tenant?.id],
     enabled: !!tenant?.id,
     queryFn: async () => {
       const { data } = await supabase
         .from("packages")
-        .select("id, name, price_per_person")
+        .select("id, name, pricing_type, price_per_person")
         .eq("tenant_id", tenant!.id)
         .eq("active", true)
         .order("name");
 
-      return data ?? [];
+      return (data ?? []) as PackageItem[];
     },
   });
 
   const packageIds = useMemo(() => (packages ?? []).map((p) => p.id), [packages]);
 
-  // Tiers de preço por faixa de convidados (apenas dos pacotes deste buffet)
+  // QUERY - BUSCA FAIXAS INCLUINDO PRICE_FIXED
   const { data: tiers } = useQuery({
     queryKey: ["public-packages-tiers", tenant?.id, packageIds],
     enabled: packageIds.length > 0,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("package_price_tiers")
-        .select("id, package_id, min_guests, max_guests, price_per_person, position, updated_at")
+        .select("id, package_id, min_guests, max_guests, price_per_person, price_fixed, position, updated_at")
         .in("package_id", packageIds)
         .order("position", { ascending: true });
       if (error) return [];
-      return (data ?? []) as {
-        id: string;
-        package_id: string;
-        min_guests: number;
-        max_guests: number;
-        price_per_person: number;
-        position: number;
-        updated_at: string | null;
-      }[];
+      return (data ?? []) as PriceTier[];
     },
   });
 
@@ -150,26 +159,60 @@ function PublicQuoteForm() {
     },
   });
 
-
   const [unitQty, setUnitQty] = useState<Record<string, number>>({});
 
-  // Preço por pessoa de um pacote conforme o nº de convidados
-  const priceForPackage = (packageId: string, guests: number): number => {
-    const pkgTiers = (tiers ?? []).filter((t) => t.package_id === packageId);
+  // Função para calcular informações do pacote (Preço Fechado vs Por Pessoa)
+  const getPackagePriceDetails = (packageId: string, guests: number) => {
     const pkg = (packages ?? []).find((p) => p.id === packageId);
-    return resolveTierPrice(pkgTiers, guests, Number(pkg?.price_per_person ?? 0) || 0);
+    if (!pkg) return { total: 0, pricePerPerson: 0, isFixed: false };
+
+    const pkgTiers = (tiers ?? []).filter((t) => t.package_id === packageId);
+    const tier = pkgTiers.find((t) => guests >= t.min_guests && guests <= t.max_guests);
+
+    const isFixed = pkg.pricing_type === "fixed";
+
+    if (isFixed) {
+      const total = tier ? Number(tier.price_fixed) || 0 : 0;
+      return {
+        total,
+        pricePerPerson: guests > 0 ? total / guests : 0,
+        isFixed: true,
+      };
+    } else {
+      const unitPrice = tier ? Number(tier.price_per_person) || 0 : Number(pkg.price_per_person) || 0;
+      const total = unitPrice * (guests || 0);
+      return {
+        total,
+        pricePerPerson: unitPrice,
+        isFixed: false,
+      };
+    }
   };
 
-  // Pacotes efetivamente escolhidos
-  const chosenPackages = useMemo(
+  // Pacotes efetivamente escolhidos com cálculo correto
+  const chosenPackagesDetails = useMemo(
     () =>
       selectedPackages
         .map((s) => {
+          if (!s.package_id) return null;
           const pkg = (packages ?? []).find((p) => p.id === s.package_id);
           if (!pkg) return null;
-          return { id: pkg.id, name: pkg.name, price_per_person: priceForPackage(pkg.id, guestCount) };
+          const details = getPackagePriceDetails(pkg.id, guestCount);
+          return {
+            id: pkg.id,
+            name: pkg.name,
+            total: details.total,
+            pricePerPerson: details.pricePerPerson,
+            isFixed: details.isFixed,
+          };
         })
-        .filter(Boolean) as { id: string; name: string; price_per_person: number }[],
+        .filter(Boolean) as {
+        id: string;
+        name: string;
+        total: number;
+        pricePerPerson: number;
+        isFixed: boolean;
+      }[],
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [selectedPackages, packages, tiers, guestCount],
   );
@@ -179,7 +222,13 @@ function PublicQuoteForm() {
   const selectedUnitItems = useMemo(
     () =>
       availableUnitItems
-        .map((i) => ({ item_id: i.id, name: i.name, unit: i.unit, unit_price: Number(i.unit_price) || 0, qty: Number(unitQty[i.id] ?? 0) || 0 }))
+        .map((i) => ({
+          item_id: i.id,
+          name: i.name,
+          unit: i.unit,
+          unit_price: Number(i.unit_price) || 0,
+          qty: Number(unitQty[i.id] ?? 0) || 0,
+        }))
         .filter((i) => i.qty > 0),
     [availableUnitItems, unitQty],
   );
@@ -189,9 +238,14 @@ function PublicQuoteForm() {
     [selectedUnitItems],
   );
 
+  const packagesSubtotal = useMemo(
+    () => chosenPackagesDetails.reduce((s, p) => s + p.total, 0),
+    [chosenPackagesDetails],
+  );
+
   const previewTotal = useMemo(
-    () => chosenPackages.reduce((s, p) => s + p.price_per_person, 0) * (guestCount || 0) + unitItemsSubtotal,
-    [chosenPackages, guestCount, unitItemsSubtotal],
+    () => packagesSubtotal + unitItemsSubtotal,
+    [packagesSubtotal, unitItemsSubtotal],
   );
 
   const fetchLogo = useServerFn(getPublicTenantLogo);
@@ -201,7 +255,6 @@ function PublicQuoteForm() {
   });
   const logoUrl = logo?.url ?? "";
 
-  // MUTATION PARA CHAMAR A NOVA FUNÇÃO V2 NO SUPABASE
   const submitMutation = useMutation({
     mutationFn: async (payload: FormValues) => {
       const validPackageIds = (payload.package_ids ?? []).filter(Boolean);
@@ -218,9 +271,9 @@ function PublicQuoteForm() {
         p_event_time: payload.event_time || null,
         p_guest_count: payload.guest_count,
         p_event_type: payload.event_type || null,
-        p_package_id: validPackageIds[0] ?? null, // Retrocompatibilidade com o 1º pacote
+        p_package_id: validPackageIds[0] ?? null,
         p_notes: payload.notes || null,
-        p_package_ids: validPackageIds.length > 0 ? validPackageIds : null, // Array de IDs
+        p_package_ids: validPackageIds.length > 0 ? validPackageIds : null,
         p_unit_items: selectedUnitItems.length > 0 ? selectedUnitItems : null,
       });
 
@@ -235,7 +288,6 @@ function PublicQuoteForm() {
       toast.error(err.message || "Erro ao enviar solicitação.");
     },
   });
-
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -294,8 +346,7 @@ function PublicQuoteForm() {
           <CheckCircle2 className="mx-auto mb-4 h-12 w-12 text-primary" />
           <h2 className="text-2xl font-bold">Solicitação Enviada!</h2>
           <p className="mt-2 text-sm text-muted-foreground">
-            Obrigado por seu interesse no <strong>{tenant.name}</strong>. Entraremos em contato em breve via WhatsApp ou
-            E-mail.
+            Obrigado por seu interesse no <strong>{tenant.name}</strong>. Entraremos em contato em breve via WhatsApp ou E-mail.
           </p>
         </div>
       </div>
@@ -308,7 +359,6 @@ function PublicQuoteForm() {
         <div className="mb-8 text-center">
           {logoUrl ? (
             <img src={logoUrl} alt={tenant.name} className="mx-auto mb-4 max-h-16 object-contain" />
-
           ) : (
             <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
               <Flame className="h-6 w-6 text-primary" />
@@ -410,7 +460,8 @@ function PublicQuoteForm() {
 
               <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
                 {selectedPackages.map((item, index) => {
-                  const price = item.package_id ? priceForPackage(item.package_id, guestCount) : 0;
+                  const details = item.package_id ? getPackagePriceDetails(item.package_id, guestCount) : null;
+
                   return (
                     <div key={item.id} className="flex items-center gap-2 rounded-xl border p-2">
                       <div className="min-w-0 flex-1">
@@ -421,13 +472,20 @@ function PublicQuoteForm() {
                           <SelectContent>
                             {(packages ?? []).map((pkg) => (
                               <SelectItem key={pkg.id} value={pkg.id}>
-                                {pkg.name}
+                                {pkg.name} {pkg.pricing_type === "fixed" ? "(Preço Fechado)" : ""}
                               </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
-                        {price > 0 && (
-                          <p className="mt-1 text-xs text-muted-foreground">{brl(price)} / pessoa</p>
+
+                        {details && details.total > 0 && (
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            {details.isFixed ? (
+                              <span className="font-semibold text-primary">{brl(details.total)} (Preço Fechado)</span>
+                            ) : (
+                              <span>{brl(details.pricePerPerson)} / pessoa</span>
+                            )}
+                          </p>
                         )}
                       </div>
                       <Button
@@ -447,7 +505,7 @@ function PublicQuoteForm() {
               {availableUnitItems.length > 0 && (
                 <div className="space-y-3 rounded-xl border p-3">
                   <Label className="text-xs uppercase tracking-wider text-muted-foreground">
-                     Itens adicionais (opcional)
+                    Itens adicionais (opcional)
                   </Label>
                   <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
                     {availableUnitItems.map((it) => (
@@ -476,21 +534,19 @@ function PublicQuoteForm() {
                   </div>
                   {unitItemsSubtotal > 0 && (
                     <p className="text-right text-xs text-muted-foreground">
-                       Subtotal itens adicionais: <strong>{brl(unitItemsSubtotal)}</strong>
+                      Subtotal itens adicionais: <strong>{brl(unitItemsSubtotal)}</strong>
                     </p>
                   )}
                 </div>
               )}
 
-
               {previewTotal > 0 && (
                 <div className="mt-2 rounded-lg bg-slate-100 p-3 text-right">
-                  <span className="text-xs text-muted-foreground">Valor Total: </span>
+                  <span className="text-xs text-muted-foreground">Valor Total Estimado: </span>
                   <span className="text-base font-bold text-primary">{brl(previewTotal)}</span>
                 </div>
               )}
             </div>
-
 
             <div>
               <Label htmlFor="notes">Observações adicionais</Label>
