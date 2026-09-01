@@ -14,6 +14,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as PagamentoTokenRouteImport } from './routes/pagamento.$token'
+import { Route as OrcamentoSlugRouteImport } from './routes/orcamento.$slug'
 import { Route as AvaliarSlugRouteImport } from './routes/avaliar.$slug'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as AuthenticatedRelatoriosRouteImport } from './routes/_authenticated/relatorios'
@@ -64,6 +65,11 @@ const IndexRoute = IndexRouteImport.update({
 const PagamentoTokenRoute = PagamentoTokenRouteImport.update({
   id: '/pagamento/$token',
   path: '/pagamento/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OrcamentoSlugRoute = OrcamentoSlugRouteImport.update({
+  id: '/orcamento/$slug',
+  path: '/orcamento/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AvaliarSlugRoute = AvaliarSlugRouteImport.update({
@@ -238,6 +244,7 @@ export interface FileRoutesByFullPath {
   '/relatorios': typeof AuthenticatedRelatoriosRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/avaliar/$slug': typeof AvaliarSlugRoute
+  '/orcamento/$slug': typeof OrcamentoSlugRoute
   '/pagamento/$token': typeof PagamentoTokenRoute
   '/clientes/importar': typeof AuthenticatedClientesImportarRoute
   '/clientes/novo': typeof AuthenticatedClientesNovoRoute
@@ -271,6 +278,7 @@ export interface FileRoutesByTo {
   '/relatorios': typeof AuthenticatedRelatoriosRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/avaliar/$slug': typeof AvaliarSlugRoute
+  '/orcamento/$slug': typeof OrcamentoSlugRoute
   '/pagamento/$token': typeof PagamentoTokenRoute
   '/clientes/importar': typeof AuthenticatedClientesImportarRoute
   '/clientes/novo': typeof AuthenticatedClientesNovoRoute
@@ -306,6 +314,7 @@ export interface FileRoutesById {
   '/_authenticated/relatorios': typeof AuthenticatedRelatoriosRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/avaliar/$slug': typeof AvaliarSlugRoute
+  '/orcamento/$slug': typeof OrcamentoSlugRoute
   '/pagamento/$token': typeof PagamentoTokenRoute
   '/_authenticated/clientes/importar': typeof AuthenticatedClientesImportarRoute
   '/_authenticated/clientes/novo': typeof AuthenticatedClientesNovoRoute
@@ -341,6 +350,7 @@ export interface FileRouteTypes {
     | '/relatorios'
     | '/auth/callback'
     | '/avaliar/$slug'
+    | '/orcamento/$slug'
     | '/pagamento/$token'
     | '/clientes/importar'
     | '/clientes/novo'
@@ -374,6 +384,7 @@ export interface FileRouteTypes {
     | '/relatorios'
     | '/auth/callback'
     | '/avaliar/$slug'
+    | '/orcamento/$slug'
     | '/pagamento/$token'
     | '/clientes/importar'
     | '/clientes/novo'
@@ -408,6 +419,7 @@ export interface FileRouteTypes {
     | '/_authenticated/relatorios'
     | '/auth/callback'
     | '/avaliar/$slug'
+    | '/orcamento/$slug'
     | '/pagamento/$token'
     | '/_authenticated/clientes/importar'
     | '/_authenticated/clientes/novo'
@@ -427,6 +439,7 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRouteWithChildren
   ResetPasswordRoute: typeof ResetPasswordRoute
   AvaliarSlugRoute: typeof AvaliarSlugRoute
+  OrcamentoSlugRoute: typeof OrcamentoSlugRoute
   PagamentoTokenRoute: typeof PagamentoTokenRoute
 }
 
@@ -465,6 +478,13 @@ declare module '@tanstack/react-router' {
       path: '/pagamento/$token'
       fullPath: '/pagamento/$token'
       preLoaderRoute: typeof PagamentoTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/orcamento/$slug': {
+      id: '/orcamento/$slug'
+      path: '/orcamento/$slug'
+      fullPath: '/orcamento/$slug'
+      preLoaderRoute: typeof OrcamentoSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/avaliar/$slug': {
@@ -734,6 +754,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRouteWithChildren,
   ResetPasswordRoute: ResetPasswordRoute,
   AvaliarSlugRoute: AvaliarSlugRoute,
+  OrcamentoSlugRoute: OrcamentoSlugRoute,
   PagamentoTokenRoute: PagamentoTokenRoute,
 }
 export const routeTree = rootRouteImport
