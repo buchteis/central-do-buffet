@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { z } from "zod";
 import { toast } from "sonner";
 import { Flame, Send, CheckCircle2, Plus, Trash2 } from "lucide-react";
@@ -17,6 +17,9 @@ import { maskCpfCnpj, isValidCpfCnpj, docKind } from "@/lib/doc";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export const Route = createFileRoute("/orcamento/$slug")({
+  validateSearch: z.object({
+    quote_id: z.string().uuid().optional(),
+  }),
   head: ({ params }) => ({
     meta: [
       { title: `Solicitar orçamento — ${params.slug}` },
@@ -53,10 +56,24 @@ type FormValues = z.infer<typeof schema>;
 
 function PublicQuoteForm() {
   const { slug } = Route.useParams();
+  const { quote_id } = Route.useSearch(); // Lê o ID do orçamento da URL se for uma edição/continuação
   const [sent, setSent] = useState(false);
   const [cpf, setCpf] = useState("");
   const cpfKind = docKind(cpf);
   const [guestCount, setGuestCount] = useState<number>(0);
+
+  // Campos de formulário com estados controlados para suportar autopreenchimento
+  const [formDataState, setFormDataState] = useState({
+    name: "",
+    whatsapp: "",
+    email: "",
+    city: "",
+    event_address: "",
+    event_date: "",
+    event_time: "",
+    event_type: "",
+    notes: "",
+  });
 
   const [selectedPackages, setSelectedPackages] = useState<{ id: string; package_id: string }[]>([]);
 
@@ -85,6 +102,51 @@ function PublicQuoteForm() {
       return data;
     },
   });
+
+  // BUSCA DADOS DO ORÇAMENTO EXISTENTE SE "quote_id" ESTIVER NA URL
+  const { data: existingQuote } = useQuery({
+    queryKey: ["public-quote-existing", quote_id],
+    enabled: !!quote_id,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("quotes")
+        .select("*")
+        .eq("id", quote_id!)
+        .maybeSingle();
+      return data;
+    },
+  });
+
+  // EFEITO DE PREENCHIMENTO AUTOMÁTICO DO FORMULÁRIO
+  useEffect(() => {
+    if (existingQuote) {
+      setFormDataState({
+        name: existingQuote.name ?? "",
+        whatsapp: existingQuote.whatsapp ?? "",
+        email: existingQuote.email ?? "",
+        city: existingQuote.city ?? "",
+        event_address: existingQuote.event_address ?? "",
+        event_date: existingQuote.event_date ?? "",
+        event_time: existingQuote.event_time ?? "",
+        event_type: existingQuote.event_type ?? "",
+        notes: existingQuote.notes ?? "",
+      });
+
+      if (existingQuote.guest_count) setGuestCount(existingQuote.guest_count);
+      if (existingQuote.cpf) setCpf(maskCpfCnpj(existingQuote.cpf));
+
+      if (existingQuote.package_ids && Array.isArray(existingQuote.package_ids)) {
+        setSelectedPackages(
+          existingQuote.package_ids.map((pkgId: string) => ({
+            id: crypto.randomUUID(),
+            package_id: pkgId,
+          }))
+        );
+      } else if (existingQuote.package_id) {
+        setSelectedPackages([{ id: crypto.randomUUID(), package_id: existingQuote.package_id }]);
+      }
+    }
+  }, [existingQuote]);
 
   // QUERY - MOSTRA TODOS OS PACOTES
   const { data: packages } = useQuery({
@@ -141,7 +203,6 @@ function PublicQuoteForm() {
       }[];
     },
   });
-
 
   const [unitQty, setUnitQty] = useState<Record<string, number>>({});
 
@@ -208,11 +269,39 @@ function PublicQuoteForm() {
   });
   const logoUrl = logo?.url ?? "";
 
-  // MUTATION PARA CHAMAR A NOVA FUNÇÃO V2 NO SUPABASE
+  // MUTATION PARA DADOS (CRIA OU ATUALIZA REGISTRO EXISTENTE)
   const submitMutation = useMutation({
     mutationFn: async (payload: FormValues) => {
       const validPackageIds = (payload.package_ids ?? []).filter(Boolean);
 
+      // CASO EDICIONAL: Atualiza o registro do orçamento existente (evita gerar o 2º card)
+      if (quote_id) {
+        const { data, error } = await supabase
+          .from("quotes")
+          .update({
+            name: payload.name,
+            whatsapp: payload.whatsapp,
+            email: payload.email || null,
+            cpf: payload.cpf || null,
+            city: payload.city || null,
+            event_address: payload.event_address || null,
+            event_date: payload.event_date,
+            event_time: payload.event_time || null,
+            guest_count: payload.guest_count,
+            event_type: payload.event_type || null,
+            package_ids: validPackageIds,
+            package_id: validPackageIds[0] ?? null,
+            notes: payload.notes || null,
+            total_value: previewTotal,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", quote_id);
+
+        if (error) throw error;
+        return data;
+      }
+
+      // CASO NOVO: Chama a procedure RPC V2 para criar um orçamento novo
       const { data, error } = await (supabase as any).rpc("submit_public_quote_v2", {
         p_slug: slug,
         p_name: payload.name,
@@ -225,9 +314,9 @@ function PublicQuoteForm() {
         p_event_time: payload.event_time || null,
         p_guest_count: payload.guest_count,
         p_event_type: payload.event_type || null,
-        p_package_id: validPackageIds[0] ?? null, // Retrocompatibilidade com o 1º pacote
+        p_package_id: validPackageIds[0] ?? null,
         p_notes: payload.notes || null,
-        p_package_ids: validPackageIds.length > 0 ? validPackageIds : null, // Array de IDs
+        p_package_ids: validPackageIds.length > 0 ? validPackageIds : null,
         p_unit_items: selectedUnitItems.length > 0 ? selectedUnitItems : null,
       });
 
@@ -236,32 +325,30 @@ function PublicQuoteForm() {
     },
     onSuccess: () => {
       setSent(true);
-      toast.success("Solicitação enviada com sucesso!");
+      toast.success(quote_id ? "Orçamento atualizado com sucesso!" : "Solicitação enviada com sucesso!");
     },
     onError: (err: Error) => {
-      toast.error(err.message || "Erro ao enviar solicitação.");
+      toast.error(err.message || "Erro ao salvar solicitação.");
     },
   });
 
-
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    const formData = new FormData(e.currentTarget);
 
     const packageIds = selectedPackages.map((p) => p.package_id).filter((id) => id.trim() !== "");
 
     const rawData = {
-      name: formData.get("name"),
-      whatsapp: formData.get("whatsapp"),
-      email: formData.get("email"),
+      name: formDataState.name,
+      whatsapp: formDataState.whatsapp,
+      email: formDataState.email,
       cpf: cpf,
-      city: formData.get("city"),
-      event_address: formData.get("event_address"),
-      event_date: formData.get("event_date"),
-      event_time: formData.get("event_time"),
+      city: formDataState.city,
+      event_address: formDataState.event_address,
+      event_date: formDataState.event_date,
+      event_time: formDataState.event_time,
       guest_count: guestCount,
-      event_type: formData.get("event_type"),
-      notes: formData.get("notes"),
+      event_type: formDataState.event_type,
+      notes: formDataState.notes,
       package_ids: packageIds,
     };
 
@@ -299,10 +386,9 @@ function PublicQuoteForm() {
       <div className="flex min-h-screen flex-col items-center justify-center p-4">
         <div className="w-full max-w-md rounded-xl border bg-card p-6 text-center shadow-lg">
           <CheckCircle2 className="mx-auto mb-4 h-12 w-12 text-primary" />
-          <h2 className="text-2xl font-bold">Solicitação Enviada!</h2>
+          <h2 className="text-2xl font-bold">{quote_id ? "Orçamento Atualizado!" : "Solicitação Enviada!"}</h2>
           <p className="mt-2 text-sm text-muted-foreground">
-            Obrigado por seu interesse no <strong>{tenant.name}</strong>. Entraremos em contato em breve via WhatsApp ou
-            E-mail.
+            Obrigado por seu interesse no <strong>{tenant.name}</strong>. Entraremos em contato em breve via WhatsApp ou E-mail.
           </p>
         </div>
       </div>
@@ -315,14 +401,15 @@ function PublicQuoteForm() {
         <div className="mb-8 text-center">
           {logoUrl ? (
             <img src={logoUrl} alt={tenant.name} className="mx-auto mb-4 max-h-16 object-contain" />
-
           ) : (
             <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
               <Flame className="h-6 w-6 text-primary" />
             </div>
           )}
           <h1 className="text-2xl font-bold tracking-tight">{tenant.name}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Solicitação de Orçamento</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {quote_id ? "Atualização de Orçamento" : "Solicitação de Orçamento"}
+          </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -331,17 +418,38 @@ function PublicQuoteForm() {
 
             <div>
               <Label htmlFor="name">Nome completo *</Label>
-              <Input id="name" name="name" required placeholder="Seu nome" />
+              <Input
+                id="name"
+                name="name"
+                required
+                value={formDataState.name}
+                onChange={(e) => setFormDataState({ ...formDataState, name: e.target.value })}
+                placeholder="Seu nome"
+              />
             </div>
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div>
                 <Label htmlFor="whatsapp">WhatsApp *</Label>
-                <Input id="whatsapp" name="whatsapp" required placeholder="(00) 00000-0000" />
+                <Input
+                  id="whatsapp"
+                  name="whatsapp"
+                  required
+                  value={formDataState.whatsapp}
+                  onChange={(e) => setFormDataState({ ...formDataState, whatsapp: e.target.value })}
+                  placeholder="(00) 00000-0000"
+                />
               </div>
               <div>
                 <Label htmlFor="email">E-mail</Label>
-                <Input id="email" name="email" type="email" placeholder="seu@email.com" />
+                <Input
+                  id="email"
+                  name="email"
+                  type="email"
+                  value={formDataState.email}
+                  onChange={(e) => setFormDataState({ ...formDataState, email: e.target.value })}
+                  placeholder="seu@email.com"
+                />
               </div>
             </div>
 
@@ -357,7 +465,13 @@ function PublicQuoteForm() {
               </div>
               <div>
                 <Label htmlFor="city">Cidade</Label>
-                <Input id="city" name="city" placeholder="Sua cidade" />
+                <Input
+                  id="city"
+                  name="city"
+                  value={formDataState.city}
+                  onChange={(e) => setFormDataState({ ...formDataState, city: e.target.value })}
+                  placeholder="Sua cidade"
+                />
               </div>
             </div>
           </div>
@@ -368,11 +482,24 @@ function PublicQuoteForm() {
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div>
                 <Label htmlFor="event_date">Data do Evento *</Label>
-                <Input id="event_date" name="event_date" type="date" required />
+                <Input
+                  id="event_date"
+                  name="event_date"
+                  type="date"
+                  required
+                  value={formDataState.event_date}
+                  onChange={(e) => setFormDataState({ ...formDataState, event_date: e.target.value })}
+                />
               </div>
               <div>
                 <Label htmlFor="event_time">Horário Previsto</Label>
-                <Input id="event_time" name="event_time" type="time" />
+                <Input
+                  id="event_time"
+                  name="event_time"
+                  type="time"
+                  value={formDataState.event_time}
+                  onChange={(e) => setFormDataState({ ...formDataState, event_time: e.target.value })}
+                />
               </div>
             </div>
 
@@ -391,13 +518,25 @@ function PublicQuoteForm() {
               </div>
               <div>
                 <Label htmlFor="event_type">Tipo de Evento</Label>
-                <Input id="event_type" name="event_type" placeholder="Ex: Casamento, Aniversário" />
+                <Input
+                  id="event_type"
+                  name="event_type"
+                  value={formDataState.event_type}
+                  onChange={(e) => setFormDataState({ ...formDataState, event_type: e.target.value })}
+                  placeholder="Ex: Casamento, Aniversário"
+                />
               </div>
             </div>
 
             <div>
               <Label htmlFor="event_address">Local do Evento / Endereço</Label>
-              <Input id="event_address" name="event_address" placeholder="Endereço completo ou nome do local" />
+              <Input
+                id="event_address"
+                name="event_address"
+                value={formDataState.event_address}
+                onChange={(e) => setFormDataState({ ...formDataState, event_address: e.target.value })}
+                placeholder="Endereço completo ou nome do local"
+              />
             </div>
 
             {/* SELEÇÃO DE PACOTES MÚLTIPLOS */}
@@ -460,7 +599,7 @@ function PublicQuoteForm() {
               {availableUnitItems.length > 0 && (
                 <div className="space-y-3 rounded-xl border p-3">
                   <Label className="text-xs uppercase tracking-wider text-muted-foreground">
-                     Itens adicionais (opcional)
+                    Itens adicionais (opcional)
                   </Label>
                   <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
                     {availableUnitItems.map((it) => (
@@ -489,12 +628,11 @@ function PublicQuoteForm() {
                   </div>
                   {unitItemsSubtotal > 0 && (
                     <p className="text-right text-xs text-muted-foreground">
-                       Subtotal itens adicionais: <strong>{brl(unitItemsSubtotal)}</strong>
+                      Subtotal itens adicionais: <strong>{brl(unitItemsSubtotal)}</strong>
                     </p>
                   )}
                 </div>
               )}
-
 
               {previewTotal > 0 && (
                 <div className="mt-2 rounded-lg bg-slate-100 p-3 text-right">
@@ -504,12 +642,13 @@ function PublicQuoteForm() {
               )}
             </div>
 
-
             <div>
               <Label htmlFor="notes">Observações adicionais</Label>
               <Textarea
                 id="notes"
                 name="notes"
+                value={formDataState.notes}
+                onChange={(e) => setFormDataState({ ...formDataState, notes: e.target.value })}
                 placeholder="Detalhes adicionais, preferências ou dúvidas..."
                 rows={3}
               />
@@ -521,7 +660,7 @@ function PublicQuoteForm() {
               "Enviando..."
             ) : (
               <>
-                <Send className="mr-2 h-4 w-4" /> Enviar Solicitação
+                <Send className="mr-2 h-4 w-4" /> {quote_id ? "Salvar Alterações" : "Enviar Solicitação"}
               </>
             )}
           </Button>
