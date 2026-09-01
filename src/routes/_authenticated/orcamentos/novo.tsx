@@ -82,6 +82,43 @@ function QuoteEditor({ leadId, quoteId }: { leadId?: string; quoteId?: string })
     }
   }, [lead]);
 
+  // CARREGAMENTO DO ORÇAMENTO EXISTENTE (PREVINE DUPLICAÇÃO)
+  const { data: existingQuote } = useQuery({
+    queryKey: ["quote-prefill", quoteId],
+    enabled: !!quoteId,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("quotes").select("*").eq("id", quoteId!).maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  useEffect(() => {
+    if (existingQuote) {
+      if (existingQuote.client_id) setClientId(existingQuote.client_id);
+      if (existingQuote.event_date) setEventDate(existingQuote.event_date);
+      if (existingQuote.event_time) setEventTime(existingQuote.event_time);
+      if (existingQuote.event_type) setEventType(existingQuote.event_type);
+      if (existingQuote.event_address) setEventAddress(existingQuote.event_address);
+      if (existingQuote.notes) setNotes(existingQuote.notes);
+      if (existingQuote.adults) setAdults(Number(existingQuote.adults));
+      else if (existingQuote.guest_count) setAdults(Number(existingQuote.guest_count));
+
+      // Extrai pacotes e crianças salvos em extras ou colunas padrão
+      const extras = (existingQuote.extras as any) ?? {};
+      if (extras.children_count) setChildrenCount(Number(extras.children_count) || 0);
+      if (extras.child_price) setChildrenPrice(Number(extras.child_price) || 0);
+
+      if (extras.package_ids && Array.isArray(extras.package_ids) && extras.package_ids.length > 0) {
+        setSelectedPackageIds(extras.package_ids);
+      } else if (existingQuote.package_ids && Array.isArray(existingQuote.package_ids) && existingQuote.package_ids.length > 0) {
+        setSelectedPackageIds(existingQuote.package_ids);
+      } else if (existingQuote.package_id) {
+        setSelectedPackageIds([existingQuote.package_id]);
+      }
+    }
+  }, [existingQuote]);
+
   // QUERY - CLIENTES
   const { data: clients } = useQuery({
     queryKey: ["clients-select"],
@@ -212,6 +249,7 @@ function QuoteEditor({ leadId, quoteId }: { leadId?: string; quoteId?: string })
   const childrenSubtotal = childrenCount * childrenPrice;
   const grandTotal = packagesSubtotal + childrenSubtotal;
 
+  // SALVAR COM SUPORTE A UPDATE SE EXISITIR QUOTEID
   const saveMutation = useMutation({
     mutationFn: async () => {
       const validPackageIds = selectedPackageIds.filter((id) => id && id.trim() !== "");
@@ -240,13 +278,30 @@ function QuoteEditor({ leadId, quoteId }: { leadId?: string; quoteId?: string })
         },
       };
 
-      const { data, error } = await supabase.from("quotes").insert([payload]).select().single();
-      if (error) throw error;
-      return data;
+      if (quoteId) {
+        // MODO EDIÇÃO: Atualiza o registro existente no banco
+        const { data, error } = await supabase
+          .from("quotes")
+          .update(payload)
+          .eq("id", quoteId)
+          .select()
+          .single();
+        if (error) throw error;
+        return data;
+      } else {
+        // MODO NOVO: Cria um orçamento do zero
+        const { data, error } = await supabase
+          .from("quotes")
+          .insert([payload])
+          .select()
+          .single();
+        if (error) throw error;
+        return data;
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["quotes"] });
-      toast.success("Orçamento criado com sucesso!");
+      toast.success(quoteId ? "Orçamento atualizado com sucesso!" : "Orçamento criado com sucesso!");
       navigate({ to: "/orcamentos" });
     },
     onError: (err: Error) => toast.error(err.message || "Erro ao salvar orçamento"),
@@ -262,7 +317,9 @@ function QuoteEditor({ leadId, quoteId }: { leadId?: string; quoteId?: string })
             </Link>
           </Button>
           <div>
-            <h1 className="text-xl md:text-2xl font-bold tracking-tight">Novo Orçamento</h1>
+            <h1 className="text-xl md:text-2xl font-bold tracking-tight">
+              {quoteId ? "Editar Orçamento" : "Novo Orçamento"}
+            </h1>
             <p className="text-xs text-muted-foreground">Preencha os dados abaixo para gerar a proposta</p>
           </div>
         </div>
