@@ -1,670 +1,676 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { useServerFn } from "@tanstack/react-start";
-import { useEffect, useMemo, useState } from "react";
-import { z } from "zod";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect } from "react";
 import { toast } from "sonner";
-import { Flame, Send, CheckCircle2, Plus, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { getPublicTenantLogo } from "@/lib/public-logo.functions";
-import { brl } from "@/lib/format";
-import { resolvePackagePricing, type PriceTier } from "@/lib/quote-calc";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { maskCpfCnpj, isValidCpfCnpj, docKind } from "@/lib/doc";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { isOpenQuote } from "@/lib/quote-pipeline";
+import { brl, brlCompact, formatDateBR, formatDateFullBR } from "@/lib/format";
+import { FINANCE_EVENT_STATUSES, computeFinanceTotals } from "@/lib/finance-logic";
+import { cn } from "@/lib/utils";
+import {
+  AlertTriangle,
+  ArrowRight,
+  Calendar,
+  CalendarCheck,
+  CalendarDays,
+  DollarSign,
+  FileText,
+  Hourglass,
+  UserCheck,
+  Users,
+  Wallet,
+  CreditCard,
+  Clock,
+  CheckCircle,
+  Package,
+  TrendingUp,
+  TrendingDown,
+  Building2,
+  Copy,
+} from "lucide-react";
+import { FeedbackPieCard } from "@/components/feedback/FeedbackPieCard";
+import { UnifiedReviewsCard } from "@/components/reviews/UnifiedReviewsCard";
 
-export const Route = createFileRoute("/orcamento/$slug")({
-  validateSearch: z.object({
-    quote_id: z.string().uuid().optional(),
-  }),
-  head: ({ params }) => ({
-    meta: [
-      { title: `Solicitar orçamento — ${params.slug}` },
-      {
-        name: "description",
-        content: "Preencha o formulário para receber um orçamento personalizado do buffet.",
-      },
-    ],
-  }),
-  component: PublicQuoteForm,
+export const Route = createFileRoute("/_authenticated/dashboard")({
+  head: () => ({ meta: [{ title: "Dashboard — Central do Buffet" }] }),
+  component: Dashboard,
 });
 
-const schema = z.object({
-  name: z.string().trim().min(2, "Informe seu nome").max(100),
-  whatsapp: z.string().trim().min(8, "WhatsApp inválido").max(20),
-  email: z.string().trim().email("E-mail inválido").max(255).optional().or(z.literal("")),
-  cpf: z
-    .string()
-    .trim()
-    .max(20)
-    .optional()
-    .refine((v) => !v || isValidCpfCnpj(v), { message: "CPF/CNPJ inválido" }),
-  city: z.string().trim().max(80).optional(),
-  event_address: z.string().trim().max(200).optional(),
-  event_date: z.string().min(1, "Data obrigatória"),
-  event_time: z.string().optional(),
-  guest_count: z.coerce.number().int().min(1, "Mínimo de 1 convidado").max(9999),
-  event_type: z.string().trim().max(80).optional(),
-  package_ids: z.array(z.string().uuid()).optional(),
-  notes: z.string().trim().max(1000).optional(),
-});
+const statusStyles: Record<string, string> = {
+  agendado: "bg-blue-100 text-blue-800",
+  em_andamento: "bg-amber-100 text-amber-800",
+  pago: "bg-green-100 text-green-800",
+  concluido: "bg-gray-100 text-gray-800",
+  cancelado: "bg-red-100 text-red-800",
+  realizado: "bg-purple-100 text-purple-800",
+};
 
-type FormValues = z.infer<typeof schema>;
+const statusLabels: Record<string, string> = {
+  agendado: "Agendado",
+  em_andamento: "Em andamento",
+  pago: "Pago",
+  concluido: "Concluído",
+  cancelado: "Cancelado",
+  realizado: "Realizado",
+};
 
-function PublicQuoteForm() {
-  const { slug } = Route.useParams();
-  const { quote_id } = Route.useSearch(); // Lê o ID do orçamento da URL se for uma edição/continuação
-  const [sent, setSent] = useState(false);
-  const [cpf, setCpf] = useState("");
-  const cpfKind = docKind(cpf);
-  const [guestCount, setGuestCount] = useState<number>(0);
+function isoDate(d: Date) {
+  return d.toISOString().slice(0, 10);
+}
 
-  // Campos de formulário com estados controlados para suportar autopreenchimento
-  const [formDataState, setFormDataState] = useState({
-    name: "",
-    whatsapp: "",
-    email: "",
-    city: "",
-    event_address: "",
-    event_date: "",
-    event_time: "",
-    event_type: "",
-    notes: "",
+const EXCLUDED_STATUSES = ["cancelado", "realizado", "concluido"];
+
+function useDashboardQuery<T>(key: string, fn: () => Promise<T>) {
+  return useQuery({
+    queryKey: ["dashboard", key],
+    queryFn: fn,
+    staleTime: 30_000,
+    refetchOnWindowFocus: false,
   });
+}
 
-  const [selectedPackages, setSelectedPackages] = useState<{ id: string; package_id: string }[]>([]);
+function Dashboard() {
+  const qc = useQueryClient();
 
-  function addPackage() {
-    setSelectedPackages((old) => [
-      ...old,
-      {
-        id: crypto.randomUUID(),
-        package_id: "",
-      },
-    ]);
-  }
-
-  function removePackage(id: string) {
-    setSelectedPackages((old) => old.filter((p) => p.id !== id));
-  }
-
-  function updatePackage(id: string, value: string) {
-    setSelectedPackages((old) => old.map((p) => (p.id === id ? { ...p, package_id: value } : p)));
-  }
-
-  const { data: tenant, isLoading } = useQuery({
-    queryKey: ["public-tenant", slug],
-    queryFn: async () => {
-      const { data } = await supabase.from("tenants").select("id, name, slug, status").eq("slug", slug).maybeSingle();
-      return data;
-    },
-  });
-
-  // BUSCA DADOS DO ORÇAMENTO EXISTENTE SE "quote_id" ESTIVER NA URL
-  const { data: existingQuote } = useQuery({
-    queryKey: ["public-quote-existing", quote_id],
-    enabled: !!quote_id,
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("quotes")
-        .select("*")
-        .eq("id", quote_id!)
-        .maybeSingle();
-      return data;
-    },
-  });
-
-  // EFEITO DE PREENCHIMENTO AUTOMÁTICO DO FORMULÁRIO
   useEffect(() => {
-    if (existingQuote) {
-      setFormDataState({
-        name: existingQuote.name ?? "",
-        whatsapp: existingQuote.whatsapp ?? "",
-        email: existingQuote.email ?? "",
-        city: existingQuote.city ?? "",
-        event_address: existingQuote.event_address ?? "",
-        event_date: existingQuote.event_date ?? "",
-        event_time: existingQuote.event_time ?? "",
-        event_type: existingQuote.event_type ?? "",
-        notes: existingQuote.notes ?? "",
-      });
-
-      if (existingQuote.guest_count) setGuestCount(existingQuote.guest_count);
-      if (existingQuote.cpf) setCpf(maskCpfCnpj(existingQuote.cpf));
-
-      if (existingQuote.package_ids && Array.isArray(existingQuote.package_ids)) {
-        setSelectedPackages(
-          existingQuote.package_ids.map((pkgId: string) => ({
-            id: crypto.randomUUID(),
-            package_id: pkgId,
-          }))
-        );
-      } else if (existingQuote.package_id) {
-        setSelectedPackages([{ id: crypto.randomUUID(), package_id: existingQuote.package_id }]);
-      }
-    }
-  }, [existingQuote]);
-
-  // QUERY - MOSTRA TODOS OS PACOTES
-  const { data: packages } = useQuery({
-    queryKey: ["public-packages", tenant?.id],
-    enabled: !!tenant?.id,
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("packages")
-        .select("id, name, price_per_person, pricing_type")
-        .eq("tenant_id", tenant!.id)
-        .eq("active", true)
-        .order("name");
-
-      return data ?? [];
-    },
-  });
-
-  const packageIds = useMemo(() => (packages ?? []).map((p) => p.id), [packages]);
-
-  // Tiers de preço por faixa de convidados (apenas dos pacotes deste buffet)
-  const { data: tiers } = useQuery({
-    queryKey: ["public-packages-tiers", tenant?.id, packageIds],
-    enabled: packageIds.length > 0,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("package_price_tiers")
-        .select("id, package_id, min_guests, max_guests, price_per_person, price_fixed, position, updated_at")
-        .in("package_id", packageIds)
-        .order("position", { ascending: true });
-      if (error) return [];
-      return (data ?? []) as PriceTier[];
-    },
-  });
-
-  // Itens adicionais independentes dos pacotes
-  const { data: unitItemsCatalog } = useQuery({
-    queryKey: ["public-additional-items", tenant?.id],
-    enabled: !!tenant?.id,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("additional_items")
-        .select("id, name, unit, unit_price, default_qty, position")
-        .eq("tenant_id", tenant!.id)
-        .eq("active", true)
-        .order("position", { ascending: true });
-      if (error) return [];
-      return (data ?? []) as {
-        id: string;
-        name: string;
-        unit: string;
-        unit_price: number;
-        default_qty: number;
-        position: number;
-      }[];
-    },
-  });
-
-  const [unitQty, setUnitQty] = useState<Record<string, number>>({});
-
-  // Preço de um pacote conforme o nº de convidados (por pessoa OU preço fechado)
-  const pricingForPackage = (packageId: string, guests: number) => {
-    const pkg = (packages ?? []).find((p) => p.id === packageId);
-    const pkgTiers = (tiers ?? []).filter((t) => t.package_id === packageId);
-    return resolvePackagePricing(pkg ?? null, pkgTiers, guests);
-  };
-
-  // Pacotes efetivamente escolhidos
-  const chosenPackages = useMemo(
-    () =>
-      selectedPackages
-        .map((s) => {
-          const pkg = (packages ?? []).find((p) => p.id === s.package_id);
-          if (!pkg) return null;
-          const info = pricingForPackage(pkg.id, guestCount);
-          return {
-            id: pkg.id,
-            name: pkg.name,
-            isFixed: info.isFixed,
-            price_per_person: info.isFixed ? 0 : info.unitPrice,
-            price_fixed: info.priceFixed,
-            total: info.totalPrice,
-          };
-        })
-        .filter(Boolean) as {
-        id: string;
-        name: string;
-        isFixed: boolean;
-        price_per_person: number;
-        price_fixed: number;
-        total: number;
-      }[],
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [selectedPackages, packages, tiers, guestCount],
-  );
-
-  const availableUnitItems = unitItemsCatalog ?? [];
-
-  const selectedUnitItems = useMemo(
-    () =>
-      availableUnitItems
-        .map((i) => ({ item_id: i.id, name: i.name, unit: i.unit, unit_price: Number(i.unit_price) || 0, qty: Number(unitQty[i.id] ?? 0) || 0 }))
-        .filter((i) => i.qty > 0),
-    [availableUnitItems, unitQty],
-  );
-
-  const unitItemsSubtotal = useMemo(
-    () => selectedUnitItems.reduce((s, i) => s + i.qty * i.unit_price, 0),
-    [selectedUnitItems],
-  );
-
-  const previewTotal = useMemo(
-    () => chosenPackages.reduce((s, p) => s + p.total, 0) + unitItemsSubtotal,
-    [chosenPackages, unitItemsSubtotal],
-  );
-
-  const fetchLogo = useServerFn(getPublicTenantLogo);
-  const { data: logo } = useQuery({
-    queryKey: ["public-logo", slug],
-    queryFn: () => fetchLogo({ data: { slug } }),
-  });
-  const logoUrl = logo?.url ?? "";
-
-  // MUTATION PARA DADOS (CRIA OU ATUALIZA REGISTRO EXISTENTE)
-  const submitMutation = useMutation({
-    mutationFn: async (payload: FormValues) => {
-      const validPackageIds = (payload.package_ids ?? []).filter(Boolean);
-
-      // CASO EDICIONAL: Atualiza o registro do orçamento existente (evita gerar o 2º card)
-      if (quote_id) {
-        const { data, error } = await supabase
-          .from("quotes")
-          .update({
-            name: payload.name,
-            whatsapp: payload.whatsapp,
-            email: payload.email || null,
-            cpf: payload.cpf || null,
-            city: payload.city || null,
-            event_address: payload.event_address || null,
-            event_date: payload.event_date,
-            event_time: payload.event_time || null,
-            guest_count: payload.guest_count,
-            event_type: payload.event_type || null,
-            package_ids: validPackageIds,
-            package_id: validPackageIds[0] ?? null,
-            notes: payload.notes || null,
-            total_value: previewTotal,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", quote_id);
-
-        if (error) throw error;
-        return data;
-      }
-
-      // CASO NOVO: Chama a procedure RPC V2 para criar um orçamento novo
-      const { data, error } = await (supabase as any).rpc("submit_public_quote_v2", {
-        p_slug: slug,
-        p_name: payload.name,
-        p_whatsapp: payload.whatsapp,
-        p_email: payload.email || null,
-        p_cpf: payload.cpf || null,
-        p_city: payload.city || null,
-        p_event_address: payload.event_address || null,
-        p_event_date: payload.event_date,
-        p_event_time: payload.event_time || null,
-        p_guest_count: payload.guest_count,
-        p_event_type: payload.event_type || null,
-        p_package_id: validPackageIds[0] ?? null,
-        p_notes: payload.notes || null,
-        p_package_ids: validPackageIds.length > 0 ? validPackageIds : null,
-        p_unit_items: selectedUnitItems.length > 0 ? selectedUnitItems : null,
-      });
-
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: () => {
-      setSent(true);
-      toast.success(quote_id ? "Orçamento atualizado com sucesso!" : "Solicitação enviada com sucesso!");
-    },
-    onError: (err: Error) => {
-      toast.error(err.message || "Erro ao salvar solicitação.");
-    },
-  });
-
-  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-
-    const packageIds = selectedPackages.map((p) => p.package_id).filter((id) => id.trim() !== "");
-
-    const rawData = {
-      name: formDataState.name,
-      whatsapp: formDataState.whatsapp,
-      email: formDataState.email,
-      cpf: cpf,
-      city: formDataState.city,
-      event_address: formDataState.event_address,
-      event_date: formDataState.event_date,
-      event_time: formDataState.event_time,
-      guest_count: guestCount,
-      event_type: formDataState.event_type,
-      notes: formDataState.notes,
-      package_ids: packageIds,
+    const invalidate = () => {
+      qc.invalidateQueries({ queryKey: ["dashboard"] });
     };
 
-    const result = schema.safeParse(rawData);
+    const channel = supabase
+      .channel("dashboard-live")
+      .on("postgres_changes", { event: "*", schema: "public", table: "quotes" }, invalidate)
+      .on("postgres_changes", { event: "*", schema: "public", table: "events" }, invalidate)
+      .on("postgres_changes", { event: "*", schema: "public", table: "contracts" }, invalidate)
+      .on("postgres_changes", { event: "*", schema: "public", table: "transactions" }, invalidate)
+      .on("postgres_changes", { event: "*", schema: "public", table: "clients" }, invalidate)
+      .on("postgres_changes", { event: "*", schema: "public", table: "leads" }, invalidate)
+      .on("postgres_changes", { event: "*", schema: "public", table: "event_staff" }, invalidate)
+      .subscribe();
 
-    if (!result.success) {
-      const firstError = result.error.errors[0]?.message || "Verifique os dados preenchidos.";
-      toast.error(firstError);
-      return;
-    }
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [qc]);
 
-    submitMutation.mutate(result.data);
-  }
+  const now = new Date();
+  const today = isoDate(now);
+  const dayOfWeek = now.getDay();
+  const weekStart = new Date(now);
+  weekStart.setDate(now.getDate() - dayOfWeek);
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekStart.getDate() + 7);
+  const weekStartISO = isoDate(weekStart);
+  const weekEndISO = isoDate(weekEnd);
+  const monthStart = isoDate(new Date(now.getFullYear(), now.getMonth(), 1));
+  const nextMonth = isoDate(new Date(now.getFullYear(), now.getMonth() + 1, 1));
+  const monthAgo = isoDate(new Date(now.getFullYear(), now.getMonth() - 1, now.getDate()));
+  const tomorrow = isoDate(new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1));
 
-  if (isLoading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <p className="text-muted-foreground">Carregando formulário...</p>
-      </div>
-    );
-  }
+  // ===== QUERIES =====
+  const tenantSlugQuery = useDashboardQuery("tenant-slug", async () => {
+    const { data } = await supabase.from("tenants").select("slug").maybeSingle();
+    return data?.slug ?? null;
+  });
 
-  if (!tenant || tenant.status !== "ativo") {
-    return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-2 p-4 text-center">
-        <Flame className="h-10 w-10 text-destructive" />
-        <h1 className="text-xl font-semibold">Buffet não encontrado ou inativo</h1>
-        <p className="text-sm text-muted-foreground">Verifique o link digitado e tente novamente.</p>
-      </div>
-    );
-  }
+  const recentQuotesQuery = useDashboardQuery("recent-quotes", async () => {
+    const { data } = await supabase
+      .from("quotes")
+      .select("id, name, event_type, event_date, adults, guest_count, status, total_value, clients(name)")
+      .order("created_at", { ascending: false })
+      .limit(6);
+    return data ?? [];
+  });
 
-  if (sent) {
-    return (
-      <div className="flex min-h-screen flex-col items-center justify-center p-4">
-        <div className="w-full max-w-md rounded-xl border bg-card p-6 text-center shadow-lg">
-          <CheckCircle2 className="mx-auto mb-4 h-12 w-12 text-primary" />
-          <h2 className="text-2xl font-bold">{quote_id ? "Orçamento Atualizado!" : "Solicitação Enviada!"}</h2>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Obrigado por seu interesse no <strong>{tenant.name}</strong>. Entraremos em contato em breve via WhatsApp ou E-mail.
-          </p>
-        </div>
-      </div>
-    );
-  }
+  const eventsData = useDashboardQuery("events-data", async () => {
+    const { data } = await supabase
+      .from("events")
+      .select("id, event_date, status")
+      .not("status", "in", `("${EXCLUDED_STATUSES.join('","')}")`);
+    const counts = { today: 0, week: 0, month: 0 };
+    data?.forEach((event) => {
+      if (event.event_date === today) counts.today++;
+      if (event.event_date >= weekStartISO && event.event_date < weekEndISO) counts.week++;
+      if (event.event_date >= monthStart && event.event_date < nextMonth) counts.month++;
+    });
+    return counts;
+  });
+
+  const quotesData = useDashboardQuery("quotes-data", async () => {
+    const { data } = await supabase.from("quotes").select("id, status, total_value, paid");
+    const pendentes = data?.filter((q) => isOpenQuote(q.status)).length || 0;
+    const aprovados = data?.filter((q) => q.status === "fechado").length || 0;
+    const concluidos =
+      data
+        ?.filter((q) => q.status === "fechado" && q.paid === true)
+        .reduce((sum, q) => sum + Number(q.total_value || 0), 0) || 0;
+    const previsiveis =
+      data
+        ?.filter((q) => (q.status === "fechado" && q.paid === true) || isOpenQuote(q.status))
+        .reduce((sum, q) => sum + Number(q.total_value || 0), 0) || 0;
+    return { pendentes, aprovados, concluidos, previsiveis };
+  });
+
+  const transactionsData = useDashboardQuery("transactions-data", async () => {
+    const { data: evts } = await supabase
+      .from("events")
+      .select("total_value, status")
+      .in("status", FINANCE_EVENT_STATUSES as any);
+
+    const { data: txs } = await supabase
+      .from("transactions")
+      .select("amount, type, status, due_date");
+
+    const totals = computeFinanceTotals(evts ?? [], txs ?? []);
+
+    const vencidos =
+      txs?.filter(
+        (t) => t.type === "entrada" && t.status === "pendente" && t.due_date && t.due_date < today,
+      ).length || 0;
+
+    return {
+      recebido: totals.recebido,
+      despesasPagas: totals.saidasPagas,
+      aReceber: totals.receber,
+      saldo: totals.saldo,
+      vencidos,
+    };
+  });
+
+  const clientsCount = useDashboardQuery("clients-count", async () => {
+    const { count } = await supabase.from("clients").select("id", { count: "exact", head: true });
+    return count ?? 0;
+  });
+
+  const newClients = useDashboardQuery("new-clients", async () => {
+    const { count } = await supabase
+      .from("clients")
+      .select("id", { count: "exact", head: true })
+      .gte("created_at", monthAgo);
+    return count ?? 0;
+  });
+
+  const employeesActive = useDashboardQuery("employees-active", async () => {
+    const { count } = await supabase.from("employees").select("id", { count: "exact", head: true }).eq("active", true);
+    return count ?? 0;
+  });
+
+  const contractsPending = useDashboardQuery("contracts-pending", async () => {
+    const { count } = await supabase
+      .from("contracts")
+      .select("id", { count: "exact", head: true })
+      .in("status", ["rascunho", "enviado"]);
+    return count ?? 0;
+  });
+
+  const staffToday = useDashboardQuery("staff-today", async () => {
+    const { data: events } = await supabase
+      .from("events")
+      .select("id")
+      .eq("event_date", today)
+      .not("status", "in", `("${EXCLUDED_STATUSES.join('","')}")`);
+    if (!events || events.length === 0) return 0;
+    const eventIds = events.map((e) => e.id);
+    const { count } = await supabase
+      .from("event_staff")
+      .select("id", { count: "exact", head: true })
+      .in("event_id", eventIds);
+    return count ?? 0;
+  });
+
+  const packagesCount = useDashboardQuery("packages-count", async () => {
+    const { count } = await supabase.from("packages").select("id", { count: "exact", head: true });
+    return count ?? 0;
+  });
+
+  const upcoming = useDashboardQuery("upcoming", async () => {
+    const { data } = await supabase
+      .from("events")
+      .select("id, event_date, event_time, status, total_value, clients(name), packages(name)")
+      .gte("event_date", today)
+      .not("status", "in", `("${EXCLUDED_STATUSES.join('","')}")`)
+      .order("event_date")
+      .limit(6);
+    return data ?? [];
+  });
+
+  const alertsPay = useDashboardQuery("alerts-pay", async () => {
+    const { data } = await supabase
+      .from("transactions")
+      .select("id, description, amount, due_date")
+      .eq("status", "pendente")
+      .eq("type", "entrada")
+      .lt("due_date", today)
+      .limit(5);
+    return data ?? [];
+  });
+
+  const alertsEvTomorrow = useDashboardQuery("alerts-ev-tomorrow", async () => {
+    const { data } = await supabase
+      .from("events")
+      .select("id, event_time, clients(name)")
+      .eq("event_date", tomorrow)
+      .not("status", "in", `("${EXCLUDED_STATUSES.join('","')}")`)
+      .limit(5);
+    return data ?? [];
+  });
+
+  // ===== CONSOLIDAÇÃO DOS DADOS =====
+  const stats = {
+    evToday: eventsData.data?.today ?? 0,
+    evWeek: eventsData.data?.week ?? 0,
+    evMonth: eventsData.data?.month ?? 0,
+    qPend: quotesData.data?.pendentes ?? 0,
+    qApr: quotesData.data?.aprovados ?? 0,
+    revenueReceived: transactionsData.data?.recebido ?? 0,
+    despesasPagas: transactionsData.data?.despesasPagas ?? 0,
+    toReceive: transactionsData.data?.aReceber ?? 0,
+    txOverdue: transactionsData.data?.vencidos ?? 0,
+    faturamentoConcluido: quotesData.data?.concluidos ?? 0,
+    ganhosPrevisiveis: quotesData.data?.previsiveis ?? 0,
+    clientsCount: clientsCount.data ?? 0,
+    newClients: newClients.data ?? 0,
+    staffToday: staffToday.data ?? 0,
+    employeesActive: employeesActive.data ?? 0,
+    contractsPending: contractsPending.data ?? 0,
+    packagesCount: packagesCount.data ?? 0,
+    upcoming: upcoming.data ?? [],
+    alertsPay: alertsPay.data ?? [],
+    alertsEvTomorrow: alertsEvTomorrow.data ?? [],
+    tenantSlug: tenantSlugQuery.data,
+    recentQuotes: recentQuotesQuery.data ?? [],
+  };
+
+  const alerts: { icon: any; label: string; tone: string }[] = [];
+  if (stats.txOverdue > 0)
+    alerts.push({ icon: AlertTriangle, label: `${stats.txOverdue} pagamento(s) atrasado(s)`, tone: "destructive" });
+  if (stats.contractsPending > 0)
+    alerts.push({ icon: FileText, label: `${stats.contractsPending} contrato(s) pendente(s)`, tone: "warning" });
+  if (stats.alertsEvTomorrow.length > 0)
+    alerts.push({ icon: CalendarCheck, label: `${stats.alertsEvTomorrow.length} evento(s) amanhã`, tone: "info" });
+  if (stats.qPend > 0)
+    alerts.push({ icon: Hourglass, label: `${stats.qPend} orçamento(s) aguardando resposta`, tone: "muted" });
 
   return (
-    <div className="min-h-screen bg-slate-50 px-4 py-8 md:py-12">
-      <div className="mx-auto max-w-2xl rounded-2xl border bg-card p-6 shadow-sm md:p-8">
-        <div className="mb-8 text-center">
-          {logoUrl ? (
-            <img src={logoUrl} alt={tenant.name} className="mx-auto mb-4 max-h-16 object-contain" />
-          ) : (
-            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
-              <Flame className="h-6 w-6 text-primary" />
-            </div>
-          )}
-          <h1 className="text-2xl font-bold tracking-tight">{tenant.name}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {quote_id ? "Atualização de Orçamento" : "Solicitação de Orçamento"}
+    <div className="space-y-8 p-4 md:p-6 bg-slate-50">
+      {/* Cabeçalho */}
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-slate-800">Dashboard</h1>
+          <p className="text-sm text-muted-foreground mt-1 flex items-center gap-2">
+            <Calendar className="size-4" />
+            {formatDateFullBR(new Date())} · Central operacional
           </p>
         </div>
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-green-100 text-green-800 text-xs font-medium">
+            <span className="size-2 rounded-full bg-green-500" />
+            Ao vivo
+          </span>
+        </div>
+      </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="space-y-4">
-            <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Seus Dados</h3>
-
-            <div>
-              <Label htmlFor="name">Nome completo *</Label>
-              <Input
-                id="name"
-                name="name"
-                required
-                value={formDataState.name}
-                onChange={(e) => setFormDataState({ ...formDataState, name: e.target.value })}
-                placeholder="Seu nome"
-              />
-            </div>
-
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div>
-                <Label htmlFor="whatsapp">WhatsApp *</Label>
-                <Input
-                  id="whatsapp"
-                  name="whatsapp"
-                  required
-                  value={formDataState.whatsapp}
-                  onChange={(e) => setFormDataState({ ...formDataState, whatsapp: e.target.value })}
-                  placeholder="(00) 00000-0000"
-                />
-              </div>
-              <div>
-                <Label htmlFor="email">E-mail</Label>
-                <Input
-                  id="email"
-                  name="email"
-                  type="email"
-                  value={formDataState.email}
-                  onChange={(e) => setFormDataState({ ...formDataState, email: e.target.value })}
-                  placeholder="seu@email.com"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div>
-                <Label htmlFor="cpf">{(cpfKind ?? "CPF/CNPJ").toUpperCase()}</Label>
-                <Input
-                  id="cpf"
-                  value={cpf}
-                  onChange={(e) => setCpf(maskCpfCnpj(e.target.value))}
-                  placeholder="000.000.000-00"
-                />
-              </div>
-              <div>
-                <Label htmlFor="city">Cidade</Label>
-                <Input
-                  id="city"
-                  name="city"
-                  value={formDataState.city}
-                  onChange={(e) => setFormDataState({ ...formDataState, city: e.target.value })}
-                  placeholder="Sua cidade"
-                />
-              </div>
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Dados do Evento</h3>
-
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div>
-                <Label htmlFor="event_date">Data do Evento *</Label>
-                <Input
-                  id="event_date"
-                  name="event_date"
-                  type="date"
-                  required
-                  value={formDataState.event_date}
-                  onChange={(e) => setFormDataState({ ...formDataState, event_date: e.target.value })}
-                />
-              </div>
-              <div>
-                <Label htmlFor="event_time">Horário Previsto</Label>
-                <Input
-                  id="event_time"
-                  name="event_time"
-                  type="time"
-                  value={formDataState.event_time}
-                  onChange={(e) => setFormDataState({ ...formDataState, event_time: e.target.value })}
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div>
-                <Label htmlFor="guest_count">Nº de Convidados *</Label>
-                <Input
-                  id="guest_count"
-                  type="number"
-                  min="1"
-                  required
-                  value={guestCount || ""}
-                  onChange={(e) => setGuestCount(Number(e.target.value) || 0)}
-                  placeholder="Ex: 100"
-                />
-              </div>
-              <div>
-                <Label htmlFor="event_type">Tipo de Evento</Label>
-                <Input
-                  id="event_type"
-                  name="event_type"
-                  value={formDataState.event_type}
-                  onChange={(e) => setFormDataState({ ...formDataState, event_type: e.target.value })}
-                  placeholder="Ex: Casamento, Aniversário"
-                />
-              </div>
-            </div>
-
-            <div>
-              <Label htmlFor="event_address">Local do Evento / Endereço</Label>
-              <Input
-                id="event_address"
-                name="event_address"
-                value={formDataState.event_address}
-                onChange={(e) => setFormDataState({ ...formDataState, event_address: e.target.value })}
-                placeholder="Endereço completo ou nome do local"
-              />
-            </div>
-
-            {/* SELEÇÃO DE PACOTES MÚLTIPLOS */}
-            <div className="space-y-3 pt-2">
-              <div className="flex items-center justify-between">
-                <Label>Pacotes Desejados</Label>
-                <Button type="button" variant="outline" size="sm" onClick={addPackage}>
-                  <Plus className="mr-1 h-4 w-4" /> Adicionar Pacote
-                </Button>
-              </div>
-
-              {selectedPackages.length === 0 && (
-                <p className="text-xs text-muted-foreground">
-                  Nenhum pacote selecionado. Clique em "+ Adicionar Pacote" para escolher opções do buffet.
-                </p>
+      {/* Alertas */}
+      {alerts.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+          {alerts.map((a, i) => (
+            <div
+              key={i}
+              className={cn(
+                "flex items-center gap-3 p-3 rounded-xl border text-sm font-medium shadow-sm",
+                a.tone === "destructive" && "border-red-200 bg-red-50 text-red-700",
+                a.tone === "warning" && "border-amber-200 bg-amber-50 text-amber-700",
+                a.tone === "info" && "border-blue-200 bg-blue-50 text-blue-700",
+                a.tone === "muted" && "border-gray-200 bg-gray-50 text-gray-700",
               )}
+            >
+              <a.icon className="size-5 shrink-0" />
+              <span>{a.label}</span>
+            </div>
+          ))}
+        </div>
+      )}
 
-              <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-                {selectedPackages.map((item, index) => {
-                  const info = item.package_id
-                    ? pricingForPackage(item.package_id, guestCount)
-                    : { isFixed: false, unitPrice: 0, totalPrice: 0, priceFixed: 0, tierFound: false };
-                  return (
-                    <div key={item.id} className="flex items-center gap-2 rounded-xl border p-2">
-                      <div className="min-w-0 flex-1">
-                        <Select value={item.package_id} onValueChange={(val) => updatePackage(item.id, val)}>
-                          <SelectTrigger className="w-full">
-                            <SelectValue placeholder={`Opção de Pacote ${index + 1}`} />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {(packages ?? []).map((pkg) => (
-                              <SelectItem key={pkg.id} value={pkg.id}>
-                                {pkg.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        {info.totalPrice > 0 && (
-                          <p className="mt-1 text-xs text-muted-foreground">
-                            {info.isFixed
-                              ? `${brl(info.totalPrice)} (preço fechado)`
-                              : `${brl(info.unitPrice)} / pessoa`}
-                          </p>
-                        )}
-                      </div>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => removePackage(item.id)}
-                        className="text-destructive hover:text-destructive"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  );
-                })}
-              </div>
+      {/* LINHA 1: EVENTOS */}
+      <section>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-lg font-bold text-slate-700 flex items-center gap-2">
+            <Calendar className="size-5 text-blue-600" />
+            Eventos
+          </h2>
+          <Link to="/agenda" className="text-xs font-medium text-blue-600 hover:underline flex items-center gap-1">
+            Ver agenda <ArrowRight className="size-3" />
+          </Link>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <MetricCard label="Hoje" value={stats.evToday} icon={Calendar} color="blue" subtitle="eventos" />
+          <MetricCard label="Semana" value={stats.evWeek} icon={CalendarDays} color="indigo" subtitle="eventos" />
+          <MetricCard label="Mês" value={stats.evMonth} icon={CalendarCheck} color="purple" subtitle="eventos" />
+          <MetricCard
+            label="A receber"
+            value={brlCompact(stats.toReceive)}
+            icon={CreditCard}
+            color="emerald"
+            subtitle={stats.txOverdue > 0 ? `${stats.txOverdue} atrasados` : "em dia"}
+          />
+        </div>
+      </section>
 
-              {availableUnitItems.length > 0 && (
-                <div className="space-y-3 rounded-xl border p-3">
-                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">
-                    Itens adicionais (opcional)
-                  </Label>
-                  <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-                    {availableUnitItems.map((it) => (
-                      <div
-                        key={it.id}
-                        className="flex items-center justify-between gap-3 rounded-lg border bg-muted/30 p-2"
-                      >
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-medium">{it.name}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {brl(Number(it.unit_price) || 0)} / {it.unit || "un"}
-                          </p>
-                        </div>
-                        <Input
-                          type="number"
-                          min="0"
-                          className="w-20"
-                          value={unitQty[it.id] ?? ""}
-                          onChange={(e) =>
-                            setUnitQty((old) => ({ ...old, [it.id]: Math.max(0, Number(e.target.value) || 0) }))
-                          }
-                          placeholder="Qtd"
-                        />
-                      </div>
-                    ))}
+      {/* LINHA 2: FINANCEIRO */}
+      <section>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-lg font-bold text-slate-700 flex items-center gap-2">
+            <DollarSign className="size-5 text-emerald-600" />
+            Financeiro
+          </h2>
+          <Link
+            to="/financeiro"
+            className="text-xs font-medium text-emerald-600 hover:underline flex items-center gap-1"
+          >
+            Ver extrato <ArrowRight className="size-3" />
+          </Link>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+          <FinanceCard label="Receita recebida" value={brl(stats.revenueReceived)} icon={TrendingUp} color="emerald" />
+          <FinanceCard label="A receber" value={brl(stats.toReceive)} icon={Clock} color="amber" />
+          <FinanceCard label="Despesas pagas" value={brl(stats.despesasPagas)} icon={TrendingDown} color="rose" />
+          <FinanceCard
+            label="Saldo atual"
+            value={brl(stats.revenueReceived + stats.toReceive - stats.despesasPagas)}
+            icon={Wallet}
+            color="sky"
+          />
+        </div>
+      </section>
+
+      {/* LINHA 3: ORÇAMENTOS E CLIENTES */}
+      <section>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-lg font-bold text-slate-700 flex items-center gap-2">
+            <FileText className="size-5 text-amber-600" />
+            Orçamentos e Clientes
+          </h2>
+          <Link to="/orcamentos" className="text-xs font-medium text-amber-600 hover:underline flex items-center gap-1">
+            Ver orçamentos <ArrowRight className="size-3" />
+          </Link>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <MetricCard label="Pendentes" value={stats.qPend} icon={Clock} color="orange" subtitle="orçamentos" />
+          <MetricCard label="Aprovados" value={stats.qApr} icon={CheckCircle} color="green" subtitle="orçamentos" />
+          <MetricCard
+            label="Clientes ativos"
+            value={stats.clientsCount}
+            icon={Users}
+            color="cyan"
+            subtitle="cadastrados"
+          />
+          <MetricCard label="Novos (30d)" value={stats.newClients} icon={UserCheck} color="teal" subtitle="clientes" />
+        </div>
+      </section>
+
+      {/* SEÇÃO DE ÚLTIMOS ORÇAMENTOS (COM LINK PÚBLICO E EDIÇÃO DIRETA) */}
+      <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden p-5 md:p-6 space-y-4">
+        <div className="flex justify-between items-center border-b border-slate-100 pb-4">
+          <div>
+            <h2 className="font-extrabold text-lg tracking-tight text-slate-800 flex items-center gap-2">
+              <FileText className="size-5 text-amber-600" />
+              Gestão de Orçamentos
+            </h2>
+            <p className="text-xs text-muted-foreground mt-0.5">Copie o link do cliente com 1 clique ou edite sem duplicar</p>
+          </div>
+          <Link to="/orcamentos" className="text-xs font-bold text-amber-600 hover:underline flex items-center gap-1">
+            Ver todos <ArrowRight className="size-3" />
+          </Link>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {stats.recentQuotes.map((q: any) => {
+            const publicUrl = stats.tenantSlug
+              ? `${window.location.origin}/orcamento/${stats.tenantSlug}?quote_id=${q.id}`
+              : null;
+
+            return (
+              <div
+                key={q.id}
+                className="flex items-center justify-between p-4 bg-slate-50/70 border border-slate-200/80 rounded-xl hover:border-amber-400 transition-colors"
+              >
+                <div className="space-y-1 min-w-0 pr-2">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-sm text-slate-800 truncate">
+                      {q.clients?.name ?? q.name ?? "Orçamento sem nome"}
+                    </span>
+                    {q.event_type && (
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-200 font-semibold uppercase text-slate-600">
+                        {q.event_type}
+                      </span>
+                    )}
                   </div>
-                  {unitItemsSubtotal > 0 && (
-                    <p className="text-right text-xs text-muted-foreground">
-                      Subtotal itens adicionais: <strong>{brl(unitItemsSubtotal)}</strong>
-                    </p>
+                  <p className="text-xs text-slate-500">
+                    {q.event_date ? formatDateBR(q.event_date) : "Data a definir"} · {q.adults ?? q.guest_count ?? 0} conv. · <strong className="text-slate-800">{brl(q.total_value)}</strong>
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  {/* COPIAR LINK PÚBLICO */}
+                  {publicUrl && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(publicUrl);
+                        toast.success("Link público do orçamento copiado!");
+                      }}
+                      className="px-3 py-1.5 text-xs font-bold rounded-full bg-amber-500/10 text-amber-700 border border-amber-300 hover:bg-amber-500/20 transition-colors flex items-center gap-1.5"
+                    >
+                      <Copy className="size-3.5" /> Link Público
+                    </button>
                   )}
-                </div>
-              )}
 
-              {previewTotal > 0 && (
-                <div className="mt-2 rounded-lg bg-slate-100 p-3 text-right">
-                  <span className="text-xs text-muted-foreground">Valor Total: </span>
-                  <span className="text-base font-bold text-primary">{brl(previewTotal)}</span>
+                  {/* EDITAR VINCULANDO O QUOTE ID */}
+                  <Link
+                    to="/_authenticated/orcamentos/novo"
+                    search={{ quoteId: q.id }}
+                    className="px-3 py-1.5 text-xs font-bold rounded-full bg-slate-800 text-white hover:bg-slate-700 transition-colors"
+                  >
+                    Editar
+                  </Link>
                 </div>
-              )}
+              </div>
+            );
+          })}
+
+          {stats.recentQuotes.length === 0 && (
+            <div className="col-span-2 p-6 text-center text-sm text-muted-foreground">
+              Nenhum orçamento cadastrado recentemente.
             </div>
+          )}
+        </div>
+      </section>
 
+      {/* LINHA 4: OPERACIONAL */}
+      <section>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-lg font-bold text-slate-700 flex items-center gap-2">
+            <Building2 className="size-5 text-violet-600" />
+            Operacional
+          </h2>
+          <Link
+            to="/funcionarios"
+            className="text-xs font-medium text-violet-600 hover:underline flex items-center gap-1"
+          >
+            Ver equipe <ArrowRight className="size-3" />
+          </Link>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <MetricCard
+            label="Escala hoje"
+            value={stats.staffToday}
+            icon={Users}
+            color="violet"
+            subtitle="profissionais"
+          />
+          <MetricCard
+            label="Funcionários ativos"
+            value={stats.employeesActive}
+            icon={UserCheck}
+            color="fuchsia"
+            subtitle="colaboradores"
+          />
+          <MetricCard
+            label="Contratos pendentes"
+            value={stats.contractsPending}
+            icon={FileText}
+            color="rose"
+            subtitle="para assinar"
+          />
+          <MetricCard label="Pacotes" value={stats.packagesCount} icon={Package} color="gray" subtitle="cadastrados" />
+        </div>
+      </section>
+
+      {/* PRÓXIMOS EVENTOS E PENDÊNCIAS */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+          <div className="p-5 md:p-6 border-b border-slate-100 flex justify-between items-center">
             <div>
-              <Label htmlFor="notes">Observações adicionais</Label>
-              <Textarea
-                id="notes"
-                name="notes"
-                value={formDataState.notes}
-                onChange={(e) => setFormDataState({ ...formDataState, notes: e.target.value })}
-                placeholder="Detalhes adicionais, preferências ou dúvidas..."
-                rows={3}
-              />
+              <h2 className="font-extrabold text-lg tracking-tight text-slate-800 flex items-center gap-2">
+                <Calendar className="size-5 text-blue-600" />
+                Próximos eventos
+              </h2>
+              <p className="text-xs text-muted-foreground mt-0.5">Os 6 eventos mais próximos</p>
+            </div>
+            <Link to="/agenda" className="text-xs font-bold text-blue-600 hover:underline flex items-center gap-1">
+              Ver agenda <ArrowRight className="size-3" />
+            </Link>
+          </div>
+
+          {stats.upcoming.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="text-[10px] uppercase tracking-widest text-slate-500 border-b border-slate-100 bg-slate-50/50">
+                    <th className="px-5 py-3 font-bold">Cliente</th>
+                    <th className="px-4 py-3 font-bold">Data</th>
+                    <th className="px-4 py-3 font-bold hidden md:table-cell">Pacote</th>
+                    <th className="px-4 py-3 font-bold text-right">Valor</th>
+                    <th className="px-4 py-3 font-bold">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {stats.upcoming.map((e: any) => (
+                    <tr key={e.id} className="hover:bg-slate-50/70 transition-colors">
+                      <td className="px-5 py-4 text-sm font-semibold text-slate-700">{e.clients?.name ?? "—"}</td>
+                      <td className="px-4 py-4 text-xs font-mono text-slate-600">{formatDateBR(e.event_date)}</td>
+                      <td className="px-4 py-4 hidden md:table-cell text-xs text-slate-600">
+                        {e.packages?.name ?? "—"}
+                      </td>
+                      <td className="px-4 py-4 text-sm font-mono text-right text-slate-700">{brl(e.total_value)}</td>
+                      <td className="px-4 py-4">
+                        <span
+                          className={cn(
+                            "px-2 py-1 text-[10px] rounded-full font-bold uppercase tracking-wider whitespace-nowrap",
+                            statusStyles[e.status] ?? "bg-gray-100 text-gray-800",
+                          )}
+                        >
+                          {statusLabels[e.status] ?? e.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="p-10 text-center text-sm text-muted-foreground">Nenhum evento próximo.</div>
+          )}
+        </div>
+
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col justify-between">
+          <div>
+            <div className="p-5 md:p-6 border-b border-slate-100">
+              <h2 className="font-extrabold text-lg tracking-tight text-slate-800 flex items-center gap-2">
+                <AlertTriangle className="size-5 text-amber-600" />
+                Atenção / Pendências
+              </h2>
+              <p className="text-xs text-muted-foreground mt-0.5">Ações prioritárias para o seu dia</p>
+            </div>
+            <div className="p-5 space-y-4">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-slate-600">Pagamentos em atraso:</span>
+                <span className="font-bold text-red-600">{stats.txOverdue}</span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-slate-600">Contratos p/ assinar:</span>
+                <span className="font-bold text-amber-600">{stats.contractsPending}</span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-slate-600">Orçamentos pendentes:</span>
+                <span className="font-bold text-blue-600">{stats.qPend}</span>
+              </div>
             </div>
           </div>
 
-          <Button type="submit" className="w-full" disabled={submitMutation.isPending}>
-            {submitMutation.isPending ? (
-              "Enviando..."
-            ) : (
-              <>
-                <Send className="mr-2 h-4 w-4" /> {quote_id ? "Salvar Alterações" : "Enviar Solicitação"}
-              </>
-            )}
-          </Button>
-        </form>
+          <div className="p-4 bg-slate-50 border-t border-slate-100">
+            <Link
+              to="/financeiro"
+              className="w-full py-2.5 px-4 bg-white border border-slate-200 hover:bg-slate-100 rounded-xl text-xs font-bold text-slate-700 flex items-center justify-center gap-2 transition-colors shadow-sm"
+            >
+              Ir para gestão financeira <ArrowRight className="size-3.5" />
+            </Link>
+          </div>
+        </div>
+      </div>
+
+      {/* AVALIAÇÕES / NPS */}
+      <FeedbackPieCard />
+      <UnifiedReviewsCard />
+    </div>
+  );
+}
+
+const ICON_BG: Record<string, string> = {
+  blue: "bg-blue-500",
+  indigo: "bg-indigo-500",
+  purple: "bg-purple-500",
+  emerald: "bg-emerald-500",
+  amber: "bg-amber-500",
+  rose: "bg-rose-500",
+  sky: "bg-sky-500",
+  orange: "bg-orange-500",
+  green: "bg-green-500",
+  cyan: "bg-cyan-500",
+  teal: "bg-teal-500",
+  violet: "bg-violet-500",
+  fuchsia: "bg-fuchsia-500",
+  gray: "bg-gray-500",
+};
+
+const iconBg = (color?: string) => ICON_BG[color ?? ""] ?? "bg-slate-500";
+
+function MetricCard({ label, value, icon: Icon, color, subtitle }: any) {
+  return (
+    <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-2">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-bold uppercase tracking-wider text-slate-500">{label}</span>
+        <div className={cn("p-2 rounded-xl text-white", iconBg(color))}>
+          <Icon className="size-4" />
+        </div>
+      </div>
+      <div>
+        <div className="text-2xl font-black tracking-tight text-slate-800">{value}</div>
+        {subtitle && <p className="text-[11px] text-muted-foreground mt-0.5">{subtitle}</p>}
+      </div>
+    </div>
+  );
+}
+
+function FinanceCard({ label, value, icon: Icon, color }: any) {
+  return (
+    <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between gap-3">
+      <div className="space-y-1 min-w-0">
+        <span className="text-xs font-bold uppercase tracking-wider text-slate-500">{label}</span>
+        <div className="text-xl md:text-2xl font-black tracking-tight text-slate-800 break-words">{value}</div>
+      </div>
+      <div className={cn("p-3 rounded-2xl text-white shrink-0", iconBg(color))}>
+        <Icon className="size-6" />
       </div>
     </div>
   );
