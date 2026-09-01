@@ -10,7 +10,6 @@ import { useTenantAccess } from "@/hooks/useTenantAccess";
 import { useSearchFilter } from "@/lib/search-store";
 import InstallmentsSection from "@/components/financeiro/InstallmentsSection";
 
-
 export const Route = createFileRoute("/_authenticated/financeiro")({
   head: () => ({ meta: [{ title: "Financeiro — Central do Buffet" }] }),
   component: FinanceiroPage,
@@ -23,9 +22,7 @@ type SourceFilter = "todos" | "evento" | "transacao" | "parcela";
 import {
   RECEIVED_EVENT_STATUSES,
   FINANCE_EVENT_STATUSES,
-  computeFinanceTotals,
 } from "@/lib/finance-logic";
-
 
 const statusLabels: Record<string, string> = {
   agendado: "Agendado",
@@ -81,6 +78,8 @@ function FinanceiroPage() {
   const [period, setPeriod] = useState<PeriodFilter>("todos");
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("todos");
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>("todos");
+
+  // ------- Despesa -------
   const [showExpense, setShowExpense] = useState(false);
   const [form, setForm] = useState({
     description: "",
@@ -165,13 +164,12 @@ function FinanceiroPage() {
     onSuccess: () => {
       toast.success("Entrada registrada");
       setShowIncome(false);
-      setIncomeForm((f) => ({ ...f, description: "", amount: "" }));
+      setIncomeForm((f) => ({ ...f, description: "", amount: "", event_id: "" }));
       qc.invalidateQueries({ queryKey: ["financeiro-transactions"] });
       qc.invalidateQueries({ queryKey: ["dashboard"] });
     },
     onError: (e: any) => toast.error(e.message ?? "Erro ao registrar entrada"),
   });
-
 
   const deleteTx = useMutation({
     mutationFn: async (id: string) => {
@@ -185,7 +183,6 @@ function FinanceiroPage() {
     },
     onError: (e: any) => toast.error(e.message ?? "Erro ao remover"),
   });
-
 
   // Realtime: reflete o Dashboard
   useEffect(() => {
@@ -347,18 +344,17 @@ function FinanceiroPage() {
   const totals = periodFiltered
     .filter((r) => r.source !== "parcela")
     .reduce(
-    (acc, r) => {
-      if (r.kind === "recebido") acc.recebido += r.amount;
-      else if (r.kind === "receber") acc.receber += r.amount;
-      else if (r.kind === "saida") {
-        acc.saidas += r.amount;
-        if (r.status === "pago") acc.saidasPagas += r.amount;
-      }
-      return acc;
-    },
-    { recebido: 0, receber: 0, saidas: 0, saidasPagas: 0 },
-  );
-
+      (acc, r) => {
+        if (r.kind === "recebido") acc.recebido += r.amount;
+        else if (r.kind === "receber") acc.receber += r.amount;
+        else if (r.kind === "saida") {
+          acc.saidas += r.amount;
+          if (r.status === "pago") acc.saidasPagas += r.amount;
+        }
+        return acc;
+      },
+      { recebido: 0, receber: 0, saidas: 0, saidasPagas: 0 },
+    );
 
   // Aplica filtro de origem
   const sourceFiltered = periodFiltered.filter((r) => {
@@ -385,12 +381,20 @@ function FinanceiroPage() {
             Eventos pagos, despesas e transações financeiras
           </p>
         </div>
-        <button
-          onClick={() => setShowExpense(true)}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-rose-600 text-white text-xs font-bold hover:bg-rose-700 transition-colors"
-        >
-          <Plus className="size-4" /> Nova despesa
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setShowIncome(true)}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 transition-colors"
+          >
+            <Plus className="size-4" /> Nova entrada
+          </button>
+          <button
+            onClick={() => setShowExpense(true)}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-rose-600 text-white text-xs font-bold hover:bg-rose-700 transition-colors"
+          >
+            <Plus className="size-4" /> Nova despesa
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
@@ -406,9 +410,6 @@ function FinanceiroPage() {
       </div>
 
       <InstallmentsSection tenantId={tenantId} ownerId={access?.userId ?? null} isSuperAdmin={isSuperAdmin} />
-
-
-
 
       {/* Barra de Filtros */}
       <div className="flex flex-wrap items-center justify-between gap-3 bg-card p-3 rounded-2xl border border-border shadow-sm">
@@ -568,6 +569,130 @@ function FinanceiroPage() {
         </table>
       </div>
 
+      {/* Modal Nova Entrada */}
+      {showIncome && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+          <div className="bg-card w-full max-w-md rounded-2xl border border-border shadow-xl p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-extrabold tracking-tight">Nova entrada</h2>
+              <button onClick={() => setShowIncome(false)} className="p-1 rounded-lg hover:bg-muted">
+                <X className="size-4" />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                  Vincular a um Evento (Opcional)
+                </label>
+                <select
+                  value={incomeForm.event_id}
+                  onChange={(e) => setIncomeForm({ ...incomeForm, event_id: e.target.value })}
+                  className="mt-1 w-full px-3 py-2 rounded-xl border border-border bg-background text-sm"
+                >
+                  <option value="">Nenhum (Entrada Avulsa)</option>
+                  {events?.map((ev: any) => (
+                    <option key={ev.id} value={ev.id}>
+                      {ev.clients?.name ? `${ev.clients.name} - ` : ""}{ev.packages?.name ?? "Evento"} ({formatDateBR(ev.event_date)})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                  Descrição
+                </label>
+                <input
+                  value={incomeForm.description}
+                  onChange={(e) => setIncomeForm({ ...incomeForm, description: e.target.value })}
+                  placeholder="Ex.: Sinal de pagamento / Entrada"
+                  className="mt-1 w-full px-3 py-2 rounded-xl border border-border bg-background text-sm"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                    Valor (R$)
+                  </label>
+                  <input
+                    value={incomeForm.amount}
+                    onChange={(e) => setIncomeForm({ ...incomeForm, amount: e.target.value })}
+                    inputMode="decimal"
+                    placeholder="500,00"
+                    className="mt-1 w-full px-3 py-2 rounded-xl border border-border bg-background text-sm font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Data</label>
+                  <input
+                    type="date"
+                    value={incomeForm.date}
+                    onChange={(e) => setIncomeForm({ ...incomeForm, date: e.target.value })}
+                    className="mt-1 w-full px-3 py-2 rounded-xl border border-border bg-background text-sm"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                  Forma de pagamento
+                </label>
+                <select
+                  value={incomeForm.method}
+                  onChange={(e) => setIncomeForm({ ...incomeForm, method: e.target.value as typeof incomeForm.method })}
+                  className="mt-1 w-full px-3 py-2 rounded-xl border border-border bg-background text-sm capitalize"
+                >
+                  {(["pix", "dinheiro", "cartao", "boleto", "transferencia", "outro"] as const).map((m) => (
+                    <option key={m} value={m}>
+                      {m}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Situação</label>
+                <div className="mt-1 flex gap-2">
+                  {(["pago", "pendente"] as const).map((s) => (
+                    <button
+                      key={s}
+                      onClick={() => setIncomeForm({ ...incomeForm, status: s })}
+                      className={cn(
+                        "px-3 py-1.5 text-xs font-bold rounded-full border transition-colors capitalize",
+                        incomeForm.status === s
+                          ? "bg-primary text-primary-foreground border-primary"
+                          : "border-border hover:bg-muted",
+                      )}
+                    >
+                      {s === "pago" ? "Recebido (Entra no saldo)" : "A Receber (Pendente)"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-1">
+              <button
+                onClick={() => setShowIncome(false)}
+                className="px-4 py-2 rounded-full border border-border text-xs font-bold hover:bg-muted"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => createIncome.mutate()}
+                disabled={createIncome.isPending}
+                className="px-4 py-2 rounded-full bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 disabled:opacity-60"
+              >
+                {createIncome.isPending ? "Salvando..." : "Registrar entrada"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Nova Despesa */}
       {showExpense && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
           <div className="bg-card w-full max-w-md rounded-2xl border border-border shadow-xl p-5 space-y-4">
