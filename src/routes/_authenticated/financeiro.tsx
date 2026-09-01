@@ -121,6 +121,58 @@ function FinanceiroPage() {
     onError: (e: any) => toast.error(e.message ?? "Erro ao registrar despesa"),
   });
 
+  // ------- Entrada manual vinculada a um evento -------
+  const [showIncome, setShowIncome] = useState(false);
+  const [incomeForm, setIncomeForm] = useState({
+    event_id: "",
+    description: "",
+    amount: "",
+    date: new Date().toISOString().slice(0, 10),
+    method: "pix" as "pix" | "dinheiro" | "cartao" | "boleto" | "transferencia" | "outro",
+    status: "pago" as "pago" | "pendente",
+  });
+
+  const createIncome = useMutation({
+    mutationFn: async () => {
+      const amount = Number(String(incomeForm.amount).replace(/\./g, "").replace(",", "."));
+      if (!amount || amount <= 0) throw new Error("Informe um valor válido.");
+      if (!access?.userId) throw new Error("Sessão expirada.");
+      let client_id: string | null = null;
+      if (incomeForm.event_id) {
+        const { data: ev } = await supabase
+          .from("events")
+          .select("client_id")
+          .eq("id", incomeForm.event_id)
+          .maybeSingle();
+        client_id = (ev as any)?.client_id ?? null;
+      }
+      const { error } = await supabase.from("transactions").insert({
+        description: incomeForm.description.trim() || "Entrada manual",
+        category: "Entrada de evento",
+        amount,
+        type: "entrada",
+        status: incomeForm.status,
+        method: incomeForm.method,
+        due_date: incomeForm.date,
+        paid_date: incomeForm.status === "pago" ? incomeForm.date : null,
+        event_id: incomeForm.event_id || null,
+        client_id,
+        owner_id: access.userId,
+        tenant_id: tenantId,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Entrada registrada");
+      setShowIncome(false);
+      setIncomeForm((f) => ({ ...f, description: "", amount: "" }));
+      qc.invalidateQueries({ queryKey: ["financeiro-transactions"] });
+      qc.invalidateQueries({ queryKey: ["dashboard"] });
+    },
+    onError: (e: any) => toast.error(e.message ?? "Erro ao registrar entrada"),
+  });
+
+
   const deleteTx = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase.from("transactions").delete().eq("id", id);

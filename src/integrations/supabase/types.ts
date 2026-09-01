@@ -936,6 +936,7 @@ export type Database = {
           owner_id: string
           package_id: string
           position: number
+          price_fixed: number | null
           price_per_person: number
           tenant_id: string | null
           updated_at: string
@@ -948,6 +949,7 @@ export type Database = {
           owner_id: string
           package_id: string
           position?: number
+          price_fixed?: number | null
           price_per_person?: number
           tenant_id?: string | null
           updated_at?: string
@@ -960,6 +962,7 @@ export type Database = {
           owner_id?: string
           package_id?: string
           position?: number
+          price_fixed?: number | null
           price_per_person?: number
           tenant_id?: string | null
           updated_at?: string
@@ -1089,6 +1092,7 @@ export type Database = {
           name: string
           owner_id: string
           price_per_person: number
+          pricing_type: string
           tenant_id: string | null
           updated_at: string
         }
@@ -1103,6 +1107,7 @@ export type Database = {
           name: string
           owner_id: string
           price_per_person?: number
+          pricing_type?: string
           tenant_id?: string | null
           updated_at?: string
         }
@@ -1117,6 +1122,7 @@ export type Database = {
           name?: string
           owner_id?: string
           price_per_person?: number
+          pricing_type?: string
           tenant_id?: string | null
           updated_at?: string
         }

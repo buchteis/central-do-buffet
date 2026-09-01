@@ -153,9 +153,12 @@ export type PriceTier = {
   min_guests: number;
   max_guests: number;
   price_per_person: number | string | null;
+  /** Valor TOTAL da faixa quando o pacote é de preço fechado. */
+  price_fixed?: number | string | null;
   position?: number | null;
   updated_at?: string | null;
 };
+
 
 /** Ordenação determinística: posição, faixa e, em empate, a faixa editada mais recentemente. */
 function sortTiers(tiers: PriceTier[]): PriceTier[] {
@@ -188,4 +191,94 @@ export function resolveTierPrice(tiers: PriceTier[], guests: number, basePrice =
   const below = [...list].filter((t) => t.max_guests < g).sort((a, b) => b.max_guests - a.max_guests);
   if (below.length) return Number(below[0].price_per_person) || 0;
   return Number(byMin[byMin.length - 1].price_per_person) || 0;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Preço fechado (fixed) x preço por pessoa (per_person) — regra ÚNICA        */
+/* Usada em Pacotes, Orçamentos, Eventos, PDF/Contrato e no link público.      */
+/* -------------------------------------------------------------------------- */
+export type PricingType = "per_person" | "fixed";
+
+export type PackageLike = {
+  id?: string;
+  name?: string | null;
+  pricing_type?: string | null;
+  price_per_person?: number | string | null;
+};
+
+export type PackagePricing = {
+  isFixed: boolean;
+  /** Valor por pessoa (em preço fechado = total ÷ convidados). */
+  unitPrice: number;
+  /** Valor total do pacote para o nº de convidados informado. */
+  totalPrice: number;
+  /** Valor fechado da faixa (0 quando é por pessoa). */
+  priceFixed: number;
+  tierFound: boolean;
+};
+
+/** Valor fechado (total) da faixa correspondente ao nº de convidados. */
+export function resolveTierFixed(tiers: PriceTier[], guests: number, baseFixed = 0): number {
+  const list = sortTiers(tiers ?? []);
+  if (list.length === 0) return Number(baseFixed) || 0;
+  const g = Number(guests) || 0;
+  const inRange = list.find((t) => g >= t.min_guests && g <= t.max_guests);
+  if (inRange) return Number(inRange.price_fixed ?? 0) || 0;
+  const byMin = [...list].sort((a, b) => a.min_guests - b.min_guests);
+  if (g < byMin[0].min_guests) return Number(byMin[0].price_fixed ?? 0) || 0;
+  const below = [...list].filter((t) => t.max_guests < g).sort((a, b) => b.max_guests - a.max_guests);
+  if (below.length) return Number(below[0].price_fixed ?? 0) || 0;
+  return Number(byMin[byMin.length - 1].price_fixed ?? 0) || 0;
+}
+
+/**
+ * Preço de um pacote conforme o tipo de cobrança.
+ * - per_person: preço da faixa (ou base) x convidados.
+ * - fixed: valor fechado da faixa (independe do nº de convidados);
+ *   unitPrice é apenas a divisão informativa por convidado.
+ */
+export function resolvePackagePricing(
+  pkg: PackageLike | null | undefined,
+  tiers: PriceTier[] = [],
+  guests = 0,
+): PackagePricing {
+  if (!pkg) return { isFixed: false, unitPrice: 0, totalPrice: 0, priceFixed: 0, tierFound: false };
+  const list = (tiers ?? []).filter((t) => !pkg.id || !t.package_id || t.package_id === pkg.id);
+  const g = Number(guests) || 0;
+  const tierFound = list.some((t) => g >= t.min_guests && g <= t.max_guests);
+  const isFixed = String(pkg.pricing_type ?? "per_person") === "fixed";
+
+  if (isFixed) {
+    const priceFixed = resolveTierFixed(list, g, 0);
+    return {
+      isFixed: true,
+      priceFixed,
+      totalPrice: priceFixed,
+      unitPrice: g > 0 ? priceFixed / g : 0,
+      tierFound,
+    };
+  }
+
+  const unitPrice = resolveTierPrice(list, g, Number(pkg.price_per_person ?? 0) || 0);
+  return { isFixed: false, priceFixed: 0, unitPrice, totalPrice: unitPrice * g, tierFound };
+}
+
+/** Snapshot salvo em quotes.extras.packages (compatível com o formato antigo). */
+export type PackageSnapshot = {
+  package_id: string;
+  name: string;
+  pricing_type: PricingType;
+  price_per_person: number;
+  price_fixed: number;
+};
+
+/** Total de uma lista de pacotes já resolvidos (snapshot) para N convidados. */
+export function packagesTotal(packages: Partial<PackageSnapshot>[] = [], guests = 0): number {
+  const g = Number(guests) || 0;
+  return round2(
+    (packages ?? []).reduce((sum, p) => {
+      if (String(p?.pricing_type ?? "per_person") === "fixed") return sum + (Number(p?.price_fixed) || 0);
+      return sum + (Number(p?.price_per_person) || 0) * g;
+    }, 0),
+  );
 }

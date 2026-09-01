@@ -446,7 +446,7 @@ function QuoteEditor({ leadId, quoteId }: { leadId?: string; quoteId?: string })
           </div>
 
           <div className="space-y-4 bg-card border rounded-2xl p-5 shadow-sm">
-            <ChecklistPreDefinido guestCount={totalGuests} />
+            <ChecklistPreDefinido guests={totalGuests} />
 
             <div className="space-y-2 pt-2">
               <Label>Observações adicionais</Label>
