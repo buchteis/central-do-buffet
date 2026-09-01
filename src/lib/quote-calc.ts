@@ -153,9 +153,12 @@ export type PriceTier = {
   min_guests: number;
   max_guests: number;
   price_per_person: number | string | null;
+  /** Valor TOTAL da faixa quando o pacote é de preço fechado. */
+  price_fixed?: number | string | null;
   position?: number | null;
   updated_at?: string | null;
 };
+
 
 /** Ordenação determinística: posição, faixa e, em empate, a faixa editada mais recentemente. */
 function sortTiers(tiers: PriceTier[]): PriceTier[] {
