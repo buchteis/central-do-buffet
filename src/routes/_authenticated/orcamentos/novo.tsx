@@ -263,31 +263,59 @@ function QuoteEditor({ leadId, quoteId }: { leadId?: string; quoteId?: string })
       const { data: userRes } = await supabase.auth.getUser();
       if (!userRes.user) throw new Error("Sessão expirada. Faça login novamente.");
 
-      const payload = {
-        owner_id: userRes.user.id,
-        client_id: clientId || null,
+      const prevExtras = ((quote?.extras ?? {}) as any) || {};
+      const packagesSnapshot = selectedPackagesDetailed
+        .filter((p) => p.id)
+        .map((p) => ({
+          package_id: p.id,
+          name: p.name,
+          pricing_type: p.pricing_type,
+          price_per_person: p.pricing_type === "fixed" ? 0 : p.price_per_person,
+          price_fixed: p.pricing_type === "fixed" ? p.price_fixed : 0,
+        }));
+
+      const payload: Record<string, any> = {
+        owner_id: quote?.owner_id ?? userRes.user.id,
+        client_id: clientId || quote?.client_id || null,
         package_id: validPackageIds[0],
         event_date: eventDate,
         event_time: eventTime || null,
         event_type: eventType || null,
         event_address: eventAddress || null,
         adults: adults,
+        children_7_10: childrenCount,
+        children_0_6: 0,
         total_value: grandTotal,
         notes: notes || null,
         extras: {
+          ...prevExtras,
+          packages: packagesSnapshot,
           package_ids: validPackageIds,
           children_count: childrenCount,
           child_price: childrenPrice,
         },
       };
 
-      const { data, error } = await supabase.from("quotes").insert([payload]).select().single();
+      if (quoteId) {
+        const { data, error } = await supabase
+          .from("quotes")
+          .update(payload as any)
+          .eq("id", quoteId)
+          .select()
+          .single();
+        if (error) throw error;
+        return data;
+      }
+
+      const { data, error } = await supabase.from("quotes").insert([payload as any]).select().single();
       if (error) throw error;
       return data;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["quotes"] });
-      toast.success("Orçamento criado com sucesso!");
+      ["quotes", "quote-prefill", "agenda", "dashboard-stats-v2"].forEach((k) =>
+        qc.invalidateQueries({ queryKey: [k] }),
+      );
+      toast.success(quoteId ? "Orçamento atualizado!" : "Orçamento criado com sucesso!");
       navigate({ to: "/orcamentos" });
     },
     onError: (err: Error) => toast.error(err.message || "Erro ao salvar orçamento"),
