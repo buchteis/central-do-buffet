@@ -215,6 +215,7 @@ export default function InstallmentsSection({ tenantId, ownerId, isSuperAdmin }:
     }
   };
 
+  // Filtramos apenas as cobranças que ainda possuem parcelas ativas
   const inProgress = groups.filter((g) => !g.allPaid);
 
   const renderGroupCard = (g: any) => {
@@ -330,6 +331,7 @@ export default function InstallmentsSection({ tenantId, ownerId, isSuperAdmin }:
 
   return (
     <div className="space-y-4">
+      {/* Topo Limpo */}
       <div className="flex items-center justify-between pb-2 border-b border-border/40">
         <div>
           <h3 className="text-sm font-semibold tracking-tight">Cobranças & Links de Pagamento</h3>
@@ -342,6 +344,7 @@ export default function InstallmentsSection({ tenantId, ownerId, isSuperAdmin }:
         </button>
       </div>
 
+      {/* Kanban Simplificado em 2 Colunas */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Column title="Eventos a Parcelar" count={pendingEvents.length}>
           {pendingEvents.length === 0 ? (
@@ -367,10 +370,11 @@ export default function InstallmentsSection({ tenantId, ownerId, isSuperAdmin }:
         </Column>
 
         <Column title="Em Pagamento" count={inProgress.length}>
-          {inProgress.length === 0 ? <Empty text="Nenhuma cobrança ativa" /> : inProgress.map((g: any) => renderGroupCard(g))}
+          {inProgress.length === 0 ? <Empty text="Nenhuma cobrança ativa" /> : inProgress.map(renderGroupCard)}
         </Column>
       </div>
 
+      {/* Modal Reorganizado */}
       {open && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-card border border-border rounded-xl w-full max-w-md p-5 space-y-4 shadow-lg">
