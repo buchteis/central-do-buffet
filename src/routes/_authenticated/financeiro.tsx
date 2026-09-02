@@ -93,6 +93,7 @@ function FinanceiroPage() {
   const [period, setPeriod] = useState<PeriodFilter>("todos");
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("todos");
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>("todos");
+  const [monthFilter, setMonthFilter] = useState<number | null>(null);
 
   // ------- Despesa -------
   const [showExpense, setShowExpense] = useState(false);
