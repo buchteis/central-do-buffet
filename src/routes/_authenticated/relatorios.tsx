@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenantAccess } from "@/hooks/useTenantAccess";
 import { brl } from "@/lib/format";
@@ -11,6 +12,8 @@ import {
   CalendarCheck,
   BarChart3,
   PieChart as PieChartIcon,
+  ShoppingCart,
+  FileSpreadsheet,
 } from "lucide-react";
 import {
   BarChart,
@@ -37,6 +40,7 @@ const MONTH_NAMES = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Se
 function RelatoriosPage() {
   const { tenantId, isSuperAdmin } = useTenantAccess();
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
+  const [generatingPO, setGeneratingPO] = useState(false);
 
   // Busca de Eventos Reais do Supabase
   const { data: events = [], isLoading: loadingEvents } = useQuery({
@@ -55,7 +59,64 @@ function RelatoriosPage() {
     },
   });
 
-  // Agrupamento de Analytics Reais
+  // Busca de itens em falta no Estoque para a Ordem de Compra
+  const { data: lowStockItems = [] } = useQuery({
+    queryKey: ["relatorios-low-stock", tenantId],
+    enabled: !!tenantId || isSuperAdmin,
+    queryFn: async () => {
+      let q = supabase
+        .from("stock_items")
+        .select("*");
+
+      if (tenantId && !isSuperAdmin) q = q.eq("tenant_id", tenantId);
+      const { data, error } = await q;
+      if (error) throw error;
+      
+      // Filtra itens em falta ou abaixo da quantidade mínima
+      return (data ?? []).filter(
+        (item: any) => Number(item.quantity ?? 0) <= Number(item.min_quantity ?? 0)
+      );
+    },
+  });
+
+  // Função para Gerar a Ordem de Compra dos itens em falta
+  const handleGerarOrdemCompra = async () => {
+    try {
+      setGeneratingPO(true);
+      if (lowStockItems.length === 0) {
+        toast.info("Nenhum item em falta ou com estoque crítico no momento!");
+        return;
+      }
+
+      // Gera arquivo TXT/CSV para download rápido da Ordem de Compra
+      const headers = "Item;Quantidade Atual;Quantidade Mínima;Sugestão de Compra\n";
+      const rows = lowStockItems
+        .map((item: any) => {
+          const qty = Number(item.quantity ?? 0);
+          const minQty = Number(item.min_quantity ?? 0);
+          const sugestao = Math.max(minQty * 2 - qty, 10);
+          return `"${item.name ?? "Item"}";${qty};${minQty};${sugestao}`;
+        })
+        .join("\n");
+
+      const blob = new Blob([headers + rows], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `Ordem_de_Compra_Estoque_${new Date().toISOString().slice(0, 10)}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      toast.success(`Ordem de compra gerada com ${lowStockItems.length} item(ns) em falta!`);
+    } catch (e: any) {
+      toast.error(e.message ?? "Erro ao gerar ordem de compra");
+    } finally {
+      setGeneratingPO(false);
+    }
+  };
+
+  // Agrupamento dos Gráficos e Comparativos
   const analytics = useMemo(() => {
     const monthlyData = MONTH_NAMES.map((name, index) => ({
       name,
@@ -73,7 +134,6 @@ function RelatoriosPage() {
 
     if (Array.isArray(events)) {
       events.forEach((ev: any) => {
-        // Status Distribution
         const st = (ev.status ?? "outros").toLowerCase();
         if (statusMap[st] !== undefined) {
           statusMap[st] += 1;
@@ -81,7 +141,6 @@ function RelatoriosPage() {
           statusMap.outros += 1;
         }
 
-        // Agrupamento por Mês
         if (!ev?.event_date) return;
         const dateParts = String(ev.event_date).split("-");
         if (dateParts.length < 3) return;
@@ -136,8 +195,8 @@ function RelatoriosPage() {
 
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
-      {/* Topo / Seletor de Ano */}
-      <div className="flex items-center justify-between">
+      {/* Topo: Título + Botão Ordem de Compra + Seletor de Ano */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-border/40">
         <div>
           <h1 className="text-xl font-extrabold tracking-tight flex items-center gap-2">
             <BarChart3 className="size-5 text-primary" /> Relatórios & Métricas
@@ -147,15 +206,29 @@ function RelatoriosPage() {
           </p>
         </div>
 
-        <select
-          value={selectedYear}
-          onChange={(e) => setSelectedYear(Number(e.target.value))}
-          className="h-9 px-3 rounded-xl border border-border bg-card text-xs font-bold shadow-sm focus:outline-none"
-        >
-          <option value={2025}>Ano 2025</option>
-          <option value={2026}>Ano 2026</option>
-          <option value={2027}>Ano 2027</option>
-        </select>
+        <div className="flex items-center gap-2">
+          {/* BOTÃO GERAR ORDEM DE COMPRA BASEADO EM ITENS EM FALTA */}
+          <button
+            onClick={handleGerarOrdemCompra}
+            disabled={generatingPO}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-orange-600 text-white text-xs font-bold shadow-sm transition-all hover:bg-orange-700 disabled:opacity-50"
+            title="Gerar ordem de compra dos itens com estoque crítico ou zerado"
+          >
+            <ShoppingCart className="size-4" />
+            {generatingPO ? "Gerando..." : `Ordem de Compra (${lowStockItems.length} em falta)`}
+          </button>
+
+          {/* Seletor de Ano */}
+          <select
+            value={selectedYear}
+            onChange={(e) => setSelectedYear(Number(e.target.value))}
+            className="h-9 px-3 rounded-xl border border-border bg-card text-xs font-bold shadow-sm focus:outline-none"
+          >
+            <option value={2025}>Ano 2025</option>
+            <option value={2026}>Ano 2026</option>
+            <option value={2027}>Ano 2027</option>
+          </select>
+        </div>
       </div>
 
       {/* Cards de Comparativo Mês Atual vs Anterior */}
