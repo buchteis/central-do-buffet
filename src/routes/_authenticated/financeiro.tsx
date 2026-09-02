@@ -453,8 +453,9 @@ function FinanceiroPage() {
           {([
             { id: "todos", label: "Todos" },
             { id: "evento", label: "Eventos" },
-            { id: "transacao", label: "Transações" },
-            { id: "parcela", label: "Parcelas" },
+            { id: "avulsa", label: "Entradas avulsas" },
+            { id: "parcela", label: "Parcelados" },
+            { id: "despesa", label: "Despesas" },
           ] as const).map((f) => (
             <button
               key={f.id}
