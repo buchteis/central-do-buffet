@@ -2,7 +2,7 @@ import { ChecklistPreDefinido } from "@/components/ChecklistPreDefinido";
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Plus, Trash2, Link2, Copy } from "lucide-react";
+import { ArrowLeft, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -62,19 +62,6 @@ function QuoteEditor({ leadId, quoteId }: { leadId?: string; quoteId?: string })
 
   const [selectedPackageIds, setSelectedPackageIds] = useState<string[]>([]);
 
-  // QUERY - DADOS DA EMPRESA (SLUG PARA LINK PÚBLICO)
-  const { data: tenant } = useQuery({
-    queryKey: ["tenant-info"],
-    queryFn: async () => {
-      const { data } = await supabase.from("tenants").select("slug").maybeSingle();
-      return data;
-    },
-  });
-
-  const publicUrl = tenant?.slug && quoteId
-    ? `${window.location.origin}/orcamento/${tenant.slug}?quote_id=${quoteId}`
-    : null;
-
   // PREFILL DE LEAD
   const { data: lead } = useQuery({
     queryKey: ["lead-prefill", leadId],
@@ -94,42 +81,6 @@ function QuoteEditor({ leadId, quoteId }: { leadId?: string; quoteId?: string })
       if (lead.notes) setNotes(lead.notes);
     }
   }, [lead]);
-
-  // CARREGAMENTO DO ORÇAMENTO EXISTENTE
-  const { data: existingQuote } = useQuery({
-    queryKey: ["quote-prefill", quoteId],
-    enabled: !!quoteId,
-    queryFn: async () => {
-      const { data, error } = await supabase.from("quotes").select("*").eq("id", quoteId!).maybeSingle();
-      if (error) throw error;
-      return data;
-    },
-  });
-
-  useEffect(() => {
-    if (existingQuote) {
-      if (existingQuote.client_id) setClientId(existingQuote.client_id);
-      if (existingQuote.event_date) setEventDate(existingQuote.event_date);
-      if (existingQuote.event_time) setEventTime(existingQuote.event_time);
-      if (existingQuote.event_type) setEventType(existingQuote.event_type);
-      if (existingQuote.event_address) setEventAddress(existingQuote.event_address);
-      if (existingQuote.notes) setNotes(existingQuote.notes);
-      if (existingQuote.adults) setAdults(Number(existingQuote.adults));
-      else if (existingQuote.guest_count) setAdults(Number(existingQuote.guest_count));
-
-      const extras = (existingQuote.extras as any) ?? {};
-      if (extras.children_count) setChildrenCount(Number(extras.children_count) || 0);
-      if (extras.child_price) setChildrenPrice(Number(extras.child_price) || 0);
-
-      if (extras.package_ids && Array.isArray(extras.package_ids) && extras.package_ids.length > 0) {
-        setSelectedPackageIds(extras.package_ids);
-      } else if (existingQuote.package_ids && Array.isArray(existingQuote.package_ids) && existingQuote.package_ids.length > 0) {
-        setSelectedPackageIds(existingQuote.package_ids);
-      } else if (existingQuote.package_id) {
-        setSelectedPackageIds([existingQuote.package_id]);
-      }
-    }
-  }, [existingQuote]);
 
   // QUERY - CLIENTES
   const { data: clients } = useQuery({
@@ -261,7 +212,6 @@ function QuoteEditor({ leadId, quoteId }: { leadId?: string; quoteId?: string })
   const childrenSubtotal = childrenCount * childrenPrice;
   const grandTotal = packagesSubtotal + childrenSubtotal;
 
-  // SALVAR COM SUPORTE A UPDATE
   const saveMutation = useMutation({
     mutationFn: async () => {
       const validPackageIds = selectedPackageIds.filter((id) => id && id.trim() !== "");
@@ -290,28 +240,13 @@ function QuoteEditor({ leadId, quoteId }: { leadId?: string; quoteId?: string })
         },
       };
 
-      if (quoteId) {
-        const { data, error } = await supabase
-          .from("quotes")
-          .update(payload)
-          .eq("id", quoteId)
-          .select()
-          .single();
-        if (error) throw error;
-        return data;
-      } else {
-        const { data, error } = await supabase
-          .from("quotes")
-          .insert([payload])
-          .select()
-          .single();
-        if (error) throw error;
-        return data;
-      }
+      const { data, error } = await supabase.from("quotes").insert([payload]).select().single();
+      if (error) throw error;
+      return data;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["quotes"] });
-      toast.success(quoteId ? "Orçamento atualizado com sucesso!" : "Orçamento criado com sucesso!");
+      toast.success("Orçamento criado com sucesso!");
       navigate({ to: "/orcamentos" });
     },
     onError: (err: Error) => toast.error(err.message || "Erro ao salvar orçamento"),
@@ -319,8 +254,7 @@ function QuoteEditor({ leadId, quoteId }: { leadId?: string; quoteId?: string })
 
   return (
     <div className="space-y-6 pb-12">
-      {/* CABEÇALHO COM BOTÃO DE LINK PÚBLICO */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-4">
+      <div className="flex items-center justify-between border-b pb-4">
         <div className="flex items-center gap-3">
           <Button variant="outline" size="icon" asChild>
             <Link to="/orcamentos">
@@ -328,40 +262,10 @@ function QuoteEditor({ leadId, quoteId }: { leadId?: string; quoteId?: string })
             </Link>
           </Button>
           <div>
-            <h1 className="text-xl md:text-2xl font-bold tracking-tight">
-              {quoteId ? "Editar Orçamento" : "Novo Orçamento"}
-            </h1>
+            <h1 className="text-xl md:text-2xl font-bold tracking-tight">Novo Orçamento</h1>
             <p className="text-xs text-muted-foreground">Preencha os dados abaixo para gerar a proposta</p>
           </div>
         </div>
-
-        {publicUrl && (
-          <div className="flex items-center gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                navigator.clipboard.writeText(publicUrl);
-                toast.success("Link do orçamento copiado!");
-              }}
-              className="text-xs font-semibold gap-1.5"
-            >
-              <Copy className="size-3.5" /> Copiar Link Público
-            </Button>
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              asChild
-              className="text-xs font-semibold gap-1.5"
-            >
-              <a href={publicUrl} target="_blank" rel="noopener noreferrer">
-                <Link2 className="size-3.5" /> Abrir Link
-              </a>
-            </Button>
-          </div>
-        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
