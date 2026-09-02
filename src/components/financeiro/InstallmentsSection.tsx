@@ -2,12 +2,11 @@ import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
-  Link2,
+  Plus,
   Copy,
   CheckCircle2,
   Clock,
   Trash2,
-  Plus,
   Eye,
   XCircle,
   MessageCircle,
@@ -26,12 +25,6 @@ import {
 } from "@/lib/installments.functions";
 
 type Props = { tenantId: string | null; ownerId: string | null; isSuperAdmin: boolean };
-
-const statusMeta: Record<string, { label: string; cls: string }> = {
-  pendente: { label: "Em aberto", cls: "bg-rose-500/15 text-rose-700 border-rose-300" },
-  aguardando: { label: "Aguardando confirmação", cls: "bg-amber-500/15 text-amber-700 border-amber-300" },
-  pago: { label: "Paga", cls: "bg-emerald-500/15 text-emerald-700 border-emerald-300" },
-};
 
 export default function InstallmentsSection({ tenantId, ownerId, isSuperAdmin }: Props) {
   const qc = useQueryClient();
@@ -83,11 +76,10 @@ export default function InstallmentsSection({ tenantId, ownerId, isSuperAdmin }:
         else acc.aberto += v;
         return acc;
       },
-      { pago: 0, aguardando: 0, aberto: 0 },
+      { pago: 0, aguardando: 0, aberto: 0 }
     );
   }, [installments]);
 
-  /** Agrupa parcelas por evento para o kanban */
   const groups = useMemo(() => {
     const map = new Map<string, any>();
     for (const i of installments as any[]) {
@@ -167,7 +159,7 @@ export default function InstallmentsSection({ tenantId, ownerId, isSuperAdmin }:
       if (error) throw error;
     },
     onSuccess: () => {
-      toast.success("Parcelas e links de pagamento criados");
+      toast.success("Parcelas criadas com sucesso");
       setOpen(false);
       setEventId("");
       setTotalOverride("");
@@ -188,7 +180,7 @@ export default function InstallmentsSection({ tenantId, ownerId, isSuperAdmin }:
   const reject = useMutation({
     mutationFn: (id: string) => rejectInstallmentReceipt({ data: { id } }),
     onSuccess: () => {
-      toast.success("Comprovante recusado e excluído");
+      toast.success("Comprovante recusado");
       invalidate();
     },
     onError: (e: any) => toast.error(e.message ?? "Erro ao recusar"),
@@ -212,7 +204,7 @@ export default function InstallmentsSection({ tenantId, ownerId, isSuperAdmin }:
       if (error) throw error;
     },
     onSuccess: () => {
-      toast.success("Cobrança encerrada — parcelas arquivadas e removidas da lista");
+      toast.success("Cobrança encerrada com sucesso");
       invalidate();
     },
     onError: (e: any) => toast.error(e.message ?? "Erro ao encerrar"),
@@ -256,106 +248,111 @@ export default function InstallmentsSection({ tenantId, ownerId, isSuperAdmin }:
     const isOpen = !!expanded[g.key];
     const pct = g.total > 0 ? Math.round((g.paid / g.total) * 100) : 0;
     return (
-      <div key={g.key} className="rounded-xl border border-border bg-background p-3 space-y-2 shadow-sm">
-        <div className="flex items-start justify-between gap-2">
+      <div key={g.key} className="rounded-xl border border-border/60 bg-card p-3 space-y-2.5 shadow-sm transition-all hover:border-border">
+        <div className="flex items-center justify-between gap-2">
           <div className="min-w-0">
-            <div className="font-bold text-sm truncate">{g.client}</div>
-            <div className="text-[11px] text-muted-foreground">
-              {g.eventDate ? `Evento ${formatDateBR(g.eventDate)} · ` : ""}
-              {g.paidCount}/{g.items.length} parcelas pagas
-            </div>
+            <h4 className="font-semibold text-sm truncate">{g.client}</h4>
+            <p className="text-[11px] text-muted-foreground">
+              {g.eventDate ? `${formatDateBR(g.eventDate)} · ` : ""}
+              {g.paidCount}/{g.items.length} pagas
+            </p>
           </div>
           <button
             onClick={() => setExpanded((s) => ({ ...s, [g.key]: !isOpen }))}
-            className="p-1.5 rounded-lg border border-border hover:bg-muted shrink-0"
-            title={isOpen ? "Recolher" : "Ver parcelas"}
+            className="p-1 rounded-md text-muted-foreground hover:bg-muted"
+            title={isOpen ? "Recolher" : "Detalhar"}
           >
-            {isOpen ? <ChevronUp className="size-3.5" /> : <ChevronDown className="size-3.5" />}
+            {isOpen ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
           </button>
         </div>
 
-        <div className="flex items-center justify-between text-xs font-bold">
-          <span className="text-emerald-700">{brl(g.paid)}</span>
-          <span className="text-muted-foreground">de {brl(g.total)}</span>
-        </div>
-        <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-          <div className="h-full bg-emerald-500 transition-all" style={{ width: `${pct}%` }} />
+        <div className="space-y-1">
+          <div className="flex items-center justify-between text-xs font-medium">
+            <span className="text-emerald-600 font-semibold">{brl(g.paid)}</span>
+            <span className="text-muted-foreground">de {brl(g.total)}</span>
+          </div>
+          <div className="h-1 rounded-full bg-muted overflow-hidden">
+            <div className="h-full bg-emerald-500 transition-all" style={{ width: `${pct}%` }} />
+          </div>
         </div>
 
         {isOpen && (
-          <div className="space-y-2 pt-1">
+          <div className="space-y-2 pt-2 border-t border-border/40">
             {g.items.map((i: any) => {
-              const meta = statusMeta[i.status] ?? statusMeta["pendente"]!;
+              const isPago = i.status === "pago";
               return (
-                <div key={i.id} className="rounded-lg border border-border p-2 space-y-1.5">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="text-[11px] font-semibold">
-                      {i.label ?? `Parcela ${i.number}/${i.total_count}`}
-                    </div>
-                    <div className="text-xs font-bold">{brl(Number(i.amount ?? 0))}</div>
+                <div key={i.id} className="rounded-lg bg-muted/40 p-2.5 space-y-2 text-xs">
+                  <div className="flex items-center justify-between font-medium">
+                    <span>{i.label ?? `Parcela ${i.number}/${i.total_count}`}</span>
+                    <span className="font-bold">{brl(Number(i.amount ?? 0))}</span>
                   </div>
-                  <div className="flex items-center justify-between gap-2">
-                    <span
-                      className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full border ${meta.cls}`}
-                    >
-                      {i.status === "pago" ? <CheckCircle2 className="size-3" /> : <Clock className="size-3" />}
-                      {meta.label}
+
+                  <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                    <span className="flex items-center gap-1 font-medium">
+                      {isPago ? (
+                        <span className="text-emerald-600 flex items-center gap-1"><CheckCircle2 className="size-3" /> Paga</span>
+                      ) : (
+                        <span className="text-amber-600 flex items-center gap-1"><Clock className="size-3" /> Em aberto</span>
+                      )}
                     </span>
-                    <span className="text-[10px] text-muted-foreground">
-                      venc. {i.due_date ? formatDateBR(i.due_date) : "—"}
-                    </span>
+                    <span>Venc. {i.due_date ? formatDateBR(i.due_date) : "—"}</span>
                   </div>
-                  <div className="flex items-center gap-1.5 flex-wrap">
+
+                  <div className="flex items-center gap-1 pt-1 justify-end border-t border-border/20">
                     <button
                       title="Copiar link"
                       onClick={async () => {
                         const ok = await copyToClipboard(linkFor(i.token));
-                        toast[ok ? "success" : "error"](ok ? "Link copiado!" : "Copie manualmente.");
+                        toast[ok ? "success" : "error"](ok ? "Link copiado!" : "Erro ao copiar.");
                       }}
-                      className="p-1.5 rounded-lg border border-border hover:bg-muted"
+                      className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-background"
                     >
-                      <Copy className="size-3" />
+                      <Copy className="size-3.5" />
                     </button>
+
                     <button
-                      title="Enviar pelo WhatsApp"
+                      title="Enviar via WhatsApp"
                       onClick={() => sendWhats(i)}
-                      className="p-1.5 rounded-lg border border-border hover:bg-muted text-emerald-700"
+                      className="p-1 rounded text-emerald-600 hover:bg-background"
                     >
-                      <MessageCircle className="size-3" />
+                      <MessageCircle className="size-3.5" />
                     </button>
-                    {i.receipt_path ? (
+
+                    {i.receipt_path && (
                       <>
                         <button
                           title="Ver comprovante"
                           onClick={() => viewReceipt(i.id)}
-                          className="p-1.5 rounded-lg border border-border hover:bg-muted"
+                          className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-background"
                         >
-                          <Eye className="size-3" />
+                          <Eye className="size-3.5" />
                         </button>
                         <button
                           title="Recusar comprovante"
                           onClick={() => reject.mutate(i.id)}
-                          className="p-1.5 rounded-lg border border-border hover:bg-muted text-rose-700"
+                          className="p-1 rounded text-rose-600 hover:bg-background"
                         >
-                          <XCircle className="size-3" />
+                          <XCircle className="size-3.5" />
                         </button>
                       </>
-                    ) : null}
-                    {i.status !== "pago" ? (
+                    )}
+
+                    {!isPago && (
                       <button
                         onClick={() => confirm.mutate(i.id)}
                         disabled={confirm.isPending}
-                        className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-emerald-600 text-white text-[10px] font-bold"
+                        className="ml-1 px-2 py-0.5 rounded bg-emerald-600 text-white font-medium text-[10px] hover:bg-emerald-700"
                       >
-                        <CheckCircle2 className="size-3" /> Confirmar
+                        Confirmar
                       </button>
-                    ) : null}
+                    )}
+
                     <button
                       title="Excluir parcela"
                       onClick={() => remove.mutate(i.id)}
-                      className="p-1.5 rounded-lg border border-border hover:bg-muted text-rose-700 ml-auto"
+                      className="p-1 rounded text-muted-foreground hover:text-rose-600 hover:bg-background ml-auto"
                     >
-                      <Trash2 className="size-3" />
+                      <Trash2 className="size-3.5" />
                     </button>
                   </div>
                 </div>
@@ -367,13 +364,13 @@ export default function InstallmentsSection({ tenantId, ownerId, isSuperAdmin }:
         {g.allPaid && (
           <button
             onClick={() => {
-              if (!window.confirm("Encerrar esta cobrança? As parcelas pagas serão removidas da lista.")) return;
+              if (!window.confirm("Deseja arquivar e encerrar esta cobrança?")) return;
               closeGroup.mutate(g.items.map((i: any) => i.id));
             }}
             disabled={closeGroup.isPending}
-            className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-border text-[11px] font-bold hover:bg-muted"
+            className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg border border-border/60 text-xs text-muted-foreground hover:bg-muted font-medium"
           >
-            <Archive className="size-3.5" /> Encerrar e excluir
+            <Archive className="size-3.5" /> Encerrar cobrança
           </button>
         )}
       </div>
@@ -381,130 +378,142 @@ export default function InstallmentsSection({ tenantId, ownerId, isSuperAdmin }:
   };
 
   return (
-    <div className="bg-card border border-border rounded-2xl p-4 md:p-5 space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    <div className="space-y-5">
+      {/* Top Header Simplificado */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-border/40">
         <div>
-          <h2 className="font-extrabold flex items-center gap-2">
-            <Link2 className="size-4 text-primary" /> Parcelas & Links de pagamento
-          </h2>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Cada evento fechado vira um card: gere as parcelas, envie o link pelo WhatsApp, confirme os comprovantes e
-            encerre a cobrança quando tudo estiver pago.
-          </p>
+          <h2 className="text-base font-bold tracking-tight">Parcelas & Links de Pagamento</h2>
+          <p className="text-xs text-muted-foreground">Gestão simplificada de parcelamentos e recebimentos.</p>
         </div>
         <button
           onClick={() => openCreate()}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary text-primary-foreground text-xs font-bold"
+          className="inline-flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium shadow-sm transition-all hover:opacity-90 self-start sm:self-auto"
         >
           <Plus className="size-4" /> Criar parcelas
         </button>
       </div>
 
+      {/* Indicadores Minimalistas (KPIs) */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <Mini label="Parcelas pagas" value={brl(totals.pago)} tone="emerald" />
-        <Mini label="Aguardando confirmação" value={brl(totals.aguardando)} tone="amber" />
-        <Mini label="Em aberto" value={brl(totals.aberto)} tone="rose" />
+        <div className="p-3 rounded-xl border border-border/50 bg-card">
+          <span className="text-[11px] font-medium text-muted-foreground uppercase">Pagas</span>
+          <p className="text-lg font-semibold text-emerald-600">{brl(totals.pago)}</p>
+        </div>
+        <div className="p-3 rounded-xl border border-border/50 bg-card">
+          <span className="text-[11px] font-medium text-muted-foreground uppercase">Aguardando</span>
+          <p className="text-lg font-semibold text-amber-600">{brl(totals.aguardando)}</p>
+        </div>
+        <div className="p-3 rounded-xl border border-border/50 bg-card">
+          <span className="text-[11px] font-medium text-muted-foreground uppercase">Em Aberto</span>
+          <p className="text-lg font-semibold text-rose-600">{brl(totals.aberto)}</p>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
-        <Column title="Eventos fechados" count={pendingEvents.length} tone="border-blue-300">
+      {/* Kanban com Design Limpo */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <Column title="Eventos Fechados" count={pendingEvents.length}>
           {pendingEvents.length === 0 ? (
-            <Empty text="Nenhum evento aguardando parcelas." />
+            <Empty text="Nenhum evento pendente" />
           ) : (
             pendingEvents.map((e: any) => (
-              <div key={e.id} className="rounded-xl border border-border bg-background p-3 space-y-2 shadow-sm">
-                <div className="font-bold text-sm truncate">{e.clients?.name ?? "Cliente"}</div>
-                <div className="text-[11px] text-muted-foreground">
-                  {e.event_date ? formatDateBR(e.event_date) : "—"} · {brl(Number(e.total_value ?? 0))}
+              <div key={e.id} className="rounded-xl border border-border/60 bg-card p-3 space-y-2 shadow-sm">
+                <div className="min-w-0">
+                  <h4 className="font-semibold text-sm truncate">{e.clients?.name ?? "Cliente"}</h4>
+                  <p className="text-xs text-muted-foreground">
+                    {e.event_date ? formatDateBR(e.event_date) : "—"} · <span className="font-medium text-foreground">{brl(Number(e.total_value ?? 0))}</span>
+                  </p>
                 </div>
                 <button
                   onClick={() => openCreate(e.id)}
-                  className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-[11px] font-bold"
+                  className="w-full py-1.5 rounded-lg border border-border/80 hover:bg-muted text-xs font-medium transition-colors"
                 >
-                  <Plus className="size-3.5" /> Criar parcelas
+                  Gerar Parcelas
                 </button>
               </div>
             ))
           )}
         </Column>
 
-        <Column title="Em pagamento" count={inProgress.length} tone="border-amber-300">
-          {inProgress.length === 0 ? <Empty text="Nenhuma cobrança em andamento." /> : inProgress.map(renderGroupCard)}
+        <Column title="Em Pagamento" count={inProgress.length}>
+          {inProgress.length === 0 ? <Empty text="Nenhuma cobrança ativa" /> : inProgress.map(renderGroupCard)}
         </Column>
 
-        <Column title="Quitados" count={finished.length} tone="border-emerald-300">
-          {finished.length === 0 ? <Empty text="Nenhuma cobrança quitada." /> : finished.map(renderGroupCard)}
+        <Column title="Quitados" count={finished.length}>
+          {finished.length === 0 ? <Empty text="Nenhum evento quitado" /> : finished.map(renderGroupCard)}
         </Column>
       </div>
 
+      {/* Modal Reorganizado */}
       {open && (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-          <div className="bg-card border border-border rounded-2xl w-full max-w-md p-5 space-y-3">
-            <h3 className="font-extrabold">Criar parcelas do evento</h3>
-            <label className="block text-xs font-bold uppercase text-muted-foreground">Evento</label>
-            <select
-              value={eventId}
-              onChange={(e) => {
-                setEventId(e.target.value);
-                setFirstDue(new Date().toISOString().slice(0, 10));
-                setCount(Number((settings as any)?.installments_default_count ?? 2));
-              }}
-              className="w-full h-10 px-3 rounded-lg border border-border bg-background text-sm"
-            >
-              <option value="">Selecione...</option>
-              {(events as any[]).map((e) => (
-                <option key={e.id} value={e.id}>
-                  {(e.clients?.name ?? "Cliente") +
-                    " — " +
-                    (e.event_date ? formatDateBR(e.event_date) : "") +
-                    " — " +
-                    brl(Number(e.total_value ?? 0))}
-                </option>
-              ))}
-            </select>
-            <div className="grid grid-cols-2 gap-3">
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-card border border-border rounded-xl w-full max-w-md p-5 space-y-4 shadow-lg">
+            <h3 className="font-bold text-base">Gerar Parcelas</h3>
+
+            <div className="space-y-3">
               <div>
-                <label className="block text-xs font-bold uppercase text-muted-foreground mb-1">Nº de parcelas</label>
-                <input
-                  type="number"
-                  min={1}
-                  max={24}
-                  value={count}
-                  onChange={(e) => setCount(Number(e.target.value))}
-                  className="w-full h-10 px-3 rounded-lg border border-border bg-background text-sm"
-                />
+                <label className="block text-xs font-medium text-muted-foreground mb-1">Evento</label>
+                <select
+                  value={eventId}
+                  onChange={(e) => {
+                    setEventId(e.target.value);
+                    setFirstDue(new Date().toISOString().slice(0, 10));
+                    setCount(Number((settings as any)?.installments_default_count ?? 2));
+                  }}
+                  className="w-full h-9 px-3 rounded-lg border border-border bg-background text-xs"
+                >
+                  <option value="">Selecione um evento...</option>
+                  {(events as any[]).map((e) => (
+                    <option key={e.id} value={e.id}>
+                      {(e.clients?.name ?? "Cliente") + " — " + brl(Number(e.total_value ?? 0))}
+                    </option>
+                  ))}
+                </select>
               </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">Nº de parcelas</label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={24}
+                    value={count}
+                    onChange={(e) => setCount(Number(e.target.value))}
+                    className="w-full h-9 px-3 rounded-lg border border-border bg-background text-xs"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">1º Vencimento</label>
+                  <input
+                    type="date"
+                    value={firstDue}
+                    onChange={(e) => setFirstDue(e.target.value)}
+                    className="w-full h-9 px-3 rounded-lg border border-border bg-background text-xs"
+                  />
+                </div>
+              </div>
+
               <div>
-                <label className="block text-xs font-bold uppercase text-muted-foreground mb-1">1º vencimento</label>
+                <label className="block text-xs font-medium text-muted-foreground mb-1">Valor Total (Opcional)</label>
                 <input
-                  type="date"
-                  value={firstDue}
-                  onChange={(e) => setFirstDue(e.target.value)}
-                  className="w-full h-10 px-3 rounded-lg border border-border bg-background text-sm"
+                  value={totalOverride}
+                  onChange={(e) => setTotalOverride(e.target.value)}
+                  placeholder="Manter valor do evento"
+                  className="w-full h-9 px-3 rounded-lg border border-border bg-background text-xs"
                 />
               </div>
             </div>
-            <div>
-              <label className="block text-xs font-bold uppercase text-muted-foreground mb-1">
-                Valor total (opcional)
-              </label>
-              <input
-                value={totalOverride}
-                onChange={(e) => setTotalOverride(e.target.value)}
-                placeholder="Deixe vazio para usar o valor do evento"
-                className="w-full h-10 px-3 rounded-lg border border-border bg-background text-sm"
-              />
-            </div>
+
             <div className="flex justify-end gap-2 pt-2">
-              <button onClick={() => setOpen(false)} className="h-10 px-4 rounded-lg border border-border text-xs font-bold">
+              <button onClick={() => setOpen(false)} className="h-9 px-3 rounded-lg border border-border text-xs font-medium">
                 Cancelar
               </button>
               <button
                 onClick={() => create.mutate()}
                 disabled={create.isPending}
-                className="h-10 px-4 rounded-lg bg-primary text-primary-foreground text-xs font-bold disabled:opacity-50"
+                className="h-9 px-3 rounded-lg bg-primary text-primary-foreground text-xs font-medium disabled:opacity-50"
               >
-                Gerar parcelas e links
+                Confirmar
               </button>
             </div>
           </div>
@@ -514,22 +523,12 @@ export default function InstallmentsSection({ tenantId, ownerId, isSuperAdmin }:
   );
 }
 
-function Column({
-  title,
-  count,
-  tone,
-  children,
-}: {
-  title: string;
-  count: number;
-  tone: string;
-  children: React.ReactNode;
-}) {
+function Column({ title, count, children }: { title: string; count: number; children: React.ReactNode }) {
   return (
-    <div className={`rounded-2xl border-t-4 ${tone} border border-border bg-muted/20 p-3 space-y-2`}>
+    <div className="rounded-xl border border-border/40 bg-muted/20 p-3 space-y-3">
       <div className="flex items-center justify-between">
-        <h3 className="text-[11px] font-black uppercase tracking-widest text-muted-foreground">{title}</h3>
-        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-background border border-border">
+        <span className="text-xs font-semibold text-muted-foreground">{title}</span>
+        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-background border border-border/60 text-muted-foreground">
           {count}
         </span>
       </div>
@@ -539,19 +538,5 @@ function Column({
 }
 
 function Empty({ text }: { text: string }) {
-  return <p className="text-[11px] text-muted-foreground py-6 text-center">{text}</p>;
-}
-
-function Mini({ label, value, tone }: { label: string; value: string; tone: "emerald" | "amber" | "rose" }) {
-  const tones = {
-    emerald: "bg-emerald-500/10 border-emerald-300 text-emerald-800",
-    amber: "bg-amber-500/10 border-amber-300 text-amber-800",
-    rose: "bg-rose-500/10 border-rose-300 text-rose-800",
-  } as const;
-  return (
-    <div className={`rounded-xl border p-3 ${tones[tone]}`}>
-      <div className="text-[10px] uppercase font-bold tracking-widest">{label}</div>
-      <div className="text-xl font-black mt-0.5">{value}</div>
-    </div>
-  );
+  return <p className="text-xs text-muted-foreground/60 py-6 text-center">{text}</p>;
 }
