@@ -1,178 +1,469 @@
-import { useState, useMemo } from "react";
+import { useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import {
+  Plus,
+  Copy,
+  CheckCircle2,
+  Clock,
+  Trash2,
+  Eye,
+  XCircle,
+  MessageCircle,
+  ChevronDown,
+  ChevronUp,
+} from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 import { brl, formatDateBR } from "@/lib/format";
-import { ChevronDown, ChevronUp, Calendar, ArrowUpRight, ArrowDownRight, Clock } from "lucide-react";
+import { copyToClipboard } from "@/lib/clipboard";
+import { waLink, fillTemplate } from "@/lib/whatsapp";
+import {
+  confirmInstallmentPayment,
+  getInstallmentReceiptUrl,
+  rejectInstallmentReceipt,
+} from "@/lib/installments.functions";
 
-type Transaction = {
-  id: string;
-  description: string;
-  clientName?: string;
-  date: string; // Formato YYYY-MM-DD
-  status: "pago" | "pendente" | "agendado" | "cancelado";
-  type: "recebido" | "a_receber" | "despesa";
-  amount: number;
-};
+type Props = { tenantId: string | null; ownerId: string | null; isSuperAdmin: boolean };
 
-const MONTH_NAMES = [
-  "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
-  "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
-];
+export default function InstallmentsSection({ tenantId, ownerId, isSuperAdmin }: Props) {
+  const qc = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const [eventId, setEventId] = useState("");
+  const [count, setCount] = useState(2);
+  const [firstDue, setFirstDue] = useState(new Date().toISOString().slice(0, 10));
+  const [totalOverride, setTotalOverride] = useState("");
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
-export default function FinanceiroExtratoAccordion({ transactions = [] }: { transactions: Transaction[] }) {
-  // Estado para controlar quais cards de meses estão abertos (por padrão, os 2 primeiros abrem)
-  const [openMonths, setOpenMonths] = useState<Record<string, boolean>>({});
+  const { data: settings } = useQuery({
+    queryKey: ["buffet-settings"],
+    queryFn: async () => (await supabase.from("buffet_settings").select("*").maybeSingle()).data,
+  });
 
-  // Agrupa os eventos/transações por mês e ano
-  const groupedByMonth = useMemo(() => {
-    const groups: Record<string, { key: string; label: string; year: number; monthIdx: number; total: number; items: Transaction[] }> = {};
+  const { data: events = [] } = useQuery({
+    queryKey: ["installments-events", tenantId],
+    enabled: !!tenantId || isSuperAdmin,
+    queryFn: async () => {
+      let q = supabase
+        .from("events")
+        .select("id, event_date, total_value, status, client_id, quote_id, clients(name, whatsapp, phone)")
+        .neq("status", "cancelado")
+        .order("event_date", { ascending: false });
+      if (tenantId && !isSuperAdmin) q = q.eq("tenant_id", tenantId);
+      return (await q).data ?? [];
+    },
+  });
 
-    transactions.forEach((t) => {
-      if (!t.date) return;
-      const [yearStr, monthStr] = t.date.split("-");
-      const year = Number(yearStr);
-      const monthIdx = Number(monthStr) - 1;
-      const key = `${year}-${monthStr}`;
-      const label = `${MONTH_NAMES[monthIdx]} ${year}`;
+  const { data: installments = [] } = useQuery({
+    queryKey: ["installments", tenantId],
+    enabled: !!tenantId || isSuperAdmin,
+    queryFn: async () => {
+      let q = supabase
+        .from("payment_installments")
+        .select("*, events(event_date, clients(name, whatsapp, phone))")
+        .order("due_date", { ascending: true });
+      if (tenantId && !isSuperAdmin) q = q.eq("tenant_id", tenantId);
+      return (await q).data ?? [];
+    },
+  });
 
-      if (!groups[key]) {
-        groups[key] = {
+  const groups = useMemo(() => {
+    const map = new Map<string, any>();
+    for (const i of installments as any[]) {
+      const key = i.event_id ?? `sem-evento-${i.id}`;
+      const g =
+        map.get(key) ??
+        {
           key,
-          label,
-          year,
-          monthIdx,
-          total: 0,
-          items: [],
+          eventId: i.event_id ?? null,
+          client: i.events?.clients?.name ?? "Cliente",
+          eventDate: i.events?.event_date ?? null,
+          items: [] as any[],
         };
-      }
-
-      groups[key].items.push(t);
-      groups[key].total += Number(t.amount || 0);
+      g.items.push(i);
+      map.set(key, g);
+    }
+    return Array.from(map.values()).map((g) => {
+      const total = g.items.reduce((s: number, i: any) => s + Number(i.amount ?? 0), 0);
+      const paid = g.items
+        .filter((i: any) => i.status === "pago")
+        .reduce((s: number, i: any) => s + Number(i.amount ?? 0), 0);
+      const paidCount = g.items.filter((i: any) => i.status === "pago").length;
+      return { ...g, total, paid, paidCount, allPaid: paidCount === g.items.length };
     });
+  }, [installments]);
 
-    // Ordena do mês mais recente para o mais antigo
-    return Object.values(groups).sort((a, b) => b.key.localeCompare(a.key));
-  }, [transactions]);
+  const pendingEvents = useMemo(() => {
+    const withInstallments = new Set(groups.map((g) => g.eventId).filter(Boolean));
+    return (events as any[]).filter((e) => !withInstallments.has(e.id) && e.status !== "cancelado");
+  }, [events, groups]);
 
-  const toggleMonth = (key: string) => {
-    setOpenMonths((prev) => ({
-      ...prev,
-      // Se não estiver definido ainda, considera fechado e abre; se já estiver definido, inverte
-      [key]: prev[key] === undefined ? true : !prev[key],
-    }));
+  const invalidate = () => {
+    qc.invalidateQueries({ queryKey: ["installments"] });
+    qc.invalidateQueries({ queryKey: ["financeiro-events"] });
+    qc.invalidateQueries({ queryKey: ["financeiro-transactions"] });
+    qc.invalidateQueries({ queryKey: ["dashboard"] });
+  };
+
+  const openCreate = (preselect?: string) => {
+    setEventId(preselect ?? "");
+    setTotalOverride("");
+    setCount(Number((settings as any)?.installments_default_count ?? 2));
+    setFirstDue(new Date().toISOString().slice(0, 10));
+    setOpen(true);
+  };
+
+  const create = useMutation({
+    mutationFn: async () => {
+      const ev = (events as any[]).find((e) => e.id === eventId);
+      if (!ev) throw new Error("Selecione um evento.");
+      if (!ownerId) throw new Error("Sessão expirada.");
+      const total = totalOverride
+        ? Number(String(totalOverride).replace(/\./g, "").replace(",", "."))
+        : Number(ev.total_value ?? 0);
+      if (!total || total <= 0) throw new Error("Informe um valor total válido.");
+      const n = Math.max(1, Math.min(24, Number(count) || 1));
+      const base = Math.floor((total / n) * 100) / 100;
+      const rows = Array.from({ length: n }, (_, i) => {
+        const due = new Date(firstDue + "T00:00:00");
+        due.setMonth(due.getMonth() + i);
+        const amount = i === n - 1 ? Number((total - base * (n - 1)).toFixed(2)) : base;
+        return {
+          owner_id: ownerId,
+          tenant_id: tenantId,
+          event_id: ev.id,
+          quote_id: ev.quote_id ?? null,
+          client_id: ev.client_id ?? null,
+          label: `Parcela ${i + 1} de ${n}`,
+          number: i + 1,
+          total_count: n,
+          amount,
+          due_date: due.toISOString().slice(0, 10),
+          status: "pendente",
+        };
+      });
+      const { error } = await supabase.from("payment_installments").insert(rows as any);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Parcelas criadas com sucesso");
+      setOpen(false);
+      setEventId("");
+      setTotalOverride("");
+      invalidate();
+    },
+    onError: (e: any) => toast.error(e.message ?? "Erro ao criar parcelas"),
+  });
+
+  const confirm = useMutation({
+    mutationFn: (id: string) => confirmInstallmentPayment({ data: { id } }),
+    onSuccess: (r: any) => {
+      toast.success(r?.eventPaid ? "Parcela paga — evento marcado como PAGO" : "Pagamento confirmado");
+      invalidate();
+    },
+    onError: (e: any) => toast.error(e.message ?? "Erro ao confirmar"),
+  });
+
+  const reject = useMutation({
+    mutationFn: (id: string) => rejectInstallmentReceipt({ data: { id } }),
+    onSuccess: () => {
+      toast.success("Comprovante recusado");
+      invalidate();
+    },
+    onError: (e: any) => toast.error(e.message ?? "Erro ao recusar"),
+  });
+
+  const remove = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("payment_installments").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Parcela removida");
+      invalidate();
+    },
+    onError: (e: any) => toast.error(e.message ?? "Erro ao remover"),
+  });
+
+  const linkFor = (token: string) =>
+    typeof window === "undefined" ? `/pagamento/${token}` : `${window.location.origin}/pagamento/${token}`;
+
+  const sendWhats = (item: any) => {
+    const url = linkFor(item.token);
+    const tpl =
+      (settings as any)?.wa_installment_template?.trim() ||
+      "Olá {cliente}! Segue o link para pagamento da {parcela} no valor de {valor}, com vencimento em {vencimento}: {link}";
+    const msg = fillTemplate(tpl, {
+      cliente: item.events?.clients?.name ?? "cliente",
+      parcela: item.label ?? `Parcela ${item.number}/${item.total_count}`,
+      valor: brl(Number(item.amount ?? 0)),
+      vencimento: item.due_date ? formatDateBR(item.due_date) : "a combinar",
+      data: item.events?.event_date ? formatDateBR(item.events.event_date) : "",
+      link: url,
+      pix: (settings as any)?.pix_key ?? "",
+    });
+    const phone = item.events?.clients?.whatsapp ?? item.events?.clients?.phone ?? "";
+    window.open(waLink(phone, msg), "_blank");
+  };
+
+  const viewReceipt = async (id: string) => {
+    try {
+      const { url } = await getInstallmentReceiptUrl({ data: { id } });
+      if (!url) return toast.error("Nenhum comprovante anexado.");
+      window.open(url, "_blank");
+    } catch (e: any) {
+      toast.error(e.message ?? "Erro ao abrir comprovante");
+    }
+  };
+
+  const inProgress = groups.filter((g) => !g.allPaid);
+
+  const renderGroupCard = (g: any) => {
+    const isOpen = !!expanded[g.key];
+    const pct = g.total > 0 ? Math.round((g.paid / g.total) * 100) : 0;
+    return (
+      <div key={g.key} className="rounded-xl border border-border/50 bg-card p-3 space-y-2 shadow-sm">
+        <div className="flex items-center justify-between gap-2">
+          <div className="min-w-0">
+            <h4 className="font-semibold text-xs truncate">{g.client}</h4>
+            <p className="text-[11px] text-muted-foreground">
+              {g.eventDate ? `${formatDateBR(g.eventDate)} · ` : ""}
+              {g.paidCount}/{g.items.length} pagas
+            </p>
+          </div>
+          <button
+            onClick={() => setExpanded((s) => ({ ...s, [g.key]: !isOpen }))}
+            className="p-1 rounded text-muted-foreground hover:bg-muted"
+          >
+            {isOpen ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
+          </button>
+        </div>
+
+        <div className="space-y-1">
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-emerald-600 font-medium">{brl(g.paid)}</span>
+            <span className="text-muted-foreground">de {brl(g.total)}</span>
+          </div>
+          <div className="h-1 rounded-full bg-muted overflow-hidden">
+            <div className="h-full bg-emerald-500 transition-all" style={{ width: `${pct}%` }} />
+          </div>
+        </div>
+
+        {isOpen && (
+          <div className="space-y-1.5 pt-2 border-t border-border/40">
+            {g.items.map((i: any) => {
+              const isPago = i.status === "pago";
+              return (
+                <div key={i.id} className="rounded-md bg-muted/30 p-2 space-y-1.5 text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium text-[11px]">{i.label ?? `Parcela ${i.number}/${i.total_count}`}</span>
+                    <span className="font-semibold text-xs">{brl(Number(i.amount ?? 0))}</span>
+                  </div>
+
+                  <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                    <span>
+                      {isPago ? (
+                        <span className="text-emerald-600 font-medium flex items-center gap-1"><CheckCircle2 className="size-3" /> Paga</span>
+                      ) : (
+                        <span className="text-amber-600 font-medium flex items-center gap-1"><Clock className="size-3" /> Em aberto</span>
+                      )}
+                    </span>
+                    <span>Venc. {i.due_date ? formatDateBR(i.due_date) : "—"}</span>
+                  </div>
+
+                  <div className="flex items-center gap-1 justify-end pt-1">
+                    <button
+                      title="Copiar link"
+                      onClick={async () => {
+                        const ok = await copyToClipboard(linkFor(i.token));
+                        toast[ok ? "success" : "error"](ok ? "Link copiado!" : "Erro ao copiar.");
+                      }}
+                      className="p-1 text-muted-foreground hover:text-foreground"
+                    >
+                      <Copy className="size-3.5" />
+                    </button>
+
+                    <button
+                      title="WhatsApp"
+                      onClick={() => sendWhats(i)}
+                      className="p-1 text-emerald-600 hover:opacity-80"
+                    >
+                      <MessageCircle className="size-3.5" />
+                    </button>
+
+                    {i.receipt_path && (
+                      <>
+                        <button title="Comprovante" onClick={() => viewReceipt(i.id)} className="p-1 text-muted-foreground">
+                          <Eye className="size-3.5" />
+                        </button>
+                        <button title="Recusar" onClick={() => reject.mutate(i.id)} className="p-1 text-rose-600">
+                          <XCircle className="size-3.5" />
+                        </button>
+                      </>
+                    )}
+
+                    {!isPago && (
+                      <button
+                        onClick={() => confirm.mutate(i.id)}
+                        disabled={confirm.isPending}
+                        className="ml-1 px-2 py-0.5 rounded bg-emerald-600 text-white font-medium text-[10px]"
+                      >
+                        Confirmar
+                      </button>
+                    )}
+
+                    <button
+                      title="Excluir"
+                      onClick={() => remove.mutate(i.id)}
+                      className="p-1 text-muted-foreground hover:text-rose-600 ml-auto"
+                    >
+                      <Trash2 className="size-3.5" />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
   };
 
   return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between px-1 mb-2">
-        <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-          <Calendar className="size-4 text-primary" /> Eventos & Transações por Mês
-        </h3>
-        <span className="text-xs text-muted-foreground font-medium">
-          {groupedByMonth.length} meses com registros
-        </span>
+    <div className="space-y-4">
+      <div className="flex items-center justify-between pb-2 border-b border-border/40">
+        <div>
+          <h3 className="text-sm font-semibold tracking-tight">Cobranças & Links de Pagamento</h3>
+        </div>
+        <button
+          onClick={() => openCreate()}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium transition-opacity hover:opacity-90"
+        >
+          <Plus className="size-3.5" /> Criar parcelas
+        </button>
       </div>
 
-      {groupedByMonth.length === 0 ? (
-        <div className="rounded-xl border border-border/50 bg-card p-8 text-center text-xs text-muted-foreground">
-          Nenhum evento ou registro encontrado.
-        </div>
-      ) : (
-        groupedByMonth.map((group, idx) => {
-          // Por padrão, abre o primeiro mês se o usuário ainda não tiver interagido com o estado
-          const isOpen = openMonths[group.key] !== undefined ? openMonths[group.key] : idx === 0;
-
-          return (
-            <div
-              key={group.key}
-              className="rounded-xl border border-border/60 bg-card overflow-hidden shadow-sm transition-all"
-            >
-              {/* CABEÇALHO DO CARD DO MÊS */}
-              <button
-                onClick={() => toggleMonth(group.key)}
-                className="w-full px-4 py-3 bg-muted/20 hover:bg-muted/40 transition-colors flex items-center justify-between gap-3 text-left"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="p-1.5 rounded-lg bg-background border border-border/60 text-muted-foreground">
-                    {isOpen ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-sm tracking-tight text-foreground">
-                      {group.label}
-                    </h4>
-                    <p className="text-[11px] text-muted-foreground font-medium">
-                      {group.items.length} {group.items.length === 1 ? "registro" : "registros"}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="text-right">
-                  <span className="text-sm font-extrabold text-foreground">
-                    {brl(group.total)}
-                  </span>
-                  <p className="text-[10px] uppercase font-bold text-muted-foreground">
-                    Total Movimentado
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Column title="Eventos a Parcelar" count={pendingEvents.length}>
+          {pendingEvents.length === 0 ? (
+            <Empty text="Nenhum evento aguardando parcelas" />
+          ) : (
+            pendingEvents.map((e: any) => (
+              <div key={e.id} className="rounded-xl border border-border/50 bg-card p-3 flex items-center justify-between gap-2 shadow-sm">
+                <div className="min-w-0">
+                  <h4 className="font-semibold text-xs truncate">{e.clients?.name ?? "Cliente"}</h4>
+                  <p className="text-[11px] text-muted-foreground">
+                    {e.event_date ? formatDateBR(e.event_date) : "—"} · <span className="font-medium text-foreground">{brl(Number(e.total_value ?? 0))}</span>
                   </p>
                 </div>
-              </button>
+                <button
+                  onClick={() => openCreate(e.id)}
+                  className="px-2.5 py-1 rounded-md border border-border text-xs font-medium hover:bg-muted shrink-0"
+                >
+                  Gerar
+                </button>
+              </div>
+            ))
+          )}
+        </Column>
 
-              {/* CONTEÚDO EXPANSÍVEL COM OS EVENTOS DO MÊS */}
-              {isOpen && (
-                <div className="divide-y divide-border/30 border-t border-border/40">
-                  {group.items.map((item) => {
-                    const isDespesa = item.type === "despesa";
-                    const isPago = item.status === "pago";
+        <Column title="Em Pagamento" count={inProgress.length}>
+          {inProgress.length === 0 ? <Empty text="Nenhuma cobrança ativa" /> : inProgress.map((g: any) => renderGroupCard(g))}
+        </Column>
+      </div>
 
-                    return (
-                      <div
-                        key={item.id}
-                        className="px-4 py-3 flex items-center justify-between gap-3 text-xs hover:bg-muted/10 transition-colors"
-                      >
-                        {/* Nome do Evento / Cliente */}
-                        <div className="min-w-0 flex-1">
-                          <p className="font-semibold text-foreground truncate">{item.description}</p>
-                          {item.clientName && item.clientName !== item.description && (
-                            <p className="text-[11px] text-muted-foreground truncate">{item.clientName}</p>
-                          )}
-                        </div>
+      {open && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-card border border-border rounded-xl w-full max-w-md p-5 space-y-4 shadow-lg">
+            <h3 className="font-bold text-sm">Criar Parcelas</h3>
 
-                        {/* Data */}
-                        <div className="w-24 text-center shrink-0">
-                          <span className="text-muted-foreground font-medium">{formatDateBR(item.date)}</span>
-                        </div>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-[11px] font-medium text-muted-foreground mb-1">Evento</label>
+                <select
+                  value={eventId}
+                  onChange={(e) => {
+                    setEventId(e.target.value);
+                    setFirstDue(new Date().toISOString().slice(0, 10));
+                    setCount(Number((settings as any)?.installments_default_count ?? 2));
+                  }}
+                  className="w-full h-8 px-2.5 rounded-md border border-border bg-background text-xs"
+                >
+                  <option value="">Selecione um evento...</option>
+                  {(events as any[]).map((e) => (
+                    <option key={e.id} value={e.id}>
+                      {(e.clients?.name ?? "Cliente") + " — " + brl(Number(e.total_value ?? 0))}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-                        {/* Status */}
-                        <div className="w-28 text-center shrink-0">
-                          <span
-                            className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
-                              isPago
-                                ? "bg-emerald-500/10 text-emerald-700"
-                                : item.status === "agendado"
-                                ? "bg-blue-500/10 text-blue-700"
-                                : "bg-amber-500/10 text-amber-700"
-                            }`}
-                          >
-                            {isPago ? "PAGO" : item.status === "agendado" ? "AGENDADO" : "PENDENTE"}
-                          </span>
-                        </div>
-
-                        {/* Valor */}
-                        <div className="w-32 text-right shrink-0">
-                          <span
-                            className={`font-bold text-xs ${
-                              isDespesa ? "text-rose-600" : "text-emerald-600"
-                            }`}
-                          >
-                            {isDespesa ? `- ${brl(item.amount)}` : brl(item.amount)}
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-medium text-muted-foreground mb-1">Nº de parcelas</label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={24}
+                    value={count}
+                    onChange={(e) => setCount(Number(e.target.value))}
+                    className="w-full h-8 px-2.5 rounded-md border border-border bg-background text-xs"
+                  />
                 </div>
-              )}
+                <div>
+                  <label className="block text-[11px] font-medium text-muted-foreground mb-1">1º Vencimento</label>
+                  <input
+                    type="date"
+                    value={firstDue}
+                    onChange={(e) => setFirstDue(e.target.value)}
+                    className="w-full h-8 px-2.5 rounded-md border border-border bg-background text-xs"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-medium text-muted-foreground mb-1">Valor Total (Opcional)</label>
+                <input
+                  value={totalOverride}
+                  onChange={(e) => setTotalOverride(e.target.value)}
+                  placeholder="Manter valor original"
+                  className="w-full h-8 px-2.5 rounded-md border border-border bg-background text-xs"
+                />
+              </div>
             </div>
-          );
-        })}
+
+            <div className="flex justify-end gap-2 pt-2">
+              <button onClick={() => setOpen(false)} className="h-8 px-3 rounded-md border border-border text-xs font-medium">
+                Cancelar
+              </button>
+              <button
+                onClick={() => create.mutate()}
+                disabled={create.isPending}
+                className="h-8 px-3 rounded-md bg-primary text-primary-foreground text-xs font-medium disabled:opacity-50"
+              >
+                Gerar
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
+}
+
+function Column({ title, count, children }: { title: string; count: number; children: React.ReactNode }) {
+  return (
+    <div className="rounded-xl border border-border/40 bg-muted/20 p-3 space-y-2">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-semibold text-muted-foreground">{title}</span>
+        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-background border border-border/60 text-muted-foreground">
+          {count}
+        </span>
+      </div>
+      <div className="space-y-2 max-h-[480px] overflow-y-auto pr-0.5">{children}</div>
+    </div>
+  );
+}
+
+function Empty({ text }: { text: string }) {
+  return <p className="text-xs text-muted-foreground/60 py-6 text-center">{text}</p>;
 }
