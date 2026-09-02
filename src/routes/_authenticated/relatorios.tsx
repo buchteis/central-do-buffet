@@ -1,8 +1,17 @@
 import { useMemo, useState } from "react";
+import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useTenantAccess } from "@/hooks/useTenantAccess";
 import { brl } from "@/lib/format";
-import { TrendingUp, TrendingDown, Calendar, DollarSign, CalendarCheck } from "lucide-react";
+import {
+  TrendingUp,
+  TrendingDown,
+  DollarSign,
+  CalendarCheck,
+  BarChart3,
+  PieChart as PieChartIcon,
+} from "lucide-react";
 import {
   BarChart,
   Bar,
@@ -13,31 +22,40 @@ import {
   ResponsiveContainer,
   LineChart,
   Line,
+  PieChart,
+  Pie,
+  Cell,
+  Legend,
 } from "recharts";
 
-type Props = { tenantId: string | null; isSuperAdmin: boolean };
+export const Route = createFileRoute("/_authenticated/relatorios")({
+  component: RelatoriosPage,
+});
 
 const MONTH_NAMES = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
 
-export default function RelatoriosEvents({ tenantId, isSuperAdmin }: Props) {
+function RelatoriosPage() {
+  const { tenantId, isSuperAdmin } = useTenantAccess();
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
 
-  // Busca os eventos reais do banco de dados
-  const { data: events = [] } = useQuery({
-    queryKey: ["relatorios-events", tenantId, selectedYear],
+  // Busca de Eventos Reais do Supabase
+  const { data: events = [], isLoading: loadingEvents } = useQuery({
+    queryKey: ["relatorios-events-route", tenantId, selectedYear],
     enabled: !!tenantId || isSuperAdmin,
     queryFn: async () => {
       let q = supabase
         .from("events")
-        .select("id, event_date, total_value, status, created_at")
+        .select("id, event_date, total_value, status")
         .neq("status", "cancelado");
 
       if (tenantId && !isSuperAdmin) q = q.eq("tenant_id", tenantId);
-      return (await q).data ?? [];
+      const { data, error } = await q;
+      if (error) throw error;
+      return data ?? [];
     },
   });
 
-  // Agrupa os dados mensais para os gráficos e comparativos
+  // Agrupamento de Analytics Reais
   const analytics = useMemo(() => {
     const monthlyData = MONTH_NAMES.map((name, index) => ({
       name,
@@ -46,56 +64,93 @@ export default function RelatoriosEvents({ tenantId, isSuperAdmin }: Props) {
       eventCount: 0,
     }));
 
-    events.forEach((ev: any) => {
-      if (!ev.event_date) return;
-      const date = new Date(ev.event_date + "T00:00:00");
-      if (date.getFullYear() === selectedYear) {
-        const m = date.getMonth();
-        monthlyData[m].totalValue += Number(ev.total_value ?? 0);
-        monthlyData[m].eventCount += 1;
-      }
-    });
+    const statusMap: Record<string, number> = {
+      confirmado: 0,
+      agendado: 0,
+      realizado: 0,
+      outros: 0,
+    };
 
-    // Identifica o mês atual e o mês anterior
+    if (Array.isArray(events)) {
+      events.forEach((ev: any) => {
+        // Status Distribution
+        const st = (ev.status ?? "outros").toLowerCase();
+        if (statusMap[st] !== undefined) {
+          statusMap[st] += 1;
+        } else {
+          statusMap.outros += 1;
+        }
+
+        // Agrupamento por Mês
+        if (!ev?.event_date) return;
+        const dateParts = String(ev.event_date).split("-");
+        if (dateParts.length < 3) return;
+
+        const year = Number(dateParts[0]);
+        const monthIdx = Number(dateParts[1]) - 1;
+
+        if (year === selectedYear && monthIdx >= 0 && monthIdx < 12) {
+          monthlyData[monthIdx].totalValue += Number(ev.total_value ?? 0);
+          monthlyData[monthIdx].eventCount += 1;
+        }
+      });
+    }
+
     const currentMonthIdx = new Date().getMonth();
     const prevMonthIdx = currentMonthIdx === 0 ? 11 : currentMonthIdx - 1;
 
-    const currentMonth = monthlyData[currentMonthIdx];
-    const prevMonth = monthlyData[prevMonthIdx];
+    const currentMonth = monthlyData[currentMonthIdx] ?? { totalValue: 0, eventCount: 0 };
+    const prevMonth = monthlyData[prevMonthIdx] ?? { totalValue: 0, eventCount: 0 };
 
-    // Cálculo de percentual de variação
     const calcGrowth = (curr: number, prev: number) => {
       if (prev === 0) return curr > 0 ? 100 : 0;
       return Math.round(((curr - prev) / prev) * 100);
     };
 
-    const valueGrowth = calcGrowth(currentMonth.totalValue, prevMonth.totalValue);
-    const countGrowth = calcGrowth(currentMonth.eventCount, prevMonth.eventCount);
+    const pieData = [
+      { name: "Confirmados", value: statusMap.confirmado, color: "#10b981" },
+      { name: "Agendados", value: statusMap.agendado, color: "#3b82f6" },
+      { name: "Realizados", value: statusMap.realizado, color: "#8b5cf6" },
+      { name: "Outros", value: statusMap.outros, color: "#f59e0b" },
+    ].filter((item) => item.value > 0);
 
     return {
       monthlyData,
       currentMonth,
       prevMonth,
-      valueGrowth,
-      countGrowth,
-      currentMonthName: MONTH_NAMES[currentMonthIdx],
-      prevMonthName: MONTH_NAMES[prevMonthIdx],
+      valueGrowth: calcGrowth(currentMonth.totalValue, prevMonth.totalValue),
+      countGrowth: calcGrowth(currentMonth.eventCount, prevMonth.eventCount),
+      currentMonthName: MONTH_NAMES[currentMonthIdx] ?? "",
+      prevMonthName: MONTH_NAMES[prevMonthIdx] ?? "",
+      pieData,
     };
   }, [events, selectedYear]);
 
+  if (loadingEvents) {
+    return (
+      <div className="p-8 text-center text-xs text-muted-foreground">
+        Carregando relatórios e gráficos...
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-6">
-      {/* Topo do Relatório */}
+    <div className="p-6 space-y-6 max-w-7xl mx-auto">
+      {/* Topo / Seletor de Ano */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-base font-bold tracking-tight">Relatório de Desempenho</h2>
-          <p className="text-xs text-muted-foreground">Comparativo de eventos e faturamento do período.</p>
+          <h1 className="text-xl font-extrabold tracking-tight flex items-center gap-2">
+            <BarChart3 className="size-5 text-primary" /> Relatórios & Métricas
+          </h1>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Análise em tempo real do faturamento e fluxo de eventos.
+          </p>
         </div>
 
         <select
           value={selectedYear}
           onChange={(e) => setSelectedYear(Number(e.target.value))}
-          className="h-8 px-3 rounded-lg border border-border bg-background text-xs font-bold"
+          className="h-9 px-3 rounded-xl border border-border bg-card text-xs font-bold shadow-sm focus:outline-none"
         >
           <option value={2025}>Ano 2025</option>
           <option value={2026}>Ano 2026</option>
@@ -103,16 +158,16 @@ export default function RelatoriosEvents({ tenantId, isSuperAdmin }: Props) {
         </select>
       </div>
 
-      {/* Cards de Comparativo: Mês Atual vs Mês Anterior */}
+      {/* Cards de Comparativo Mês Atual vs Anterior */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Card Faturamento */}
-        <div className="rounded-xl border border-border/60 bg-card p-4 shadow-sm space-y-2">
+        {/* Receita */}
+        <div className="rounded-2xl border border-border/60 bg-card p-5 shadow-sm space-y-2">
           <div className="flex items-center justify-between text-muted-foreground">
-            <span className="text-xs font-semibold uppercase tracking-wider flex items-center gap-1.5">
+            <span className="text-xs font-bold uppercase tracking-wider flex items-center gap-1.5">
               <DollarSign className="size-4 text-emerald-600" /> Receita ({analytics.currentMonthName} vs {analytics.prevMonthName})
             </span>
             <span
-              className={`inline-flex items-center gap-0.5 text-xs font-bold px-2 py-0.5 rounded-full ${
+              className={`inline-flex items-center gap-1 text-xs font-bold px-2.5 py-0.5 rounded-full ${
                 analytics.valueGrowth >= 0
                   ? "bg-emerald-500/10 text-emerald-700"
                   : "bg-rose-500/10 text-rose-700"
@@ -123,26 +178,26 @@ export default function RelatoriosEvents({ tenantId, isSuperAdmin }: Props) {
             </span>
           </div>
 
-          <div className="flex items-baseline justify-between pt-1">
+          <div className="flex items-baseline justify-between pt-2">
             <div>
               <p className="text-2xl font-black text-foreground">{brl(analytics.currentMonth.totalValue)}</p>
-              <p className="text-[11px] text-muted-foreground">Mês Atual ({analytics.currentMonthName})</p>
+              <p className="text-[11px] text-muted-foreground font-medium">Mês Atual ({analytics.currentMonthName})</p>
             </div>
             <div className="text-right">
               <p className="text-sm font-bold text-muted-foreground">{brl(analytics.prevMonth.totalValue)}</p>
-              <p className="text-[11px] text-muted-foreground">Mês Anterior ({analytics.prevMonthName})</p>
+              <p className="text-[11px] text-muted-foreground font-medium">Mês Anterior ({analytics.prevMonthName})</p>
             </div>
           </div>
         </div>
 
-        {/* Card Quantidade de Eventos */}
-        <div className="rounded-xl border border-border/60 bg-card p-4 shadow-sm space-y-2">
+        {/* Quantidade de Eventos */}
+        <div className="rounded-2xl border border-border/60 bg-card p-5 shadow-sm space-y-2">
           <div className="flex items-center justify-between text-muted-foreground">
-            <span className="text-xs font-semibold uppercase tracking-wider flex items-center gap-1.5">
+            <span className="text-xs font-bold uppercase tracking-wider flex items-center gap-1.5">
               <CalendarCheck className="size-4 text-primary" /> Eventos ({analytics.currentMonthName} vs {analytics.prevMonthName})
             </span>
             <span
-              className={`inline-flex items-center gap-0.5 text-xs font-bold px-2 py-0.5 rounded-full ${
+              className={`inline-flex items-center gap-1 text-xs font-bold px-2.5 py-0.5 rounded-full ${
                 analytics.countGrowth >= 0
                   ? "bg-emerald-500/10 text-emerald-700"
                   : "bg-rose-500/10 text-rose-700"
@@ -153,23 +208,23 @@ export default function RelatoriosEvents({ tenantId, isSuperAdmin }: Props) {
             </span>
           </div>
 
-          <div className="flex items-baseline justify-between pt-1">
+          <div className="flex items-baseline justify-between pt-2">
             <div>
               <p className="text-2xl font-black text-foreground">{analytics.currentMonth.eventCount} eventos</p>
-              <p className="text-[11px] text-muted-foreground">Mês Atual ({analytics.currentMonthName})</p>
+              <p className="text-[11px] text-muted-foreground font-medium">Mês Atual ({analytics.currentMonthName})</p>
             </div>
             <div className="text-right">
               <p className="text-sm font-bold text-muted-foreground">{analytics.prevMonth.eventCount} eventos</p>
-              <p className="text-[11px] text-muted-foreground">Mês Anterior ({analytics.prevMonthName})</p>
+              <p className="text-[11px] text-muted-foreground font-medium">Mês Anterior ({analytics.prevMonthName})</p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Gráfico 1: Faturamento Mês a Mês */}
-      <div className="rounded-xl border border-border/60 bg-card p-4 shadow-sm space-y-3">
+      {/* Gráfico 1: Faturamento Mensal (Barras) */}
+      <div className="rounded-2xl border border-border/60 bg-card p-5 shadow-sm space-y-3">
         <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-          Faturamento por Mês ({selectedYear})
+          Faturamento por Mês em {selectedYear}
         </h3>
         <div className="h-64 w-full">
           <ResponsiveContainer width="100%" height="100%">
@@ -186,30 +241,68 @@ export default function RelatoriosEvents({ tenantId, isSuperAdmin }: Props) {
                 formatter={(value: any) => [brl(Number(value)), "Faturamento"]}
                 contentStyle={{ backgroundColor: "var(--card)", borderRadius: "8px", border: "1px solid var(--border)" }}
               />
-              <Bar dataKey="totalValue" fill="var(--primary)" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="totalValue" fill="var(--primary)" radius={[6, 6, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
       </div>
 
-      {/* Gráfico 2: Quantidade de Eventos Mês a Mês */}
-      <div className="rounded-xl border border-border/60 bg-card p-4 shadow-sm space-y-3">
-        <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-          Evolução do Número de Eventos ({selectedYear})
-        </h3>
-        <div className="h-56 w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={analytics.monthlyData}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
-              <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12 }} />
-              <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11 }} allowDecimals={false} />
-              <Tooltip
-                formatter={(value: any) => [`${value} evento(s)`, "Total"]}
-                contentStyle={{ backgroundColor: "var(--card)", borderRadius: "8px", border: "1px solid var(--border)" }}
-              />
-              <Line type="monotone" dataKey="eventCount" stroke="#10b981" strokeWidth={3} dot={{ r: 4 }} />
-            </LineChart>
-          </ResponsiveContainer>
+      {/* Grid Inferior de Gráficos (Linha e Pizza) */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* Gráfico de Linha: Evolução dos Eventos */}
+        <div className="lg:col-span-2 rounded-2xl border border-border/60 bg-card p-5 shadow-sm space-y-3">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+            Volume de Eventos por Mês
+          </h3>
+          <div className="h-60 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={analytics.monthlyData}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12 }} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11 }} allowDecimals={false} />
+                <Tooltip
+                  formatter={(value: any) => [`${value} evento(s)`, "Total"]}
+                  contentStyle={{ backgroundColor: "var(--card)", borderRadius: "8px", border: "1px solid var(--border)" }}
+                />
+                <Line type="monotone" dataKey="eventCount" stroke="#10b981" strokeWidth={3} dot={{ r: 4 }} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Gráfico de Pizza: Distribuição por Status */}
+        <div className="rounded-2xl border border-border/60 bg-card p-5 shadow-sm space-y-3">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+            <PieChartIcon className="size-4 text-primary" /> Distribuição de Eventos
+          </h3>
+          <div className="h-60 w-full flex items-center justify-center">
+            {analytics.pieData.length === 0 ? (
+              <p className="text-xs text-muted-foreground">Sem dados suficientes</p>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={analytics.pieData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={45}
+                    outerRadius={75}
+                    paddingAngle={3}
+                    dataKey="value"
+                  >
+                    {analytics.pieData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    formatter={(val: any) => [`${val} eventos`, "Quantidade"]}
+                    contentStyle={{ backgroundColor: "var(--card)", borderRadius: "8px", border: "1px solid var(--border)" }}
+                  />
+                  <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: "11px" }} />
+                </PieChart>
+              </ResponsiveContainer>
+            )}
+          </div>
         </div>
       </div>
     </div>
