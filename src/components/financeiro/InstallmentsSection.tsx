@@ -12,7 +12,6 @@ import {
   MessageCircle,
   ChevronDown,
   ChevronUp,
-  Archive,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { brl, formatDateBR } from "@/lib/format";
@@ -66,19 +65,6 @@ export default function InstallmentsSection({ tenantId, ownerId, isSuperAdmin }:
       return (await q).data ?? [];
     },
   });
-
-  const totals = useMemo(() => {
-    return (installments as any[]).reduce(
-      (acc, i) => {
-        const v = Number(i.amount ?? 0);
-        if (i.status === "pago") acc.pago += v;
-        else if (i.status === "aguardando") acc.aguardando += v;
-        else acc.aberto += v;
-        return acc;
-      },
-      { pago: 0, aguardando: 0, aberto: 0 }
-    );
-  }, [installments]);
 
   const groups = useMemo(() => {
     const map = new Map<string, any>();
@@ -198,18 +184,6 @@ export default function InstallmentsSection({ tenantId, ownerId, isSuperAdmin }:
     onError: (e: any) => toast.error(e.message ?? "Erro ao remover"),
   });
 
-  const closeGroup = useMutation({
-    mutationFn: async (ids: string[]) => {
-      const { error } = await supabase.from("payment_installments").delete().in("id", ids);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      toast.success("Cobrança encerrada com sucesso");
-      invalidate();
-    },
-    onError: (e: any) => toast.error(e.message ?? "Erro ao encerrar"),
-  });
-
   const linkFor = (token: string) =>
     typeof window === "undefined" ? `/pagamento/${token}` : `${window.location.origin}/pagamento/${token}`;
 
@@ -241,17 +215,17 @@ export default function InstallmentsSection({ tenantId, ownerId, isSuperAdmin }:
     }
   };
 
+  // Filtramos apenas as cobranças que ainda possuem parcelas ativas
   const inProgress = groups.filter((g) => !g.allPaid);
-  const finished = groups.filter((g) => g.allPaid);
 
   const renderGroupCard = (g: any) => {
     const isOpen = !!expanded[g.key];
     const pct = g.total > 0 ? Math.round((g.paid / g.total) * 100) : 0;
     return (
-      <div key={g.key} className="rounded-xl border border-border/60 bg-card p-3 space-y-2.5 shadow-sm transition-all hover:border-border">
+      <div key={g.key} className="rounded-xl border border-border/50 bg-card p-3 space-y-2 shadow-sm">
         <div className="flex items-center justify-between gap-2">
           <div className="min-w-0">
-            <h4 className="font-semibold text-sm truncate">{g.client}</h4>
+            <h4 className="font-semibold text-xs truncate">{g.client}</h4>
             <p className="text-[11px] text-muted-foreground">
               {g.eventDate ? `${formatDateBR(g.eventDate)} · ` : ""}
               {g.paidCount}/{g.items.length} pagas
@@ -259,16 +233,15 @@ export default function InstallmentsSection({ tenantId, ownerId, isSuperAdmin }:
           </div>
           <button
             onClick={() => setExpanded((s) => ({ ...s, [g.key]: !isOpen }))}
-            className="p-1 rounded-md text-muted-foreground hover:bg-muted"
-            title={isOpen ? "Recolher" : "Detalhar"}
+            className="p-1 rounded text-muted-foreground hover:bg-muted"
           >
             {isOpen ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
           </button>
         </div>
 
         <div className="space-y-1">
-          <div className="flex items-center justify-between text-xs font-medium">
-            <span className="text-emerald-600 font-semibold">{brl(g.paid)}</span>
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-emerald-600 font-medium">{brl(g.paid)}</span>
             <span className="text-muted-foreground">de {brl(g.total)}</span>
           </div>
           <div className="h-1 rounded-full bg-muted overflow-hidden">
@@ -277,61 +250,53 @@ export default function InstallmentsSection({ tenantId, ownerId, isSuperAdmin }:
         </div>
 
         {isOpen && (
-          <div className="space-y-2 pt-2 border-t border-border/40">
+          <div className="space-y-1.5 pt-2 border-t border-border/40">
             {g.items.map((i: any) => {
               const isPago = i.status === "pago";
               return (
-                <div key={i.id} className="rounded-lg bg-muted/40 p-2.5 space-y-2 text-xs">
-                  <div className="flex items-center justify-between font-medium">
-                    <span>{i.label ?? `Parcela ${i.number}/${i.total_count}`}</span>
-                    <span className="font-bold">{brl(Number(i.amount ?? 0))}</span>
+                <div key={i.id} className="rounded-md bg-muted/30 p-2 space-y-1.5 text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium text-[11px]">{i.label ?? `Parcela ${i.number}/${i.total_count}`}</span>
+                    <span className="font-semibold text-xs">{brl(Number(i.amount ?? 0))}</span>
                   </div>
 
-                  <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-                    <span className="flex items-center gap-1 font-medium">
+                  <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                    <span>
                       {isPago ? (
-                        <span className="text-emerald-600 flex items-center gap-1"><CheckCircle2 className="size-3" /> Paga</span>
+                        <span className="text-emerald-600 font-medium flex items-center gap-1"><CheckCircle2 className="size-3" /> Paga</span>
                       ) : (
-                        <span className="text-amber-600 flex items-center gap-1"><Clock className="size-3" /> Em aberto</span>
+                        <span className="text-amber-600 font-medium flex items-center gap-1"><Clock className="size-3" /> Em aberto</span>
                       )}
                     </span>
                     <span>Venc. {i.due_date ? formatDateBR(i.due_date) : "—"}</span>
                   </div>
 
-                  <div className="flex items-center gap-1 pt-1 justify-end border-t border-border/20">
+                  <div className="flex items-center gap-1 justify-end pt-1">
                     <button
                       title="Copiar link"
                       onClick={async () => {
                         const ok = await copyToClipboard(linkFor(i.token));
                         toast[ok ? "success" : "error"](ok ? "Link copiado!" : "Erro ao copiar.");
                       }}
-                      className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-background"
+                      className="p-1 text-muted-foreground hover:text-foreground"
                     >
                       <Copy className="size-3.5" />
                     </button>
 
                     <button
-                      title="Enviar via WhatsApp"
+                      title="WhatsApp"
                       onClick={() => sendWhats(i)}
-                      className="p-1 rounded text-emerald-600 hover:bg-background"
+                      className="p-1 text-emerald-600 hover:opacity-80"
                     >
                       <MessageCircle className="size-3.5" />
                     </button>
 
                     {i.receipt_path && (
                       <>
-                        <button
-                          title="Ver comprovante"
-                          onClick={() => viewReceipt(i.id)}
-                          className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-background"
-                        >
+                        <button title="Comprovante" onClick={() => viewReceipt(i.id)} className="p-1 text-muted-foreground">
                           <Eye className="size-3.5" />
                         </button>
-                        <button
-                          title="Recusar comprovante"
-                          onClick={() => reject.mutate(i.id)}
-                          className="p-1 rounded text-rose-600 hover:bg-background"
-                        >
+                        <button title="Recusar" onClick={() => reject.mutate(i.id)} className="p-1 text-rose-600">
                           <XCircle className="size-3.5" />
                         </button>
                       </>
@@ -341,16 +306,16 @@ export default function InstallmentsSection({ tenantId, ownerId, isSuperAdmin }:
                       <button
                         onClick={() => confirm.mutate(i.id)}
                         disabled={confirm.isPending}
-                        className="ml-1 px-2 py-0.5 rounded bg-emerald-600 text-white font-medium text-[10px] hover:bg-emerald-700"
+                        className="ml-1 px-2 py-0.5 rounded bg-emerald-600 text-white font-medium text-[10px]"
                       >
                         Confirmar
                       </button>
                     )}
 
                     <button
-                      title="Excluir parcela"
+                      title="Excluir"
                       onClick={() => remove.mutate(i.id)}
-                      className="p-1 rounded text-muted-foreground hover:text-rose-600 hover:bg-background ml-auto"
+                      className="p-1 text-muted-foreground hover:text-rose-600 ml-auto"
                     >
                       <Trash2 className="size-3.5" />
                     </button>
@@ -360,74 +325,44 @@ export default function InstallmentsSection({ tenantId, ownerId, isSuperAdmin }:
             })}
           </div>
         )}
-
-        {g.allPaid && (
-          <button
-            onClick={() => {
-              if (!window.confirm("Deseja arquivar e encerrar esta cobrança?")) return;
-              closeGroup.mutate(g.items.map((i: any) => i.id));
-            }}
-            disabled={closeGroup.isPending}
-            className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg border border-border/60 text-xs text-muted-foreground hover:bg-muted font-medium"
-          >
-            <Archive className="size-3.5" /> Encerrar cobrança
-          </button>
-        )}
       </div>
     );
   };
 
   return (
-    <div className="space-y-5">
-      {/* Top Header Simplificado */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-border/40">
+    <div className="space-y-4">
+      {/* Topo Limpo */}
+      <div className="flex items-center justify-between pb-2 border-b border-border/40">
         <div>
-          <h2 className="text-base font-bold tracking-tight">Parcelas & Links de Pagamento</h2>
-          <p className="text-xs text-muted-foreground">Gestão simplificada de parcelamentos e recebimentos.</p>
+          <h3 className="text-sm font-semibold tracking-tight">Cobranças & Links de Pagamento</h3>
         </div>
         <button
           onClick={() => openCreate()}
-          className="inline-flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium shadow-sm transition-all hover:opacity-90 self-start sm:self-auto"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium transition-opacity hover:opacity-90"
         >
-          <Plus className="size-4" /> Criar parcelas
+          <Plus className="size-3.5" /> Criar parcelas
         </button>
       </div>
 
-      {/* Indicadores Minimalistas (KPIs) */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div className="p-3 rounded-xl border border-border/50 bg-card">
-          <span className="text-[11px] font-medium text-muted-foreground uppercase">Pagas</span>
-          <p className="text-lg font-semibold text-emerald-600">{brl(totals.pago)}</p>
-        </div>
-        <div className="p-3 rounded-xl border border-border/50 bg-card">
-          <span className="text-[11px] font-medium text-muted-foreground uppercase">Aguardando</span>
-          <p className="text-lg font-semibold text-amber-600">{brl(totals.aguardando)}</p>
-        </div>
-        <div className="p-3 rounded-xl border border-border/50 bg-card">
-          <span className="text-[11px] font-medium text-muted-foreground uppercase">Em Aberto</span>
-          <p className="text-lg font-semibold text-rose-600">{brl(totals.aberto)}</p>
-        </div>
-      </div>
-
-      {/* Kanban com Design Limpo */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <Column title="Eventos Fechados" count={pendingEvents.length}>
+      {/* Kanban Simplificado em 2 Colunas */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Column title="Eventos a Parcelar" count={pendingEvents.length}>
           {pendingEvents.length === 0 ? (
-            <Empty text="Nenhum evento pendente" />
+            <Empty text="Nenhum evento aguardando parcelas" />
           ) : (
             pendingEvents.map((e: any) => (
-              <div key={e.id} className="rounded-xl border border-border/60 bg-card p-3 space-y-2 shadow-sm">
+              <div key={e.id} className="rounded-xl border border-border/50 bg-card p-3 flex items-center justify-between gap-2 shadow-sm">
                 <div className="min-w-0">
-                  <h4 className="font-semibold text-sm truncate">{e.clients?.name ?? "Cliente"}</h4>
-                  <p className="text-xs text-muted-foreground">
+                  <h4 className="font-semibold text-xs truncate">{e.clients?.name ?? "Cliente"}</h4>
+                  <p className="text-[11px] text-muted-foreground">
                     {e.event_date ? formatDateBR(e.event_date) : "—"} · <span className="font-medium text-foreground">{brl(Number(e.total_value ?? 0))}</span>
                   </p>
                 </div>
                 <button
                   onClick={() => openCreate(e.id)}
-                  className="w-full py-1.5 rounded-lg border border-border/80 hover:bg-muted text-xs font-medium transition-colors"
+                  className="px-2.5 py-1 rounded-md border border-border text-xs font-medium hover:bg-muted shrink-0"
                 >
-                  Gerar Parcelas
+                  Gerar
                 </button>
               </div>
             ))
@@ -437,21 +372,17 @@ export default function InstallmentsSection({ tenantId, ownerId, isSuperAdmin }:
         <Column title="Em Pagamento" count={inProgress.length}>
           {inProgress.length === 0 ? <Empty text="Nenhuma cobrança ativa" /> : inProgress.map(renderGroupCard)}
         </Column>
-
-        <Column title="Quitados" count={finished.length}>
-          {finished.length === 0 ? <Empty text="Nenhum evento quitado" /> : finished.map(renderGroupCard)}
-        </Column>
       </div>
 
       {/* Modal Reorganizado */}
       {open && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-card border border-border rounded-xl w-full max-w-md p-5 space-y-4 shadow-lg">
-            <h3 className="font-bold text-base">Gerar Parcelas</h3>
+            <h3 className="font-bold text-sm">Criar Parcelas</h3>
 
             <div className="space-y-3">
               <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1">Evento</label>
+                <label className="block text-[11px] font-medium text-muted-foreground mb-1">Evento</label>
                 <select
                   value={eventId}
                   onChange={(e) => {
@@ -459,7 +390,7 @@ export default function InstallmentsSection({ tenantId, ownerId, isSuperAdmin }:
                     setFirstDue(new Date().toISOString().slice(0, 10));
                     setCount(Number((settings as any)?.installments_default_count ?? 2));
                   }}
-                  className="w-full h-9 px-3 rounded-lg border border-border bg-background text-xs"
+                  className="w-full h-8 px-2.5 rounded-md border border-border bg-background text-xs"
                 >
                   <option value="">Selecione um evento...</option>
                   {(events as any[]).map((e) => (
@@ -472,48 +403,48 @@ export default function InstallmentsSection({ tenantId, ownerId, isSuperAdmin }:
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-medium text-muted-foreground mb-1">Nº de parcelas</label>
+                  <label className="block text-[11px] font-medium text-muted-foreground mb-1">Nº de parcelas</label>
                   <input
                     type="number"
                     min={1}
                     max={24}
                     value={count}
                     onChange={(e) => setCount(Number(e.target.value))}
-                    className="w-full h-9 px-3 rounded-lg border border-border bg-background text-xs"
+                    className="w-full h-8 px-2.5 rounded-md border border-border bg-background text-xs"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-muted-foreground mb-1">1º Vencimento</label>
+                  <label className="block text-[11px] font-medium text-muted-foreground mb-1">1º Vencimento</label>
                   <input
                     type="date"
                     value={firstDue}
                     onChange={(e) => setFirstDue(e.target.value)}
-                    className="w-full h-9 px-3 rounded-lg border border-border bg-background text-xs"
+                    className="w-full h-8 px-2.5 rounded-md border border-border bg-background text-xs"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1">Valor Total (Opcional)</label>
+                <label className="block text-[11px] font-medium text-muted-foreground mb-1">Valor Total (Opcional)</label>
                 <input
                   value={totalOverride}
                   onChange={(e) => setTotalOverride(e.target.value)}
-                  placeholder="Manter valor do evento"
-                  className="w-full h-9 px-3 rounded-lg border border-border bg-background text-xs"
+                  placeholder="Manter valor original"
+                  className="w-full h-8 px-2.5 rounded-md border border-border bg-background text-xs"
                 />
               </div>
             </div>
 
             <div className="flex justify-end gap-2 pt-2">
-              <button onClick={() => setOpen(false)} className="h-9 px-3 rounded-lg border border-border text-xs font-medium">
+              <button onClick={() => setOpen(false)} className="h-8 px-3 rounded-md border border-border text-xs font-medium">
                 Cancelar
               </button>
               <button
                 onClick={() => create.mutate()}
                 disabled={create.isPending}
-                className="h-9 px-3 rounded-lg bg-primary text-primary-foreground text-xs font-medium disabled:opacity-50"
+                className="h-8 px-3 rounded-md bg-primary text-primary-foreground text-xs font-medium disabled:opacity-50"
               >
-                Confirmar
+                Gerar
               </button>
             </div>
           </div>
@@ -525,14 +456,14 @@ export default function InstallmentsSection({ tenantId, ownerId, isSuperAdmin }:
 
 function Column({ title, count, children }: { title: string; count: number; children: React.ReactNode }) {
   return (
-    <div className="rounded-xl border border-border/40 bg-muted/20 p-3 space-y-3">
+    <div className="rounded-xl border border-border/40 bg-muted/20 p-3 space-y-2">
       <div className="flex items-center justify-between">
         <span className="text-xs font-semibold text-muted-foreground">{title}</span>
         <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-background border border-border/60 text-muted-foreground">
           {count}
         </span>
       </div>
-      <div className="space-y-2 max-h-[520px] overflow-y-auto pr-0.5">{children}</div>
+      <div className="space-y-2 max-h-[480px] overflow-y-auto pr-0.5">{children}</div>
     </div>
   );
 }
