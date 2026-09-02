@@ -17,7 +17,22 @@ export const Route = createFileRoute("/_authenticated/financeiro")({
 
 type PeriodFilter = "todos" | "hoje" | "semana" | "mes" | "ano";
 type TypeFilter = "todos" | "recebido" | "receber" | "saida";
-type SourceFilter = "todos" | "evento" | "transacao" | "parcela";
+type SourceFilter = "todos" | "evento" | "avulsa" | "parcela" | "despesa";
+
+const MONTH_LABELS = [
+  "Janeiro",
+  "Fevereiro",
+  "Março",
+  "Abril",
+  "Maio",
+  "Junho",
+  "Julho",
+  "Agosto",
+  "Setembro",
+  "Outubro",
+  "Novembro",
+  "Dezembro",
+];
 
 import {
   RECEIVED_EVENT_STATUSES,
