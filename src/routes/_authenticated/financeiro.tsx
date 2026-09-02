@@ -507,7 +507,9 @@ function FinanceiroPage() {
               {p === "todos" ? "Tudo" : p === "mes" ? "Mês" : p}
             </button>
           ))}
+        </div>
       </div>
+
 
       {/* Filtro por mês (Janeiro a Dezembro) */}
       <div className="flex flex-wrap items-center gap-1.5 bg-card p-3 rounded-2xl border border-border shadow-sm">
