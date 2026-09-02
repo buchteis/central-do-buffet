@@ -551,7 +551,17 @@ function FinanceiroPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {rows.map((r) => {
+            {monthGroups.map((g) => (
+              <Fragment key={g.key}>
+                <tr className="bg-muted/50">
+                  <td colSpan={5} className="px-5 py-2 text-[11px] font-extrabold uppercase tracking-widest">
+                    {g.label} · {g.rows.length} registro{g.rows.length === 1 ? "" : "s"}
+                  </td>
+                  <td colSpan={2} className="px-4 py-2 text-xs font-mono font-bold text-right">
+                    {brl(g.total)}
+                  </td>
+                </tr>
+                {g.rows.map((r) => {
               const isReceived = r.kind === "recebido";
               const isSaida = r.kind === "saida";
               const color = isSaida ? "text-rose-600" : isReceived ? "text-emerald-600" : "text-amber-600";
