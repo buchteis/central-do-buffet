@@ -82,6 +82,47 @@ function QuoteEditor({ leadId, quoteId }: { leadId?: string; quoteId?: string })
     }
   }, [lead]);
 
+  // PREFILL DO ORÇAMENTO (inclui os que vieram do link público)
+  const { data: quote } = useQuery({
+    queryKey: ["quote-prefill", quoteId],
+    enabled: !!quoteId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("quotes")
+        .select("*, clients(id, name, phone, whatsapp, email, cpf, city)")
+        .eq("id", quoteId!)
+        .maybeSingle();
+      if (error) throw error;
+      return data as any;
+    },
+  });
+
+  const requester = ((quote?.extras as any)?.requester ?? {}) as Record<string, any>;
+
+  useEffect(() => {
+    if (!quote) return;
+    const extras = (quote.extras ?? {}) as any;
+    setClientId(quote.client_id ?? "");
+    setEventDate(quote.event_date ?? "");
+    setEventTime(String(quote.event_time ?? "").slice(0, 5));
+    setEventType(quote.event_type ?? "");
+    setEventAddress(quote.event_address ?? requester?.address ?? "");
+    setNotes(quote.notes ?? "");
+    setAdults(Number(quote.adults ?? 0) || 0);
+    setChildrenCount(Number(quote.children_7_10 ?? 0) + Number(quote.children_0_6 ?? 0));
+    setChildrenPrice(Number(extras?.child_price ?? 0) || 0);
+
+    const fromSnapshot: string[] = Array.isArray(extras?.packages)
+      ? extras.packages.map((p: any) => String(p?.package_id ?? "")).filter(Boolean)
+      : [];
+    const fromIds: string[] = Array.isArray(extras?.package_ids)
+      ? extras.package_ids.map((id: any) => String(id)).filter(Boolean)
+      : [];
+    const ids = [...new Set([...fromSnapshot, ...fromIds, ...(quote.package_id ? [quote.package_id] : [])])];
+    setSelectedPackageIds(ids);
+  }, [quote?.id]);
+
+
   // QUERY - CLIENTES
   const { data: clients } = useQuery({
     queryKey: ["clients-select"],
