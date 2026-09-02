@@ -628,9 +628,11 @@ function FinanceiroPage() {
                       </button>
                     )}
                   </td>
-                </tr>
-              );
-            })}
+                  </tr>
+                );
+                })}
+              </Fragment>
+            ))}
             {rows.length === 0 && (
               <tr>
                 <td colSpan={7} className="p-10 text-center text-sm text-muted-foreground">
