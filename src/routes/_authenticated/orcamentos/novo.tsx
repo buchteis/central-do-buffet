@@ -82,6 +82,47 @@ function QuoteEditor({ leadId, quoteId }: { leadId?: string; quoteId?: string })
     }
   }, [lead]);
 
+  // PREFILL DO ORÇAMENTO (inclui os que vieram do link público)
+  const { data: quote } = useQuery({
+    queryKey: ["quote-prefill", quoteId],
+    enabled: !!quoteId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("quotes")
+        .select("*, clients(id, name, phone, whatsapp, email, cpf, city)")
+        .eq("id", quoteId!)
+        .maybeSingle();
+      if (error) throw error;
+      return data as any;
+    },
+  });
+
+  const requester = ((quote?.extras as any)?.requester ?? {}) as Record<string, any>;
+
+  useEffect(() => {
+    if (!quote) return;
+    const extras = (quote.extras ?? {}) as any;
+    setClientId(quote.client_id ?? "");
+    setEventDate(quote.event_date ?? "");
+    setEventTime(String(quote.event_time ?? "").slice(0, 5));
+    setEventType(quote.event_type ?? "");
+    setEventAddress(quote.event_address ?? requester?.address ?? "");
+    setNotes(quote.notes ?? "");
+    setAdults(Number(quote.adults ?? 0) || 0);
+    setChildrenCount(Number(quote.children_7_10 ?? 0) + Number(quote.children_0_6 ?? 0));
+    setChildrenPrice(Number(extras?.child_price ?? 0) || 0);
+
+    const fromSnapshot: string[] = Array.isArray(extras?.packages)
+      ? extras.packages.map((p: any) => String(p?.package_id ?? "")).filter(Boolean)
+      : [];
+    const fromIds: string[] = Array.isArray(extras?.package_ids)
+      ? extras.package_ids.map((id: any) => String(id)).filter(Boolean)
+      : [];
+    const ids = [...new Set([...fromSnapshot, ...fromIds, ...(quote.package_id ? [quote.package_id] : [])])];
+    setSelectedPackageIds(ids);
+  }, [quote?.id]);
+
+
   // QUERY - CLIENTES
   const { data: clients } = useQuery({
     queryKey: ["clients-select"],
@@ -222,31 +263,59 @@ function QuoteEditor({ leadId, quoteId }: { leadId?: string; quoteId?: string })
       const { data: userRes } = await supabase.auth.getUser();
       if (!userRes.user) throw new Error("Sessão expirada. Faça login novamente.");
 
-      const payload = {
-        owner_id: userRes.user.id,
-        client_id: clientId || null,
+      const prevExtras = ((quote?.extras ?? {}) as any) || {};
+      const packagesSnapshot = selectedPackagesDetailed
+        .filter((p) => p.id)
+        .map((p) => ({
+          package_id: p.id,
+          name: p.name,
+          pricing_type: p.pricing_type,
+          price_per_person: p.pricing_type === "fixed" ? 0 : p.price_per_person,
+          price_fixed: p.pricing_type === "fixed" ? p.price_fixed : 0,
+        }));
+
+      const payload: Record<string, any> = {
+        owner_id: quote?.owner_id ?? userRes.user.id,
+        client_id: clientId || quote?.client_id || null,
         package_id: validPackageIds[0],
         event_date: eventDate,
         event_time: eventTime || null,
         event_type: eventType || null,
         event_address: eventAddress || null,
         adults: adults,
+        children_7_10: childrenCount,
+        children_0_6: 0,
         total_value: grandTotal,
         notes: notes || null,
         extras: {
+          ...prevExtras,
+          packages: packagesSnapshot,
           package_ids: validPackageIds,
           children_count: childrenCount,
           child_price: childrenPrice,
         },
       };
 
-      const { data, error } = await supabase.from("quotes").insert([payload]).select().single();
+      if (quoteId) {
+        const { data, error } = await supabase
+          .from("quotes")
+          .update(payload as any)
+          .eq("id", quoteId)
+          .select()
+          .single();
+        if (error) throw error;
+        return data;
+      }
+
+      const { data, error } = await supabase.from("quotes").insert([payload as any]).select().single();
       if (error) throw error;
       return data;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["quotes"] });
-      toast.success("Orçamento criado com sucesso!");
+      ["quotes", "quote-prefill", "agenda", "dashboard-stats-v2"].forEach((k) =>
+        qc.invalidateQueries({ queryKey: [k] }),
+      );
+      toast.success(quoteId ? "Orçamento atualizado!" : "Orçamento criado com sucesso!");
       navigate({ to: "/orcamentos" });
     },
     onError: (err: Error) => toast.error(err.message || "Erro ao salvar orçamento"),
@@ -262,19 +331,55 @@ function QuoteEditor({ leadId, quoteId }: { leadId?: string; quoteId?: string })
             </Link>
           </Button>
           <div>
-            <h1 className="text-xl md:text-2xl font-bold tracking-tight">Novo Orçamento</h1>
-            <p className="text-xs text-muted-foreground">Preencha os dados abaixo para gerar a proposta</p>
+            <h1 className="text-xl md:text-2xl font-bold tracking-tight">
+              {quoteId ? "Editar Orçamento" : "Novo Orçamento"}
+            </h1>
+            <p className="text-xs text-muted-foreground">
+              {quoteId
+                ? "Confira os dados enviados pelo cliente e ajuste pacotes e valores"
+                : "Preencha os dados abaixo para gerar a proposta"}
+            </p>
           </div>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
+          {quote && (
+            <div className="bg-card border rounded-2xl p-5 shadow-sm space-y-1 text-sm">
+              <h3 className="font-bold text-sm uppercase tracking-wider text-muted-foreground">
+                Dados enviados pelo cliente
+              </h3>
+              <p className="font-bold text-base">
+                {quote.clients?.name ?? requester?.name ?? "Cliente não informado"}
+              </p>
+              <p className="text-muted-foreground">
+                WhatsApp/Telefone: {quote.clients?.whatsapp ?? quote.clients?.phone ?? requester?.whatsapp ?? "—"}
+              </p>
+              <p className="text-muted-foreground">
+                E-mail: {quote.clients?.email ?? requester?.email ?? "—"}
+              </p>
+              <p className="text-muted-foreground">
+                CPF/CNPJ: {quote.clients?.cpf ?? requester?.cpf ?? "—"}
+              </p>
+              <p className="text-muted-foreground">
+                Cidade: {quote.clients?.city ?? requester?.city ?? "—"}
+              </p>
+              {quote.notes && (
+                <p className="text-muted-foreground">Observações do cliente: {quote.notes}</p>
+              )}
+            </div>
+          )}
+
           <div className="space-y-2 bg-card border rounded-2xl p-5 shadow-sm">
             <Label className="font-bold">Cliente</Label>
             <Select value={clientId || undefined} onValueChange={setClientId}>
               <SelectTrigger>
-                <SelectValue placeholder="Selecione um cliente cadastrado (opcional)..." />
+                <SelectValue
+                  placeholder={
+                    quote?.clients?.name ?? requester?.name ?? "Selecione um cliente cadastrado (opcional)..."
+                  }
+                />
               </SelectTrigger>
               <SelectContent>
                 {clients?.map((c) => (
@@ -285,6 +390,7 @@ function QuoteEditor({ leadId, quoteId }: { leadId?: string; quoteId?: string })
               </SelectContent>
             </Select>
           </div>
+
 
           <div className="space-y-4 bg-card border rounded-2xl p-5 shadow-sm">
             <div className="flex items-center justify-between">

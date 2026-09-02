@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { TrendingUp, TrendingDown, Wallet, Calendar, Hourglass, CheckCircle2, Plus, Trash2, X, Link2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -17,7 +17,22 @@ export const Route = createFileRoute("/_authenticated/financeiro")({
 
 type PeriodFilter = "todos" | "hoje" | "semana" | "mes" | "ano";
 type TypeFilter = "todos" | "recebido" | "receber" | "saida";
-type SourceFilter = "todos" | "evento" | "transacao" | "parcela";
+type SourceFilter = "todos" | "evento" | "avulsa" | "parcela" | "despesa";
+
+const MONTH_LABELS = [
+  "Janeiro",
+  "Fevereiro",
+  "Março",
+  "Abril",
+  "Maio",
+  "Junho",
+  "Julho",
+  "Agosto",
+  "Setembro",
+  "Outubro",
+  "Novembro",
+  "Dezembro",
+];
 
 import {
   RECEIVED_EVENT_STATUSES,
@@ -78,6 +93,7 @@ function FinanceiroPage() {
   const [period, setPeriod] = useState<PeriodFilter>("todos");
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("todos");
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>("todos");
+  const [monthFilter, setMonthFilter] = useState<number | null>(null);
 
   // ------- Despesa -------
   const [showExpense, setShowExpense] = useState(false);
@@ -356,9 +372,11 @@ function FinanceiroPage() {
       { recebido: 0, receber: 0, saidas: 0, saidasPagas: 0 },
     );
 
-  // Aplica filtro de origem
+  // Aplica filtro de origem (entrada avulsa x parcela x evento x despesa)
   const sourceFiltered = periodFiltered.filter((r) => {
     if (sourceFilter === "todos") return true;
+    if (sourceFilter === "avulsa") return r.source === "transacao" && r.kind !== "saida";
+    if (sourceFilter === "despesa") return r.source === "transacao" && r.kind === "saida";
     return r.source === sourceFilter;
   });
 
@@ -370,7 +388,24 @@ function FinanceiroPage() {
       if (typeFilter === "saida") return r.kind === "saida";
       return true;
     })
+    .filter((r) => (monthFilter === null || !r.date ? monthFilter === null : new Date(r.date + "T00:00:00").getMonth() === monthFilter))
     .filter((r) => match(r.title, r.client, r.status, r.method, r.date, r.amount));
+
+  // Agrupa os registros por mês (colunas de Janeiro a Dezembro)
+  const monthGroups = (() => {
+    const map = new Map<string, { label: string; rows: Row[]; total: number }>();
+    for (const r of rows) {
+      const d = r.date ? new Date(r.date + "T00:00:00") : null;
+      const key = d && !isNaN(d.getTime()) ? `${d.getFullYear()}-${String(d.getMonth()).padStart(2, "0")}` : "sem-data";
+      const label =
+        d && !isNaN(d.getTime()) ? `${MONTH_LABELS[d.getMonth()]} ${d.getFullYear()}` : "Sem data definida";
+      const g = map.get(key) ?? { label, rows: [], total: 0 };
+      g.rows.push(r);
+      g.total += r.kind === "saida" ? -r.amount : r.amount;
+      map.set(key, g);
+    }
+    return [...map.entries()].sort((a, b) => (a[0] < b[0] ? 1 : -1)).map(([key, g]) => ({ key, ...g }));
+  })();
 
   return (
     <div className="space-y-6">
@@ -418,8 +453,9 @@ function FinanceiroPage() {
           {([
             { id: "todos", label: "Todos" },
             { id: "evento", label: "Eventos" },
-            { id: "transacao", label: "Transações" },
-            { id: "parcela", label: "Parcelas" },
+            { id: "avulsa", label: "Entradas avulsas" },
+            { id: "parcela", label: "Parcelados" },
+            { id: "despesa", label: "Despesas" },
           ] as const).map((f) => (
             <button
               key={f.id}
@@ -474,6 +510,35 @@ function FinanceiroPage() {
         </div>
       </div>
 
+
+      {/* Filtro por mês (Janeiro a Dezembro) */}
+      <div className="flex flex-wrap items-center gap-1.5 bg-card p-3 rounded-2xl border border-border shadow-sm">
+        <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mr-1">Mês</span>
+        <button
+          onClick={() => setMonthFilter(null)}
+          className={cn(
+            "px-3 py-1 text-xs font-bold rounded-full border transition-colors",
+            monthFilter === null ? "bg-primary text-primary-foreground border-primary" : "border-border hover:bg-muted",
+          )}
+        >
+          Todos
+        </button>
+        {MONTH_LABELS.map((m, i) => (
+          <button
+            key={m}
+            onClick={() => setMonthFilter(i)}
+            className={cn(
+              "px-3 py-1 text-xs font-semibold rounded-full border transition-colors",
+              monthFilter === i ? "bg-primary text-primary-foreground border-primary" : "border-border hover:bg-muted",
+            )}
+          >
+            {m.slice(0, 3)}
+          </button>
+        ))}
+      </div>
+
+
+
       <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
         <table className="w-full text-left border-collapse">
           <thead>
@@ -488,7 +553,17 @@ function FinanceiroPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {rows.map((r) => {
+            {monthGroups.map((g) => (
+              <Fragment key={g.key}>
+                <tr className="bg-muted/50">
+                  <td colSpan={5} className="px-5 py-2 text-[11px] font-extrabold uppercase tracking-widest">
+                    {g.label} · {g.rows.length} registro{g.rows.length === 1 ? "" : "s"}
+                  </td>
+                  <td colSpan={2} className="px-4 py-2 text-xs font-mono font-bold text-right">
+                    {brl(g.total)}
+                  </td>
+                </tr>
+                {g.rows.map((r) => {
               const isReceived = r.kind === "recebido";
               const isSaida = r.kind === "saida";
               const color = isSaida ? "text-rose-600" : isReceived ? "text-emerald-600" : "text-amber-600";
@@ -555,9 +630,11 @@ function FinanceiroPage() {
                       </button>
                     )}
                   </td>
-                </tr>
-              );
-            })}
+                  </tr>
+                );
+                })}
+              </Fragment>
+            ))}
             {rows.length === 0 && (
               <tr>
                 <td colSpan={7} className="p-10 text-center text-sm text-muted-foreground">
