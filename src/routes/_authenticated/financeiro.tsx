@@ -507,8 +507,35 @@ function FinanceiroPage() {
               {p === "todos" ? "Tudo" : p === "mes" ? "Mês" : p}
             </button>
           ))}
-        </div>
       </div>
+
+      {/* Filtro por mês (Janeiro a Dezembro) */}
+      <div className="flex flex-wrap items-center gap-1.5 bg-card p-3 rounded-2xl border border-border shadow-sm">
+        <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mr-1">Mês</span>
+        <button
+          onClick={() => setMonthFilter(null)}
+          className={cn(
+            "px-3 py-1 text-xs font-bold rounded-full border transition-colors",
+            monthFilter === null ? "bg-primary text-primary-foreground border-primary" : "border-border hover:bg-muted",
+          )}
+        >
+          Todos
+        </button>
+        {MONTH_LABELS.map((m, i) => (
+          <button
+            key={m}
+            onClick={() => setMonthFilter(i)}
+            className={cn(
+              "px-3 py-1 text-xs font-semibold rounded-full border transition-colors",
+              monthFilter === i ? "bg-primary text-primary-foreground border-primary" : "border-border hover:bg-muted",
+            )}
+          >
+            {m.slice(0, 3)}
+          </button>
+        ))}
+      </div>
+
+
 
       <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
         <table className="w-full text-left border-collapse">
