@@ -372,9 +372,11 @@ function FinanceiroPage() {
       { recebido: 0, receber: 0, saidas: 0, saidasPagas: 0 },
     );
 
-  // Aplica filtro de origem
+  // Aplica filtro de origem (entrada avulsa x parcela x evento x despesa)
   const sourceFiltered = periodFiltered.filter((r) => {
     if (sourceFilter === "todos") return true;
+    if (sourceFilter === "avulsa") return r.source === "transacao" && r.kind !== "saida";
+    if (sourceFilter === "despesa") return r.source === "transacao" && r.kind === "saida";
     return r.source === sourceFilter;
   });
 
@@ -386,7 +388,24 @@ function FinanceiroPage() {
       if (typeFilter === "saida") return r.kind === "saida";
       return true;
     })
+    .filter((r) => (monthFilter === null || !r.date ? monthFilter === null : new Date(r.date + "T00:00:00").getMonth() === monthFilter))
     .filter((r) => match(r.title, r.client, r.status, r.method, r.date, r.amount));
+
+  // Agrupa os registros por mês (colunas de Janeiro a Dezembro)
+  const monthGroups = (() => {
+    const map = new Map<string, { label: string; rows: Row[]; total: number }>();
+    for (const r of rows) {
+      const d = r.date ? new Date(r.date + "T00:00:00") : null;
+      const key = d && !isNaN(d.getTime()) ? `${d.getFullYear()}-${String(d.getMonth()).padStart(2, "0")}` : "sem-data";
+      const label =
+        d && !isNaN(d.getTime()) ? `${MONTH_LABELS[d.getMonth()]} ${d.getFullYear()}` : "Sem data definida";
+      const g = map.get(key) ?? { label, rows: [], total: 0 };
+      g.rows.push(r);
+      g.total += r.kind === "saida" ? -r.amount : r.amount;
+      map.set(key, g);
+    }
+    return [...map.entries()].sort((a, b) => (a[0] < b[0] ? 1 : -1)).map(([key, g]) => ({ key, ...g }));
+  })();
 
   return (
     <div className="space-y-6">
