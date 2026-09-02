@@ -331,19 +331,55 @@ function QuoteEditor({ leadId, quoteId }: { leadId?: string; quoteId?: string })
             </Link>
           </Button>
           <div>
-            <h1 className="text-xl md:text-2xl font-bold tracking-tight">Novo Orçamento</h1>
-            <p className="text-xs text-muted-foreground">Preencha os dados abaixo para gerar a proposta</p>
+            <h1 className="text-xl md:text-2xl font-bold tracking-tight">
+              {quoteId ? "Editar Orçamento" : "Novo Orçamento"}
+            </h1>
+            <p className="text-xs text-muted-foreground">
+              {quoteId
+                ? "Confira os dados enviados pelo cliente e ajuste pacotes e valores"
+                : "Preencha os dados abaixo para gerar a proposta"}
+            </p>
           </div>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
+          {quote && (
+            <div className="bg-card border rounded-2xl p-5 shadow-sm space-y-1 text-sm">
+              <h3 className="font-bold text-sm uppercase tracking-wider text-muted-foreground">
+                Dados enviados pelo cliente
+              </h3>
+              <p className="font-bold text-base">
+                {quote.clients?.name ?? requester?.name ?? "Cliente não informado"}
+              </p>
+              <p className="text-muted-foreground">
+                WhatsApp/Telefone: {quote.clients?.whatsapp ?? quote.clients?.phone ?? requester?.whatsapp ?? "—"}
+              </p>
+              <p className="text-muted-foreground">
+                E-mail: {quote.clients?.email ?? requester?.email ?? "—"}
+              </p>
+              <p className="text-muted-foreground">
+                CPF/CNPJ: {quote.clients?.cpf ?? requester?.cpf ?? "—"}
+              </p>
+              <p className="text-muted-foreground">
+                Cidade: {quote.clients?.city ?? requester?.city ?? "—"}
+              </p>
+              {quote.notes && (
+                <p className="text-muted-foreground">Observações do cliente: {quote.notes}</p>
+              )}
+            </div>
+          )}
+
           <div className="space-y-2 bg-card border rounded-2xl p-5 shadow-sm">
             <Label className="font-bold">Cliente</Label>
             <Select value={clientId || undefined} onValueChange={setClientId}>
               <SelectTrigger>
-                <SelectValue placeholder="Selecione um cliente cadastrado (opcional)..." />
+                <SelectValue
+                  placeholder={
+                    quote?.clients?.name ?? requester?.name ?? "Selecione um cliente cadastrado (opcional)..."
+                  }
+                />
               </SelectTrigger>
               <SelectContent>
                 {clients?.map((c) => (
@@ -354,6 +390,7 @@ function QuoteEditor({ leadId, quoteId }: { leadId?: string; quoteId?: string })
               </SelectContent>
             </Select>
           </div>
+
 
           <div className="space-y-4 bg-card border rounded-2xl p-5 shadow-sm">
             <div className="flex items-center justify-between">
