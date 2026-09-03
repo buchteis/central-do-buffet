@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
-import { Plus, FileText, Printer, Eye, Pencil } from "lucide-react";
+import { Plus, FileText, Printer, Eye, Pencil, Trash2, CheckSquare, Square } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { brl, formatDateFullBR } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -54,8 +54,8 @@ function ContractsPage() {
   const [editing, setEditing] = useState<any | null>(null);
   const [previewing, setPreviewing] = useState<any | null>(null);
   const [period, setPeriod] = useState<"dia" | "semana" | "mes" | "ano" | "todos">("todos");
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const { match } = useSearchFilter();
-
 
   const { data: settings } = useQuery({
     queryKey: ["buffet-settings"],
@@ -78,6 +78,25 @@ function ContractsPage() {
     },
   });
 
+  const filteredContracts = (contracts ?? [])
+    .filter((c: any) => {
+      const from = contractStartOf(period);
+      if (!from) return true;
+      const ref = c.events?.event_date ? new Date(`${c.events.event_date}T00:00:00`) : new Date(c.created_at);
+      return ref >= from;
+    })
+    .filter((c: any) =>
+      match(
+        c.title,
+        c.status,
+        c.content,
+        c.events?.clients?.name,
+        c.events?.clients?.cpf,
+        c.clients?.name,
+        c.clients?.cpf,
+      ),
+    );
+
   const upd = useMutation({
     mutationFn: async (c: any) => {
       const { error } = await supabase
@@ -94,17 +113,37 @@ function ContractsPage() {
     onError: (e: any) => toast.error(e.message),
   });
 
+  // Exclusão individual ou em massa
   const del = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from("contracts").delete().eq("id", id);
+    mutationFn: async (ids: string[]) => {
+      const { error } = await supabase.from("contracts").delete().in("id", ids);
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: (_, ids) => {
       qc.invalidateQueries({ queryKey: ["contracts"] });
-      toast.success("Contrato excluído");
+      setSelectedIds((prev) => prev.filter((id) => !ids.includes(id)));
+      toast.success(ids.length === 1 ? "Contrato excluído" : `${ids.length} contratos excluídos`);
     },
     onError: (e: any) => toast.error(e.message),
   });
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedIds(filteredContracts.map((c: any) => c.id));
+    } else {
+      setSelectedIds([]);
+    }
+  };
+
+  const handleSelectOne = (id: string) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
+
+  const isAllSelected =
+    filteredContracts.length > 0 &&
+    filteredContracts.every((c: any) => selectedIds.includes(c.id));
 
   return (
     <div className="space-y-6">
@@ -123,105 +162,138 @@ function ContractsPage() {
         </button>
       </div>
 
-      <div className="flex flex-wrap gap-1 p-1 bg-muted/50 rounded-full w-fit">
-        {CONTRACT_PERIODS.map((p) => (
-          <button
-            key={p.key}
-            onClick={() => setPeriod(p.key)}
-            className={cn(
-              "px-3 py-1.5 rounded-full text-xs font-bold transition-colors",
-              period === p.key
-                ? "bg-primary text-primary-foreground shadow"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            {p.label}
-          </button>
-        ))}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap gap-1 p-1 bg-muted/50 rounded-full w-fit">
+          {CONTRACT_PERIODS.map((p) => (
+            <button
+              key={p.key}
+              onClick={() => setPeriod(p.key)}
+              className={cn(
+                "px-3 py-1.5 rounded-full text-xs font-bold transition-colors",
+                period === p.key
+                  ? "bg-primary text-primary-foreground shadow"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+
+        {/* BARRA DE AÇÃO EM MASSA */}
+        {selectedIds.length > 0 && (
+          <div className="flex items-center gap-2 bg-destructive/10 border border-destructive/20 px-3 py-1.5 rounded-full">
+            <span className="text-xs font-bold text-destructive">
+              {selectedIds.length} selecionado(s)
+            </span>
+            <button
+              onClick={() => {
+                if (confirm(`Deseja excluir os ${selectedIds.length} contratos selecionados?`)) {
+                  del.mutate(selectedIds);
+                }
+              }}
+              disabled={del.isPending}
+              className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-destructive text-destructive-foreground text-xs font-bold hover:opacity-90 disabled:opacity-50"
+            >
+              <Trash2 className="size-3.5" /> Excluir selecionados
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
-
-        {contracts?.length === 0 ? (
+        {filteredContracts.length === 0 ? (
           <div className="p-16 text-center">
             <FileText className="size-8 mx-auto text-muted-foreground mb-3" />
-            <div className="text-sm font-semibold">Nenhum contrato ainda</div>
+            <div className="text-sm font-semibold">Nenhum contrato encontrado</div>
             <div className="text-xs text-muted-foreground mt-1">Clique em "Novo contrato" para começar</div>
           </div>
         ) : (
           <table className="w-full text-left">
             <thead>
               <tr className="text-[10px] uppercase tracking-widest text-muted-foreground border-b border-border bg-muted/30">
-                <th className="px-5 py-3 font-bold">Título</th>
+                <th className="px-4 py-3 font-bold w-10">
+                  <input
+                    type="checkbox"
+                    checked={isAllSelected}
+                    onChange={(e) => handleSelectAll(e.target.checked)}
+                    className="rounded border-border text-primary focus:ring-primary size-4 cursor-pointer"
+                  />
+                </th>
+                <th className="px-4 py-3 font-bold">Título</th>
                 <th className="px-4 py-3 font-bold">Cliente</th>
                 <th className="px-4 py-3 font-bold">Data do evento</th>
                 <th className="px-4 py-3 font-bold">Status</th>
-                <th className="px-4 py-3 font-bold"></th>
+                <th className="px-4 py-3 font-bold text-right">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {(contracts ?? [])
-                .filter((c: any) => {
-                  const from = contractStartOf(period);
-                  if (!from) return true;
-                  const ref = c.events?.event_date ? new Date(`${c.events.event_date}T00:00:00`) : new Date(c.created_at);
-                  return ref >= from;
-                })
-                .filter((c: any) =>
-                  match(
-                    c.title,
-                    c.status,
-                    c.content,
-                    c.events?.clients?.name,
-                    c.events?.clients?.cpf,
-                    c.clients?.name,
-                    c.clients?.cpf,
-                  ),
-                )
+              {filteredContracts.map((c: any) => {
+                const clientName = c.events?.clients?.name ?? c.clients?.name ?? "—";
+                const eventDate = c.events?.event_date ? formatDateFullBR(c.events.event_date) : "—";
+                const isSelected = selectedIds.includes(c.id);
 
-                .map((c: any) => {
-                  const clientName = c.events?.clients?.name ?? c.clients?.name ?? "—";
-                  const eventDate = c.events?.event_date ? formatDateFullBR(c.events.event_date) : "—";
-                  return (
-                    <tr key={c.id} className="hover:bg-muted/30">
-                      <td className="px-5 py-4 text-sm font-semibold">{c.title}</td>
-                      <td className="px-4 py-4 text-sm">{clientName}</td>
-                      <td className="px-4 py-4 text-xs font-mono">{eventDate}</td>
-                      <td className="px-4 py-4">
-                        <span
-                          className={cn(
-                            "px-2 py-1 text-[10px] rounded-full font-bold uppercase",
-                            statusStyles[c.status],
-                          )}
-                        >
-                          {c.status}
-                        </span>
-                      </td>
-                      <td className="px-4 py-4 text-right whitespace-nowrap">
+                return (
+                  <tr
+                    key={c.id}
+                    className={cn(
+                      "hover:bg-muted/30 transition-colors",
+                      isSelected && "bg-primary/5 hover:bg-primary/10"
+                    )}
+                  >
+                    <td className="px-4 py-4">
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => handleSelectOne(c.id)}
+                        className="rounded border-border text-primary focus:ring-primary size-4 cursor-pointer"
+                      />
+                    </td>
+                    <td className="px-4 py-4 text-sm font-semibold">{c.title}</td>
+                    <td className="px-4 py-4 text-sm">{clientName}</td>
+                    <td className="px-4 py-4 text-xs font-mono">{eventDate}</td>
+                    <td className="px-4 py-4">
+                      <span
+                        className={cn(
+                          "px-2 py-1 text-[10px] rounded-full font-bold uppercase",
+                          statusStyles[c.status],
+                        )}
+                      >
+                        {c.status}
+                      </span>
+                    </td>
+                    <td className="px-4 py-4 text-right whitespace-nowrap">
+                      <div className="flex items-center justify-end gap-2">
                         <button
                           onClick={() => setPreviewing(c)}
-                          className="inline-flex items-center gap-1 text-xs font-bold text-muted-foreground hover:text-foreground mr-3"
+                          className="inline-flex items-center gap-1 text-xs font-bold text-muted-foreground hover:text-foreground p-1 rounded hover:bg-muted"
+                          title="Visualizar"
                         >
                           <Eye className="size-3.5" /> Visualizar
                         </button>
                         <button
                           onClick={() => setEditing(c)}
-                          className="inline-flex items-center gap-1 text-xs font-bold text-primary hover:underline mr-3"
+                          className="inline-flex items-center gap-1 text-xs font-bold text-primary hover:underline p-1 rounded hover:bg-primary/10"
+                          title="Editar"
                         >
                           <Pencil className="size-3.5" /> Editar
                         </button>
                         <button
                           onClick={() => {
-                            if (confirm("Excluir contrato?")) del.mutate(c.id);
+                            if (confirm(`Deseja realmente excluir o contrato "${c.title}"?`)) {
+                              del.mutate([c.id]);
+                            }
                           }}
-                          className="text-xs font-bold text-destructive hover:underline"
+                          className="inline-flex items-center gap-1 text-xs font-bold text-destructive hover:bg-destructive/10 p-1.5 rounded-lg transition-colors"
+                          title="Excluir contrato"
                         >
-                          Excluir
+                          <Trash2 className="size-3.5" /> Excluir
                         </button>
-                      </td>
-                    </tr>
-                  );
-                })}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         )}
@@ -278,7 +350,6 @@ function getAdditionsText(
   const list: string[] = [];
 
   if (extras && typeof extras === "object") {
-    // Formato atual: acréscimos manuais salvos explicitamente em extras.custom.
     if (Array.isArray(extras.custom)) {
       for (const item of extras.custom) {
         const val = Number(item?.value ?? 0) || 0;
@@ -288,7 +359,6 @@ function getAdditionsText(
       }
     }
 
-    // Compatibilidade com orçamentos antigos que usavam outras chaves.
     const arrayKeys = Object.keys(extras).filter((k) => Array.isArray(extras[k]));
     for (const k of arrayKeys) {
       if (["packages", "unit_items", "custom"].includes(k)) continue;
@@ -310,7 +380,6 @@ function getAdditionsText(
       }
     }
 
-    // 2. Procura pares de valor e texto em extras
     if (list.length === 0) {
       const singlePairs = [
         {
@@ -346,12 +415,10 @@ function getAdditionsText(
     }
   }
 
-  // 3. Trava de cálculo + Busca exaustiva de texto no objeto do Orçamento
   const diff = Math.round((totalValue - (pkgTotal + unitTotal)) * 100) / 100;
   if (list.length === 0 && diff > 0.05) {
     let foundText = "";
 
-    // Procura qualquer texto descritivo em extras
     if (extras && typeof extras === "object") {
       for (const [k, v] of Object.entries(extras)) {
         if (
@@ -366,7 +433,6 @@ function getAdditionsText(
       }
     }
 
-    // Procura observações e notas no orçamento principal
     if (!foundText && quoteObj && typeof quoteObj === "object") {
       const candidateFields = [
         quoteObj.notes,
@@ -497,8 +563,6 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
       setSavingTpl(false);
     }
   };
-
-
 
   useEffect(() => {
     if (source !== "quote" || !refId) return;
@@ -921,7 +985,6 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
           )}
         </div>
 
-
         <p className="text-[11px] text-muted-foreground">
           {source === "blank"
             ? "O contrato usará o modelo salvo em Configurações (ou o padrão). Você poderá editar todo o texto em seguida."
@@ -1103,7 +1166,6 @@ ${logoHtml}
               color: "#222",
             }}
           >
-            {/* Marca d'água na visualização de tela */}
             {logo && (
               <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-[0.06] pointer-events-none select-none -rotate-12 w-3/4 flex justify-center items-center z-0">
                 <img src={logo} alt="Marca d'água" className="max-h-[400px] object-contain" />
