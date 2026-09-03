@@ -286,6 +286,14 @@ export function QuoteDetailModal({ quote, onClose, onFullEdit, onPdf }: Props) {
           >
             <ExternalLink className="size-4" /> Editar pacotes e valores
           </button>
+          {onPdf && (
+            <button
+              onClick={() => onPdf(q)}
+              className="inline-flex items-center gap-1 h-10 px-4 rounded-full border border-border text-xs font-bold hover:bg-accent"
+            >
+              <FileText className="size-4" /> Gerar PDF
+            </button>
+          )}
         </div>
       </DialogContent>
     </Dialog>
