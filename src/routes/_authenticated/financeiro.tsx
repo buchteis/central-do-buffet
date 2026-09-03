@@ -93,7 +93,7 @@ function FinanceiroPage() {
   const [period, setPeriod] = useState<PeriodFilter>("todos");
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("todos");
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>("todos");
-  const [monthFilter, setMonthFilter] = useState<number | null>(null);
+  const [monthFilter, setMonthFilter] = useState<number>(new Date().getMonth());
 
   // ------- Despesa -------
   const [showExpense, setShowExpense] = useState(false);
@@ -381,31 +381,32 @@ function FinanceiroPage() {
   });
 
   // Aplica filtro de tipo (recebido/receber)
-  const rows = sourceFiltered
-    .filter((r) => {
-      if (typeFilter === "recebido") return r.kind === "recebido";
-      if (typeFilter === "receber") return r.kind === "receber";
-      if (typeFilter === "saida") return r.kind === "saida";
-      return true;
-    })
-    .filter((r) => (monthFilter === null || !r.date ? monthFilter === null : new Date(r.date + "T00:00:00").getMonth() === monthFilter))
-    .filter((r) => match(r.title, r.client, r.status, r.method, r.date, r.amount));
+  const typeFiltered = sourceFiltered.filter((r) => {
+    if (typeFilter === "recebido") return r.kind === "recebido";
+    if (typeFilter === "receber") return r.kind === "receber";
+    if (typeFilter === "saida") return r.kind === "saida";
+    return true;
+  });
 
-  // Agrupa os registros por mês (colunas de Janeiro a Dezembro)
+  // Agrupa os registros por mês (Janeiro a Dezembro)
   const monthGroups = (() => {
-    const map = new Map<string, { label: string; rows: Row[]; total: number }>();
-    for (const r of rows) {
+    const map = new Map<number, { label: string; rows: Row[]; total: number; count: number }>();
+    for (const r of typeFiltered) {
       const d = r.date ? new Date(r.date + "T00:00:00") : null;
-      const key = d && !isNaN(d.getTime()) ? `${d.getFullYear()}-${String(d.getMonth()).padStart(2, "0")}` : "sem-data";
-      const label =
-        d && !isNaN(d.getTime()) ? `${MONTH_LABELS[d.getMonth()]} ${d.getFullYear()}` : "Sem data definida";
-      const g = map.get(key) ?? { label, rows: [], total: 0 };
+      if (!d || isNaN(d.getTime())) continue;
+      const idx = d.getMonth();
+      const label = MONTH_LABELS[idx];
+      const g = map.get(idx) ?? { label, rows: [], total: 0, count: 0 };
       g.rows.push(r);
       g.total += r.kind === "saida" ? -r.amount : r.amount;
-      map.set(key, g);
+      g.count += 1;
+      map.set(idx, g);
     }
-    return [...map.entries()].sort((a, b) => (a[0] < b[0] ? 1 : -1)).map(([key, g]) => ({ key, ...g }));
+    return MONTH_LABELS.map((label, idx) => map.get(idx) ?? { label, rows: [], total: 0, count: 0 });
   })();
+
+  const selectedGroup = monthGroups[monthFilter] ?? { label: MONTH_LABELS[monthFilter], rows: [], total: 0, count: 0 };
+  const rows = selectedGroup.rows.filter((r) => match(r.title, r.client, r.status, r.method, r.date, r.amount));
 
   return (
     <div className="space-y-6">
