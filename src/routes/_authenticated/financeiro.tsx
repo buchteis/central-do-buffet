@@ -512,30 +512,32 @@ function FinanceiroPage() {
       </div>
 
 
-      {/* Filtro por mês (Janeiro a Dezembro) */}
-      <div className="flex flex-wrap items-center gap-1.5 bg-card p-3 rounded-2xl border border-border shadow-sm">
-        <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mr-1">Mês</span>
-        <button
-          onClick={() => setMonthFilter(null)}
-          className={cn(
-            "px-3 py-1 text-xs font-bold rounded-full border transition-colors",
-            monthFilter === null ? "bg-primary text-primary-foreground border-primary" : "border-border hover:bg-muted",
-          )}
-        >
-          Todos
-        </button>
-        {MONTH_LABELS.map((m, i) => (
-          <button
-            key={m}
-            onClick={() => setMonthFilter(i)}
-            className={cn(
-              "px-3 py-1 text-xs font-semibold rounded-full border transition-colors",
-              monthFilter === i ? "bg-primary text-primary-foreground border-primary" : "border-border hover:bg-muted",
-            )}
-          >
-            {m.slice(0, 3)}
-          </button>
-        ))}
+      {/* Cards de mês */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
+        {monthGroups.map((g, idx) => {
+          const selected = monthFilter === idx;
+          return (
+            <button
+              key={g.label}
+              onClick={() => setMonthFilter(idx)}
+              className={cn(
+                "text-left p-4 rounded-2xl border transition-all duration-200",
+                "bg-blue-50/80 border-blue-100 hover:bg-blue-100 hover:-translate-y-0.5 hover:shadow-md",
+                selected && "bg-blue-500 border-blue-500 text-white shadow-md",
+              )}
+            >
+              <div className={cn("text-xs font-bold uppercase tracking-wider", selected ? "text-blue-100" : "text-blue-400")}>
+                {g.label}
+              </div>
+              <div className={cn("mt-1 text-lg font-extrabold tracking-tight", selected ? "text-white" : "text-blue-700")}>
+                {brl(g.total)}
+              </div>
+              <div className={cn("mt-1 text-[10px] font-semibold", selected ? "text-blue-100" : "text-blue-400")}>
+                {g.count} registro{g.count === 1 ? "" : "s"}
+              </div>
+            </button>
+          );
+        })}
       </div>
 
 
