@@ -38,7 +38,9 @@ export const Route = createFileRoute("/_authenticated/relatorios")({
 const MONTH_NAMES = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
 
 function RelatoriosPage() {
-  const { tenantId, isSuperAdmin } = useTenantAccess();
+  const { data: access } = useTenantAccess();
+  const tenantId = access?.tenant?.id ?? null;
+  const isSuperAdmin = access?.isSuperAdmin ?? false;
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
   const [generatingPO, setGeneratingPO] = useState(false);
 
@@ -65,7 +67,7 @@ function RelatoriosPage() {
     enabled: !!tenantId || isSuperAdmin,
     queryFn: async () => {
       let q = supabase
-        .from("stock_items")
+        .from("stock_products")
         .select("*");
 
       if (tenantId && !isSuperAdmin) q = q.eq("tenant_id", tenantId);
