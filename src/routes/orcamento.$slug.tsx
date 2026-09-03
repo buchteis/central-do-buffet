@@ -110,21 +110,22 @@ function PublicQuoteForm() {
     queryFn: async () => {
       const { data } = await supabase
         .from("quotes")
-        .select("*")
+        .select("*, clients(name, whatsapp, email, city, cpf)")
         .eq("id", quote_id!)
         .maybeSingle();
-      return data;
+      return data as any;
     },
   });
 
   // EFEITO DE PREENCHIMENTO AUTOMÁTICO DO FORMULÁRIO
   useEffect(() => {
     if (existingQuote) {
+      const client = existingQuote.clients ?? {};
       setFormDataState({
-        name: existingQuote.name ?? "",
-        whatsapp: existingQuote.whatsapp ?? "",
-        email: existingQuote.email ?? "",
-        city: existingQuote.city ?? "",
+        name: client.name ?? "",
+        whatsapp: client.whatsapp ?? "",
+        email: client.email ?? "",
+        city: client.city ?? "",
         event_address: existingQuote.event_address ?? "",
         event_date: existingQuote.event_date ?? "",
         event_time: existingQuote.event_time ?? "",
@@ -132,15 +133,21 @@ function PublicQuoteForm() {
         notes: existingQuote.notes ?? "",
       });
 
-      if (existingQuote.guest_count) setGuestCount(existingQuote.guest_count);
-      if (existingQuote.cpf) setCpf(maskCpfCnpj(existingQuote.cpf));
+      const totalGuests =
+        Number(existingQuote.adults ?? 0) +
+        Number(existingQuote.children_7_10 ?? 0) +
+        Number(existingQuote.children_0_6 ?? 0);
+      setGuestCount(totalGuests);
+      if (client.cpf) setCpf(maskCpfCnpj(client.cpf));
 
-      if (existingQuote.package_ids && Array.isArray(existingQuote.package_ids)) {
+      const extras = existingQuote.extras ?? {};
+      const pkgSnap = Array.isArray(extras.packages) ? extras.packages : [];
+      if (pkgSnap.length > 0) {
         setSelectedPackages(
-          existingQuote.package_ids.map((pkgId: string) => ({
+          pkgSnap.map((p: any) => ({
             id: crypto.randomUUID(),
-            package_id: pkgId,
-          }))
+            package_id: p?.id ?? "",
+          })),
         );
       } else if (existingQuote.package_id) {
         setSelectedPackages([{ id: crypto.randomUUID(), package_id: existingQuote.package_id }]);
