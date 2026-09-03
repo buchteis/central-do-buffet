@@ -20,18 +20,19 @@ import {
 } from "@/lib/quote-pipeline";
 import { cn } from "@/lib/utils";
 import { dedupePackages } from "@/lib/quote-calc";
-import { ExternalLink, Save } from "lucide-react";
+import { ExternalLink, FileText, Save } from "lucide-react";
 
 type Props = {
   quote: QuoteAny | null;
   onClose: () => void;
   onFullEdit: (q: QuoteAny) => void;
+  onPdf?: (q: QuoteAny) => void;
 };
 
 const field =
   "w-full h-10 rounded-xl border border-primary/25 bg-primary/5 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30";
 
-export function QuoteDetailModal({ quote, onClose, onFullEdit }: Props) {
+export function QuoteDetailModal({ quote, onClose, onFullEdit, onPdf }: Props) {
   const qc = useQueryClient();
   const [form, setForm] = useState<Record<string, any>>({});
 
