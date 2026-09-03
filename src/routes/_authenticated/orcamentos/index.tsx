@@ -589,6 +589,7 @@ function QuotesPage() {
           setDetail(null);
           openEdit(q);
         }}
+        onPdf={handlePdf}
       />
     </div>
 

@@ -93,7 +93,7 @@ function FinanceiroPage() {
   const [period, setPeriod] = useState<PeriodFilter>("todos");
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("todos");
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>("todos");
-  const [monthFilter, setMonthFilter] = useState<number | null>(null);
+  const [monthFilter, setMonthFilter] = useState<number>(new Date().getMonth());
 
   // ------- Despesa -------
   const [showExpense, setShowExpense] = useState(false);
@@ -381,31 +381,32 @@ function FinanceiroPage() {
   });
 
   // Aplica filtro de tipo (recebido/receber)
-  const rows = sourceFiltered
-    .filter((r) => {
-      if (typeFilter === "recebido") return r.kind === "recebido";
-      if (typeFilter === "receber") return r.kind === "receber";
-      if (typeFilter === "saida") return r.kind === "saida";
-      return true;
-    })
-    .filter((r) => (monthFilter === null || !r.date ? monthFilter === null : new Date(r.date + "T00:00:00").getMonth() === monthFilter))
-    .filter((r) => match(r.title, r.client, r.status, r.method, r.date, r.amount));
+  const typeFiltered = sourceFiltered.filter((r) => {
+    if (typeFilter === "recebido") return r.kind === "recebido";
+    if (typeFilter === "receber") return r.kind === "receber";
+    if (typeFilter === "saida") return r.kind === "saida";
+    return true;
+  });
 
-  // Agrupa os registros por mês (colunas de Janeiro a Dezembro)
+  // Agrupa os registros por mês (Janeiro a Dezembro)
   const monthGroups = (() => {
-    const map = new Map<string, { label: string; rows: Row[]; total: number }>();
-    for (const r of rows) {
+    const map = new Map<number, { label: string; rows: Row[]; total: number; count: number }>();
+    for (const r of typeFiltered) {
       const d = r.date ? new Date(r.date + "T00:00:00") : null;
-      const key = d && !isNaN(d.getTime()) ? `${d.getFullYear()}-${String(d.getMonth()).padStart(2, "0")}` : "sem-data";
-      const label =
-        d && !isNaN(d.getTime()) ? `${MONTH_LABELS[d.getMonth()]} ${d.getFullYear()}` : "Sem data definida";
-      const g = map.get(key) ?? { label, rows: [], total: 0 };
+      if (!d || isNaN(d.getTime())) continue;
+      const idx = d.getMonth();
+      const label = MONTH_LABELS[idx];
+      const g = map.get(idx) ?? { label, rows: [], total: 0, count: 0 };
       g.rows.push(r);
       g.total += r.kind === "saida" ? -r.amount : r.amount;
-      map.set(key, g);
+      g.count += 1;
+      map.set(idx, g);
     }
-    return [...map.entries()].sort((a, b) => (a[0] < b[0] ? 1 : -1)).map(([key, g]) => ({ key, ...g }));
+    return MONTH_LABELS.map((label, idx) => map.get(idx) ?? { label, rows: [], total: 0, count: 0 });
   })();
+
+  const selectedGroup = monthGroups[monthFilter] ?? { label: MONTH_LABELS[monthFilter], rows: [], total: 0, count: 0 };
+  const rows = selectedGroup.rows.filter((r) => match(r.title, r.client, r.status, r.method, r.date, r.amount));
 
   return (
     <div className="space-y-6">
@@ -511,30 +512,32 @@ function FinanceiroPage() {
       </div>
 
 
-      {/* Filtro por mês (Janeiro a Dezembro) */}
-      <div className="flex flex-wrap items-center gap-1.5 bg-card p-3 rounded-2xl border border-border shadow-sm">
-        <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mr-1">Mês</span>
-        <button
-          onClick={() => setMonthFilter(null)}
-          className={cn(
-            "px-3 py-1 text-xs font-bold rounded-full border transition-colors",
-            monthFilter === null ? "bg-primary text-primary-foreground border-primary" : "border-border hover:bg-muted",
-          )}
-        >
-          Todos
-        </button>
-        {MONTH_LABELS.map((m, i) => (
-          <button
-            key={m}
-            onClick={() => setMonthFilter(i)}
-            className={cn(
-              "px-3 py-1 text-xs font-semibold rounded-full border transition-colors",
-              monthFilter === i ? "bg-primary text-primary-foreground border-primary" : "border-border hover:bg-muted",
-            )}
-          >
-            {m.slice(0, 3)}
-          </button>
-        ))}
+      {/* Cards de mês */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
+        {monthGroups.map((g, idx) => {
+          const selected = monthFilter === idx;
+          return (
+            <button
+              key={g.label}
+              onClick={() => setMonthFilter(idx)}
+              className={cn(
+                "text-left p-4 rounded-2xl border transition-all duration-200",
+                "bg-blue-50/80 border-blue-100 hover:bg-blue-100 hover:-translate-y-0.5 hover:shadow-md",
+                selected && "bg-blue-500 border-blue-500 text-white shadow-md",
+              )}
+            >
+              <div className={cn("text-xs font-bold uppercase tracking-wider", selected ? "text-blue-100" : "text-blue-400")}>
+                {g.label}
+              </div>
+              <div className={cn("mt-1 text-lg font-extrabold tracking-tight", selected ? "text-white" : "text-blue-700")}>
+                {brl(g.total)}
+              </div>
+              <div className={cn("mt-1 text-[10px] font-semibold", selected ? "text-blue-100" : "text-blue-400")}>
+                {g.count} registro{g.count === 1 ? "" : "s"}
+              </div>
+            </button>
+          );
+        })}
       </div>
 
 
@@ -553,17 +556,15 @@ function FinanceiroPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {monthGroups.map((g) => (
-              <Fragment key={g.key}>
-                <tr className="bg-muted/50">
-                  <td colSpan={5} className="px-5 py-2 text-[11px] font-extrabold uppercase tracking-widest">
-                    {g.label} · {g.rows.length} registro{g.rows.length === 1 ? "" : "s"}
-                  </td>
-                  <td colSpan={2} className="px-4 py-2 text-xs font-mono font-bold text-right">
-                    {brl(g.total)}
-                  </td>
-                </tr>
-                {g.rows.map((r) => {
+            <tr className="bg-blue-50/60">
+              <td colSpan={5} className="px-5 py-2 text-[11px] font-extrabold uppercase tracking-widest text-blue-700">
+                {selectedGroup.label} · {selectedGroup.count} registro{selectedGroup.count === 1 ? "" : "s"}
+              </td>
+              <td colSpan={2} className="px-4 py-2 text-xs font-mono font-bold text-right text-blue-700">
+                {brl(selectedGroup.total)}
+              </td>
+            </tr>
+            {rows.map((r) => {
               const isReceived = r.kind === "recebido";
               const isSaida = r.kind === "saida";
               const color = isSaida ? "text-rose-600" : isReceived ? "text-emerald-600" : "text-amber-600";
@@ -630,15 +631,13 @@ function FinanceiroPage() {
                       </button>
                     )}
                   </td>
-                  </tr>
-                );
-                })}
-              </Fragment>
-            ))}
+                </tr>
+              );
+            })}
             {rows.length === 0 && (
               <tr>
                 <td colSpan={7} className="p-10 text-center text-sm text-muted-foreground">
-                  Nenhum registro neste período.
+                  Nenhum registro em {selectedGroup.label}.
                 </td>
               </tr>
             )}

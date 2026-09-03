@@ -110,21 +110,22 @@ function PublicQuoteForm() {
     queryFn: async () => {
       const { data } = await supabase
         .from("quotes")
-        .select("*")
+        .select("*, clients(name, whatsapp, email, city, cpf)")
         .eq("id", quote_id!)
         .maybeSingle();
-      return data;
+      return data as any;
     },
   });
 
   // EFEITO DE PREENCHIMENTO AUTOMÁTICO DO FORMULÁRIO
   useEffect(() => {
     if (existingQuote) {
+      const client = existingQuote.clients ?? {};
       setFormDataState({
-        name: existingQuote.name ?? "",
-        whatsapp: existingQuote.whatsapp ?? "",
-        email: existingQuote.email ?? "",
-        city: existingQuote.city ?? "",
+        name: client.name ?? "",
+        whatsapp: client.whatsapp ?? "",
+        email: client.email ?? "",
+        city: client.city ?? "",
         event_address: existingQuote.event_address ?? "",
         event_date: existingQuote.event_date ?? "",
         event_time: existingQuote.event_time ?? "",
@@ -132,15 +133,21 @@ function PublicQuoteForm() {
         notes: existingQuote.notes ?? "",
       });
 
-      if (existingQuote.guest_count) setGuestCount(existingQuote.guest_count);
-      if (existingQuote.cpf) setCpf(maskCpfCnpj(existingQuote.cpf));
+      const totalGuests =
+        Number(existingQuote.adults ?? 0) +
+        Number(existingQuote.children_7_10 ?? 0) +
+        Number(existingQuote.children_0_6 ?? 0);
+      setGuestCount(totalGuests);
+      if (client.cpf) setCpf(maskCpfCnpj(client.cpf));
 
-      if (existingQuote.package_ids && Array.isArray(existingQuote.package_ids)) {
+      const extras = existingQuote.extras ?? {};
+      const pkgSnap = Array.isArray(extras.packages) ? extras.packages : [];
+      if (pkgSnap.length > 0) {
         setSelectedPackages(
-          existingQuote.package_ids.map((pkgId: string) => ({
+          pkgSnap.map((p: any) => ({
             id: crypto.randomUUID(),
-            package_id: pkgId,
-          }))
+            package_id: p?.id ?? "",
+          })),
         );
       } else if (existingQuote.package_id) {
         setSelectedPackages([{ id: crypto.randomUUID(), package_id: existingQuote.package_id }]);
@@ -276,29 +283,48 @@ function PublicQuoteForm() {
 
       // CASO EDICIONAL: Atualiza o registro do orçamento existente (evita gerar o 2º card)
       if (quote_id) {
-        const { data, error } = await supabase
-          .from("quotes")
-          .update({
-            name: payload.name,
-            whatsapp: payload.whatsapp,
-            email: payload.email || null,
-            cpf: payload.cpf || null,
-            city: payload.city || null,
-            event_address: payload.event_address || null,
-            event_date: payload.event_date,
-            event_time: payload.event_time || null,
-            guest_count: payload.guest_count,
-            event_type: payload.event_type || null,
-            package_ids: validPackageIds,
-            package_id: validPackageIds[0] ?? null,
-            notes: payload.notes || null,
-            total_value: previewTotal,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", quote_id);
+        const pkgSnapshot = validPackageIds.map((id) => {
+          const pkg = (packages ?? []).find((p) => p.id === id);
+          return { id, name: pkg?.name ?? "" };
+        });
 
-        if (error) throw error;
-        return data;
+        const quoteUpdate: any = {
+          event_address: payload.event_address || null,
+          event_date: payload.event_date,
+          event_time: payload.event_time || null,
+          event_type: payload.event_type || null,
+          notes: payload.notes || null,
+          adults: payload.guest_count,
+          children_7_10: 0,
+          children_0_6: 0,
+          package_id: validPackageIds[0] ?? null,
+          total_value: previewTotal,
+          updated_at: new Date().toISOString(),
+          extras: {
+            ...(existingQuote?.extras ?? {}),
+            packages: pkgSnapshot,
+          },
+        };
+
+        const { error: quoteError } = await supabase.from("quotes").update(quoteUpdate).eq("id", quote_id);
+        if (quoteError) throw quoteError;
+
+        const clientId = existingQuote?.client_id;
+        if (clientId) {
+          const { error: clientError } = await supabase
+            .from("clients")
+            .update({
+              name: payload.name,
+              whatsapp: payload.whatsapp,
+              email: payload.email || null,
+              city: payload.city || null,
+              cpf: payload.cpf || null,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", clientId);
+          if (clientError) throw clientError;
+        }
+        return existingQuote;
       }
 
       // CASO NOVO: Chama a procedure RPC V2 para criar um orçamento novo
