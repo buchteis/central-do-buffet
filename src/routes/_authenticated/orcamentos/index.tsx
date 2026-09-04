@@ -298,6 +298,17 @@ function QuotesPage() {
         customExtras,
         unitItems,
       });
+      if (fixedSum > 0) {
+        breakdown.subtotal = Math.round((breakdown.subtotal + fixedSum) * 100) / 100;
+        breakdown.total = Math.round((breakdown.total + fixedSum) * 100) / 100;
+        breakdown.entry = Math.round(breakdown.total * 50) / 100;
+        breakdown.balance = Math.round((breakdown.total - breakdown.entry) * 100) / 100;
+      }
+      if (Number(q.total_value ?? 0) > 0) {
+        breakdown.total = Number(q.total_value);
+        breakdown.entry = Math.round(breakdown.total * 50) / 100;
+        breakdown.balance = Math.round((breakdown.total - breakdown.entry) * 100) / 100;
+      }
       if (extras.entry_override != null) {
         breakdown.entry = Number(extras.entry_override);
         breakdown.balance = Math.round((breakdown.total - breakdown.entry) * 100) / 100;
