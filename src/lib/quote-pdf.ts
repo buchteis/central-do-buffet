@@ -113,15 +113,20 @@ export async function openQuotePdf(input: QuotePdfInput) {
     input.unitItems ?? [],
   );
   if (pkgList.length > 0) {
-    // Uma linha por pacote escolhido, com o valor por pessoa da faixa aplicada.
+    // Uma linha por pacote escolhido (por pessoa ou preço fechado).
     for (const p of pkgList) {
+      const isFixed = String((p as any).pricing_type ?? "per_person") === "fixed";
+      const fixed = Number((p as any).price_fixed ?? 0) || 0;
       const ppp = Number(p.price_per_person ?? 0) || 0;
+      const qtyLabel = isFixed ? "Preço fechado" : packageRowQty;
+      const unitLabel = isFixed ? brl(fixed) : ppp ? `${brl(ppp)}/pessoa` : "—";
+      const totalLabel = isFixed ? brl(fixed) : brl(ppp * adults);
       rows.push(`
     <tr>
       <td>${esc(p.name ?? "Pacote")}<div class="muted">Serviço de buffet</div></td>
-      <td class="num">${esc(packageRowQty)}</td>
-      <td class="num">${esc(ppp ? `${brl(ppp)}/pessoa` : "—")}</td>
-      <td class="num">${esc(brl(ppp * adults))}</td>
+      <td class="num">${esc(qtyLabel)}</td>
+      <td class="num">${esc(unitLabel)}</td>
+      <td class="num">${esc(totalLabel)}</td>
     </tr>`);
     }
   } else if (bk.adultsSubtotal > 0 || (input.unitItems ?? []).every((u) => (Number(u?.qty) || 0) <= 0)) {
