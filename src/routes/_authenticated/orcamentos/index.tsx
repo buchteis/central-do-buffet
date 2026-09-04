@@ -324,6 +324,8 @@ function QuotesPage() {
         packages: pkgSnapshot.map((p: any) => ({
           name: p?.name,
           price_per_person: Number(p?.price_per_person ?? 0) || 0,
+          pricing_type: p?.pricing_type ?? "per_person",
+          price_fixed: Number(p?.price_fixed ?? 0) || 0,
         })),
         unitItems,
         childPrice,
