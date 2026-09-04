@@ -273,7 +273,13 @@ function QuotesPage() {
       const childPrice = Number(extras.child_price ?? 0);
       const priceOverride = extras.price_per_person_override != null ? Number(extras.price_per_person_override) : null;
       const pkgSnapshot = Array.isArray(extras.packages) ? extras.packages : [];
-      const snapshotSum = pkgSnapshot.reduce((s: number, p: any) => s + Number(p?.price_per_person ?? 0), 0);
+      const isFixedPkg = (p: any) => String(p?.pricing_type ?? "per_person") === "fixed";
+      const snapshotSum = pkgSnapshot
+        .filter((p: any) => !isFixedPkg(p))
+        .reduce((s: number, p: any) => s + Number(p?.price_per_person ?? 0), 0);
+      const fixedSum = pkgSnapshot
+        .filter(isFixedPkg)
+        .reduce((s: number, p: any) => s + (Number(p?.price_fixed ?? 0) || 0), 0);
       const pricePerPerson = priceOverride ?? snapshotSum;
       const customExtras = Array.isArray(extras.custom) ? extras.custom : [];
       const unitItems = (Array.isArray(extras.unit_items) ? extras.unit_items : []).map((i: any) => ({
