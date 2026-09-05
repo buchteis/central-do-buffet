@@ -113,7 +113,7 @@ function CreateEventPage() {
         ? [`Pacotes adicionais: ${extraNames.join(", ")}`, formData.notes].filter(Boolean).join("\n")
         : formData.notes;
 
-      const { error } = await supabase.from("events").insert({
+      const { data: created, error } = await supabase.from("events").insert({
         owner_id: userRes.user.id,
         client_id: formData.client_id || null,
         package_id: primaryPackageId,
