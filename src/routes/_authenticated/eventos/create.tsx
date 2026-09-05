@@ -124,10 +124,22 @@ function CreateEventPage() {
         total_value: Number(formData.total_value) || 0,
         status: formData.status,
         notes: finalNotes || null,
-      });
+      }).select("rsvp_token").maybeSingle();
       if (error) throw error;
 
-      toast.success("Evento criado com sucesso!");
+      const token = (created as any)?.rsvp_token;
+      if (token) {
+        const url = `${window.location.origin}/convite/${token}`;
+        const ok = await copyToClipboard(url);
+        toast.success(
+          ok
+            ? "Evento criado! Link de confirmação de presença copiado."
+            : `Evento criado! Link de convite: ${url}`,
+          { duration: 8000 },
+        );
+      } else {
+        toast.success("Evento criado com sucesso!");
+      }
       navigate({ to: "/eventos" });
     } catch (err: any) {
       console.error("Erro ao criar evento:", err);
