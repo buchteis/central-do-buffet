@@ -8,6 +8,7 @@ import { resolveTierPrice } from "@/lib/quote-calc";
 import { toast } from "sonner";
 import { ArrowLeft, Plus, Trash2 } from "lucide-react";
 import { ChecklistPreDefinido } from "@/components/ChecklistPreDefinido";
+import { copyToClipboard } from "@/lib/clipboard";
 
 type EventStatus =
   | "agendado"
