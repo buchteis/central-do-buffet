@@ -393,6 +393,47 @@ export type Database = {
           },
         ]
       }
+      event_rsvps: {
+        Row: {
+          attending: boolean
+          companions: number
+          created_at: string
+          event_id: string
+          guest_name: string
+          id: string
+          message: string | null
+          phone: string | null
+        }
+        Insert: {
+          attending?: boolean
+          companions?: number
+          created_at?: string
+          event_id: string
+          guest_name: string
+          id?: string
+          message?: string | null
+          phone?: string | null
+        }
+        Update: {
+          attending?: boolean
+          companions?: number
+          created_at?: string
+          event_id?: string
+          guest_name?: string
+          id?: string
+          message?: string | null
+          phone?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_rsvps_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       event_staff: {
         Row: {
           amount: number
@@ -506,6 +547,7 @@ export type Database = {
           owner_id: string
           package_id: string | null
           quote_id: string | null
+          rsvp_token: string
           status: Database["public"]["Enums"]["event_status"]
           tenant_id: string | null
           total_value: number
@@ -523,6 +565,7 @@ export type Database = {
           owner_id: string
           package_id?: string | null
           quote_id?: string | null
+          rsvp_token?: string
           status?: Database["public"]["Enums"]["event_status"]
           tenant_id?: string | null
           total_value?: number
@@ -540,6 +583,7 @@ export type Database = {
           owner_id?: string
           package_id?: string | null
           quote_id?: string | null
+          rsvp_token?: string
           status?: Database["public"]["Enums"]["event_status"]
           tenant_id?: string | null
           total_value?: number
@@ -1800,6 +1844,18 @@ export type Database = {
     Functions: {
       current_tenant_id: { Args: never; Returns: string }
       generate_unique_slug: { Args: { base: string }; Returns: string }
+      get_event_invite: {
+        Args: { _token: string }
+        Returns: {
+          client_name: string
+          confirmed_count: number
+          event_address: string
+          event_date: string
+          event_id: string
+          event_time: string
+          event_type: string
+        }[]
+      }
       get_public_installment: { Args: { p_token: string }; Returns: Json }
       has_role: {
         Args: {
@@ -1814,6 +1870,17 @@ export type Database = {
       }
       return_event_stock: { Args: { _event_id: string }; Returns: undefined }
       slugify: { Args: { txt: string }; Returns: string }
+      submit_event_rsvp: {
+        Args: {
+          _attending: boolean
+          _companions: number
+          _guest_name: string
+          _message: string
+          _phone: string
+          _token: string
+        }
+        Returns: string
+      }
       submit_public_feedback: {
         Args: {
           p_client_name: string

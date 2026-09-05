@@ -8,6 +8,13 @@
       "when": 1788262672067,
       "tag": "0000_public_quote_fixed_pricing",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1788648639264,
+      "tag": "0001_event_rsvp_public_link",
+      "breakpoints": true
     }
   ]
 }
