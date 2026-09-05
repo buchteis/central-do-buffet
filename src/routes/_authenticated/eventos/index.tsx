@@ -1,7 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useMemo } from "react";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
-import { Calendar as CalendarIcon, CalendarPlus, FileText, XCircle, CalendarDays } from "lucide-react";
+import { Calendar as CalendarIcon, CalendarPlus, FileText, XCircle, CalendarDays, Link2 } from "lucide-react";
+import { copyToClipboard } from "@/lib/clipboard";
 import { supabase } from "@/integrations/supabase/client";
 import { brl, formatDateBR } from "@/lib/format";
 import { cn } from "@/lib/utils";
