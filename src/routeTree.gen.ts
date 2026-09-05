@@ -15,6 +15,7 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as PagamentoTokenRouteImport } from './routes/pagamento.$token'
 import { Route as OrcamentoSlugRouteImport } from './routes/orcamento.$slug'
+import { Route as ConviteTokenRouteImport } from './routes/convite.$token'
 import { Route as AvaliarSlugRouteImport } from './routes/avaliar.$slug'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as AuthenticatedRelatoriosRouteImport } from './routes/_authenticated/relatorios'
@@ -70,6 +71,11 @@ const PagamentoTokenRoute = PagamentoTokenRouteImport.update({
 const OrcamentoSlugRoute = OrcamentoSlugRouteImport.update({
   id: '/orcamento/$slug',
   path: '/orcamento/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ConviteTokenRoute = ConviteTokenRouteImport.update({
+  id: '/convite/$token',
+  path: '/convite/$token',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AvaliarSlugRoute = AvaliarSlugRouteImport.update({
@@ -244,6 +250,7 @@ export interface FileRoutesByFullPath {
   '/relatorios': typeof AuthenticatedRelatoriosRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/avaliar/$slug': typeof AvaliarSlugRoute
+  '/convite/$token': typeof ConviteTokenRoute
   '/orcamento/$slug': typeof OrcamentoSlugRoute
   '/pagamento/$token': typeof PagamentoTokenRoute
   '/clientes/importar': typeof AuthenticatedClientesImportarRoute
@@ -278,6 +285,7 @@ export interface FileRoutesByTo {
   '/relatorios': typeof AuthenticatedRelatoriosRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/avaliar/$slug': typeof AvaliarSlugRoute
+  '/convite/$token': typeof ConviteTokenRoute
   '/orcamento/$slug': typeof OrcamentoSlugRoute
   '/pagamento/$token': typeof PagamentoTokenRoute
   '/clientes/importar': typeof AuthenticatedClientesImportarRoute
@@ -314,6 +322,7 @@ export interface FileRoutesById {
   '/_authenticated/relatorios': typeof AuthenticatedRelatoriosRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/avaliar/$slug': typeof AvaliarSlugRoute
+  '/convite/$token': typeof ConviteTokenRoute
   '/orcamento/$slug': typeof OrcamentoSlugRoute
   '/pagamento/$token': typeof PagamentoTokenRoute
   '/_authenticated/clientes/importar': typeof AuthenticatedClientesImportarRoute
@@ -350,6 +359,7 @@ export interface FileRouteTypes {
     | '/relatorios'
     | '/auth/callback'
     | '/avaliar/$slug'
+    | '/convite/$token'
     | '/orcamento/$slug'
     | '/pagamento/$token'
     | '/clientes/importar'
@@ -384,6 +394,7 @@ export interface FileRouteTypes {
     | '/relatorios'
     | '/auth/callback'
     | '/avaliar/$slug'
+    | '/convite/$token'
     | '/orcamento/$slug'
     | '/pagamento/$token'
     | '/clientes/importar'
@@ -419,6 +430,7 @@ export interface FileRouteTypes {
     | '/_authenticated/relatorios'
     | '/auth/callback'
     | '/avaliar/$slug'
+    | '/convite/$token'
     | '/orcamento/$slug'
     | '/pagamento/$token'
     | '/_authenticated/clientes/importar'
@@ -439,6 +451,7 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRouteWithChildren
   ResetPasswordRoute: typeof ResetPasswordRoute
   AvaliarSlugRoute: typeof AvaliarSlugRoute
+  ConviteTokenRoute: typeof ConviteTokenRoute
   OrcamentoSlugRoute: typeof OrcamentoSlugRoute
   PagamentoTokenRoute: typeof PagamentoTokenRoute
 }
@@ -485,6 +498,13 @@ declare module '@tanstack/react-router' {
       path: '/orcamento/$slug'
       fullPath: '/orcamento/$slug'
       preLoaderRoute: typeof OrcamentoSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/convite/$token': {
+      id: '/convite/$token'
+      path: '/convite/$token'
+      fullPath: '/convite/$token'
+      preLoaderRoute: typeof ConviteTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/avaliar/$slug': {
@@ -754,6 +774,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRouteWithChildren,
   ResetPasswordRoute: ResetPasswordRoute,
   AvaliarSlugRoute: AvaliarSlugRoute,
+  ConviteTokenRoute: ConviteTokenRoute,
   OrcamentoSlugRoute: OrcamentoSlugRoute,
   PagamentoTokenRoute: PagamentoTokenRoute,
 }
