@@ -141,6 +141,45 @@ function InvitePage() {
           </div>
         </section>
 
+        {host && (
+          <section className="rounded-3xl bg-white border border-sky-100 shadow-sm p-7">
+            <h2 className="text-lg font-extrabold text-slate-800">Quem confirmou</h2>
+            <p className="text-xs text-slate-500 mt-1">
+              Esta lista aparece somente para você, com este link exclusivo. Os convidados veem apenas a quantidade.
+            </p>
+            <div className="mt-4 space-y-2">
+              {(guests ?? []).length === 0 && (
+                <p className="text-sm text-slate-500">Nenhuma resposta ainda.</p>
+              )}
+              {(guests ?? []).map((g, i) => (
+                <div
+                  key={i}
+                  className="rounded-xl bg-sky-50/70 border border-sky-100 px-4 py-3 flex items-start justify-between gap-3"
+                >
+                  <div className="min-w-0">
+                    <div className="text-sm font-bold text-slate-800 break-words">{g.guest_name}</div>
+                    <div className="text-xs text-slate-500">
+                      {g.companions > 0 ? `+${g.companions} acompanhante(s)` : "sem acompanhantes"}
+                      {g.phone ? ` · ${g.phone}` : ""}
+                    </div>
+                    {g.message && <div className="text-xs text-slate-600 mt-1 italic">“{g.message}”</div>}
+                  </div>
+                  <span
+                    className={cn(
+                      "shrink-0 px-2.5 py-1 rounded-full text-[11px] font-bold",
+                      g.attending ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600",
+                    )}
+                  >
+                    {g.attending ? "Vai" : "Não vai"}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+
+
         {done ? (
           <section className="rounded-3xl bg-white border border-emerald-100 shadow-sm p-8 text-center">
             <div className="inline-flex items-center justify-center size-12 rounded-2xl bg-emerald-100 text-emerald-600 mb-3">
