@@ -93,6 +93,7 @@ function InvitePage() {
     onSuccess: () => {
       setDone(true);
       qc.invalidateQueries({ queryKey: ["event-invite", token] });
+      qc.invalidateQueries({ queryKey: ["event-rsvp-guests", host] });
       toast.success("Presença registrada. Obrigado!");
     },
     onError: (e: any) => toast.error(e?.message ?? "Não foi possível registrar"),
