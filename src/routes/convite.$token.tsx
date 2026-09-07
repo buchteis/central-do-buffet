@@ -37,6 +37,7 @@ type Invite = {
 
 function InvitePage() {
   const { token } = Route.useParams();
+  const { host } = Route.useSearch();
   const qc = useQueryClient();
   const [done, setDone] = useState(false);
   const [form, setForm] = useState({
@@ -56,6 +57,17 @@ function InvitePage() {
       return (row ?? null) as Invite | null;
     },
   });
+
+  const { data: guests } = useQuery({
+    queryKey: ["event-rsvp-guests", host],
+    enabled: !!host,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).rpc("get_event_rsvp_guests", { _host_token: host });
+      if (error) throw error;
+      return (data ?? []) as Guest[];
+    },
+  });
+
 
   const submit = useMutation({
     mutationFn: async () => {
