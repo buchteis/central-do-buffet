@@ -8,6 +8,9 @@ import { toast } from "sonner";
 import { CalendarDays, Clock, MapPin, PartyPopper, Users, Check } from "lucide-react";
 
 export const Route = createFileRoute("/convite/$token")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    host: typeof search.host === "string" ? search.host : undefined,
+  }),
   head: () => ({
     meta: [
       { title: "Confirmar presença — Convite" },
