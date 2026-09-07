@@ -8,6 +8,9 @@ import { toast } from "sonner";
 import { CalendarDays, Clock, MapPin, PartyPopper, Users, Check } from "lucide-react";
 
 export const Route = createFileRoute("/convite/$token")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    host: typeof search.host === "string" ? search.host : undefined,
+  }),
   head: () => ({
     meta: [
       { title: "Confirmar presença — Convite" },
@@ -32,8 +35,18 @@ type Invite = {
   confirmed_count: number | null;
 };
 
+type Guest = {
+  guest_name: string;
+  phone: string | null;
+  companions: number;
+  attending: boolean;
+  message: string | null;
+  created_at: string;
+};
+
 function InvitePage() {
   const { token } = Route.useParams();
+  const { host } = Route.useSearch();
   const qc = useQueryClient();
   const [done, setDone] = useState(false);
   const [form, setForm] = useState({
@@ -54,6 +67,17 @@ function InvitePage() {
     },
   });
 
+  const { data: guests } = useQuery({
+    queryKey: ["event-rsvp-guests", host],
+    enabled: !!host,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).rpc("get_event_rsvp_guests", { _host_token: host });
+      if (error) throw error;
+      return (data ?? []) as Guest[];
+    },
+  });
+
+
   const submit = useMutation({
     mutationFn: async () => {
       const { error } = await (supabase as any).rpc("submit_event_rsvp", {
@@ -69,6 +93,7 @@ function InvitePage() {
     onSuccess: () => {
       setDone(true);
       qc.invalidateQueries({ queryKey: ["event-invite", token] });
+      qc.invalidateQueries({ queryKey: ["event-rsvp-guests", host] });
       toast.success("Presença registrada. Obrigado!");
     },
     onError: (e: any) => toast.error(e?.message ?? "Não foi possível registrar"),
@@ -115,6 +140,45 @@ function InvitePage() {
             <InfoRow icon={<Users className="size-4" />} label="Confirmados" value={`${invite.confirmed_count ?? 0} pessoa(s)`} />
           </div>
         </section>
+
+        {host && (
+          <section className="rounded-3xl bg-white border border-sky-100 shadow-sm p-7">
+            <h2 className="text-lg font-extrabold text-slate-800">Quem confirmou</h2>
+            <p className="text-xs text-slate-500 mt-1">
+              Esta lista aparece somente para você, com este link exclusivo. Os convidados veem apenas a quantidade.
+            </p>
+            <div className="mt-4 space-y-2">
+              {(guests ?? []).length === 0 && (
+                <p className="text-sm text-slate-500">Nenhuma resposta ainda.</p>
+              )}
+              {(guests ?? []).map((g, i) => (
+                <div
+                  key={i}
+                  className="rounded-xl bg-sky-50/70 border border-sky-100 px-4 py-3 flex items-start justify-between gap-3"
+                >
+                  <div className="min-w-0">
+                    <div className="text-sm font-bold text-slate-800 break-words">{g.guest_name}</div>
+                    <div className="text-xs text-slate-500">
+                      {g.companions > 0 ? `+${g.companions} acompanhante(s)` : "sem acompanhantes"}
+                      {g.phone ? ` · ${g.phone}` : ""}
+                    </div>
+                    {g.message && <div className="text-xs text-slate-600 mt-1 italic">“{g.message}”</div>}
+                  </div>
+                  <span
+                    className={cn(
+                      "shrink-0 px-2.5 py-1 rounded-full text-[11px] font-bold",
+                      g.attending ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600",
+                    )}
+                  >
+                    {g.attending ? "Vai" : "Não vai"}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+
 
         {done ? (
           <section className="rounded-3xl bg-white border border-emerald-100 shadow-sm p-8 text-center">

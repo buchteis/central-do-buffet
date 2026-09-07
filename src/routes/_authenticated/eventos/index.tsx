@@ -341,6 +341,23 @@ function EventsPage() {
                             <Link2 className="size-3.5" /> Convite
                           </button>
                         )}
+                        {e.rsvp_token && e.host_token && e.status !== "cancelado" && (
+                          <button
+                            onClick={async () => {
+                              const url = `${window.location.origin}/convite/${e.rsvp_token}?host=${e.host_token}`;
+                              const ok = await copyToClipboard(url);
+                              toast[ok ? "success" : "error"](
+                                ok
+                                  ? "Link do aniversariante copiado! Só ele vê os nomes de quem confirmou."
+                                  : url,
+                              );
+                            }}
+                            title="Link exclusivo do aniversariante, com os nomes de quem confirmou"
+                            className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold rounded-full bg-violet-100 text-violet-700 hover:bg-violet-200 transition-colors"
+                          >
+                            <Link2 className="size-3.5" /> Lista
+                          </button>
+                        )}
                         {canCancel && (
                           <button
                             onClick={() => {
