@@ -15,6 +15,13 @@
       "when": 1788648639264,
       "tag": "0001_event_rsvp_public_link",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1788785636214,
+      "tag": "0002_event_host_token",
+      "breakpoints": true
     }
   ]
 }

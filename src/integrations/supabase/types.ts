@@ -542,6 +542,7 @@ export type Database = {
           event_date: string
           event_time: string | null
           guest_count: number | null
+          host_token: string
           id: string
           notes: string | null
           owner_id: string
@@ -560,6 +561,7 @@ export type Database = {
           event_date: string
           event_time?: string | null
           guest_count?: number | null
+          host_token?: string
           id?: string
           notes?: string | null
           owner_id: string
@@ -578,6 +580,7 @@ export type Database = {
           event_date?: string
           event_time?: string | null
           guest_count?: number | null
+          host_token?: string
           id?: string
           notes?: string | null
           owner_id?: string
@@ -1854,6 +1857,23 @@ export type Database = {
           event_id: string
           event_time: string
           event_type: string
+        }[]
+      }
+      get_event_invite_host: {
+        Args: { _host_token: string }
+        Returns: {
+          rsvp_token: string
+        }[]
+      }
+      get_event_rsvp_guests: {
+        Args: { _host_token: string }
+        Returns: {
+          attending: boolean
+          companions: number
+          created_at: string
+          guest_name: string
+          message: string
+          phone: string
         }[]
       }
       get_public_installment: { Args: { p_token: string }; Returns: Json }
