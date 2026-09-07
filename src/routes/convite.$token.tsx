@@ -35,6 +35,15 @@ type Invite = {
   confirmed_count: number | null;
 };
 
+type Guest = {
+  guest_name: string;
+  phone: string | null;
+  companions: number;
+  attending: boolean;
+  message: string | null;
+  created_at: string;
+};
+
 function InvitePage() {
   const { token } = Route.useParams();
   const { host } = Route.useSearch();
