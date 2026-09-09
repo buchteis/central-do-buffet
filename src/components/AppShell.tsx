@@ -31,7 +31,7 @@ import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/s
 import { toast } from "sonner";
 import { useTenantAccess } from "@/hooks/useTenantAccess";
 import { Chatbot } from "@/components/Chatbot";
-import { PageTutorial } from "@/components/PageTutorial";
+
 
 
 type NavItem = { to: string; label: string; icon: typeof Home };
@@ -143,7 +143,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           }
         />
         <div className="flex-1 p-4 md:p-8 max-w-[1280px] mx-auto w-full min-w-0">
-          <PageTutorial pathname={pathname} />
+          
           {children}
         </div>
       </main>
