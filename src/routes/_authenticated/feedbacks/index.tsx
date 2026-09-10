@@ -8,6 +8,7 @@ import { copyToClipboard } from "@/lib/clipboard";
 import { Copy, Star } from "lucide-react";
 import { toast } from "sonner";
 import { useSearchFilter } from "@/lib/search-store";
+import { ReviewQrCode } from "@/components/feedback/ReviewQrCode";
 
 export const Route = createFileRoute("/_authenticated/feedbacks/")({
   head: () => ({
