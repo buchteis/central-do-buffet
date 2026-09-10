@@ -130,7 +130,7 @@ function EventsPage() {
   const qc = useQueryClient();
   const [nfEvent, setNfEvent] = useState<NfEvent | null>(null);
   const [period, setPeriod] = useState<PeriodFilter>("mes");
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("todos");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("agendado");
   const { match } = useSearchFilter();
   const { data: allEvents, isLoading } = useQuery({
     queryKey: ["events"],
