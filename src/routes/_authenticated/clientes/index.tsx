@@ -8,6 +8,18 @@ import { toast } from "sonner";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useSearchFilter } from "@/lib/search-store";
 
+const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+
+function initialLetter(name: unknown): string {
+  const s = String(name ?? "")
+    .trim()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toUpperCase();
+  const first = s.charAt(0);
+  return /[A-Z]/.test(first) ? first : "#";
+}
+
 export const Route = createFileRoute("/_authenticated/clientes/")({
   head: () => ({ meta: [{ title: "Clientes — Central do Buffet" }] }),
   component: ClientsPage,
@@ -17,6 +29,7 @@ function ClientsPage() {
   const qc = useQueryClient();
   const [q, setQ] = useState("");
   const { query: gq, match } = useSearchFilter();
+  const [letter, setLetter] = useState<string | null>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [confirmBulk, setConfirmBulk] = useState(false);
@@ -60,7 +73,7 @@ function ClientsPage() {
     onError: (e: any) => toast.error(e.message ?? "Erro ao excluir"),
   });
 
-  const filtered = useMemo(
+  const searched = useMemo(
     () =>
       (clients ?? []).filter((c) => {
         const local = q.trim().toLowerCase();
@@ -77,6 +90,20 @@ function ClientsPage() {
         );
       }),
     [clients, q, gq],
+  );
+
+  const countsByLetter = useMemo(() => {
+    const m = new Map<string, number>();
+    searched.forEach((c) => {
+      const l = initialLetter(c.name);
+      m.set(l, (m.get(l) ?? 0) + 1);
+    });
+    return m;
+  }, [searched]);
+
+  const filtered = useMemo(
+    () => (letter ? searched.filter((c) => initialLetter(c.name) === letter) : searched),
+    [searched, letter],
   );
 
   const confirming = (clients ?? []).find((c) => c.id === confirmId);
