@@ -73,9 +73,9 @@ function matchesPeriod(eventDate: string | null | undefined, period: PeriodFilte
 }
 
 function matchesStatus(eventStatus: string | null | undefined, status: StatusFilter): boolean {
-  if (status === "todos") return true;
   return eventStatus === status;
 }
+
 
 // Gera link do Google Agenda pré-preenchido (sem necessidade de OAuth).
 // Cada evento fechado/pago vira um aviso na agenda do dono do buffet.
