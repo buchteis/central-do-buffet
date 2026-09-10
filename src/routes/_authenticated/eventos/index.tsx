@@ -29,7 +29,6 @@ const periodLabels: Record<PeriodFilter, string> = {
 };
 
 const statusFilterLabels: Record<StatusFilter, string> = {
-  todos: "Todos",
   agendado: "Agendado",
   em_andamento: "Em andamento",
   pago: "Pago",
@@ -37,6 +36,7 @@ const statusFilterLabels: Record<StatusFilter, string> = {
   cancelado: "Cancelado",
   realizado: "Realizado",
 };
+
 
 const statusFilterOrder: StatusFilter[] = [
   "todos",
