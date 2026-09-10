@@ -10,7 +10,7 @@ import { toast } from "sonner";
 import { EmitirNFModal, type NfEvent } from "@/components/nf/EmitirNFModal";
 import { useSearchFilter } from "@/lib/search-store";
 
-type PeriodFilter = "todos" | "hoje" | "semana" | "mes" | "ano";
+type PeriodFilter = "hoje" | "semana" | "mes" | "ano";
 
 type StatusFilter =
   | "todos"
@@ -22,7 +22,6 @@ type StatusFilter =
   | "realizado";
 
 const periodLabels: Record<PeriodFilter, string> = {
-  todos: "Todos",
   hoje: "Hoje",
   semana: "Semana",
   mes: "Mês",
@@ -50,7 +49,6 @@ const statusFilterOrder: StatusFilter[] = [
 ];
 
 function matchesPeriod(eventDate: string | null | undefined, period: PeriodFilter): boolean {
-  if (period === "todos") return true;
   if (!eventDate) return false;
   const d = new Date(eventDate + "T00:00:00");
   if (isNaN(d.getTime())) return false;
@@ -131,7 +129,7 @@ const statusLabels: Record<string, string> = {
 function EventsPage() {
   const qc = useQueryClient();
   const [nfEvent, setNfEvent] = useState<NfEvent | null>(null);
-  const [period, setPeriod] = useState<PeriodFilter>("todos");
+  const [period, setPeriod] = useState<PeriodFilter>("mes");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("todos");
   const { match } = useSearchFilter();
   const { data: allEvents, isLoading } = useQuery({
