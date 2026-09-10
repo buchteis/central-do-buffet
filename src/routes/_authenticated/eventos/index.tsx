@@ -13,13 +13,13 @@ import { useSearchFilter } from "@/lib/search-store";
 type PeriodFilter = "hoje" | "semana" | "mes" | "ano";
 
 type StatusFilter =
-  | "todos"
   | "agendado"
   | "em_andamento"
   | "pago"
   | "concluido"
   | "cancelado"
   | "realizado";
+
 
 const periodLabels: Record<PeriodFilter, string> = {
   hoje: "Hoje",
