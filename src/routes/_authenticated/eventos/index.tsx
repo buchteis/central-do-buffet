@@ -39,7 +39,6 @@ const statusFilterLabels: Record<StatusFilter, string> = {
 
 
 const statusFilterOrder: StatusFilter[] = [
-  "todos",
   "agendado",
   "em_andamento",
   "pago",
@@ -47,6 +46,7 @@ const statusFilterOrder: StatusFilter[] = [
   "realizado",
   "cancelado",
 ];
+
 
 function matchesPeriod(eventDate: string | null | undefined, period: PeriodFilter): boolean {
   if (!eventDate) return false;
