@@ -13,13 +13,13 @@ import { useSearchFilter } from "@/lib/search-store";
 type PeriodFilter = "hoje" | "semana" | "mes" | "ano";
 
 type StatusFilter =
-  | "todos"
   | "agendado"
   | "em_andamento"
   | "pago"
   | "concluido"
   | "cancelado"
   | "realizado";
+
 
 const periodLabels: Record<PeriodFilter, string> = {
   hoje: "Hoje",
@@ -29,7 +29,6 @@ const periodLabels: Record<PeriodFilter, string> = {
 };
 
 const statusFilterLabels: Record<StatusFilter, string> = {
-  todos: "Todos",
   agendado: "Agendado",
   em_andamento: "Em andamento",
   pago: "Pago",
@@ -38,8 +37,8 @@ const statusFilterLabels: Record<StatusFilter, string> = {
   realizado: "Realizado",
 };
 
+
 const statusFilterOrder: StatusFilter[] = [
-  "todos",
   "agendado",
   "em_andamento",
   "pago",
@@ -47,6 +46,7 @@ const statusFilterOrder: StatusFilter[] = [
   "realizado",
   "cancelado",
 ];
+
 
 function matchesPeriod(eventDate: string | null | undefined, period: PeriodFilter): boolean {
   if (!eventDate) return false;
@@ -73,9 +73,9 @@ function matchesPeriod(eventDate: string | null | undefined, period: PeriodFilte
 }
 
 function matchesStatus(eventStatus: string | null | undefined, status: StatusFilter): boolean {
-  if (status === "todos") return true;
   return eventStatus === status;
 }
+
 
 // Gera link do Google Agenda pré-preenchido (sem necessidade de OAuth).
 // Cada evento fechado/pago vira um aviso na agenda do dono do buffet.
@@ -130,7 +130,7 @@ function EventsPage() {
   const qc = useQueryClient();
   const [nfEvent, setNfEvent] = useState<NfEvent | null>(null);
   const [period, setPeriod] = useState<PeriodFilter>("mes");
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("todos");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("agendado");
   const { match } = useSearchFilter();
   const { data: allEvents, isLoading } = useQuery({
     queryKey: ["events"],
@@ -146,7 +146,6 @@ function EventsPage() {
 
   const statusCounts = useMemo(() => {
     const counts: Record<StatusFilter, number> = {
-      todos: allEvents?.length ?? 0,
       agendado: 0,
       em_andamento: 0,
       pago: 0,
@@ -156,10 +155,11 @@ function EventsPage() {
     };
     for (const e of allEvents ?? []) {
       const s = e.status as StatusFilter;
-      if (s && s in counts && s !== "todos") counts[s]++;
+      if (s && s in counts) counts[s]++;
     }
     return counts;
   }, [allEvents]);
+
 
   const data = (allEvents ?? []).filter((e: any) =>
     matchesPeriod(e.event_date, period) &&
