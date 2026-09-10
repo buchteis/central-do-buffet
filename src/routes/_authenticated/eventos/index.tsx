@@ -146,7 +146,6 @@ function EventsPage() {
 
   const statusCounts = useMemo(() => {
     const counts: Record<StatusFilter, number> = {
-      todos: allEvents?.length ?? 0,
       agendado: 0,
       em_andamento: 0,
       pago: 0,
@@ -156,10 +155,11 @@ function EventsPage() {
     };
     for (const e of allEvents ?? []) {
       const s = e.status as StatusFilter;
-      if (s && s in counts && s !== "todos") counts[s]++;
+      if (s && s in counts) counts[s]++;
     }
     return counts;
   }, [allEvents]);
+
 
   const data = (allEvents ?? []).filter((e: any) =>
     matchesPeriod(e.event_date, period) &&
