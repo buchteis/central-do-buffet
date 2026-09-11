@@ -20,7 +20,6 @@ type StatusFilter =
   | "cancelado"
   | "realizado";
 
-
 const periodLabels: Record<PeriodFilter, string> = {
   hoje: "Hoje",
   semana: "Semana",
@@ -37,7 +36,6 @@ const statusFilterLabels: Record<StatusFilter, string> = {
   realizado: "Realizado",
 };
 
-
 const statusFilterOrder: StatusFilter[] = [
   "agendado",
   "em_andamento",
@@ -46,7 +44,6 @@ const statusFilterOrder: StatusFilter[] = [
   "realizado",
   "cancelado",
 ];
-
 
 function matchesPeriod(eventDate: string | null | undefined, period: PeriodFilter): boolean {
   if (!eventDate) return false;
@@ -76,17 +73,14 @@ function matchesStatus(eventStatus: string | null | undefined, status: StatusFil
   return eventStatus === status;
 }
 
-
-// Gera link do Google Agenda pré-preenchido (sem necessidade de OAuth).
-// Cada evento fechado/pago vira um aviso na agenda do dono do buffet.
 function googleCalendarUrl(e: any): string {
   const pad = (n: number) => String(n).padStart(2, "0");
   const toGCal = (d: Date) =>
     `${d.getUTCFullYear()}${pad(d.getUTCMonth() + 1)}${pad(d.getUTCDate())}T${pad(d.getUTCHours())}${pad(d.getUTCMinutes())}00Z`;
   const [y, m, day] = String(e.event_date).split("-").map(Number);
   const [hh, mm] = String(e.event_time ?? "18:00").split(":").map(Number);
-  const start = new Date(Date.UTC(y, (m ?? 1) - 1, day ?? 1, (hh ?? 18) - 3, mm ?? 0)); // horário BR (UTC-3)
-  const end = new Date(start.getTime() + 4 * 60 * 60 * 1000); // 4h de duração padrão
+  const start = new Date(Date.UTC(y, (m ?? 1) - 1, day ?? 1, (hh ?? 18) - 3, mm ?? 0));
+  const end = new Date(start.getTime() + 4 * 60 * 60 * 1000);
   const title = `Evento — ${e.clients?.name ?? "Cliente"}${e.packages?.name ? ` (${e.packages.name})` : ""}`;
   const details = [
     e.notes ? `Observações: ${e.notes}` : null,
@@ -159,7 +153,6 @@ function EventsPage() {
     }
     return counts;
   }, [allEvents]);
-
 
   const data = (allEvents ?? []).filter((e: any) =>
     matchesPeriod(e.event_date, period) &&
@@ -289,102 +282,104 @@ function EventsPage() {
                 {data!.map((e: any) => {
                   const canSchedule = e.status !== "cancelado";
                   const canCancel = e.status !== "cancelado" && e.status !== "concluido" && e.status !== "realizado";
+                  const canEmitNF = e.status !== "cancelado"; // AGORA DISPONÍVEL PARA QUALQUER EVENTO NÃO CANCELADO
+
                   return (
-                  <tr key={e.id} className="hover:bg-muted/30 transition-colors">
-                    <td className="px-5 py-4 text-sm font-semibold">
-                      {e.clients?.name ?? "—"}
-                    </td>
-                    <td className="px-4 py-4 text-xs font-mono">{formatDateBR(e.event_date)}</td>
-                    <td className="px-4 py-4 text-xs hidden md:table-cell">
-                      {e.packages?.name ?? "—"}
-                    </td>
-                    <td className="px-4 py-4 text-sm font-mono text-right">
-                      {brl(e.total_value)}
-                    </td>
-                    <td className="px-4 py-4">
-                      <span
-                        className={cn(
-                          "px-2 py-1 text-[10px] rounded-full font-bold uppercase tracking-wider whitespace-nowrap",
-                          statusStyles[e.status] ?? "bg-muted text-muted-foreground",
-                        )}
-                      >
-                        {statusLabels[e.status] ?? e.status}
-                      </span>
-                    </td>
-                    <td className="px-4 py-4 text-right">
-                      <div className="inline-flex items-center gap-2 justify-end">
-                        {canSchedule && (
-                          <a
-                            href={googleCalendarUrl(e)}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            title="Adicionar aviso deste evento no Google Agenda"
-                            className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold rounded-full bg-blue-600 text-white hover:bg-blue-700 transition-colors"
-                          >
-                            <CalendarPlus className="size-3.5" /> Agenda
-                          </a>
-                        )}
-                        {e.rsvp_token && e.status !== "cancelado" && (
-                          <button
-                            onClick={async () => {
-                              const url = `${window.location.origin}/convite/${e.rsvp_token}`;
-                              const ok = await copyToClipboard(url);
-                              toast[ok ? "success" : "error"](
-                                ok ? "Link de convite copiado! Envie para o cliente." : url,
-                              );
-                            }}
-                            title="Copiar link de confirmação de presença para o cliente enviar aos convidados"
-                            className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold rounded-full bg-sky-100 text-sky-700 hover:bg-sky-200 transition-colors"
-                          >
-                            <Link2 className="size-3.5" /> Convite
-                          </button>
-                        )}
-                        {e.rsvp_token && e.host_token && e.status !== "cancelado" && (
-                          <button
-                            onClick={async () => {
-                              const url = `${window.location.origin}/convite/${e.rsvp_token}?host=${e.host_token}`;
-                              const ok = await copyToClipboard(url);
-                              toast[ok ? "success" : "error"](
-                                ok
-                                  ? "Link do aniversariante copiado! Só ele vê os nomes de quem confirmou."
-                                  : url,
-                              );
-                            }}
-                            title="Link exclusivo do aniversariante, com os nomes de quem confirmou"
-                            className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold rounded-full bg-violet-100 text-violet-700 hover:bg-violet-200 transition-colors"
-                          >
-                            <Link2 className="size-3.5" /> Lista
-                          </button>
-                        )}
-                        {canCancel && (
-                          <button
-                            onClick={() => {
-                              if (confirm(`Cancelar o evento de ${e.clients?.name ?? "cliente"}? O estoque reservado voltará automaticamente.`)) {
-                                cancelEvent.mutate(e.id);
-                              }
-                            }}
-                            disabled={cancelEvent.isPending}
-                            title="Cancelar evento"
-                            className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold rounded-full bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors disabled:opacity-50"
-                          >
-                            <XCircle className="size-3.5" /> Cancelar
-                          </button>
-                        )}
-                        {(e.status === "pago" || e.status === "concluido") && (
-                          <button
-                            onClick={() => setNfEvent(e as NfEvent)}
-                            title="Emitir nota fiscal deste evento"
-                            className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold rounded-full bg-success/10 text-success hover:bg-success/20 transition-colors"
-                          >
-                            <FileText className="size-3.5" /> Emitir NF
-                          </button>
-                        )}
-                        {!canSchedule && !canCancel && (
-                          <span className="text-[11px] text-muted-foreground">—</span>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
+                    <tr key={e.id} className="hover:bg-muted/30 transition-colors">
+                      <td className="px-5 py-4 text-sm font-semibold">
+                        {e.clients?.name ?? "—"}
+                      </td>
+                      <td className="px-4 py-4 text-xs font-mono">{formatDateBR(e.event_date)}</td>
+                      <td className="px-4 py-4 text-xs hidden md:table-cell">
+                        {e.packages?.name ?? "—"}
+                      </td>
+                      <td className="px-4 py-4 text-sm font-mono text-right">
+                        {brl(e.total_value)}
+                      </td>
+                      <td className="px-4 py-4">
+                        <span
+                          className={cn(
+                            "px-2 py-1 text-[10px] rounded-full font-bold uppercase tracking-wider whitespace-nowrap",
+                            statusStyles[e.status] ?? "bg-muted text-muted-foreground",
+                          )}
+                        >
+                          {statusLabels[e.status] ?? e.status}
+                        </span>
+                      </td>
+                      <td className="px-4 py-4 text-right">
+                        <div className="inline-flex items-center gap-2 justify-end">
+                          {canSchedule && (
+                            <a
+                              href={googleCalendarUrl(e)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              title="Adicionar aviso deste evento no Google Agenda"
+                              className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold rounded-full bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                            >
+                              <CalendarPlus className="size-3.5" /> Agenda
+                            </a>
+                          )}
+                          {e.rsvp_token && e.status !== "cancelado" && (
+                            <button
+                              onClick={async () => {
+                                const url = `${window.location.origin}/convite/${e.rsvp_token}`;
+                                const ok = await copyToClipboard(url);
+                                toast[ok ? "success" : "error"](
+                                  ok ? "Link de convite copiado! Envie para o cliente." : url,
+                                );
+                              }}
+                              title="Copiar link de confirmação de presença para o cliente enviar aos convidados"
+                              className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold rounded-full bg-sky-100 text-sky-700 hover:bg-sky-200 transition-colors"
+                            >
+                              <Link2 className="size-3.5" /> Convite
+                            </button>
+                          )}
+                          {e.rsvp_token && e.host_token && e.status !== "cancelado" && (
+                            <button
+                              onClick={async () => {
+                                const url = `${window.location.origin}/convite/${e.rsvp_token}?host=${e.host_token}`;
+                                const ok = await copyToClipboard(url);
+                                toast[ok ? "success" : "error"](
+                                  ok
+                                    ? "Link do aniversariante copiado! Só ele vê os nomes de quem confirmou."
+                                    : url,
+                                );
+                              }}
+                              title="Link exclusivo do aniversariante, com os nomes de quem confirmou"
+                              className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold rounded-full bg-violet-100 text-violet-700 hover:bg-violet-200 transition-colors"
+                            >
+                              <Link2 className="size-3.5" /> Lista
+                            </button>
+                          )}
+                          {canCancel && (
+                            <button
+                              onClick={() => {
+                                if (confirm(`Cancelar o evento de ${e.clients?.name ?? "cliente"}? O estoque reservado voltará automaticamente.`)) {
+                                  cancelEvent.mutate(e.id);
+                                }
+                              }}
+                              disabled={cancelEvent.isPending}
+                              title="Cancelar evento"
+                              className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold rounded-full bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors disabled:opacity-50"
+                            >
+                              <XCircle className="size-3.5" /> Cancelar
+                            </button>
+                          )}
+                          {canEmitNF && (
+                            <button
+                              onClick={() => setNfEvent(e as NfEvent)}
+                              title="Emitir nota fiscal deste evento"
+                              className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold rounded-full bg-success/10 text-success hover:bg-success/20 transition-colors"
+                            >
+                              <FileText className="size-3.5" /> Emitir NF
+                            </button>
+                          )}
+                          {!canSchedule && !canCancel && !canEmitNF && (
+                            <span className="text-[11px] text-muted-foreground">—</span>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
                   );
                 })}
               </tbody>
