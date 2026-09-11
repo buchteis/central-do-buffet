@@ -10,7 +10,6 @@ import { DEFAULT_CONTRACT_TEMPLATE } from "@/lib/contract-template";
 import { maskCpfCnpj } from "@/lib/doc";
 import VariableInserter from "@/components/VariableInserter";
 
-
 export const Route = createFileRoute("/_authenticated/configuracoes")({
   head: () => ({ meta: [{ title: "Configurações — Meu Churras" }] }),
   component: SettingsPage,
@@ -363,12 +362,11 @@ function SettingsPage() {
         <p className="text-xs text-muted-foreground mb-2">
           Variáveis: {"{cliente}"}, {"{cpf_cliente}"}, {"{endereco_cliente}"}, {"{telefone_cliente}"}, {"{buffet}"},{" "}
           {"{endereco_buffet}"}, {"{telefone_buffet}"}, {"{data_evento}"}, {"{hora_evento}"}, {"{local_evento}"},{" "}
-          {"{convidados}"}, {"{valor}"}, {"{entrada}"}, {"{saldo}"}, {"{forma_pagamento}"}, {"{dados_pagamento}"},{" "}
+          {"{convidados}"}, {"{valor}"}, {"{preco_fechado}"}, {"{entrada}"}, {"{saldo}"}, {"{forma_pagamento}"}, {"{dados_pagamento}"},{" "}
           {"{pix}"}, {"{pix_titular}"}, {"{data_hoje}"}, {"{pacote}"}, {"{pacotes}"}, {"{itens_adicionais}"},{" "}
           {"{acrescimos_adicionais}"}, {"{descricao_pacote}"}, {"{cardapio}"}, {"{descricao_cardapio}"}. O endereço do buffet vem do campo
           “Endereço” em Dados do buffet.
         </p>
-
 
         <div className="mb-2 flex flex-wrap items-center gap-2">
           <button
@@ -417,6 +415,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
     </div>
   );
 }
+
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
