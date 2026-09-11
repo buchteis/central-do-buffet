@@ -10,6 +10,37 @@ import { useSearchFilter } from "@/lib/search-store";
 
 const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
 
+// Paleta de tons leves e coloridos para cada letra
+const LETTER_COLORS: Record<string, { bg: string; text: string; hover: string; badge: string }> = {
+  A: { bg: "bg-red-50 dark:bg-red-950/40", text: "text-red-700 dark:text-red-300", hover: "hover:bg-red-100 dark:hover:bg-red-900/60", badge: "bg-red-200/60 text-red-800 dark:bg-red-900/80 dark:text-red-200" },
+  B: { bg: "bg-orange-50 dark:bg-orange-950/40", text: "text-orange-700 dark:text-orange-300", hover: "hover:bg-orange-100 dark:hover:bg-orange-900/60", badge: "bg-orange-200/60 text-orange-800 dark:bg-orange-900/80 dark:text-orange-200" },
+  C: { bg: "bg-amber-50 dark:bg-amber-950/40", text: "text-amber-700 dark:text-amber-300", hover: "hover:bg-amber-100 dark:hover:bg-amber-900/60", badge: "bg-amber-200/60 text-amber-800 dark:bg-amber-900/80 dark:text-amber-200" },
+  D: { bg: "bg-yellow-50 dark:bg-yellow-950/40", text: "text-yellow-800 dark:text-yellow-300", hover: "hover:bg-yellow-100 dark:hover:bg-yellow-900/60", badge: "bg-yellow-200/60 text-yellow-900 dark:bg-yellow-900/80 dark:text-yellow-200" },
+  E: { bg: "bg-lime-50 dark:bg-lime-950/40", text: "text-lime-800 dark:text-lime-300", hover: "hover:bg-lime-100 dark:hover:bg-lime-900/60", badge: "bg-lime-200/60 text-lime-900 dark:bg-lime-900/80 dark:text-lime-200" },
+  F: { bg: "bg-green-50 dark:bg-green-950/40", text: "text-green-700 dark:text-green-300", hover: "hover:bg-green-100 dark:hover:bg-green-900/60", badge: "bg-green-200/60 text-green-800 dark:bg-green-900/80 dark:text-green-200" },
+  G: { bg: "bg-emerald-50 dark:bg-emerald-950/40", text: "text-emerald-700 dark:text-emerald-300", hover: "hover:bg-emerald-100 dark:hover:bg-emerald-900/60", badge: "bg-emerald-200/60 text-emerald-800 dark:bg-emerald-900/80 dark:text-emerald-200" },
+  H: { bg: "bg-teal-50 dark:bg-teal-950/40", text: "text-teal-700 dark:text-teal-300", hover: "hover:bg-teal-100 dark:hover:bg-teal-900/60", badge: "bg-teal-200/60 text-teal-800 dark:bg-teal-900/80 dark:text-teal-200" },
+  I: { bg: "bg-cyan-50 dark:bg-cyan-950/40", text: "text-cyan-700 dark:text-cyan-300", hover: "hover:bg-cyan-100 dark:hover:bg-cyan-900/60", badge: "bg-cyan-200/60 text-cyan-800 dark:bg-cyan-900/80 dark:text-cyan-200" },
+  J: { bg: "bg-sky-50 dark:bg-sky-950/40", text: "text-sky-700 dark:text-sky-300", hover: "hover:bg-sky-100 dark:hover:bg-sky-900/60", badge: "bg-sky-200/60 text-sky-800 dark:bg-sky-900/80 dark:text-sky-200" },
+  K: { bg: "bg-blue-50 dark:bg-blue-950/40", text: "text-blue-700 dark:text-blue-300", hover: "hover:bg-blue-100 dark:hover:bg-blue-900/60", badge: "bg-blue-200/60 text-blue-800 dark:bg-blue-900/80 dark:text-blue-200" },
+  L: { bg: "bg-indigo-50 dark:bg-indigo-950/40", text: "text-indigo-700 dark:text-indigo-300", hover: "hover:bg-indigo-100 dark:hover:bg-indigo-900/60", badge: "bg-indigo-200/60 text-indigo-800 dark:bg-indigo-900/80 dark:text-indigo-200" },
+  M: { bg: "bg-violet-50 dark:bg-violet-950/40", text: "text-violet-700 dark:text-violet-300", hover: "hover:bg-violet-100 dark:hover:bg-violet-900/60", badge: "bg-violet-200/60 text-violet-800 dark:bg-violet-900/80 dark:text-violet-200" },
+  N: { bg: "bg-purple-50 dark:bg-purple-950/40", text: "text-purple-700 dark:text-purple-300", hover: "hover:bg-purple-100 dark:hover:bg-purple-900/60", badge: "bg-purple-200/60 text-purple-800 dark:bg-purple-900/80 dark:text-purple-200" },
+  O: { bg: "bg-fuchsia-50 dark:bg-fuchsia-950/40", text: "text-fuchsia-700 dark:text-fuchsia-300", hover: "hover:bg-fuchsia-100 dark:hover:bg-fuchsia-900/60", badge: "bg-fuchsia-200/60 text-fuchsia-800 dark:bg-fuchsia-900/80 dark:text-fuchsia-200" },
+  P: { bg: "bg-pink-50 dark:bg-pink-950/40", text: "text-pink-700 dark:text-pink-300", hover: "hover:bg-pink-100 dark:hover:bg-pink-900/60", badge: "bg-pink-200/60 text-pink-800 dark:bg-pink-900/80 dark:text-pink-200" },
+  Q: { bg: "bg-rose-50 dark:bg-rose-950/40", text: "text-rose-700 dark:text-rose-300", hover: "hover:bg-rose-100 dark:hover:bg-rose-900/60", badge: "bg-rose-200/60 text-rose-800 dark:bg-rose-900/80 dark:text-rose-200" },
+  R: { bg: "bg-red-50 dark:bg-red-950/40", text: "text-red-700 dark:text-red-300", hover: "hover:bg-red-100 dark:hover:bg-red-900/60", badge: "bg-red-200/60 text-red-800 dark:bg-red-900/80 dark:text-red-200" },
+  S: { bg: "bg-orange-50 dark:bg-orange-950/40", text: "text-orange-700 dark:text-orange-300", hover: "hover:bg-orange-100 dark:hover:bg-orange-900/60", badge: "bg-orange-200/60 text-orange-800 dark:bg-orange-900/80 dark:text-orange-200" },
+  T: { bg: "bg-emerald-50 dark:bg-emerald-950/40", text: "text-emerald-700 dark:text-emerald-300", hover: "hover:bg-emerald-100 dark:hover:bg-emerald-900/60", badge: "bg-emerald-200/60 text-emerald-800 dark:bg-emerald-900/80 dark:text-emerald-200" },
+  U: { bg: "bg-teal-50 dark:bg-teal-950/40", text: "text-teal-700 dark:text-teal-300", hover: "hover:bg-teal-100 dark:hover:bg-teal-900/60", badge: "bg-teal-200/60 text-teal-800 dark:bg-teal-900/80 dark:text-teal-200" },
+  V: { bg: "bg-sky-50 dark:bg-sky-950/40", text: "text-sky-700 dark:text-sky-300", hover: "hover:bg-sky-100 dark:hover:bg-sky-900/60", badge: "bg-sky-200/60 text-sky-800 dark:bg-sky-900/80 dark:text-sky-200" },
+  W: { bg: "bg-indigo-50 dark:bg-indigo-950/40", text: "text-indigo-700 dark:text-indigo-300", hover: "hover:bg-indigo-100 dark:hover:bg-indigo-900/60", badge: "bg-indigo-200/60 text-indigo-800 dark:bg-indigo-900/80 dark:text-indigo-200" },
+  X: { bg: "bg-purple-50 dark:bg-purple-950/40", text: "text-purple-700 dark:text-purple-300", hover: "hover:bg-purple-100 dark:hover:bg-purple-900/60", badge: "bg-purple-200/60 text-purple-800 dark:bg-purple-900/80 dark:text-purple-200" },
+  Y: { bg: "bg-fuchsia-50 dark:bg-fuchsia-950/40", text: "text-fuchsia-700 dark:text-fuchsia-300", hover: "hover:bg-fuchsia-100 dark:hover:bg-fuchsia-900/60", badge: "bg-fuchsia-200/60 text-fuchsia-800 dark:bg-fuchsia-900/80 dark:text-fuchsia-200" },
+  Z: { bg: "bg-rose-50 dark:bg-rose-950/40", text: "text-rose-700 dark:text-rose-300", hover: "hover:bg-rose-100 dark:hover:bg-rose-900/60", badge: "bg-rose-200/60 text-rose-800 dark:bg-rose-900/80 dark:text-rose-200" },
+  "#": { bg: "bg-slate-100 dark:bg-slate-800/50", text: "text-slate-700 dark:text-slate-300", hover: "hover:bg-slate-200 dark:hover:bg-slate-700/60", badge: "bg-slate-200 text-slate-800 dark:bg-slate-700 dark:text-slate-200" },
+};
+
 function initialLetter(name: unknown): string {
   const s = String(name ?? "")
     .trim()
@@ -180,7 +211,7 @@ function ClientsPage() {
         />
       </div>
 
-      {/* --- CARDS A-Z COLORIDOS E MAIORES --- */}
+      {/* --- CARDS A-Z COM TONS LEVES E COLORIDOS --- */}
       <div className="flex flex-wrap items-center gap-2 py-2">
         <button
           onClick={() => setLetter(null)}
@@ -200,6 +231,7 @@ function ClientsPage() {
           const count = countsByLetter.get(char) ?? 0;
           const isSelected = letter === char;
           const hasItems = count > 0;
+          const palette = LETTER_COLORS[char] ?? LETTER_COLORS["#"];
 
           return (
             <button
@@ -208,10 +240,10 @@ function ClientsPage() {
               onClick={() => setLetter(isSelected ? null : char)}
               className={`px-3.5 py-2 rounded-xl text-sm font-bold transition-all duration-200 flex items-center gap-1.5 transform active:scale-95 ${
                 isSelected
-                  ? "bg-indigo-600 text-white shadow-md shadow-indigo-500/30 ring-2 ring-offset-2 ring-indigo-600 dark:ring-offset-slate-950 scale-105"
+                  ? "bg-primary text-primary-foreground shadow-md ring-2 ring-offset-2 ring-primary scale-105"
                   : hasItems
-                  ? "bg-indigo-50/80 text-indigo-700 hover:bg-indigo-100 hover:text-indigo-900 dark:bg-indigo-950/40 dark:text-indigo-300 dark:hover:bg-indigo-900/60 border border-indigo-200/50 dark:border-indigo-800/40 cursor-pointer shadow-sm"
-                  : "bg-muted/30 text-muted-foreground/30 border border-transparent cursor-not-allowed opacity-50"
+                  ? `${palette.bg} ${palette.text} ${palette.hover} cursor-pointer shadow-sm`
+                  : "bg-muted/30 text-muted-foreground/30 border border-transparent cursor-not-allowed opacity-40"
               }`}
             >
               <span>{char}</span>
@@ -219,8 +251,8 @@ function ClientsPage() {
                 <span
                   className={`text-xs px-1.5 py-0.5 rounded-full font-semibold ${
                     isSelected
-                      ? "bg-white/20 text-white"
-                      : "bg-indigo-200/60 text-indigo-800 dark:bg-indigo-900/80 dark:text-indigo-200"
+                      ? "bg-primary-foreground/20 text-primary-foreground"
+                      : palette.badge
                   }`}
                 >
                   {count}
