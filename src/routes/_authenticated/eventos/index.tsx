@@ -126,12 +126,14 @@ function EventsPage() {
   const [period, setPeriod] = useState<PeriodFilter>("mes");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("agendado");
   const { match } = useSearchFilter();
+
+  // BUSCA ATUALIZADA: Traz todos os dados do cliente e a referência de quotes
   const { data: allEvents, isLoading } = useQuery({
     queryKey: ["events"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("events")
-        .select("*, clients(name, cpf, email), packages(name)")
+        .select("*, clients(*), packages(name), quotes(*)")
         .order("event_date", { ascending: false });
       if (error) throw error;
       return data ?? [];
@@ -282,7 +284,7 @@ function EventsPage() {
                 {data!.map((e: any) => {
                   const canSchedule = e.status !== "cancelado";
                   const canCancel = e.status !== "cancelado" && e.status !== "concluido" && e.status !== "realizado";
-                  const canEmitNF = e.status !== "cancelado"; // AGORA DISPONÍVEL PARA QUALQUER EVENTO NÃO CANCELADO
+                  const canEmitNF = e.status !== "cancelado";
 
                   return (
                     <tr key={e.id} className="hover:bg-muted/30 transition-colors">
