@@ -1,365 +1,394 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { brl } from "@/lib/format";
-import { cn } from "@/lib/utils";
-import { resolveTierPrice } from "@/lib/quote-calc";
-import { toast } from "sonner";
-import { ArrowLeft, Plus, Trash2 } from "lucide-react";
-import { ChecklistPreDefinido } from "@/components/ChecklistPreDefinido";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useState, useMemo } from "react";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
+import { Calendar as CalendarIcon, CalendarPlus, FileText, XCircle, CalendarDays, Link2 } from "lucide-react";
 import { copyToClipboard } from "@/lib/clipboard";
+import { supabase } from "@/integrations/supabase/client";
+import { brl, formatDateBR } from "@/lib/format";
+import { cn } from "@/lib/utils";
+import { toast } from "sonner";
+import { EmitirNFModal, type NfEvent } from "@/components/nf/EmitirNFModal";
+import { useSearchFilter } from "@/lib/search-store";
 
-type EventStatus =
+type PeriodFilter = "hoje" | "semana" | "mes" | "ano";
+
+type StatusFilter =
   | "agendado"
   | "em_andamento"
   | "pago"
-  | "pagamento_parcial"
-  | "realizado"
   | "concluido"
-  | "cancelado";
+  | "cancelado"
+  | "realizado";
 
-export const Route = createFileRoute("/_authenticated/eventos/create")({
-  head: () => ({ meta: [{ title: "Novo Evento — Central do Buffet" }] }),
-  component: CreateEventPage,
+const periodLabels: Record<PeriodFilter, string> = {
+  hoje: "Hoje",
+  semana: "Semana",
+  mes: "Mês",
+  ano: "Ano",
+};
+
+const statusFilterLabels: Record<StatusFilter, string> = {
+  agendado: "Agendado",
+  em_andamento: "Em andamento",
+  pago: "Pago",
+  concluido: "Concluído",
+  cancelado: "Cancelado",
+  realizado: "Realizado",
+};
+
+const statusFilterOrder: StatusFilter[] = [
+  "agendado",
+  "em_andamento",
+  "pago",
+  "concluido",
+  "realizado",
+  "cancelado",
+];
+
+function matchesPeriod(eventDate: string | null | undefined, period: PeriodFilter): boolean {
+  if (!eventDate) return false;
+  const d = new Date(eventDate + "T00:00:00");
+  if (isNaN(d.getTime())) return false;
+  const now = new Date();
+  if (period === "hoje") return d.toDateString() === now.toDateString();
+  if (period === "semana") {
+    const start = new Date(now);
+    start.setDate(now.getDate() - now.getDay());
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(start);
+    end.setDate(start.getDate() + 6);
+    end.setHours(23, 59, 59, 999);
+    return d >= start && d <= end;
+  }
+  if (period === "mes") {
+    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+  }
+  if (period === "ano") {
+    return d.getFullYear() === now.getFullYear();
+  }
+  return true;
+}
+
+function matchesStatus(eventStatus: string | null | undefined, status: StatusFilter): boolean {
+  return eventStatus === status;
+}
+
+function googleCalendarUrl(e: any): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const toGCal = (d: Date) =>
+    `${d.getUTCFullYear()}${pad(d.getUTCMonth() + 1)}${pad(d.getUTCDate())}T${pad(d.getUTCHours())}${pad(d.getUTCMinutes())}00Z`;
+  const [y, m, day] = String(e.event_date).split("-").map(Number);
+  const [hh, mm] = String(e.event_time ?? "18:00").split(":").map(Number);
+  const start = new Date(Date.UTC(y, (m ?? 1) - 1, day ?? 1, (hh ?? 18) - 3, mm ?? 0));
+  const end = new Date(start.getTime() + 4 * 60 * 60 * 1000);
+  const title = `Evento — ${e.clients?.name ?? "Cliente"}${e.packages?.name ? ` (${e.packages.name})` : ""}`;
+  const details = [
+    e.notes ? `Observações: ${e.notes}` : null,
+    e.guest_count ? `Convidados: ${e.guest_count}` : null,
+    e.total_value ? `Valor: ${brl(e.total_value)}` : null,
+  ].filter(Boolean).join("\n");
+  const params = new URLSearchParams({
+    action: "TEMPLATE",
+    text: title,
+    dates: `${toGCal(start)}/${toGCal(end)}`,
+    details,
+    location: e.event_address ?? "",
+  });
+  return `https://calendar.google.com/calendar/render?${params.toString()}`;
+}
+
+export const Route = createFileRoute("/_authenticated/eventos/")({
+  head: () => ({ meta: [{ title: "Eventos — Central do Buffet" }] }),
+  component: EventsPage,
 });
 
-function CreateEventPage() {
-  const navigate = useNavigate();
-  const [loading, setLoading] = useState(false);
-  const [formData, setFormData] = useState({
-    client_id: "",
-    event_date: "",
-    event_time: "18:00",
-    guest_count: "",
-    event_address: "",
-    total_value: "",
-    status: "agendado" as EventStatus,
-    notes: "",
-  });
-  // Múltiplos pacotes (mesma lógica de "Novo orçamento"). O primeiro vira o pacote
-  // principal em events.package_id; os demais são registrados nas observações.
-  const [packageLines, setPackageLines] = useState<string[]>([""]);
+const statusStyles: Record<string, string> = {
+  agendado: "bg-info/10 text-info",
+  em_andamento: "bg-primary/10 text-primary",
+  pago: "bg-success/10 text-success",
+  concluido: "bg-muted text-muted-foreground",
+  cancelado: "bg-destructive/10 text-destructive",
+  realizado: "bg-slate-500/10 text-slate-600",
+};
 
-  const { data: clients } = useQuery({
-    queryKey: ["clients-for-select"],
+const statusLabels: Record<string, string> = {
+  agendado: "Agendado",
+  em_andamento: "Em andamento",
+  pago: "Pago",
+  concluido: "Concluído",
+  cancelado: "Cancelado",
+  realizado: "Realizado",
+};
+
+function EventsPage() {
+  const qc = useQueryClient();
+  const [nfEvent, setNfEvent] = useState<NfEvent | null>(null);
+  const [period, setPeriod] = useState<PeriodFilter>("mes");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("agendado");
+  const { match } = useSearchFilter();
+  const { data: allEvents, isLoading } = useQuery({
+    queryKey: ["events"],
     queryFn: async () => {
-      const { data } = await supabase.from("clients").select("id, name").order("name");
+      const { data, error } = await supabase
+        .from("events")
+        .select("*, clients(name, cpf, email), packages(name)")
+        .order("event_date", { ascending: false });
+      if (error) throw error;
       return data ?? [];
     },
   });
 
-  const { data: packages } = useQuery({
-    queryKey: ["packages-for-select"],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("packages")
-        .select("id, name")
-        .eq("active", true)
-        .order("name");
-      return data ?? [];
-    },
-  });
+  const statusCounts = useMemo(() => {
+    const counts: Record<StatusFilter, number> = {
+      agendado: 0,
+      em_andamento: 0,
+      pago: 0,
+      concluido: 0,
+      cancelado: 0,
+      realizado: 0,
+    };
+    for (const e of allEvents ?? []) {
+      const s = e.status as StatusFilter;
+      if (s && s in counts) counts[s]++;
+    }
+    return counts;
+  }, [allEvents]);
 
-  const { data: tiers } = useQuery({
-    queryKey: ["packages-tiers-for-event"],
-    queryFn: async () => {
-      const { data } = await (supabase as any)
-        .from("package_price_tiers")
-        .select("id, package_id, min_guests, max_guests, price_per_person, position, updated_at");
-      return (data ?? []) as {
-        id: string;
-        package_id: string;
-        min_guests: number;
-        max_guests: number;
-        price_per_person: number;
-        position: number | null;
-        updated_at: string | null;
-      }[];
-    },
-  });
-
-  const guests = Number(formData.guest_count) || 0;
-  const priceForPackage = (packageId: string): number => {
-    const pkgTiers = (tiers ?? []).filter((t) => t.package_id === packageId);
-    const pkg = (packages ?? []).find((p) => p.id === packageId) as any;
-    return resolveTierPrice(pkgTiers, guests, Number(pkg?.price_per_person ?? 0) || 0);
-  };
-
-  const selectedPackages = useMemo(
-    () =>
-      packageLines
-        .map((id) => (packages ?? []).find((p) => p.id === id))
-        .filter(Boolean)
-        .map((p) => ({
-          id: p!.id,
-          name: p!.name,
-          price_per_person: priceForPackage(p!.id),
-        })),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [packageLines, packages, tiers, guests],
+  const data = (allEvents ?? []).filter((e: any) =>
+    matchesPeriod(e.event_date, period) &&
+    matchesStatus(e.status, statusFilter) &&
+    match(
+      e.clients?.name,
+      e.clients?.cpf,
+      e.clients?.email,
+      e.packages?.name,
+      e.event_address,
+      e.notes,
+      e.status,
+      e.event_date,
+      e.total_value,
+    ),
   );
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    try {
-      const { data: userRes } = await supabase.auth.getUser();
-      if (!userRes.user) throw new Error("Sessão expirada");
-
-      const pkgIds = packageLines.filter(Boolean);
-      const primaryPackageId = pkgIds[0] ?? null;
-      const extraNames = selectedPackages.slice(1).map((p) => p.name);
-      const finalNotes = extraNames.length
-        ? [`Pacotes adicionais: ${extraNames.join(", ")}`, formData.notes].filter(Boolean).join("\n")
-        : formData.notes;
-
-      const { data: created, error } = await supabase.from("events").insert({
-        owner_id: userRes.user.id,
-        client_id: formData.client_id || null,
-        package_id: primaryPackageId,
-        event_date: formData.event_date,
-        event_time: formData.event_time || null,
-        event_address: formData.event_address || null,
-        guest_count: Number(formData.guest_count) || 0,
-        total_value: Number(formData.total_value) || 0,
-        status: formData.status,
-        notes: finalNotes || null,
-      }).select("rsvp_token").maybeSingle();
+  const cancelEvent = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("events").update({ status: "cancelado" }).eq("id", id);
       if (error) throw error;
-
-      const token = (created as any)?.rsvp_token;
-      if (token) {
-        const url = `${window.location.origin}/convite/${token}`;
-        const ok = await copyToClipboard(url);
-        toast.success(
-          ok
-            ? "Evento criado! Link de confirmação de presença copiado."
-            : `Evento criado! Link de convite: ${url}`,
-          { duration: 8000 },
-        );
-      } else {
-        toast.success("Evento criado com sucesso!");
-      }
-      navigate({ to: "/eventos" });
-    } catch (err: any) {
-      console.error("Erro ao criar evento:", err);
-      toast.error(err.message || "Erro ao criar evento");
-    } finally {
-      setLoading(false);
-    }
-  };
+    },
+    onSuccess: () => {
+      toast.success("Evento cancelado. Estoque devolvido automaticamente.");
+      qc.invalidateQueries({ queryKey: ["events"] });
+      qc.invalidateQueries({ queryKey: ["dashboard"] });
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Erro ao cancelar evento"),
+  });
 
   return (
-    <div className="max-w-2xl mx-auto p-6 space-y-6">
-      <div className="flex items-center gap-4">
-        <button
-          onClick={() => navigate({ to: "/eventos" })}
-          className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
-        >
-          <ArrowLeft className="size-5" />
-        </button>
+    <div className="space-y-6">
+      {/* HEADER COM BOTÃO NOVO EVENTO */}
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-extrabold tracking-tight">Novo Evento</h1>
-          <p className="text-sm text-muted-foreground">Preencha os dados para criar um novo evento</p>
+          <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">Eventos</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            {data?.length ?? 0} evento(s) registrado(s)
+          </p>
         </div>
+        <Link to="/eventos/create">
+          <button className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-all shadow-sm hover:shadow-md flex items-center gap-2">
+            <span className="text-lg leading-none">+</span>
+            Novo Evento
+          </button>
+        </Link>
       </div>
 
-      <form
-        onSubmit={handleSubmit}
-        className="space-y-6 bg-white rounded-2xl border border-slate-200 p-6 shadow-sm"
-      >
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">
-            Cliente <span className="text-red-500">*</span>
-          </label>
-          <select
-            required
-            value={formData.client_id}
-            onChange={(e) => setFormData({ ...formData, client_id: e.target.value })}
-            className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all"
-          >
-            <option value="">Selecione um cliente</option>
-            {clients?.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <div className="flex items-center justify-between mb-1">
-            <label className="block text-sm font-medium text-slate-700">Pacotes</label>
-            <button
-              type="button"
-              onClick={() => setPackageLines((l) => [...l, ""])}
-              disabled={!packages || packages.length === 0}
-              className="inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700 disabled:opacity-50"
-            >
-              <Plus className="size-3.5" /> Adicionar pacote
-            </button>
-          </div>
-          <div className="space-y-2">
-            {packageLines.map((pid, i) => (
-              <div key={i} className="flex gap-2 items-start">
-                <select
-                  value={pid}
-                  onChange={(e) =>
-                    setPackageLines((arr) => arr.map((x, idx) => (idx === i ? e.target.value : x)))
-                  }
-                  className="flex-1 px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all"
-                >
-                  <option value="">Selecione um pacote</option>
-                  {packages?.map((p) => (
-                    <option
-                      key={p.id}
-                      value={p.id}
-                      disabled={packageLines.includes(p.id) && p.id !== pid}
-                    >
-                      {p.name}{guests > 0 && priceForPackage(p.id) > 0 ? ` — ${brl(priceForPackage(p.id))}/pessoa` : ""}
-                    </option>
-                  ))}
-                </select>
-                {packageLines.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => setPackageLines((arr) => arr.filter((_, idx) => idx !== i))}
-                    className="p-3 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors"
-                    aria-label="Remover pacote"
-                  >
-                    <Trash2 className="size-4" />
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
-          {selectedPackages.length > 1 && (
-            <p className="text-[11px] text-muted-foreground mt-1">
-              {selectedPackages.length} pacotes combinados —{" "}
-              {brl(selectedPackages.reduce((s, p) => s + Number(p.price_per_person || 0), 0))}/pessoa
-            </p>
-          )}
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">
-              Data <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="date"
-              required
-              value={formData.event_date}
-              onChange={(e) => setFormData({ ...formData, event_date: e.target.value })}
-              className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">
-              Horário <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="time"
-              required
-              value={formData.event_time}
-              onChange={(e) => setFormData({ ...formData, event_time: e.target.value })}
-              className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all"
-            />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Convidados</label>
-            <input
-              type="number"
-              min="0"
-              value={formData.guest_count}
-              onChange={(e) => setFormData({ ...formData, guest_count: e.target.value })}
-              className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all"
-              placeholder="0"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Valor Total</label>
-            <input
-              type="number"
-              step="0.01"
-              value={formData.total_value}
-              onChange={(e) => setFormData({ ...formData, total_value: e.target.value })}
-              className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all"
-              placeholder="0,00"
-            />
-          </div>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">Endereço</label>
-          <input
-            type="text"
-            value={formData.event_address}
-            onChange={(e) => setFormData({ ...formData, event_address: e.target.value })}
-            className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all"
-            placeholder="Rua, número, bairro"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">Status</label>
-          <select
-            value={formData.status}
-            onChange={(e) => setFormData({ ...formData, status: e.target.value as EventStatus })}
-            className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all"
-          >
-            <option value="agendado">Agendado</option>
-            <option value="em_andamento">Em andamento</option>
-            <option value="pago">Pago</option>
-            
-            <option value="concluido">Concluído</option>
-            <option value="cancelado">Cancelado</option>
-          </select>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">Observações</label>
-          <textarea
-            value={formData.notes}
-            onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-            className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all resize-none"
-            rows={3}
-            placeholder="Observações sobre o evento..."
-          />
-        </div>
-
-        <div className="flex gap-3 pt-4">
+      {/* FILTRO DE PERÍODO */}
+      <div className="flex flex-wrap items-center gap-2">
+        <CalendarDays className="size-4 text-muted-foreground" />
+        <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Período:</span>
+        {(Object.keys(periodLabels) as PeriodFilter[]).map((p) => (
           <button
-            type="button"
-            onClick={() => navigate({ to: "/eventos" })}
-            className="flex-1 py-3 px-4 rounded-xl border border-slate-200 text-slate-700 font-medium hover:bg-slate-50 transition-all"
-          >
-            Cancelar
-          </button>
-          <button
-            type="submit"
-            disabled={loading}
+            key={p}
+            onClick={() => setPeriod(p)}
             className={cn(
-              "flex-1 py-3 px-4 rounded-xl font-bold text-white transition-all",
-              loading ? "bg-slate-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700 hover:shadow-lg",
+              "px-3 py-1.5 rounded-full text-xs font-semibold transition-colors border",
+              period === p
+                ? "bg-primary text-primary-foreground border-primary"
+                : "bg-card text-muted-foreground border-border hover:bg-muted hover:text-foreground",
             )}
           >
-            {loading ? "Salvando..." : "Criar Evento"}
+            {periodLabels[p]}
           </button>
-        </div>
-      </form>
+        ))}
+      </div>
 
-      <ChecklistPreDefinido
-        guests={Number(formData.guest_count) || 0}
-        clientName={clients?.find((c) => c.id === formData.client_id)?.name ?? null}
-        eventDate={formData.event_date || null}
-        eventTime={formData.event_time || null}
-        eventAddress={formData.event_address || null}
-      />
+      {/* FILTRO DE STATUS EM CARDS */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-3">
+        {statusFilterOrder.map((s) => {
+          const active = statusFilter === s;
+          const count = statusCounts[s];
+          const style = statusStyles[s] ?? "bg-muted text-muted-foreground";
+          return (
+            <button
+              key={s}
+              onClick={() => setStatusFilter(s)}
+              className={cn(
+                "flex flex-col items-center justify-center gap-1 rounded-xl border p-3 text-center transition-all",
+                active
+                  ? "border-primary bg-primary/5 shadow-sm ring-1 ring-primary"
+                  : "border-border bg-card hover:bg-muted/50",
+              )}
+            >
+              <span
+                className={cn(
+                  "px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider",
+                  active ? style : "bg-muted text-muted-foreground",
+                )}
+              >
+                {statusFilterLabels[s]}
+              </span>
+              <span className="text-xl font-extrabold">{count}</span>
+              <span className="text-[10px] text-muted-foreground">evento(s)</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* TABELA DE EVENTOS */}
+      <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
+        {isLoading ? (
+          <div className="p-10 text-center text-sm text-muted-foreground">Carregando…</div>
+        ) : (data?.length ?? 0) === 0 ? (
+          <div className="p-16 text-center">
+            <CalendarIcon className="size-8 mx-auto text-muted-foreground mb-3" />
+            <div className="text-sm font-semibold">Nenhum evento ainda</div>
+            <div className="text-xs text-muted-foreground mt-1">
+              Ao aprovar um orçamento, ele vira um evento automaticamente.
+            </div>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead>
+                <tr className="text-[10px] uppercase tracking-widest text-muted-foreground border-b border-border bg-muted/30">
+                  <th className="px-5 py-3 font-bold">Cliente</th>
+                  <th className="px-4 py-3 font-bold">Data</th>
+                  <th className="px-4 py-3 font-bold hidden md:table-cell">Pacote</th>
+                  <th className="px-4 py-3 font-bold text-right">Valor</th>
+                  <th className="px-4 py-3 font-bold">Status</th>
+                  <th className="px-4 py-3 font-bold text-right">Ações</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {data!.map((e: any) => {
+                  const canSchedule = e.status !== "cancelado";
+                  const canCancel = e.status !== "cancelado" && e.status !== "concluido" && e.status !== "realizado";
+                  const canEmitNF = e.status !== "cancelado"; // AGORA DISPONÍVEL PARA QUALQUER EVENTO NÃO CANCELADO
+
+                  return (
+                    <tr key={e.id} className="hover:bg-muted/30 transition-colors">
+                      <td className="px-5 py-4 text-sm font-semibold">
+                        {e.clients?.name ?? "—"}
+                      </td>
+                      <td className="px-4 py-4 text-xs font-mono">{formatDateBR(e.event_date)}</td>
+                      <td className="px-4 py-4 text-xs hidden md:table-cell">
+                        {e.packages?.name ?? "—"}
+                      </td>
+                      <td className="px-4 py-4 text-sm font-mono text-right">
+                        {brl(e.total_value)}
+                      </td>
+                      <td className="px-4 py-4">
+                        <span
+                          className={cn(
+                            "px-2 py-1 text-[10px] rounded-full font-bold uppercase tracking-wider whitespace-nowrap",
+                            statusStyles[e.status] ?? "bg-muted text-muted-foreground",
+                          )}
+                        >
+                          {statusLabels[e.status] ?? e.status}
+                        </span>
+                      </td>
+                      <td className="px-4 py-4 text-right">
+                        <div className="inline-flex items-center gap-2 justify-end">
+                          {canSchedule && (
+                            <a
+                              href={googleCalendarUrl(e)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              title="Adicionar aviso deste evento no Google Agenda"
+                              className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold rounded-full bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                            >
+                              <CalendarPlus className="size-3.5" /> Agenda
+                            </a>
+                          )}
+                          {e.rsvp_token && e.status !== "cancelado" && (
+                            <button
+                              onClick={async () => {
+                                const url = `${window.location.origin}/convite/${e.rsvp_token}`;
+                                const ok = await copyToClipboard(url);
+                                toast[ok ? "success" : "error"](
+                                  ok ? "Link de convite copiado! Envie para o cliente." : url,
+                                );
+                              }}
+                              title="Copiar link de confirmação de presença para o cliente enviar aos convidados"
+                              className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold rounded-full bg-sky-100 text-sky-700 hover:bg-sky-200 transition-colors"
+                            >
+                              <Link2 className="size-3.5" /> Convite
+                            </button>
+                          )}
+                          {e.rsvp_token && e.host_token && e.status !== "cancelado" && (
+                            <button
+                              onClick={async () => {
+                                const url = `${window.location.origin}/convite/${e.rsvp_token}?host=${e.host_token}`;
+                                const ok = await copyToClipboard(url);
+                                toast[ok ? "success" : "error"](
+                                  ok
+                                    ? "Link do aniversariante copiado! Só ele vê os nomes de quem confirmou."
+                                    : url,
+                                );
+                              }}
+                              title="Link exclusivo do aniversariante, com os nomes de quem confirmou"
+                              className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold rounded-full bg-violet-100 text-violet-700 hover:bg-violet-200 transition-colors"
+                            >
+                              <Link2 className="size-3.5" /> Lista
+                            </button>
+                          )}
+                          {canCancel && (
+                            <button
+                              onClick={() => {
+                                if (confirm(`Cancelar o evento de ${e.clients?.name ?? "cliente"}? O estoque reservado voltará automaticamente.`)) {
+                                  cancelEvent.mutate(e.id);
+                                }
+                              }}
+                              disabled={cancelEvent.isPending}
+                              title="Cancelar evento"
+                              className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold rounded-full bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors disabled:opacity-50"
+                            >
+                              <XCircle className="size-3.5" /> Cancelar
+                            </button>
+                          )}
+                          {canEmitNF && (
+                            <button
+                              onClick={() => setNfEvent(e as NfEvent)}
+                              title="Emitir nota fiscal deste evento"
+                              className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold rounded-full bg-success/10 text-success hover:bg-success/20 transition-colors"
+                            >
+                              <FileText className="size-3.5" /> Emitir NF
+                            </button>
+                          )}
+                          {!canSchedule && !canCancel && !canEmitNF && (
+                            <span className="text-[11px] text-muted-foreground">—</span>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {nfEvent && <EmitirNFModal event={nfEvent} onClose={() => setNfEvent(null)} />}
     </div>
   );
 }
