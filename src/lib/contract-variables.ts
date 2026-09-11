@@ -43,6 +43,7 @@ export const CONTRACT_VARIABLES: { group: string; items: { key: string; label: s
     group: "Pagamento",
     items: [
       { key: "valor", label: "Valor total" },
+      { key: "preco_fechado", label: "Preço fechado" },
       { key: "entrada", label: "Entrada" },
       { key: "saldo", label: "Saldo restante" },
       { key: "forma_pagamento", label: "Forma de pagamento" },
