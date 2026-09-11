@@ -134,6 +134,9 @@ function ClientsPage() {
     }
   }
 
+  // Lista de letras + símbolo '#' para nomes numéricos/especiais
+  const letterKeys = [...ALPHABET, "#"];
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
@@ -177,6 +180,55 @@ function ClientsPage() {
         />
       </div>
 
+      {/* --- INÍCIO DA BARRA DE CARDS A-Z (ALTERAÇÃO ADICIONADA) --- */}
+      <div className="flex flex-wrap items-center gap-1.5 pt-1">
+        <button
+          onClick={() => setLetter(null)}
+          className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+            letter === null
+              ? "bg-primary text-primary-foreground shadow-sm font-bold"
+              : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground"
+          }`}
+        >
+          Todos ({searched.length})
+        </button>
+
+        {letterKeys.map((char) => {
+          const count = countsByLetter.get(char) ?? 0;
+          const isSelected = letter === char;
+          const hasItems = count > 0;
+
+          return (
+            <button
+              key={char}
+              disabled={!hasItems}
+              onClick={() => setLetter(isSelected ? null : char)}
+              className={`px-2.5 py-1.5 rounded-xl text-xs font-medium transition-all flex items-center gap-1 ${
+                isSelected
+                  ? "bg-primary text-primary-foreground font-bold shadow-sm"
+                  : hasItems
+                  ? "bg-muted/40 text-foreground hover:bg-accent hover:text-accent-foreground cursor-pointer"
+                  : "bg-muted/20 text-muted-foreground/40 border-transparent cursor-not-allowed"
+              }`}
+            >
+              <span>{char}</span>
+              {hasItems && (
+                <span
+                  className={`text-[10px] px-1 rounded-full ${
+                    isSelected
+                      ? "bg-primary-foreground/20 text-primary-foreground"
+                      : "bg-muted-foreground/15 text-muted-foreground"
+                  }`}
+                >
+                  {count}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+      {/* --- FIM DA BARRA DE CARDS A-Z --- */}
+
       <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
         {isLoading ? (
           <div className="p-10 text-center text-sm text-muted-foreground">Carregando…</div>
@@ -185,7 +237,9 @@ function ClientsPage() {
             <Users className="size-8 mx-auto text-muted-foreground mb-3" />
             <div className="text-sm font-semibold">Nenhum cliente encontrado</div>
             <div className="text-xs text-muted-foreground mt-1">
-              Cadastre seu primeiro cliente para começar.
+              {letter
+                ? `Nenhum cliente com a letra "${letter}".`
+                : "Cadastre seu primeiro cliente para começar."}
             </div>
             <Link
               to="/clientes/novo"
