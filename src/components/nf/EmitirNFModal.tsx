@@ -10,6 +10,7 @@ export type NfEvent = {
   id: string;
   event_date: string | null;
   total_value: number | null;
+  client_id?: string | null;
   clients?: { name?: string | null; cpf?: string | null; email?: string | null } | null;
   packages?: { name?: string | null } | null;
 };
@@ -30,7 +31,9 @@ export function EmitirNFModal({ event, onClose }: { event: NfEvent; onClose: () 
     `Serviço de buffet para evento${event.packages?.name ? ` — ${event.packages.name}` : ""}`,
   );
   const [amount, setAmount] = useState(String(event.total_value ?? 0));
-  const [serviceDate, setServiceDate] = useState(event.event_date ?? "");
+  const [serviceDate, setServiceDate] = useState(
+    event.event_date ?? new Date().toISOString().slice(0, 10),
+  );
   const [paymentMethod, setPaymentMethod] = useState("");
   const [email, setEmail] = useState(event.clients?.email ?? "");
   const [sendEmail, setSendEmail] = useState(false);
@@ -38,21 +41,29 @@ export function EmitirNFModal({ event, onClose }: { event: NfEvent; onClose: () 
   const ready = !!fiscal?.cnpj && !!fiscal?.razao_social;
 
   const mut = useMutation({
-    mutationFn: async () =>
-      emit({
+    mutationFn: async () => {
+      if (!event?.id) {
+        throw new Error("ID do evento inválido.");
+      }
+
+      return emit({
         data: {
           eventId: event.id,
           description: description.trim(),
           amount: Number(amount) || 0,
           serviceDate: serviceDate || null,
           paymentMethod: paymentMethod.trim() || null,
+          recipientName: event.clients?.name ?? null,
+          recipientDoc: event.clients?.cpf ?? null,
           recipientEmail: email.trim() || null,
           sendEmail,
         },
-      }),
+      });
+    },
     onSuccess: (r: any) => {
       qc.invalidateQueries({ queryKey: ["invoices"] });
-      toast.success(r?.message ?? `Nota ${r?.number ?? ""} registrada.`);
+      qc.invalidateQueries({ queryKey: ["events"] });
+      toast.success(r?.message ?? `Nota ${r?.number ?? ""} registrada com sucesso.`);
       onClose();
     },
     onError: (e: any) => toast.error(e?.message ?? "Falha ao emitir a nota."),
