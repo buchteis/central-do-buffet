@@ -11,6 +11,7 @@ import {
   Home,
   LogOut,
   Menu,
+  Moon,
   Package,
   Plus,
   Receipt,
@@ -19,7 +20,7 @@ import {
   Settings,
   Shield,
   Star,
-
+  Sun,
   UserCog,
   Users,
   Wallet,
@@ -31,8 +32,7 @@ import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/s
 import { toast } from "sonner";
 import { useTenantAccess } from "@/hooks/useTenantAccess";
 import { Chatbot } from "@/components/Chatbot";
-
-
+import { useTheme } from "@/componentes/theme-provider";
 
 type NavItem = { to: string; label: string; icon: typeof Home };
 
@@ -50,7 +50,6 @@ const primary: NavItem[] = [
   { to: "/feedbacks", label: "Avaliações", icon: Star },
   { to: "/notas-fiscais", label: "Notas Fiscais", icon: ReceiptText },
   { to: "/relatorios", label: "Relatórios", icon: BarChart3 },
-
   { to: "/configuracoes", label: "Configurações", icon: Settings },
 ];
 
@@ -143,7 +142,6 @@ export function AppShell({ children }: { children: ReactNode }) {
           }
         />
         <div className="flex-1 p-4 md:p-8 max-w-[1280px] mx-auto w-full min-w-0">
-          
           {children}
         </div>
       </main>
@@ -166,7 +164,6 @@ function BrandHeader() {
     </div>
   );
 }
-
 
 function SideLink({ item, active }: { item: NavItem; active: boolean }) {
   const Icon = item.icon;
@@ -209,6 +206,8 @@ function TopBar({ menu }: { menu?: ReactNode }) {
   const router = useRouter();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const hideSearch = pathname === "/dashboard" || pathname === "/";
+  const { theme, setTheme } = useTheme();
+
   return (
     <header className="h-16 border-b border-border bg-background/80 backdrop-blur flex items-center gap-2 md:gap-4 px-3 md:px-8 sticky top-0 z-10">
       {menu}
@@ -229,6 +228,18 @@ function TopBar({ menu }: { menu?: ReactNode }) {
 
       <div className="flex items-center gap-2 md:gap-3 shrink-0">
         <Button
+          variant="ghost"
+          size="icon"
+          className="rounded-full shrink-0 relative"
+          onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+          title="Alternar tema"
+          aria-label="Alternar tema"
+        >
+          <Sun className="size-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+          <Moon className="absolute size-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+        </Button>
+
+        <Button
           onClick={() =>
             router.navigate({
               to: "/orcamentos/novo",
@@ -243,7 +254,6 @@ function TopBar({ menu }: { menu?: ReactNode }) {
           <span className="hidden md:inline">+ Novo orçamento</span>
         </Button>
       </div>
-
     </header>
   );
 }
