@@ -32,7 +32,7 @@ import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/s
 import { toast } from "sonner";
 import { useTenantAccess } from "@/hooks/useTenantAccess";
 import { Chatbot } from "@/components/Chatbot";
-import { useTheme } from "@/componentes/theme-provider";
+import { useTheme } from "@/components/theme-provider";
 
 type NavItem = { to: string; label: string; icon: typeof Home };
 
