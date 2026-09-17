@@ -11,6 +11,13 @@
 import { Route as rootRoute } from './routes/__root'
 import { Route as AuthenticatedImport } from './routes/_authenticated'
 import { Route as IndexImport } from './routes/index'
+import { Route as AuthImport } from './routes/auth'
+import { Route as AuthCallbackImport } from './routes/auth.callback'
+import { Route as ResetPasswordImport } from './routes/reset-password'
+import { Route as AvaliarSlugImport } from './routes/avaliar.$slug'
+import { Route as ConviteTokenImport } from './routes/convite.$token'
+import { Route as OrcamentoSlugImport } from './routes/orcamento.$slug'
+import { Route as PagamentoTokenImport } from './routes/pagamento.$token'
 
 const AuthenticatedRoute = AuthenticatedImport.update({
   id: '/_authenticated',
@@ -20,6 +27,48 @@ const AuthenticatedRoute = AuthenticatedImport.update({
 const IndexRoute = IndexImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRoute,
+} as any)
+
+const AuthRoute = AuthImport.update({
+  id: '/auth',
+  path: '/auth',
+  getParentRoute: () => rootRoute,
+} as any)
+
+const AuthCallbackRoute = AuthCallbackImport.update({
+  id: '/auth/callback',
+  path: '/auth/callback',
+  getParentRoute: () => rootRoute,
+} as any)
+
+const ResetPasswordRoute = ResetPasswordImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
+  getParentRoute: () => rootRoute,
+} as any)
+
+const AvaliarSlugRoute = AvaliarSlugImport.update({
+  id: '/avaliar/$slug',
+  path: '/avaliar/$slug',
+  getParentRoute: () => rootRoute,
+} as any)
+
+const ConviteTokenRoute = ConviteTokenImport.update({
+  id: '/convite/$token',
+  path: '/convite/$token',
+  getParentRoute: () => rootRoute,
+} as any)
+
+const OrcamentoSlugRoute = OrcamentoSlugImport.update({
+  id: '/orcamento/$slug',
+  path: '/orcamento/$slug',
+  getParentRoute: () => rootRoute,
+} as any)
+
+const PagamentoTokenRoute = PagamentoTokenImport.update({
+  id: '/pagamento/$token',
+  path: '/pagamento/$token',
   getParentRoute: () => rootRoute,
 } as any)
 
@@ -39,10 +88,66 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedImport
       parentRoute: typeof rootRoute
     }
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthImport
+      parentRoute: typeof rootRoute
+    }
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordImport
+      parentRoute: typeof rootRoute
+    }
+    '/auth/callback': {
+      id: '/auth/callback'
+      path: '/auth/callback'
+      fullPath: '/auth/callback'
+      preLoaderRoute: typeof AuthCallbackImport
+      parentRoute: typeof rootRoute
+    }
+    '/avaliar/$slug': {
+      id: '/avaliar/$slug'
+      path: '/avaliar/$slug'
+      fullPath: '/avaliar/$slug'
+      preLoaderRoute: typeof AvaliarSlugImport
+      parentRoute: typeof rootRoute
+    }
+    '/convite/$token': {
+      id: '/convite/$token'
+      path: '/convite/$token'
+      fullPath: '/convite/$token'
+      preLoaderRoute: typeof ConviteTokenImport
+      parentRoute: typeof rootRoute
+    }
+    '/orcamento/$slug': {
+      id: '/orcamento/$slug'
+      path: '/orcamento/$slug'
+      fullPath: '/orcamento/$slug'
+      preLoaderRoute: typeof OrcamentoSlugImport
+      parentRoute: typeof rootRoute
+    }
+    '/pagamento/$token': {
+      id: '/pagamento/$token'
+      path: '/pagamento/$token'
+      fullPath: '/pagamento/$token'
+      preLoaderRoute: typeof PagamentoTokenImport
+      parentRoute: typeof rootRoute
+    }
   }
 }
 
 export const routeTree = rootRoute.addChildren([
   IndexRoute,
   AuthenticatedRoute,
+  AuthRoute,
+  AuthCallbackRoute,
+  ResetPasswordRoute,
+  AvaliarSlugRoute,
+  ConviteTokenRoute,
+  OrcamentoSlugRoute,
+  PagamentoTokenRoute,
 ])
