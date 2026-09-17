@@ -11,7 +11,6 @@ import {
   Home,
   LogOut,
   Menu,
-  Moon, // <-- ADICIONADO
   Package,
   Plus,
   Receipt,
@@ -20,7 +19,6 @@ import {
   Settings,
   Shield,
   Star,
-  Sun,  // <-- ADICIONADO
   UserCog,
   Users,
   Wallet,
@@ -32,7 +30,7 @@ import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/s
 import { toast } from "sonner";
 import { useTenantAccess } from "@/hooks/useTenantAccess";
 import { Chatbot } from "@/components/Chatbot";
-import { useTheme } from "@/components/theme-provider"; // <-- LINHA CORRIGIDA
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 type NavItem = { to: string; label: string; icon: typeof Home };
 
@@ -204,7 +202,6 @@ function TopBar({ menu }: { menu?: ReactNode }) {
   const router = useRouter();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const hideSearch = pathname === "/dashboard" || pathname === "/";
-  const { theme, setTheme } = useTheme(); // <-- ADICIONADO
 
   return (
     <header className="h-16 border-b border-border bg-background/80 backdrop-blur flex items-center gap-2 md:gap-4 px-3 md:px-8 sticky top-0 z-10">
@@ -225,18 +222,7 @@ function TopBar({ menu }: { menu?: ReactNode }) {
       )}
 
       <div className="flex items-center gap-2 md:gap-3 shrink-0">
-        {/* BOTÃO DE ALTERNAR TEMA ADICIONADO */}
-        <Button
-          variant="ghost"
-          size="icon"
-          className="rounded-full shrink-0 relative"
-          onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-          title="Alternar tema"
-          aria-label="Alternar tema"
-        >
-          <Sun className="size-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-          <Moon className="absolute size-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-        </Button>
+        <ThemeToggle />
 
         <Button
           onClick={() =>
