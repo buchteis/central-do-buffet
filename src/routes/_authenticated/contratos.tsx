@@ -9,7 +9,6 @@ import { toast } from "sonner";
 import { fillTemplate } from "@/lib/whatsapp";
 import { useLogoDisplayUrl, getLogoDisplayUrl } from "@/lib/logo";
 import { useSearchFilter } from "@/lib/search-store";
-import { dedupePackages } from "@/lib/quote-calc";
 import { DEFAULT_CONTRACT_TEMPLATE } from "@/lib/contract-template";
 import VariableInserter from "@/components/VariableInserter";
 
@@ -340,6 +339,30 @@ function formatUnitItems(items: any[]): { text: string; total: number } {
   return { text, total };
 }
 
+function formatPackageItems(items: any[], guests: number): { text: string; total: number } {
+  const list = (items ?? []).filter((item) => String(item?.name ?? "").trim());
+  if (!list.length) return { text: "Nenhum pacote contratado", total: 0 };
+
+  let total = 0;
+  const text = list
+    .map((item) => {
+      const isFixed = String(item?.pricing_type ?? "per_person") === "fixed";
+      const pricePerPerson = Number(item?.price_per_person ?? 0) || 0;
+      const fixedPrice = Number(item?.price_fixed ?? 0) || 0;
+      const packageTotal = isFixed ? fixedPrice : pricePerPerson * guests;
+      total += packageTotal;
+
+      if (isFixed) {
+        return `${item.name} — preço fechado = ${brl(packageTotal)}`;
+      }
+
+      return `${item.name} — ${brl(pricePerPerson)}/pessoa × ${guests} = ${brl(packageTotal)}`;
+    })
+    .join("\n");
+
+  return { text, total };
+}
+
 function getAdditionsText(
   extras: any,
   totalValue: number,
@@ -663,26 +686,13 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
         const q: any = (quotes ?? []).find((x: any) => x.id === refId);
         if (!q) throw new Error("Selecione um orçamento");
         cli_id = q.client_id;
-        const guests = (q.adults ?? 0) + (q.children_7_10 ?? 0) + (q.children_0_6 ?? 0);
         const qExtras: any = q.extras ?? {};
-        const adults = Number(q.adults ?? 0) || 0;
+        const guests = Number(q.adults ?? 0) + Number(q.children_7_10 ?? 0) + Number(q.children_0_6 ?? 0);
         const pkgSnap: any[] = Array.isArray(qExtras.packages) ? qExtras.packages : [];
         const unitSnap: any[] = Array.isArray(qExtras.unit_items) ? qExtras.unit_items : [];
         const pkgNames = pkgSnap.map((p) => p?.name).filter(Boolean);
         const pacoteLabel = pkgNames.length ? pkgNames.join(", ") : (q.packages?.name ?? "");
-        const pkgSnapClean = dedupePackages(pkgSnap, unitSnap);
-
-        let pkgTotal = 0;
-        const pacotesDetalhados = pkgSnapClean.length
-          ? pkgSnapClean
-              .map((p) => {
-                const ppp = Number(p?.price_per_person ?? 0) || 0;
-                const sub = ppp * adults;
-                pkgTotal += sub;
-                return `${p?.name ?? "Pacote"} — ${brl(ppp)}/pessoa × ${adults} = ${brl(sub)}`;
-              })
-              .join("\n")
-          : pacoteLabel;
+        const { text: pacotesDetalhados, total: pkgTotal } = formatPackageItems(pkgSnap, guests);
 
         const { text: itensUnitariosDetalhados, total: unitTotal } = formatUnitItems(unitSnap);
         const totalVal = Number(q.total_value ?? 0);
@@ -705,7 +715,7 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
           entrada: brl(entryVal),
           saldo: brl(balanceVal),
           pacote: pacoteLabel,
-          pacotes: pacotesDetalhados,
+          pacotes: pkgSnap.length ? pacotesDetalhados : pacoteLabel,
           itens_unitarios: itensUnitariosDetalhados,
           itens_adicionais: itensUnitariosDetalhados,
           acrescimos: acrescimosText,
@@ -744,19 +754,8 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
           const pkgSnap: any[] = Array.isArray(ext.packages) ? ext.packages : [];
           const unitSnap: any[] = Array.isArray(ext.unit_items) ? ext.unit_items : [];
           const adults = Number(ql.adults ?? ev.guest_count ?? 0) || 0;
-          const pkgClean = dedupePackages(pkgSnap, unitSnap);
-
-          let pkgTotal = 0;
-          if (pkgClean.length) {
-            evPacotes = pkgClean
-              .map((p: any) => {
-                const ppp = Number(p?.price_per_person ?? 0) || 0;
-                const sub = ppp * adults;
-                pkgTotal += sub;
-                return `${p?.name ?? "Pacote"} — ${brl(ppp)}/pessoa × ${adults} = ${brl(sub)}`;
-              })
-              .join("\n");
-          }
+          const { text: packageText, total: pkgTotal } = formatPackageItems(pkgSnap, adults);
+          if (pkgSnap.length) evPacotes = packageText;
 
           const { text: uText, total: uTotal } = formatUnitItems(unitSnap);
           evItens = uText;

@@ -213,6 +213,19 @@ function PublicQuoteForm() {
 
   const [unitQty, setUnitQty] = useState<Record<string, number>>({});
 
+  useEffect(() => {
+    if (!existingQuote || !unitItemsCatalog) return;
+    const savedItems = Array.isArray(existingQuote.extras?.unit_items)
+      ? existingQuote.extras.unit_items
+      : [];
+    const quantities = Object.fromEntries(
+      savedItems
+        .map((saved: any): [string, number] => [String(saved.item_id ?? ""), Number(saved.qty) || 0])
+        .filter(([itemId, qty]: [string, number]) => Boolean(itemId) && qty > 0),
+    );
+    setUnitQty(quantities);
+  }, [existingQuote, unitItemsCatalog]);
+
   // Preço de um pacote conforme o nº de convidados (por pessoa OU preço fechado)
   const pricingForPackage = (packageId: string, guests: number) => {
     const pkg = (packages ?? []).find((p) => p.id === packageId);
@@ -283,10 +296,13 @@ function PublicQuoteForm() {
 
       // CASO EDICIONAL: Atualiza o registro do orçamento existente (evita gerar o 2º card)
       if (quote_id) {
-        const pkgSnapshot = validPackageIds.map((id) => {
-          const pkg = (packages ?? []).find((p) => p.id === id);
-          return { id, name: pkg?.name ?? "" };
-        });
+        const pkgSnapshot = chosenPackages.map((pkg) => ({
+          package_id: pkg.id,
+          name: pkg.name,
+          pricing_type: pkg.isFixed ? "fixed" : "per_person",
+          price_per_person: pkg.price_per_person,
+          price_fixed: pkg.price_fixed,
+        }));
 
         const quoteUpdate: any = {
           event_address: payload.event_address || null,
@@ -303,6 +319,7 @@ function PublicQuoteForm() {
           extras: {
             ...(existingQuote?.extras ?? {}),
             packages: pkgSnapshot,
+            unit_items: selectedUnitItems,
           },
         };
 
