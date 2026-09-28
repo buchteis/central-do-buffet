@@ -19,7 +19,7 @@ export function ThemeToggle() {
         size="icon"
         className="rounded-full shrink-0 relative"
         disabled
-        aria-label="Alternar tema"
+        aria-label="Alternar entre tema claro e escuro"
       >
         <Sun className="size-5 text-muted-foreground opacity-50" />
       </Button>
@@ -32,8 +32,8 @@ export function ThemeToggle() {
       size="icon"
       className="rounded-full shrink-0 relative"
       onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-      title="Alternar tema"
-      aria-label="Alternar tema"
+      title={theme === "dark" ? "Usar tema claro" : "Usar tema escuro"}
+      aria-label={theme === "dark" ? "Usar tema claro" : "Usar tema escuro"}
     >
       <Sun className="size-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
       <Moon className="absolute size-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />

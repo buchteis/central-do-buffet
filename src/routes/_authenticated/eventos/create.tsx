@@ -97,7 +97,7 @@ function googleCalendarUrl(e: any): string {
   return `https://calendar.google.com/calendar/render?${params.toString()}`;
 }
 
-export const Route = createFileRoute("/_authenticated/eventos/")({
+export const Route = createFileRoute("/_authenticated/eventos/create")({
   head: () => ({ meta: [{ title: "Eventos — Central do Buffet" }] }),
   component: EventsPage,
 });

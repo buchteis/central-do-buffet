@@ -221,7 +221,7 @@ function TopBar({ menu }: { menu?: ReactNode }) {
         </div>
       )}
 
-      <div className="flex items-center gap-2 md:gap-3 shrink-0">
+      <div className="flex items-center gap-1.5 md:gap-2 shrink-0 border-l border-border pl-2">
         <ThemeToggle />
 
         <Button
