@@ -289,6 +289,10 @@ export const chatWithAssistant = createServerFn({ method: "POST" })
       };
     }
 
+    const { hindsightRecall, hindsightRetain } = await import("./hindsight.server");
+    const bankId = `buffet-${tenant.id}`;
+    const memories = await hindsightRecall(bankId, data.message);
+
     const systemPrompt = `Você é o assistente virtual da Central do Buffet.
 Responda SEMPRE em português brasileiro, de forma direta e amigável, usando os DADOS ATUAIS abaixo — nunca invente números.
 Se a pergunta for sobre quantidade de eventos, estoque, clientes ou faturamento, use exatamente os valores do JSON.
@@ -296,7 +300,10 @@ Formate valores monetários em R$ (ex: R$ 1.500,00). Se algo não estiver nos da
 Ao se apresentar, diga apenas que é o assistente virtual da Central do Buffet, sem mencionar o nome específico do buffet.
 Para perguntas sobre clientes, use "clientes" (cadastro manual e vindos do link público, veja o campo origem) e "solicitantes_link_publico" (pedidos recebidos pelo link que ainda podem não ter cadastro).
 Para cobranças e pagamentos, use "parcelas", "parcelas_abertas", "parcelas_vencendo_em_3_dias" e "parcelas_vencidas" (campo dias_para_vencer é relativo ao campo "hoje"). Sempre que houver itens em "parcelas_vencendo_em_3_dias" ou "parcelas_vencidas", avise o dono do buffet citando cliente, parcela, valor e data de vencimento, e sugira cobrar pelo WhatsApp.
+Use as MEMÓRIAS DE LONGO PRAZO (preferências e fatos de conversas anteriores) para personalizar a resposta; em caso de conflito com números, os DADOS ATUAIS prevalecem.
 
+MEMÓRIAS DE LONGO PRAZO:
+${memories.length ? memories.map((m) => `- ${m}`).join("\n") : "(nenhuma ainda)"}
 
 DADOS ATUAIS DO BUFFET (JSON):
 ${summary}`;
@@ -333,5 +340,6 @@ ${summary}`;
 
     const json = (await res.json()) as any;
     const reply: string = json?.choices?.[0]?.message?.content ?? "Não consegui gerar uma resposta.";
+    await hindsightRetain(bankId, `Dono do buffet: ${data.message}\nAssistente: ${reply}`);
     return { reply };
   });
