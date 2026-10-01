@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { emitInvoice } from "@/lib/nfse.functions";
+import { issueInvoice as emitInvoice } from "@/lib/nfse.functions";
 import { brl } from "@/lib/format";
 
 export interface NfEvent {
