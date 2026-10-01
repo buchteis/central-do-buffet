@@ -698,8 +698,8 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
         const totalVal = Number(q.total_value ?? 0);
         const acrescimosText = getAdditionsText(qExtras, totalVal, pkgTotal, unitTotal, q);
 
-        const entryVal = q.entry_value != null ? Number(q.entry_value) : totalVal * 0.5;
-        const balanceVal = q.balance_value != null ? Number(q.balance_value) : totalVal - entryVal;
+        const entryVal = Number(q.entry_value) > 0 ? Math.min(Number(q.entry_value), totalVal) : totalVal * 0.5;
+        const balanceVal = Math.max(totalVal - entryVal, 0);
 
         vars = {
           ...vars,
@@ -748,8 +748,8 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
             .maybeSingle();
           const ql: any = qLink ?? {};
           if (ql.total_value != null) totalVal = Number(ql.total_value);
-          entryVal = ql.entry_value != null ? Number(ql.entry_value) : totalVal * 0.5;
-          balanceVal = ql.balance_value != null ? Number(ql.balance_value) : totalVal - entryVal;
+          entryVal = Number(ql.entry_value) > 0 ? Math.min(Number(ql.entry_value), totalVal) : totalVal * 0.5;
+          balanceVal = Math.max(totalVal - entryVal, 0);
           const ext: any = ql.extras ?? {};
           const pkgSnap: any[] = Array.isArray(ext.packages) ? ext.packages : [];
           const unitSnap: any[] = Array.isArray(ext.unit_items) ? ext.unit_items : [];
