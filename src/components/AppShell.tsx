@@ -33,7 +33,40 @@ import { Chatbot } from "@/components/Chatbot";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { PublicQuoteNotifications } from "@/components/PublicQuoteNotifications";
 
-type NavItem = { to: string; label: string; icon: typeof Home };
+type NavItem = { to: string; label: string; icon: typeof Home; badge?: number };
+
+/** Conta orçamentos recebidos pelo link público (leads) para o selo no menu. */
+function usePublicLeadCount(tenantId?: string) {
+  const [count, setCount] = useState(0);
+  useEffect(() => {
+    if (!tenantId) return;
+    let active = true;
+    async function load() {
+      const { data } = await supabase
+        .from("quotes")
+        .select("id, extras")
+        .eq("tenant_id", tenantId!)
+        .order("created_at", { ascending: false })
+        .limit(100);
+      if (!active) return;
+      setCount(((data ?? []) as any[]).filter((q) => q.extras?.source === "formulario_publico").length);
+    }
+    load();
+    const channel = supabase
+      .channel(`lead-badge-${tenantId}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "quotes", filter: `tenant_id=eq.${tenantId}` },
+        () => load(),
+      )
+      .subscribe();
+    return () => {
+      active = false;
+      supabase.removeChannel(channel);
+    };
+  }, [tenantId]);
+  return count;
+}
 
 const primary: NavItem[] = [
   { to: "/dashboard", label: "Dashboard", icon: Home },
