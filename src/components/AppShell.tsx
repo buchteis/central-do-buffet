@@ -90,6 +90,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const { data: access } = useTenantAccess();
   const [menuOpen, setMenuOpen] = useState(false);
+  const leadCount = usePublicLeadCount(access?.tenant?.id as string | undefined);
 
   useEffect(() => {
     setMenuOpen(false);
@@ -105,7 +106,11 @@ export function AppShell({ children }: { children: ReactNode }) {
     <>
       <nav className="flex-1 px-3 space-y-0.5 overflow-y-auto">
         {primary.map((item) => (
-          <SideLink key={item.to} item={item} active={isActive(pathname, item.to)} />
+          <SideLink
+            key={item.to}
+            item={item.to === "/orcamentos" ? { ...item, badge: leadCount } : item}
+            active={isActive(pathname, item.to)}
+          />
         ))}
         {access?.isSuperAdmin && (
           <>
@@ -219,6 +224,14 @@ function SideLink({ item, active }: { item: NavItem; active: boolean }) {
         <Icon className="size-4 shrink-0" />
       </span>
       <span className="truncate flex-1">{item.label}</span>
+      {!!item.badge && item.badge > 0 && (
+        <span
+          className="min-w-5 h-5 px-1.5 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center shadow-sm"
+          title={`${item.badge} lead(s) recebido(s) pelo link público`}
+        >
+          {item.badge > 99 ? "99+" : item.badge}
+        </span>
+      )}
       {active && (
         <span className="absolute right-2 top-1/2 -translate-y-1/2 w-1 h-5 rounded-full bg-primary" />
       )}
