@@ -31,6 +31,7 @@ import { toast } from "sonner";
 import { useTenantAccess } from "@/hooks/useTenantAccess";
 import { Chatbot } from "@/components/Chatbot";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { PublicQuoteNotifications } from "@/components/PublicQuoteNotifications";
 
 type NavItem = { to: string; label: string; icon: typeof Home };
 
@@ -222,6 +223,7 @@ function TopBar({ menu }: { menu?: ReactNode }) {
       )}
 
       <div className="flex items-center gap-1.5 md:gap-2 shrink-0 border-l border-border pl-2">
+        <PublicQuoteNotifications />
         <ThemeToggle />
 
         <Button
