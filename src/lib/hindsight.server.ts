@@ -1,6 +1,7 @@
 // Hindsight (Vectorize) memory client — one memory bank per buffet (tenant).
 function cfg() {
-  const url = process.env.HINDSIGHT_API_URL?.replace(/\/+$/, "");
+  const raw = process.env.HINDSIGHT_API_URL?.trim() ?? "";
+  const url = (/^https?:\/\//.test(raw) ? raw : "https://api.hindsight.vectorize.io").replace(/\/+$/, "");
   const key = process.env.HINDSIGHT_API_KEY;
   if (!url || !key) return null;
   return { url, key };
