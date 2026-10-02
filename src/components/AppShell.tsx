@@ -100,7 +100,10 @@ export function AppShell({ children }: { children: ReactNode }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const { data: access } = useTenantAccess();
   const [menuOpen, setMenuOpen] = useState(false);
-  const leadCount = usePublicLeadCount(access?.tenant?.id as string | undefined);
+  const leadCount = usePublicLeadCount(
+    access?.tenant?.id as string | undefined,
+    access?.userId as string | undefined,
+  );
 
   useEffect(() => {
     setMenuOpen(false);
