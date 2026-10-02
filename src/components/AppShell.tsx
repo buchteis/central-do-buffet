@@ -35,23 +35,32 @@ import { PublicQuoteNotifications } from "@/components/PublicQuoteNotifications"
 
 type NavItem = { to: string; label: string; icon: typeof Home; badge?: number };
 
-/** Conta orçamentos recebidos pelo link público (leads) para o selo no menu. */
-function usePublicLeadCount(tenantId?: string) {
+/** Conta orçamentos do link público ainda não lidos para o selo no menu. */
+function usePublicLeadCount(tenantId?: string, userId?: string) {
   const [count, setCount] = useState(0);
   useEffect(() => {
-    if (!tenantId) return;
+    if (!tenantId || !userId) return;
     let active = true;
     async function load() {
+      const seenAt = localStorage.getItem(`cdb_public_quotes_seen:${userId}`);
       const { data } = await supabase
         .from("quotes")
-        .select("id, extras")
+        .select("id, extras, created_at")
         .eq("tenant_id", tenantId!)
         .order("created_at", { ascending: false })
         .limit(100);
       if (!active) return;
-      setCount(((data ?? []) as any[]).filter((q) => q.extras?.source === "formulario_publico").length);
+      setCount(
+        ((data ?? []) as any[]).filter(
+          (q) =>
+            q.extras?.source === "formulario_publico" &&
+            (!seenAt || new Date(q.created_at) > new Date(seenAt)),
+        ).length,
+      );
     }
     load();
+    const onSeen = () => load();
+    window.addEventListener("cdb:quotes-seen", onSeen);
     const channel = supabase
       .channel(`lead-badge-${tenantId}`)
       .on(
@@ -62,9 +71,10 @@ function usePublicLeadCount(tenantId?: string) {
       .subscribe();
     return () => {
       active = false;
+      window.removeEventListener("cdb:quotes-seen", onSeen);
       supabase.removeChannel(channel);
     };
-  }, [tenantId]);
+  }, [tenantId, userId]);
   return count;
 }
 
@@ -90,7 +100,10 @@ export function AppShell({ children }: { children: ReactNode }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const { data: access } = useTenantAccess();
   const [menuOpen, setMenuOpen] = useState(false);
-  const leadCount = usePublicLeadCount(access?.tenant?.id as string | undefined);
+  const leadCount = usePublicLeadCount(
+    access?.tenant?.id as string | undefined,
+    access?.userId as string | undefined,
+  );
 
   useEffect(() => {
     setMenuOpen(false);

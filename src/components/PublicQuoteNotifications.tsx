@@ -160,12 +160,18 @@ export function PublicQuoteNotifications() {
     const now = new Date().toISOString();
     localStorage.setItem(seenKey(userId), now);
     setSeenAt(now);
+    window.dispatchEvent(new Event("cdb:quotes-seen"));
   }
 
   return (
     <div className="relative">
       <button
-        onClick={() => setOpen((v) => !v)}
+        onClick={() =>
+          setOpen((v) => {
+            if (!v) markAllRead();
+            return !v;
+          })
+        }
         className="relative p-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
         aria-label="Notificações de orçamentos"
         title="Novos orçamentos do link público"
