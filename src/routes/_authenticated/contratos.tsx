@@ -8,9 +8,12 @@ import {
   Eye,
   Pencil,
   Trash2,
-  CheckSquare,
-  Square,
   Send,
+  Search,
+  FileCheck2,
+  Clock3,
+  CircleDollarSign,
+  Download,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { brl, formatDateFullBR } from "@/lib/format";
@@ -18,7 +21,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { fillTemplate } from "@/lib/whatsapp";
 import { useLogoDisplayUrl, getLogoDisplayUrl } from "@/lib/logo";
-import { useSearchFilter } from "@/lib/search-store";
+import { normalizeSearch, useSearchFilter } from "@/lib/search-store";
 import { DEFAULT_CONTRACT_TEMPLATE } from "@/lib/contract-template";
 import VariableInserter from "@/components/VariableInserter";
 
@@ -33,6 +36,15 @@ const statusStyles: Record<string, string> = {
   assinado: "bg-emerald-500/10 text-emerald-600",
   cancelado: "bg-destructive/10 text-destructive",
 };
+
+const statusLabels: Record<string, string> = {
+  rascunho: "Rascunho",
+  enviado: "Pendente",
+  assinado: "Confirmado",
+  cancelado: "Cancelado",
+};
+
+type ContractStatusFilter = "todos" | "ativos" | "pendentes" | "cancelados";
 
 type Source = "quote" | "event" | "blank";
 
@@ -63,6 +75,8 @@ function ContractsPage() {
   const [editing, setEditing] = useState<any | null>(null);
   const [previewing, setPreviewing] = useState<any | null>(null);
   const [period, setPeriod] = useState<"dia" | "semana" | "mes" | "ano" | "todos">("todos");
+  const [statusFilter, setStatusFilter] = useState<ContractStatusFilter>("todos");
+  const [searchTerm, setSearchTerm] = useState("");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const { match } = useSearchFilter();
 
@@ -74,7 +88,7 @@ function ContractsPage() {
     },
   });
 
-  const { data: contracts } = useQuery({
+  const { data: contracts, isLoading } = useQuery({
     queryKey: ["contracts"],
     queryFn: async () => {
       const { data } = await supabase
@@ -104,7 +118,33 @@ function ContractsPage() {
         c.clients?.name,
         c.clients?.cpf,
       ),
-    );
+    )
+    .filter((c: any) => {
+      if (statusFilter === "ativos") return c.status === "assinado";
+      if (statusFilter === "pendentes") return c.status === "rascunho" || c.status === "enviado";
+      if (statusFilter === "cancelados") return c.status === "cancelado";
+      return true;
+    })
+    .filter((c: any) => {
+      const term = normalizeSearch(searchTerm);
+      if (!term) return true;
+      return [
+        c.title,
+        c.id,
+        c.events?.clients?.name,
+        c.clients?.name,
+      ].some((value) => normalizeSearch(String(value ?? "")).includes(term));
+    });
+
+  const allContracts = contracts ?? [];
+  const pendingCount = allContracts.filter(
+    (c: any) => c.status === "rascunho" || c.status === "enviado",
+  ).length;
+  const signedCount = allContracts.filter((c: any) => c.status === "assinado").length;
+  const totalValue = allContracts.reduce(
+    (total: number, c: any) => total + Number(c.events?.total_value ?? 0),
+    0,
+  );
 
   const upd = useMutation({
     mutationFn: async (c: any) => {
@@ -276,172 +316,330 @@ function ContractsPage() {
   const isAllSelected =
     filteredContracts.length > 0 &&
     filteredContracts.every((c: any) => selectedIds.includes(c.id));
+  const statusFilters: { key: ContractStatusFilter; label: string }[] = [
+    { key: "todos", label: "Todos" },
+    { key: "ativos", label: "Ativos" },
+    { key: "pendentes", label: "Pendentes" },
+    { key: "cancelados", label: "Cancelados" },
+  ];
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">Contratos</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Crie a partir de um orçamento fechado, evento agendado ou em branco
+          <p className="mb-1 text-xs font-semibold uppercase tracking-[0.16em] text-primary">
+            Documentos e assinaturas
+          </p>
+          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Gestão de Contratos</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Acompanhe contratos, estados de assinatura e valores dos eventos.
           </p>
         </div>
         <button
           onClick={() => setOpen(true)}
-          className="inline-flex items-center gap-1 h-9 px-4 rounded-full bg-primary text-primary-foreground text-xs font-bold shadow-lg shadow-primary/20"
+          className="inline-flex h-10 items-center justify-center gap-2 self-start rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-sm transition hover:opacity-90 sm:self-auto"
         >
-          <Plus className="size-4" /> Novo contrato
+          <Plus className="size-4" /> Novo Contrato
         </button>
-      </div>
+      </header>
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap gap-1 p-1 bg-muted/50 rounded-full w-fit">
-          {CONTRACT_PERIODS.map((p) => (
-            <button
-              key={p.key}
-              onClick={() => setPeriod(p.key)}
-              className={cn(
-                "px-3 py-1.5 rounded-full text-xs font-bold transition-colors",
-                period === p.key
-                  ? "bg-primary text-primary-foreground shadow"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
+      <section
+        aria-label="Resumo de contratos"
+        className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4"
+      >
+        {[
+          {
+            label: "Total de contratos",
+            value: allContracts.length,
+            icon: FileText,
+            tone: "text-primary bg-primary/10",
+          },
+          {
+            label: "Contratos ativos",
+            value: signedCount,
+            icon: FileCheck2,
+            tone: "text-emerald-600 bg-emerald-500/10",
+          },
+          {
+            label: "Pendentes de assinatura",
+            value: pendingCount,
+            icon: Clock3,
+            tone: "text-amber-600 bg-amber-500/10",
+          },
+          {
+            label: "Valor total",
+            value: brl(totalValue),
+            icon: CircleDollarSign,
+            tone: "text-sky-600 bg-sky-500/10",
+          },
+        ].map((metric) => {
+          const Icon = metric.icon;
+          return (
+            <div
+              key={metric.label}
+              className="flex items-center gap-4 rounded-xl border border-border bg-card p-4 shadow-sm"
             >
-              {p.label}
-            </button>
-          ))}
+              <div
+                className={cn(
+                  "flex size-11 shrink-0 items-center justify-center rounded-xl",
+                  metric.tone,
+                )}
+              >
+                <Icon className="size-5" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm text-muted-foreground">{metric.label}</p>
+                <p className="mt-0.5 truncate text-xl font-bold tracking-tight">{metric.value}</p>
+              </div>
+            </div>
+          );
+        })}
+      </section>
+
+      <section
+        className="space-y-4 rounded-xl border border-border bg-card p-4 shadow-sm sm:p-5"
+        aria-label="Filtros de contratos"
+      >
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <label className="relative block w-full lg:max-w-md">
+            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <input
+              type="search"
+              value={searchTerm}
+              onChange={(event) => setSearchTerm(event.target.value)}
+              placeholder="Pesquisar por cliente ou número do contrato"
+              className="h-10 w-full rounded-lg border border-input bg-background pl-9 pr-3 text-sm outline-none transition placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/15"
+              aria-label="Pesquisar por cliente ou número do contrato"
+            />
+          </label>
+          <div
+            className="flex flex-wrap gap-1 rounded-lg bg-muted/60 p-1"
+            role="group"
+            aria-label="Filtrar por estado"
+          >
+            {statusFilters.map((filter) => (
+              <button
+                key={filter.key}
+                onClick={() => setStatusFilter(filter.key)}
+                aria-pressed={statusFilter === filter.key}
+                className={cn(
+                  "rounded-md px-3 py-2 text-xs font-semibold transition-colors",
+                  statusFilter === filter.key
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {filter.label}
+              </button>
+            ))}
+          </div>
         </div>
 
-        {/* BARRA DE AÇÃO EM MASSA */}
-        {selectedIds.length > 0 && (
-          <div className="flex items-center gap-2 bg-destructive/10 border border-destructive/20 px-3 py-1.5 rounded-full">
-            <span className="text-xs font-bold text-destructive">
-              {selectedIds.length} selecionado(s)
-            </span>
-            <button
-              onClick={() => {
-                if (confirm(`Deseja excluir os ${selectedIds.length} contratos selecionados?`)) {
-                  del.mutate(selectedIds);
-                }
-              }}
-              disabled={del.isPending}
-              className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-destructive text-destructive-foreground text-xs font-bold hover:opacity-90 disabled:opacity-50"
-            >
-              <Trash2 className="size-3.5" /> Excluir selecionados
-            </button>
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-medium text-muted-foreground">Período:</span>
+            <div className="flex flex-wrap gap-1">
+              {CONTRACT_PERIODS.map((p) => (
+                <button
+                  key={p.key}
+                  onClick={() => setPeriod(p.key)}
+                  className={cn(
+                    "rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors",
+                    period === p.key
+                      ? "bg-primary/10 text-primary"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                  )}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
           </div>
-        )}
-      </div>
 
-      <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
-        {filteredContracts.length === 0 ? (
-          <div className="p-16 text-center">
-            <FileText className="size-8 mx-auto text-muted-foreground mb-3" />
-            <div className="text-sm font-semibold">Nenhum contrato encontrado</div>
-            <div className="text-xs text-muted-foreground mt-1">Clique em "Novo contrato" para começar</div>
+          {selectedIds.length > 0 && (
+            <div className="flex items-center gap-2 rounded-lg border border-destructive/20 bg-destructive/5 px-3 py-2">
+              <span className="text-xs font-semibold text-destructive">
+                {selectedIds.length} selecionado(s)
+              </span>
+              <button
+                onClick={() => {
+                  if (confirm(`Deseja excluir os ${selectedIds.length} contratos selecionados?`)) {
+                    del.mutate(selectedIds);
+                  }
+                }}
+                disabled={del.isPending}
+                className="inline-flex items-center gap-1 rounded-md bg-destructive px-2.5 py-1.5 text-xs font-semibold text-destructive-foreground transition hover:opacity-90 disabled:opacity-50"
+              >
+                <Trash2 className="size-3.5" /> Excluir selecionados
+              </button>
+            </div>
+          )}
+        </div>
+      </section>
+
+      <section
+        className="overflow-hidden rounded-xl border border-border bg-card shadow-sm"
+        aria-label="Lista de contratos"
+      >
+        {isLoading ? (
+          <div className="space-y-3 p-4 sm:p-5" aria-label="A carregar contratos">
+            {[0, 1, 2, 3].map((row) => (
+              <div key={row} className="flex animate-pulse items-center gap-4 py-3">
+                <div className="size-4 rounded bg-muted" />
+                <div className="h-4 flex-1 rounded bg-muted" />
+                <div className="hidden h-4 w-32 rounded bg-muted sm:block" />
+                <div className="h-6 w-20 rounded-full bg-muted" />
+              </div>
+            ))}
+          </div>
+        ) : filteredContracts.length === 0 ? (
+          <div className="flex flex-col items-center px-5 py-14 text-center">
+            <div className="mb-4 flex size-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+              <FileText className="size-7" />
+            </div>
+            <h2 className="text-base font-semibold">
+              {allContracts.length === 0 ? "Ainda não há contratos" : "Nenhum contrato encontrado"}
+            </h2>
+            <p className="mt-1 max-w-md text-sm text-muted-foreground">
+              {allContracts.length === 0
+                ? "Crie o seu primeiro contrato a partir de um orçamento, evento ou documento em branco."
+                : "Experimente alterar a pesquisa, o estado ou o período selecionado."}
+            </p>
+            {allContracts.length === 0 && (
+              <button
+                onClick={() => setOpen(true)}
+                className="mt-5 inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground transition hover:opacity-90"
+              >
+                <Plus className="size-4" /> Criar primeiro contrato
+              </button>
+            )}
           </div>
         ) : (
-          <table className="w-full text-left">
-            <thead>
-              <tr className="text-[10px] uppercase tracking-widest text-muted-foreground border-b border-border bg-muted/30">
-                <th className="px-4 py-3 font-bold w-10">
-                  <input
-                    type="checkbox"
-                    checked={isAllSelected}
-                    onChange={(e) => handleSelectAll(e.target.checked)}
-                    className="rounded border-border text-primary focus:ring-primary size-4 cursor-pointer"
-                  />
-                </th>
-                <th className="px-4 py-3 font-bold">Título</th>
-                <th className="px-4 py-3 font-bold">Cliente</th>
-                <th className="px-4 py-3 font-bold">Data do evento</th>
-                <th className="px-4 py-3 font-bold">Status</th>
-                <th className="px-4 py-3 font-bold text-right">Ações</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {filteredContracts.map((c: any) => {
-                const clientName = c.events?.clients?.name ?? c.clients?.name ?? "—";
-                const eventDate = c.events?.event_date ? formatDateFullBR(c.events.event_date) : "—";
-                const isSelected = selectedIds.includes(c.id);
-
-                return (
-                  <tr
-                    key={c.id}
-                    className={cn(
-                      "hover:bg-muted/30 transition-colors",
-                      isSelected && "bg-primary/5 hover:bg-primary/10"
-                    )}
-                  >
-                    <td className="px-4 py-4">
-                      <input
-                        type="checkbox"
-                        checked={isSelected}
-                        onChange={() => handleSelectOne(c.id)}
-                        className="rounded border-border text-primary focus:ring-primary size-4 cursor-pointer"
-                      />
-                    </td>
-                    <td className="px-4 py-4 text-sm font-semibold">{c.title}</td>
-                    <td className="px-4 py-4 text-sm">{clientName}</td>
-                    <td className="px-4 py-4 text-xs font-mono">{eventDate}</td>
-                    <td className="px-4 py-4">
-                      <span
-                        className={cn(
-                          "px-2 py-1 text-[10px] rounded-full font-bold uppercase",
-                          statusStyles[c.status],
-                        )}
-                      >
-                        {c.status}
-                      </span>
-                    </td>
-                    <td className="px-4 py-4 text-right whitespace-nowrap">
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={() => setPreviewing(c)}
-                          className="inline-flex items-center gap-1 text-xs font-bold text-muted-foreground hover:text-foreground p-1 rounded hover:bg-muted"
-                          title="Visualizar"
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[980px] text-left">
+              <thead>
+                <tr className="border-b border-border bg-muted/40 text-xs font-semibold text-muted-foreground">
+                  <th className="w-12 px-4 py-3">
+                    <input
+                      type="checkbox"
+                      checked={isAllSelected}
+                      onChange={(event) => handleSelectAll(event.target.checked)}
+                      aria-label="Selecionar todos os contratos"
+                      className="size-4 cursor-pointer rounded border-border accent-primary"
+                    />
+                  </th>
+                  <th className="px-4 py-3">Contrato</th>
+                  <th className="px-4 py-3">Cliente</th>
+                  <th className="px-4 py-3">Data do evento</th>
+                  <th className="px-4 py-3">Valor</th>
+                  <th className="px-4 py-3">Estado</th>
+                  <th className="px-4 py-3 text-right">Ações</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {filteredContracts.map((c: any) => {
+                  const clientName = c.events?.clients?.name ?? c.clients?.name ?? "—";
+                  const eventDate = c.events?.event_date ? formatDateFullBR(c.events.event_date) : "—";
+                  const isSelected = selectedIds.includes(c.id);
+                  return (
+                    <tr
+                      key={c.id}
+                      className={cn(
+                        "transition-colors hover:bg-muted/30",
+                        isSelected && "bg-primary/5 hover:bg-primary/10",
+                      )}
+                    >
+                      <td className="px-4 py-4">
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => handleSelectOne(c.id)}
+                          aria-label={`Selecionar contrato ${c.title}`}
+                          className="size-4 cursor-pointer rounded border-border accent-primary"
+                        />
+                      </td>
+                      <td className="max-w-[260px] px-4 py-4">
+                        <p className="truncate text-sm font-semibold text-foreground">{c.title}</p>
+                        <p className="mt-1 font-mono text-[11px] text-muted-foreground">
+                          #{String(c.id).slice(0, 8).toUpperCase()}
+                        </p>
+                      </td>
+                      <td className="px-4 py-4 text-sm">{clientName}</td>
+                      <td className="px-4 py-4 text-sm text-muted-foreground">{eventDate}</td>
+                      <td className="px-4 py-4 text-sm font-medium">
+                        {c.events?.total_value != null ? brl(Number(c.events.total_value)) : "—"}
+                      </td>
+                      <td className="px-4 py-4">
+                        <span
+                          className={cn(
+                            "inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold",
+                            statusStyles[c.status] ?? "bg-muted text-muted-foreground",
+                          )}
                         >
-                          <Eye className="size-3.5" /> Visualizar
-                        </button>
-                        <button
-                          onClick={() => setEditing(c)}
-                          className="inline-flex items-center gap-1 text-xs font-bold text-primary hover:underline p-1 rounded hover:bg-primary/10"
-                          title="Editar"
-                        >
-                          <Pencil className="size-3.5" /> Editar
-                        </button>
-                        <button
-                          onClick={() => void sendContractByWhatsApp(c)}
-                          disabled={c.status === "cancelado"}
-                          className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 hover:bg-emerald-500/10 p-1 rounded disabled:opacity-50"
-                          title={
-                            c.status === "assinado"
-                              ? "Compartilhar contrato assinado pelo WhatsApp"
-                              : "Enviar link de assinatura pelo WhatsApp"
-                          }
-                        >
-                          <Send className="size-3.5" /> Enviar WhatsApp
-                        </button>
-                        <button
-                          onClick={() => {
-                            if (confirm(`Deseja realmente excluir o contrato "${c.title}"?`)) {
-                              del.mutate([c.id]);
+                          {statusLabels[c.status] ?? c.status}
+                        </span>
+                      </td>
+                      <td className="px-4 py-4">
+                        <div className="flex items-center justify-end gap-1">
+                          <button
+                            onClick={() => setPreviewing(c)}
+                            className="inline-flex size-9 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-muted hover:text-foreground"
+                            title="Visualizar contrato"
+                            aria-label="Visualizar contrato"
+                          >
+                            <Eye className="size-4" />
+                          </button>
+                          <button
+                            onClick={() => setPreviewing(c)}
+                            className="inline-flex size-9 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-primary/10 hover:text-primary"
+                            title="Visualizar e gerar PDF"
+                            aria-label="Visualizar e gerar PDF"
+                          >
+                            <Download className="size-4" />
+                          </button>
+                          <button
+                            onClick={() => setEditing(c)}
+                            className="inline-flex size-9 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-primary/10 hover:text-primary"
+                            title="Editar contrato"
+                            aria-label="Editar contrato"
+                          >
+                            <Pencil className="size-4" />
+                          </button>
+                          <button
+                            onClick={() => void sendContractByWhatsApp(c)}
+                            disabled={c.status === "cancelado"}
+                            className="inline-flex size-9 items-center justify-center rounded-lg text-emerald-700 transition hover:bg-emerald-500/10 disabled:cursor-not-allowed disabled:opacity-40"
+                            title={
+                              c.status === "assinado"
+                                ? "Compartilhar contrato assinado pelo WhatsApp"
+                                : "Enviar link de assinatura pelo WhatsApp"
                             }
-                          }}
-                          className="inline-flex items-center gap-1 text-xs font-bold text-destructive hover:bg-destructive/10 p-1.5 rounded-lg transition-colors"
-                          title="Excluir contrato"
-                        >
-                          <Trash2 className="size-3.5" /> Excluir
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                            aria-label="Enviar contrato pelo WhatsApp"
+                          >
+                            <Send className="size-4" />
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (confirm(`Deseja realmente excluir o contrato "${c.title}"?`)) {
+                                del.mutate([c.id]);
+                              }
+                            }}
+                            className="inline-flex size-9 items-center justify-center rounded-lg text-destructive transition hover:bg-destructive/10"
+                            title="Excluir contrato"
+                            aria-label="Excluir contrato"
+                          >
+                            <Trash2 className="size-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
-      </div>
+      </section>
 
       {open && <NewContractDialog onClose={() => setOpen(false)} />}
       {editing && (
