@@ -155,6 +155,9 @@ export function PublicQuoteNotifications() {
     };
   }, [tenantId, alertPhone, qc]);
 
+  // Ao abrir, congela a lista não lida para exibir; ao fechar, ela some
+  const [shown, setShown] = useState<PublicQuote[]>([]);
+
   function markAllRead() {
     if (!userId) return;
     const now = new Date().toISOString();
@@ -168,7 +171,10 @@ export function PublicQuoteNotifications() {
       <button
         onClick={() =>
           setOpen((v) => {
-            if (!v) markAllRead();
+            if (!v) {
+              setShown(unread);
+              markAllRead();
+            } else setShown([]);
             return !v;
           })
         }
@@ -186,7 +192,7 @@ export function PublicQuoteNotifications() {
 
       {open && (
         <>
-          <div className="fixed inset-0 z-20" onClick={() => setOpen(false)} />
+          <div className="fixed inset-0 z-20" onClick={() => { setOpen(false); setShown([]); }} />
           <div className="absolute right-0 mt-2 w-[min(92vw,26rem)] max-h-[70vh] overflow-y-auto z-30 bg-card border border-border rounded-2xl shadow-xl">
             <div className="p-4 border-b border-border flex items-start justify-between gap-2">
               <div>
@@ -209,12 +215,12 @@ export function PublicQuoteNotifications() {
             </div>
 
             <ul className="divide-y divide-border">
-              {list.length === 0 && (
+              {shown.length === 0 && (
                 <li className="p-8 text-center text-xs text-muted-foreground">
-                  Nenhum orçamento recebido pelo link público ainda.
+                  Nenhuma notificação nova.
                 </li>
               )}
-              {list.map((q) => {
+              {shown.map((q) => {
                 const isNew = !seenAt || new Date(q.created_at) > new Date(seenAt);
                 return (
                   <li key={q.id} className={cn("p-4 space-y-2", isNew && "bg-primary/5")}>
@@ -256,10 +262,10 @@ export function PublicQuoteNotifications() {
               })}
             </ul>
 
-            {unread.length > 0 && (
+            {shown.length > 0 && (
               <div className="p-3 border-t border-border">
-                <Button size="sm" variant="outline" className="w-full" onClick={markAllRead}>
-                  Marcar todos como lidos
+                <Button size="sm" variant="outline" className="w-full" onClick={() => setShown([])}>
+                  Limpar notificações
                 </Button>
               </div>
             )}
