@@ -117,7 +117,16 @@ export const getBuffetAlerts = createServerFn({ method: "GET" })
       });
     }
 
-
+    for (const q of (quotes ?? []) as any[]) {
+      const obs = String(q.notes ?? "").trim();
+      if (!obs) continue;
+      const nome = q.clients?.name ?? "Cliente";
+      alerts.push({
+        id: `orcamento:${q.id}:${obs.length}`,
+        kind: "observacao",
+        message: `📋 Orçamento de ${nome}: existe uma observação: ${obs}`,
+      });
+    }
 
     return { alerts: alerts.slice(0, 20) };
   });
