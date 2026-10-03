@@ -23,7 +23,7 @@ export const getBuffetAlerts = createServerFn({ method: "GET" })
     const tid = (tenant as any).id as string;
     const alerts: BuffetAlert[] = [];
 
-    const [{ data: stock }, { data: events }, { data: installments }] = await Promise.all([
+    const [{ data: stock }, { data: events }, { data: installments }, { data: quotes }] = await Promise.all([
       supabase
         .from("stock_products")
         .select("id, name, unit, physical_qty, reserved_qty, min_qty, active")
@@ -42,6 +42,14 @@ export const getBuffetAlerts = createServerFn({ method: "GET" })
         .neq("status", "pago")
         .order("due_date", { ascending: true })
         .limit(100),
+      supabase
+        .from("quotes")
+        .select("id, notes, status, event_date, created_at, clients(name)")
+        .or(`tenant_id.eq.${tid},owner_id.eq.${userId}`)
+        .not("notes", "is", null)
+        .neq("status", "cancelado")
+        .order("created_at", { ascending: false })
+        .limit(50),
     ]);
 
 
@@ -109,7 +117,16 @@ export const getBuffetAlerts = createServerFn({ method: "GET" })
       });
     }
 
-
+    for (const q of (quotes ?? []) as any[]) {
+      const obs = String(q.notes ?? "").trim();
+      if (!obs) continue;
+      const nome = q.clients?.name ?? "Cliente";
+      alerts.push({
+        id: `orcamento:${q.id}:${obs.length}`,
+        kind: "observacao",
+        message: `📋 Orçamento de ${nome}: existe uma observação: ${obs}`,
+      });
+    }
 
     return { alerts: alerts.slice(0, 20) };
   });
