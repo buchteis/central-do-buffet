@@ -1,7 +1,17 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
-import { Plus, FileText, Printer, Eye, Pencil, Trash2, CheckSquare, Square } from "lucide-react";
+import {
+  Plus,
+  FileText,
+  Printer,
+  Eye,
+  Pencil,
+  Trash2,
+  CheckSquare,
+  Square,
+  Send,
+} from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { brl, formatDateFullBR } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -70,7 +80,7 @@ function ContractsPage() {
       const { data } = await supabase
         .from("contracts")
         .select(
-          "*, events(event_date, event_address, guest_count, total_value, clients(name, address)), clients(name, address)",
+          "*, events(event_date, event_address, guest_count, total_value, clients(name, address, phone, whatsapp)), clients(name, address, phone, whatsapp)",
         )
         .order("created_at", { ascending: false });
       return data ?? [];
@@ -125,6 +135,67 @@ function ContractsPage() {
     },
     onError: (e: any) => toast.error(e.message),
   });
+
+  const sendContractByWhatsApp = async (contract: {
+    id: string;
+    signing_token?: string | null;
+    status: string;
+    events?: {
+      clients?: { name?: string | null; phone?: string | null; whatsapp?: string | null } | null;
+    } | null;
+    clients?: { name?: string | null; phone?: string | null; whatsapp?: string | null } | null;
+  }) => {
+    const client = contract.events?.clients ?? contract.clients;
+    const rawPhone = String(client?.whatsapp ?? "").trim() || String(client?.phone ?? "").trim();
+    const digits = rawPhone.replace(/\D/g, "");
+    const isInternational = rawPhone.startsWith("+");
+    const phone = isInternational
+      ? digits
+      : digits.length === 10 || digits.length === 11
+        ? `55${digits}`
+        : digits.startsWith("55") && (digits.length === 12 || digits.length === 13)
+          ? digits
+          : "";
+    const validPhone = isInternational
+      ? phone.length >= 11 && phone.length <= 15
+      : phone.length === 12 || phone.length === 13;
+
+    if (!validPhone) {
+      toast.error("Cadastre um WhatsApp válido para este cliente.");
+      return;
+    }
+    if (!contract.signing_token) {
+      toast.error("O link de assinatura ainda não está disponível. Verifique a migração do banco.");
+      return;
+    }
+    if (contract.status === "cancelado") {
+      toast.error("Este contrato foi cancelado e não pode ser compartilhado.");
+      return;
+    }
+
+    const link = `${window.location.origin}/contrato-assinatura/${encodeURIComponent(contract.signing_token)}`;
+    const message =
+      contract.status === "assinado"
+        ? `Olá ${client?.name ?? ""}! Segue o link para consultar o seu contrato assinado: ${link}.`
+        : `Olá ${client?.name ?? ""}! Segue o link para assinatura do seu contrato do evento: ${link}. Qualquer dúvida, estou à disposição!`;
+    window.open(
+      `https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(message)}`,
+      "_blank",
+      "noopener,noreferrer",
+    );
+
+    if (contract.status === "rascunho") {
+      const { error } = await supabase
+        .from("contracts")
+        .update({ status: "enviado" })
+        .eq("id", contract.id);
+      if (error) {
+        toast.error("O WhatsApp foi aberto, mas não foi possível atualizar o status do contrato.");
+        return;
+      }
+      await qc.invalidateQueries({ queryKey: ["contracts"] });
+    }
+  };
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
@@ -276,6 +347,18 @@ function ContractsPage() {
                           title="Editar"
                         >
                           <Pencil className="size-3.5" /> Editar
+                        </button>
+                        <button
+                          onClick={() => void sendContractByWhatsApp(c)}
+                          disabled={c.status === "cancelado"}
+                          className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 hover:bg-emerald-500/10 p-1 rounded disabled:opacity-50"
+                          title={
+                            c.status === "assinado"
+                              ? "Compartilhar contrato assinado pelo WhatsApp"
+                              : "Enviar link de assinatura pelo WhatsApp"
+                          }
+                        >
+                          <Send className="size-3.5" /> Enviar WhatsApp
                         </button>
                         <button
                           onClick={() => {
