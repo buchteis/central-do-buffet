@@ -164,36 +164,65 @@ function ContractsPage() {
       toast.error("Cadastre um WhatsApp válido para este cliente.");
       return;
     }
-    if (!contract.signing_token) {
-      toast.error("O link de assinatura ainda não está disponível. Verifique a migração do banco.");
-      return;
-    }
     if (contract.status === "cancelado") {
       toast.error("Este contrato foi cancelado e não pode ser compartilhado.");
       return;
     }
 
-    const link = `${window.location.origin}/contrato-assinatura/${encodeURIComponent(contract.signing_token)}`;
-    const message =
-      contract.status === "assinado"
-        ? `Olá ${client?.name ?? ""}! Segue o link para consultar o seu contrato assinado: ${link}.`
-        : `Olá ${client?.name ?? ""}! Segue o link para assinatura do seu contrato do evento: ${link}. Qualquer dúvida, estou à disposição!`;
-    window.open(
-      `https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(message)}`,
-      "_blank",
-      "noopener,noreferrer",
-    );
+    const whatsappWindow = window.open("about:blank", "_blank");
+    if (!whatsappWindow) {
+      toast.error("Permita pop-ups para abrir o WhatsApp e compartilhar o contrato.");
+      return;
+    }
+    whatsappWindow.opener = null;
 
-    if (contract.status === "rascunho") {
-      const { error } = await supabase
-        .from("contracts")
-        .update({ status: "enviado" })
-        .eq("id", contract.id);
-      if (error) {
-        toast.error("O WhatsApp foi aberto, mas não foi possível atualizar o status do contrato.");
-        return;
+    try {
+      let signingToken =
+        typeof contract.signing_token === "string" && contract.signing_token.trim().length >= 32
+          ? contract.signing_token.trim()
+          : null;
+
+      if (!signingToken) {
+        const generatedToken = crypto.randomUUID().replaceAll("-", "");
+        const { data, error } = await supabase
+          .from("contracts")
+          .update({ signing_token: generatedToken })
+          .eq("id", contract.id)
+          .select("signing_token")
+          .single();
+
+        if (error) throw error;
+        signingToken = data.signing_token;
+        if (!signingToken) throw new Error("O Supabase não retornou o token salvo.");
       }
-      await qc.invalidateQueries({ queryKey: ["contracts"] });
+
+      const link = `${window.location.origin}/contrato-assinatura/${encodeURIComponent(signingToken)}`;
+      const message =
+        contract.status === "assinado"
+          ? `Olá ${client?.name ?? ""}! Segue o link para consultar o seu contrato assinado: ${link}.`
+          : `Olá ${client?.name ?? ""}! Segue o link para assinatura do seu contrato do evento: ${link}. Qualquer dúvida, estou à disposição!`;
+      whatsappWindow.location.href = `https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(message)}`;
+
+      if (contract.status === "rascunho") {
+        const { error } = await supabase
+          .from("contracts")
+          .update({ status: "enviado" })
+          .eq("id", contract.id);
+        if (error) {
+          toast.error(
+            "O WhatsApp foi aberto, mas não foi possível atualizar o status do contrato.",
+          );
+          return;
+        }
+        await qc.invalidateQueries({ queryKey: ["contracts"] });
+      }
+    } catch (error) {
+      whatsappWindow.close();
+      toast.error(
+        error instanceof Error
+          ? `Não foi possível gerar o link de assinatura: ${error.message}`
+          : "Não foi possível gerar o link de assinatura.",
+      );
     }
   };
 
