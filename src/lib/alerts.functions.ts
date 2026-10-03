@@ -23,7 +23,7 @@ export const getBuffetAlerts = createServerFn({ method: "GET" })
     const tid = (tenant as any).id as string;
     const alerts: BuffetAlert[] = [];
 
-    const [{ data: stock }, { data: events }, { data: installments }] = await Promise.all([
+    const [{ data: stock }, { data: events }, { data: installments }, { data: quotes }] = await Promise.all([
       supabase
         .from("stock_products")
         .select("id, name, unit, physical_qty, reserved_qty, min_qty, active")
