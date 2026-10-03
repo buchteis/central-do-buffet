@@ -205,21 +205,38 @@ function ContractsPage() {
       win.location.href = whatsappUrl;
     } catch (error) {
       win.close();
-      const details = error instanceof Error ? error.message : "";
-      const errorCode =
-        error && typeof error === "object" && "code" in error ? String(error.code) : "";
+      const errorObject =
+        error && typeof error === "object" ? (error as Record<string, unknown>) : null;
+      const details =
+        error instanceof Error
+          ? error.message
+          : typeof errorObject?.message === "string"
+            ? errorObject.message
+            : "";
+      const errorCode = typeof errorObject?.code === "string" ? errorObject.code : "";
+      const errorDetails =
+        typeof errorObject?.details === "string" ? errorObject.details : "";
+      const errorHint = typeof errorObject?.hint === "string" ? errorObject.hint : "";
       const missingTokenColumn =
         errorCode === "PGRST204" ||
         errorCode === "42703" ||
         (details.includes("signing_token") &&
           (details.toLowerCase().includes("column") ||
             details.toLowerCase().includes("schema cache")));
+      console.error("Falha ao gerar link de assinatura:", {
+        code: errorCode || null,
+        message: details || null,
+        details: errorDetails || null,
+        hint: errorHint || null,
+      });
+      const diagnostic = [errorCode, details, errorDetails, errorHint]
+        .filter(Boolean)
+        .join(" — ");
       toast.error(
         missingTokenColumn
-          ? "A coluna signing_token não está disponível no Supabase. Aplique a migração de assinatura e atualize o esquema do projeto."
-          : details
-            ? `Não foi possível gerar o link de assinatura: ${details}`
-            : "Não foi possível gerar o link de assinatura.",
+          ? "O Supabase API não reconhece signing_token. Confirme se o app está ligado ao mesmo projeto mostrado no SQL Editor; depois recarregue o esquema da API."
+          : "Não foi possível gerar o link de assinatura.",
+        diagnostic ? { description: diagnostic, duration: 15000 } : undefined,
       );
       return;
     }
