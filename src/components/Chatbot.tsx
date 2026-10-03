@@ -96,16 +96,76 @@ export const Chatbot = () => {
     queryKey: ["buffet-alerts", access?.tenant?.id ?? null],
     queryFn: async () => (await fetchAlerts({})) as { alerts: BuffetAlert[] },
     enabled: !!access?.tenant?.id,
-    staleTime: 5 * 60_000,
-    refetchInterval: 10 * 60_000,
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+    refetchOnWindowFocus: true,
   });
+
+  // Posição arrastável do botão
+  const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
+  const dragRef = useRef<{ dx: number; dy: number; moved: boolean } | null>(null);
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem("chatbot-pos") || "null");
+      setPos(saved ?? { x: window.innerWidth - 80, y: window.innerHeight - 80 });
+    } catch {
+      setPos({ x: window.innerWidth - 80, y: window.innerHeight - 80 });
+    }
+  }, []);
+  const clamp = (x: number, y: number) => ({
+    x: Math.max(4, Math.min(window.innerWidth - 64, x)),
+    y: Math.max(4, Math.min(window.innerHeight - 64, y)),
+  });
+  const onPointerDown = (e: React.PointerEvent<HTMLButtonElement>) => {
+    if (!pos) return;
+    (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
+    dragRef.current = { dx: e.clientX - pos.x, dy: e.clientY - pos.y, moved: false };
+  };
+  const onPointerMove = (e: React.PointerEvent<HTMLButtonElement>) => {
+    const d = dragRef.current;
+    if (!d) return;
+    const n = clamp(e.clientX - d.dx, e.clientY - d.dy);
+    if (pos && (Math.abs(n.x - pos.x) > 3 || Math.abs(n.y - pos.y) > 3)) d.moved = true;
+    if (d.moved) setPos(n);
+  };
+  const onPointerUp = () => {
+    const d = dragRef.current;
+    dragRef.current = null;
+    if (d?.moved) {
+      if (pos) localStorage.setItem("chatbot-pos", JSON.stringify(pos));
+    } else setIsOpen((o) => !o);
+  };
+
+  // Vibra quando surgem alertas novos (observação, estoque crítico, débito vencido)
+  const [shake, setShake] = useState(false);
+  const seenRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    const list = alertData?.alerts ?? [];
+    const urgent = list.filter(
+      (a) =>
+        !acked.includes(a.id) &&
+        !seenRef.current.has(a.id) &&
+        (a.kind === "observacao" ||
+          a.message.includes("crítico") ||
+          a.message.includes("VENCIDA") ||
+          a.message.includes("HOJE")),
+    );
+    list.forEach((a) => seenRef.current.add(a.id));
+    if (!urgent.length) return;
+    try { navigator.vibrate?.([200, 100, 200]); } catch {}
+    setShake(true);
+    const t = setTimeout(() => setShake(false), 1200);
+    return () => clearTimeout(t);
+  }, [alertData]);
 
   const pending: BuffetAlert[] = (alertData?.alerts ?? []).filter((a) => !acked.includes(a.id));
 
   // Injeta os alertas pendentes na conversa (uma vez cada)
   useEffect(() => {
-    if (!pending.length) return;
+    if (!alertData) return;
     setMessages((prev) => {
+      const current = new Set((alertData?.alerts ?? []).map((a) => a.id));
+      prev = prev.filter((m) => !m.alertId || current.has(m.alertId));
       const existing = new Set(prev.map((m) => m.alertId).filter(Boolean) as string[]);
       const novos = pending
         .filter((a) => !existing.has(a.id))
@@ -424,12 +484,16 @@ export const Chatbot = () => {
   return (
     <>
       <button
-        onClick={() => setIsOpen(!isOpen)}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
         aria-label="Abrir assistente"
+        className={shake ? "chatbot-shake" : undefined}
         style={{
           position: "fixed",
-          bottom: 20,
-          right: 20,
+          left: pos?.x ?? -999,
+          top: pos?.y ?? -999,
+          touchAction: "none",
           zIndex: 9999,
           background: "#FF7A00",
           border: "none",
@@ -472,8 +536,8 @@ export const Chatbot = () => {
         <div
           style={{
             position: "fixed",
-            bottom: 100,
-            right: 20,
+            ...(pos && pos.y > 560 ? { bottom: Math.max(8, window.innerHeight - pos.y + 10) } : { top: (pos?.y ?? 0) + 70 }),
+            ...(pos && pos.x > 400 ? { right: Math.max(8, window.innerWidth - pos.x - 60) } : { left: Math.max(8, pos?.x ?? 8) }),
             zIndex: 9999,
             width: 380,
             maxWidth: "90vw",

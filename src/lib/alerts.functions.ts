@@ -3,7 +3,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 export type BuffetAlert = {
   id: string;
-  kind: "estoque" | "evento" | "parcela";
+  kind: "estoque" | "evento" | "parcela" | "observacao";
   message: string;
 };
 
@@ -30,7 +30,7 @@ export const getBuffetAlerts = createServerFn({ method: "GET" })
         .or(`tenant_id.eq.${tid},owner_id.eq.${userId}`),
       supabase
         .from("events")
-        .select("id, event_date, event_time, status, guest_count, clients(name)")
+        .select("id, event_date, event_time, status, guest_count, notes, clients(name)")
         .or(`tenant_id.eq.${tid},owner_id.eq.${userId}`)
         .neq("status", "cancelado")
         .order("event_date", { ascending: true })
@@ -75,6 +75,13 @@ export const getBuffetAlerts = createServerFn({ method: "GET" })
         kind: "evento",
         message: `📅 Evento chegando: ${e.clients?.name ?? "Cliente"} — ${d.toLocaleDateString("pt-BR")}${e.event_time ? ` às ${String(e.event_time).slice(0, 5)}` : ""} (${quando}), ${e.guest_count ?? "?"} convidados. Status: ${e.status}.`,
       });
+      if (e.notes && String(e.notes).trim()) {
+        alerts.push({
+          id: `observacao:${e.id}:${String(e.notes).length}`,
+          kind: "observacao",
+          message: `⚠️ Observação/restrição no evento de ${e.clients?.name ?? "Cliente"} (${d.toLocaleDateString("pt-BR")}): ${String(e.notes).trim()}`,
+        });
+      }
     }
 
     const brl = (n: number) =>
