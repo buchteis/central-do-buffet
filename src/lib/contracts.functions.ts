@@ -76,5 +76,14 @@ export const submitPublicContractSignature = createServerFn({ method: "POST" })
     });
 
     if (error) throw new Error(error.message || "Não foi possível concluir a assinatura.");
-    return { ok: true, signedAt: result?.data_hora_assinatura ?? signedAt };
+    if (
+      !result ||
+      typeof result !== "object" ||
+      Array.isArray(result) ||
+      result.ok !== true ||
+      typeof result.data_hora_assinatura !== "string"
+    ) {
+      throw new Error("A resposta da assinatura não contém uma confirmação válida.");
+    }
+    return { ok: true, signedAt: result.data_hora_assinatura };
   });
