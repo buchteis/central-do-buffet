@@ -42,6 +42,14 @@ export const getBuffetAlerts = createServerFn({ method: "GET" })
         .neq("status", "pago")
         .order("due_date", { ascending: true })
         .limit(100),
+      supabase
+        .from("quotes")
+        .select("id, notes, status, event_date, created_at, clients(name)")
+        .or(`tenant_id.eq.${tid},owner_id.eq.${userId}`)
+        .not("notes", "is", null)
+        .neq("status", "cancelado")
+        .order("created_at", { ascending: false })
+        .limit(50),
     ]);
 
 
