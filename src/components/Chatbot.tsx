@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useTheme } from "@/components/theme-provider";
 import { useTenantAccess } from "@/hooks/useTenantAccess";
 import { chatWithAssistant } from "@/lib/chatbot.functions";
 import { getBuffetAlerts, type BuffetAlert } from "@/lib/alerts.functions";
@@ -78,6 +79,8 @@ export const Chatbot = () => {
   const fileRef = useRef<HTMLInputElement>(null);
 
   const { data: access } = useTenantAccess();
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
   const chat = useServerFn(chatWithAssistant);
   const fetchAlerts = useServerFn(getBuffetAlerts);
   const parseNf = useServerFn(parseInvoiceFile);
@@ -543,10 +546,10 @@ export const Chatbot = () => {
             maxWidth: "90vw",
             height: 520,
             maxHeight: "75vh",
-            background: "white",
+            background: isDark ? "#0f172a" : "white",
             borderRadius: 16,
             boxShadow: "0 8px 32px rgba(0,0,0,0.25)",
-            border: "1px solid #e5e7eb",
+            border: isDark ? "1px solid #334155" : "1px solid #e5e7eb",
             display: "flex",
             flexDirection: "column",
             overflow: "hidden",
@@ -555,14 +558,14 @@ export const Chatbot = () => {
           <div
             style={{
               padding: "16px 20px",
-              background: "#f3f4f6",
-              borderBottom: "1px solid #e5e7eb",
+              background: isDark ? "#111827" : "#f3f4f6",
+              borderBottom: isDark ? "1px solid #334155" : "1px solid #e5e7eb",
               display: "flex",
               justifyContent: "space-between",
               alignItems: "center",
             }}
           >
-            <span style={{ fontWeight: "bold", fontSize: 16, display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ fontWeight: "bold", fontSize: 16, display: "flex", alignItems: "center", gap: 8, color: isDark ? "#e2e8f0" : "#111827" }}>
               <div style={{
                 width: 28,
                 height: 28,
@@ -605,7 +608,7 @@ export const Chatbot = () => {
 
           <div
             ref={scrollRef}
-            style={{ flex: 1, padding: "16px 20px", overflowY: "auto", background: "#f9fafb" }}
+            style={{ flex: 1, padding: "16px 20px", overflowY: "auto", background: isDark ? "#0b1220" : "#f9fafb" }}
           >
             {messages.map((msg, i) => (
               <div
@@ -619,10 +622,10 @@ export const Chatbot = () => {
                     borderRadius: 12,
                     maxWidth: "85%",
                     whiteSpace: "pre-wrap",
-                    background: msg.role === "user" ? "#22c55e" : "white",
-                    color: msg.role === "user" ? "white" : "#1f2937",
+                    background: msg.role === "user" ? "#22c55e" : isDark ? "#1e293b" : "white",
+                    color: msg.role === "user" ? "white" : isDark ? "#e2e8f0" : "#1f2937",
                     boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
-                    border: msg.role === "assistant" ? "1px solid #e5e7eb" : "none",
+                    border: msg.role === "assistant" ? isDark ? "1px solid #334155" : "1px solid #e5e7eb" : "none",
                     textAlign: "left",
                   }}
                 >
@@ -821,9 +824,9 @@ export const Chatbot = () => {
                     display: "inline-block",
                     padding: "10px 16px",
                     borderRadius: 12,
-                    background: "white",
-                    color: "#6b7280",
-                    border: "1px solid #e5e7eb",
+                    background: isDark ? "#1e293b" : "white",
+                    color: isDark ? "#cbd5e1" : "#6b7280",
+                    border: isDark ? "1px solid #334155" : "1px solid #e5e7eb",
                   }}
                 >
                   Digitando…
@@ -835,8 +838,8 @@ export const Chatbot = () => {
           <div
             style={{
               padding: "12px 16px",
-              borderTop: "1px solid #e5e7eb",
-              background: "white",
+              borderTop: isDark ? "1px solid #334155" : "1px solid #e5e7eb",
+              background: isDark ? "#111827" : "white",
               display: "flex",
               gap: 8,
             }}
@@ -858,12 +861,13 @@ export const Chatbot = () => {
               aria-label="Enviar nota fiscal"
               style={{
                 padding: "10px 12px",
-                background: "#f3f4f6",
-                border: "1px solid #d1d5db",
+                background: isDark ? "#1e293b" : "#f3f4f6",
+                border: isDark ? "1px solid #334155" : "1px solid #d1d5db",
                 borderRadius: 8,
                 cursor: "pointer",
                 display: "flex",
                 alignItems: "center",
+                color: isDark ? "#e2e8f0" : "#111827",
               }}
             >
               <Paperclip className="size-4" />
@@ -877,8 +881,10 @@ export const Chatbot = () => {
                 flex: 1,
                 padding: "10px 14px",
                 borderRadius: 8,
-                border: "1px solid #d1d5db",
+                border: isDark ? "1px solid #334155" : "1px solid #d1d5db",
                 outline: "none",
+                background: isDark ? "#0f172a" : "white",
+                color: isDark ? "#e2e8f0" : "#111827",
                 fontSize: 14,
               }}
               disabled={isLoading}

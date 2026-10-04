@@ -38,6 +38,12 @@ type PriceTier = {
   price_fixed: number;
 };
 
+type CustomExtra = {
+  id: string;
+  description: string;
+  value: number;
+};
+
 function NewQuotePage() {
   const { leadId, quoteId } = Route.useSearch();
 
@@ -59,6 +65,7 @@ function QuoteEditor({ leadId, quoteId }: { leadId?: string; quoteId?: string })
   const [adults, setAdults] = useState<number>(70);
   const [childrenCount, setChildrenCount] = useState<number>(0);
   const [childrenPrice, setChildrenPrice] = useState<number>(0);
+  const [customExtras, setCustomExtras] = useState<CustomExtra[]>([]);
 
   const [selectedPackageIds, setSelectedPackageIds] = useState<string[]>([]);
 
@@ -111,6 +118,15 @@ function QuoteEditor({ leadId, quoteId }: { leadId?: string; quoteId?: string })
     setAdults(Number(quote.adults ?? 0) || 0);
     setChildrenCount(Number(quote.children_7_10 ?? 0) + Number(quote.children_0_6 ?? 0));
     setChildrenPrice(Number(extras?.child_price ?? 0) || 0);
+    setCustomExtras(
+      Array.isArray(extras?.custom)
+        ? extras.custom.map((item: any, index: number) => ({
+            id: String(item?.id ?? `custom-${index}`),
+            description: String(item?.description ?? ""),
+            value: Number(item?.value ?? 0) || 0,
+          }))
+        : [],
+    );
 
     const fromSnapshot: string[] = Array.isArray(extras?.packages)
       ? extras.packages.map((p: any) => String(p?.package_id ?? "")).filter(Boolean)
@@ -250,8 +266,30 @@ function QuoteEditor({ leadId, quoteId }: { leadId?: string; quoteId?: string })
     }, 0);
   }, [selectedPackagesDetailed, adults]);
 
+  const customExtrasSubtotal = customExtras.reduce((sum, item) => sum + Number(item.value || 0), 0);
   const childrenSubtotal = childrenCount * childrenPrice;
-  const grandTotal = packagesSubtotal + childrenSubtotal;
+  const grandTotal = packagesSubtotal + childrenSubtotal + customExtrasSubtotal;
+
+  function addCustomExtra() {
+    setCustomExtras((old) => [...old, { id: crypto.randomUUID(), description: "", value: 0 }]);
+  }
+
+  function updateCustomExtra(id: string, field: "description" | "value", value: string | number) {
+    setCustomExtras((old) =>
+      old.map((item) =>
+        item.id === id
+          ? {
+              ...item,
+              [field]: field === "value" ? Number(value) || 0 : String(value),
+            }
+          : item,
+      ),
+    );
+  }
+
+  function removeCustomExtra(id: string) {
+    setCustomExtras((old) => old.filter((item) => item.id !== id));
+  }
 
   const saveMutation = useMutation({
     mutationFn: async () => {
@@ -274,6 +312,14 @@ function QuoteEditor({ leadId, quoteId }: { leadId?: string; quoteId?: string })
           price_fixed: p.pricing_type === "fixed" ? p.price_fixed : 0,
         }));
 
+      const normalizedCustomExtras = customExtras
+        .filter((item) => (item.description ?? "").trim().length > 0 || Number(item.value || 0) > 0)
+        .map((item) => ({
+          id: item.id,
+          description: String(item.description ?? "").trim(),
+          value: Number(item.value || 0),
+        }));
+
       const payload: Record<string, any> = {
         owner_id: quote?.owner_id ?? userRes.user.id,
         client_id: clientId || quote?.client_id || null,
@@ -293,6 +339,7 @@ function QuoteEditor({ leadId, quoteId }: { leadId?: string; quoteId?: string })
           package_ids: validPackageIds,
           children_count: childrenCount,
           child_price: childrenPrice,
+          custom: normalizedCustomExtras,
         },
       };
 
@@ -552,6 +599,54 @@ function QuoteEditor({ leadId, quoteId }: { leadId?: string; quoteId?: string })
           </div>
 
           <div className="space-y-4 bg-card border rounded-2xl p-5 shadow-sm">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <Label className="font-bold text-base">Acréscimos adicionais</Label>
+                <p className="text-xs text-muted-foreground">Deslocamento, taxa, aluguel e outros itens livres.</p>
+              </div>
+              <Button type="button" variant="outline" size="sm" onClick={addCustomExtra}>
+                <Plus className="size-4 mr-1" /> Acréscimo
+              </Button>
+            </div>
+
+            {customExtras.length === 0 ? (
+              <p className="text-xs text-muted-foreground italic bg-muted/40 p-3 rounded-lg border text-center">
+                Nenhum acréscimo adicionado. Clique no botão acima para registrar taxas extras.
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {customExtras.map((item) => (
+                  <div key={item.id} className="flex gap-2 items-center bg-muted/20 p-3 rounded-xl border">
+                    <Input
+                      value={item.description}
+                      placeholder="Ex.: Aluguel de churrasqueira"
+                      onChange={(e) => updateCustomExtra(item.id, "description", e.target.value)}
+                    />
+                    <div className="w-28">
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={item.value}
+                        onChange={(e) => updateCustomExtra(item.id, "value", Number(e.target.value) || 0)}
+                      />
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="text-destructive hover:text-destructive"
+                      onClick={() => removeCustomExtra(item.id)}
+                    >
+                      <Trash2 className="size-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-4 bg-card border rounded-2xl p-5 shadow-sm">
             <ChecklistPreDefinido guests={totalGuests} />
 
             <div className="space-y-2 pt-2">
@@ -573,6 +668,7 @@ function QuoteEditor({ leadId, quoteId }: { leadId?: string; quoteId?: string })
               adults={adults}
               childrenCount={childrenCount}
               childrenPrice={childrenPrice}
+              customExtras={customExtras}
             />
 
             <div className="border-t pt-4 space-y-3">
