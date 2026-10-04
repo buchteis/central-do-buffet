@@ -1426,6 +1426,20 @@ function ContractPreview({ contract, logoValue, onClose }: { contract: any; logo
   const escapeHtml = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   const { data: logo = "" } = useLogoDisplayUrl(logoValue);
 
+  const isSigned = contract.status === "assinado";
+  const signedAtBr = contract.signed_at
+    ? new Date(contract.signed_at).toLocaleString("pt-BR", { dateStyle: "long", timeStyle: "short" })
+    : null;
+  const signatureInfo = isSigned
+    ? {
+        nome: contract.signer_name ?? "—",
+        cpf: contract.signer_cpf ?? "—",
+        ip: contract.signer_ip ?? "—",
+        navegador: contract.signer_user_agent ?? "—",
+        dataHora: signedAtBr ?? "—",
+      }
+    : null;
+
   async function printPdf() {
     const freshLogo = await getLogoDisplayUrl(logoValue);
     const w = window.open("", "_blank");
@@ -1452,6 +1466,9 @@ function ContractPreview({ contract, logoValue, onClose }: { contract: any; logo
   .logo img { max-height: 90px; max-width: 60%; object-fit: contain; }
   h1 { font-size: 16pt; text-align: center; text-transform: uppercase; letter-spacing: 0.5px; margin: 0 0 20px; position: relative; z-index: 1; }
   .content { white-space: pre-wrap; text-align: justify; position: relative; z-index: 1; }
+  .signature { margin-top: 32px; border: 1px solid #ccc; border-radius: 6px; padding: 14px 18px; font-size: 10pt; background: #fafafa; position: relative; z-index: 1; }
+  .signature h2 { font-size: 11pt; text-transform: uppercase; letter-spacing: 0.5px; margin: 0 0 10px; }
+  .signature p { margin: 3px 0; word-break: break-word; }
   .footer { margin-top: 28px; font-size: 10pt; color: #666; text-align: center; border-top: 1px solid #ddd; padding-top: 8px; position: relative; z-index: 1; }
   @media print { .no-print { display: none; } }
 </style></head><body>
@@ -1459,6 +1476,14 @@ ${watermarkHtml}
 ${logoHtml}
 <h1>${escapeHtml(contract.title)}</h1>
 <div class="content">${escapeHtml(contract.content)}</div>
+${signatureInfo ? `<div class="signature">
+  <h2>Registro de assinatura eletrônica</h2>
+  <p><strong>Signatário:</strong> ${escapeHtml(signatureInfo.nome)}</p>
+  <p><strong>CPF:</strong> ${escapeHtml(signatureInfo.cpf)}</p>
+  <p><strong>Data e hora:</strong> ${escapeHtml(signatureInfo.dataHora)}</p>
+  <p><strong>Endereço IP:</strong> ${escapeHtml(signatureInfo.ip)}</p>
+  <p><strong>Navegador:</strong> ${escapeHtml(signatureInfo.navegador)}</p>
+</div>` : ""}
 <div class="footer">Documento gerado em ${escapeHtml(formatDateFullBR(new Date()))}</div>
 <script>
   (function(){
@@ -1532,6 +1557,18 @@ ${logoHtml}
               {contract.title}
             </h1>
             <div className="whitespace-pre-wrap text-justify relative z-10">{contract.content}</div>
+            {signatureInfo && (
+              <div className="relative z-10 mt-8 rounded-lg border border-neutral-300 bg-neutral-50 p-4 text-[13px] leading-relaxed">
+                <h2 className="mb-3 text-sm font-bold uppercase tracking-wide">
+                  Registro de assinatura eletrônica
+                </h2>
+                <p><strong>Signatário:</strong> {signatureInfo.nome}</p>
+                <p><strong>CPF:</strong> {signatureInfo.cpf}</p>
+                <p><strong>Data e hora:</strong> {signatureInfo.dataHora}</p>
+                <p><strong>Endereço IP:</strong> {signatureInfo.ip}</p>
+                <p className="break-words"><strong>Navegador:</strong> {signatureInfo.navegador}</p>
+              </div>
+            )}
           </div>
         </div>
       </div>
