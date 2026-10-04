@@ -225,85 +225,6 @@ export type Database = {
           },
         ]
       }
-      contracts: {
-        Row: {
-          client_id: string | null
-          content: string
-          created_at: string
-          event_id: string | null
-          id: string
-          owner_id: string
-          signing_token: string
-          signer_cpf: string | null
-          signer_ip: string | null
-          signer_name: string | null
-          signer_user_agent: string | null
-          signed_at: string | null
-          status: Database["public"]["Enums"]["contract_status"]
-          tenant_id: string | null
-          title: string
-          updated_at: string
-        }
-        Insert: {
-          client_id?: string | null
-          content?: string
-          created_at?: string
-          event_id?: string | null
-          id?: string
-          owner_id: string
-          signing_token?: string
-          signer_cpf?: string | null
-          signer_ip?: string | null
-          signer_name?: string | null
-          signer_user_agent?: string | null
-          signed_at?: string | null
-          status?: Database["public"]["Enums"]["contract_status"]
-          tenant_id?: string | null
-          title?: string
-          updated_at?: string
-        }
-        Update: {
-          client_id?: string | null
-          content?: string
-          created_at?: string
-          event_id?: string | null
-          id?: string
-          owner_id?: string
-          signing_token?: string
-          signer_cpf?: string | null
-          signer_ip?: string | null
-          signer_name?: string | null
-          signer_user_agent?: string | null
-          signed_at?: string | null
-          status?: Database["public"]["Enums"]["contract_status"]
-          tenant_id?: string | null
-          title?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "contracts_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "contracts_event_id_fkey"
-            columns: ["event_id"]
-            isOneToOne: false
-            referencedRelation: "events"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "contracts_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       contract_signatures: {
         Row: {
           contrato_id: string
@@ -341,6 +262,85 @@ export type Database = {
             columns: ["contrato_id"]
             isOneToOne: true
             referencedRelation: "contracts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contracts: {
+        Row: {
+          client_id: string | null
+          content: string
+          created_at: string
+          event_id: string | null
+          id: string
+          owner_id: string
+          signed_at: string | null
+          signer_cpf: string | null
+          signer_ip: string | null
+          signer_name: string | null
+          signer_user_agent: string | null
+          signing_token: string
+          status: Database["public"]["Enums"]["contract_status"]
+          tenant_id: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          client_id?: string | null
+          content?: string
+          created_at?: string
+          event_id?: string | null
+          id?: string
+          owner_id: string
+          signed_at?: string | null
+          signer_cpf?: string | null
+          signer_ip?: string | null
+          signer_name?: string | null
+          signer_user_agent?: string | null
+          signing_token?: string
+          status?: Database["public"]["Enums"]["contract_status"]
+          tenant_id?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string | null
+          content?: string
+          created_at?: string
+          event_id?: string | null
+          id?: string
+          owner_id?: string
+          signed_at?: string | null
+          signer_cpf?: string | null
+          signer_ip?: string | null
+          signer_name?: string | null
+          signer_user_agent?: string | null
+          signing_token?: string
+          status?: Database["public"]["Enums"]["contract_status"]
+          tenant_id?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contracts_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contracts_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contracts_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
         ]
@@ -1903,17 +1903,6 @@ export type Database = {
     Functions: {
       current_tenant_id: { Args: never; Returns: string }
       generate_unique_slug: { Args: { base: string }; Returns: string }
-      sign_contract_by_token: {
-        Args: {
-          p_cpf_signatario: string
-          p_data_hora_assinatura: string
-          p_ip_cliente: string | null
-          p_nome_signatario: string
-          p_token: string
-          p_user_agent: string | null
-        }
-        Returns: Json
-      }
       get_event_invite: {
         Args: { _token: string }
         Returns: {
@@ -1956,6 +1945,17 @@ export type Database = {
         Returns: number
       }
       return_event_stock: { Args: { _event_id: string }; Returns: undefined }
+      sign_contract_by_token: {
+        Args: {
+          p_cpf_signatario: string
+          p_data_hora_assinatura: string
+          p_ip_cliente: string
+          p_nome_signatario: string
+          p_token: string
+          p_user_agent: string
+        }
+        Returns: Json
+      }
       slugify: { Args: { txt: string }; Returns: string }
       submit_event_rsvp: {
         Args: {

@@ -22,6 +22,13 @@
       "when": 1788785636214,
       "tag": "0002_event_host_token",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1791073904261,
+      "tag": "0003_contract_signing_audit",
+      "breakpoints": true
     }
   ]
 }
