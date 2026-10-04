@@ -8,12 +8,12 @@ import {
   Eye,
   Pencil,
   Trash2,
-  Send,
   Search,
   FileCheck2,
   Clock3,
   CircleDollarSign,
   Download,
+  MessageCircle,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { brl, formatDateFullBR } from "@/lib/format";
@@ -613,12 +613,12 @@ function ContractsPage() {
                             className="inline-flex size-9 items-center justify-center rounded-lg text-emerald-700 transition hover:bg-emerald-500/10 disabled:cursor-not-allowed disabled:opacity-40"
                             title={
                               c.status === "assinado"
-                                ? "Compartilhar contrato assinado pelo WhatsApp"
-                                : "Enviar link de assinatura pelo WhatsApp"
+                                ? "Abrir conversa do cliente no WhatsApp para compartilhar o contrato"
+                                : "Abrir conversa do cliente no WhatsApp com o link de assinatura"
                             }
-                            aria-label="Enviar contrato pelo WhatsApp"
+                            aria-label="Abrir WhatsApp do cliente"
                           >
-                            <Send className="size-4" />
+                            <MessageCircle className="size-4" />
                           </button>
                           <button
                             onClick={() => {

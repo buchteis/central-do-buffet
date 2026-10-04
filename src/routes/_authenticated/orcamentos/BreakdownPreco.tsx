@@ -9,11 +9,18 @@ interface PackageItem {
   price_fixed?: number;
 }
 
+interface CustomExtra {
+  id: string;
+  description: string;
+  value: number;
+}
+
 interface BreakdownPrecoProps {
   packages: PackageItem[];
   adults: number;
   childrenCount: number;
   childrenPrice: number;
+  customExtras?: CustomExtra[];
 }
 
 export function BreakdownPreco({
@@ -21,6 +28,7 @@ export function BreakdownPreco({
   adults,
   childrenCount,
   childrenPrice,
+  customExtras = [],
 }: BreakdownPrecoProps) {
   // Subtotal de adultos/pacotes (considera Preço Fechado vs Por Pessoa)
   const totalAdults = packages.reduce((sum, pkg) => {
@@ -31,6 +39,7 @@ export function BreakdownPreco({
   }, 0);
 
   const totalChildren = childrenCount * childrenPrice;
+  const totalCustomExtras = customExtras.reduce((sum, item) => sum + Number(item.value || 0), 0);
 
   return (
     <div className="space-y-2 md:col-span-1">
@@ -80,9 +89,28 @@ export function BreakdownPreco({
         ) : (
           <p className="text-muted-foreground text-xs">Nenhum pacote selecionado</p>
         )}
+
+        {customExtras.filter((item) => item.description.trim() || item.value > 0).length > 0 && (
+          <div className="space-y-1 pt-2 border-t">
+            {customExtras
+              .filter((item) => item.description.trim() || item.value > 0)
+              .map((item) => (
+                <div key={item.id} className="flex justify-between items-center text-xs">
+                  <span className="text-muted-foreground truncate max-w-[130px]">
+                    {item.description || "Acréscimo"}
+                  </span>
+                  <span className="font-mono text-primary">{brl(Number(item.value || 0))}</span>
+                </div>
+              ))}
+            <div className="flex justify-between bg-primary/5 p-2 rounded-lg mt-1 text-xs">
+              <span className="text-muted-foreground font-medium">Acréscimos</span>
+              <span className="font-bold font-mono text-primary">{brl(totalCustomExtras)}</span>
+            </div>
+          </div>
+        )}
       </div>
       <p className="text-[10px] text-muted-foreground">
-        💡 Valor calculado com base nos pacotes selecionados
+        💡 Valor calculado com base nos pacotes, itens e acréscimos selecionados
       </p>
     </div>
   );

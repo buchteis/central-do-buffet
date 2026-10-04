@@ -563,7 +563,7 @@ export const Chatbot = () => {
               alignItems: "center",
             }}
           >
-            <span style={{ fontWeight: "bold", fontSize: 16, display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ fontWeight: "bold", fontSize: 16, display: "flex", alignItems: "center", gap: 8, color: "var(--chat-text)" }}>
               <div style={{
                 width: 28,
                 height: 28,
@@ -865,6 +865,7 @@ export const Chatbot = () => {
                 cursor: "pointer",
                 display: "flex",
                 alignItems: "center",
+                color: "var(--chat-text)",
               }}
             >
               <Paperclip className="size-4" />
