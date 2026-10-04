@@ -209,12 +209,6 @@ function ContractsPage() {
       return;
     }
 
-    const win = window.open("about:blank", "_blank");
-    if (!win) {
-      toast.error("Permita pop-ups para abrir o WhatsApp e compartilhar o contrato.");
-      return;
-    }
-
     let link: string;
     try {
       let signingToken =
@@ -223,28 +217,36 @@ function ContractsPage() {
           : null;
 
       if (!signingToken) {
-        const generatedToken = crypto.randomUUID().replaceAll("-", "");
         const { data, error } = await supabase
           .from("contracts")
-          .update({ signing_token: generatedToken })
-          .eq("id", contract.id)
           .select("signing_token")
+          .eq("id", contract.id)
           .single();
-
         if (error) throw error;
         signingToken = data.signing_token;
-        if (!signingToken) throw new Error("O Supabase não retornou o token salvo.");
+        if (!signingToken) throw new Error("O contrato não possui link de assinatura.");
       }
 
-      link = `${window.location.origin}/contrato-assinatura/${encodeURIComponent(signingToken)}`;
+      // O link do cliente precisa ser o site publicado (o preview exige login).
+      const origin = /id-preview--|lovableproject\.com|localhost/.test(window.location.host)
+        ? "https://centraldobuffet.lovable.app"
+        : window.location.origin;
+      link = `${origin}/contrato-assinatura/${encodeURIComponent(signingToken)}`;
       const message =
         contract.status === "assinado"
           ? `Olá ${client?.name ?? ""}! Segue o link para consultar o seu contrato assinado: ${link}.`
           : `Olá ${client?.name ?? ""}! Segue o link para assinatura do seu contrato do evento: ${link}. Qualquer dúvida, estou à disposição!`;
       const whatsappUrl = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
-      win.location.href = whatsappUrl;
+      // Abrir direto (sem about:blank) e sem opener: o WhatsApp bloqueia janelas ligadas ao app.
+      const win = window.open(whatsappUrl, "_blank", "noopener,noreferrer");
+      if (!win) {
+        const a = document.createElement("a");
+        a.href = whatsappUrl;
+        a.target = "_blank";
+        a.rel = "noopener noreferrer";
+        a.click();
+      }
     } catch (error) {
-      win.close();
       const errorObject =
         error && typeof error === "object" ? (error as Record<string, unknown>) : null;
       const details =
