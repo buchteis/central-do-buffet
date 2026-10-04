@@ -1426,6 +1426,20 @@ function ContractPreview({ contract, logoValue, onClose }: { contract: any; logo
   const escapeHtml = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   const { data: logo = "" } = useLogoDisplayUrl(logoValue);
 
+  const isSigned = contract.status === "assinado";
+  const signedAtBr = contract.signed_at
+    ? new Date(contract.signed_at).toLocaleString("pt-BR", { dateStyle: "long", timeStyle: "short" })
+    : null;
+  const signatureInfo = isSigned
+    ? {
+        nome: contract.signer_name ?? "—",
+        cpf: contract.signer_cpf ?? "—",
+        ip: contract.signer_ip ?? "—",
+        navegador: contract.signer_user_agent ?? "—",
+        dataHora: signedAtBr ?? "—",
+      }
+    : null;
+
   async function printPdf() {
     const freshLogo = await getLogoDisplayUrl(logoValue);
     const w = window.open("", "_blank");
