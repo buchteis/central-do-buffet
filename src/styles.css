@@ -112,6 +112,23 @@
   --sidebar-accent-foreground: oklch(0.25 0.02 280);
   --sidebar-border: oklch(0.35 0.03 300 / 0.12);
   --sidebar-ring: oklch(0.68 0.19 45 / 0.35);
+
+  --chat-surface: var(--card);
+  --chat-header: var(--muted);
+  --chat-history: var(--background);
+  --chat-text: var(--foreground);
+  --chat-muted: var(--muted-foreground);
+  --chat-border: var(--border);
+  --chat-control: var(--muted);
+  --chat-control-border: var(--input);
+  --chat-success-surface: oklch(0.97 0.03 155);
+  --chat-warning-surface: oklch(0.97 0.03 65);
+  --chat-warning-text: oklch(0.42 0.12 45);
+  --chat-selected-surface: oklch(0.97 0.03 65);
+  --chat-selected-border: oklch(0.60 0.16 45);
+  --chat-success-action: #15803d;
+  --chat-success-foreground: white;
+  --chat-accent-action: #c2410c;
 }
 
 .dark {
@@ -145,6 +162,38 @@
   --sidebar-accent-foreground: oklch(0.98 0.005 90);
   --sidebar-border: oklch(1 0 0 / 0.10);
   --sidebar-ring: oklch(0.72 0.19 45 / 0.5);
+
+  --chat-success-surface: oklch(0.27 0.05 155);
+  --chat-warning-surface: oklch(0.28 0.05 65);
+  --chat-warning-text: oklch(0.82 0.11 65);
+  --chat-selected-surface: oklch(0.28 0.05 65);
+  --chat-selected-border: oklch(0.75 0.14 55);
+  --chat-success-action: oklch(0.78 0.18 150);
+  --chat-success-foreground: oklch(0.25 0.08 150);
+  --chat-accent-action: oklch(0.48 0.16 45);
+}
+
+.chatbot-widget {
+  color: var(--chat-text);
+  color-scheme: light;
+}
+
+.dark .chatbot-widget {
+  color-scheme: dark;
+}
+
+.chatbot-widget input,
+.chatbot-widget select {
+  color: var(--chat-text);
+  background-color: var(--chat-surface);
+}
+
+.chatbot-widget button {
+  color: inherit;
+}
+
+.chatbot-widget input::placeholder {
+  color: var(--chat-muted);
 }
 
 @layer base {
