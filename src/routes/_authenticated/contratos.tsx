@@ -1473,6 +1473,14 @@ ${watermarkHtml}
 ${logoHtml}
 <h1>${escapeHtml(contract.title)}</h1>
 <div class="content">${escapeHtml(contract.content)}</div>
+${signatureInfo ? `<div class="signature">
+  <h2>Registro de assinatura eletrônica</h2>
+  <p><strong>Signatário:</strong> ${escapeHtml(signatureInfo.nome)}</p>
+  <p><strong>CPF:</strong> ${escapeHtml(signatureInfo.cpf)}</p>
+  <p><strong>Data e hora:</strong> ${escapeHtml(signatureInfo.dataHora)}</p>
+  <p><strong>Endereço IP:</strong> ${escapeHtml(signatureInfo.ip)}</p>
+  <p><strong>Navegador:</strong> ${escapeHtml(signatureInfo.navegador)}</p>
+</div>` : ""}
 <div class="footer">Documento gerado em ${escapeHtml(formatDateFullBR(new Date()))}</div>
 <script>
   (function(){
