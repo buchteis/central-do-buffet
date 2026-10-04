@@ -225,6 +225,47 @@ export type Database = {
           },
         ]
       }
+      contract_signatures: {
+        Row: {
+          contrato_id: string
+          cpf_signatario: string
+          created_at: string
+          data_hora_assinatura: string
+          id: string
+          ip_cliente: string | null
+          nome_signatario: string
+          user_agent: string | null
+        }
+        Insert: {
+          contrato_id: string
+          cpf_signatario: string
+          created_at?: string
+          data_hora_assinatura: string
+          id?: string
+          ip_cliente?: string | null
+          nome_signatario: string
+          user_agent?: string | null
+        }
+        Update: {
+          contrato_id?: string
+          cpf_signatario?: string
+          created_at?: string
+          data_hora_assinatura?: string
+          id?: string
+          ip_cliente?: string | null
+          nome_signatario?: string
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contract_signatures_contrato_id_fkey"
+            columns: ["contrato_id"]
+            isOneToOne: true
+            referencedRelation: "contracts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contracts: {
         Row: {
           client_id: string | null
@@ -234,6 +275,11 @@ export type Database = {
           id: string
           owner_id: string
           signed_at: string | null
+          signer_cpf: string | null
+          signer_ip: string | null
+          signer_name: string | null
+          signer_user_agent: string | null
+          signing_token: string
           status: Database["public"]["Enums"]["contract_status"]
           tenant_id: string | null
           title: string
@@ -247,6 +293,11 @@ export type Database = {
           id?: string
           owner_id: string
           signed_at?: string | null
+          signer_cpf?: string | null
+          signer_ip?: string | null
+          signer_name?: string | null
+          signer_user_agent?: string | null
+          signing_token?: string
           status?: Database["public"]["Enums"]["contract_status"]
           tenant_id?: string | null
           title?: string
@@ -260,6 +311,11 @@ export type Database = {
           id?: string
           owner_id?: string
           signed_at?: string | null
+          signer_cpf?: string | null
+          signer_ip?: string | null
+          signer_name?: string | null
+          signer_user_agent?: string | null
+          signing_token?: string
           status?: Database["public"]["Enums"]["contract_status"]
           tenant_id?: string | null
           title?: string
@@ -1889,6 +1945,17 @@ export type Database = {
         Returns: number
       }
       return_event_stock: { Args: { _event_id: string }; Returns: undefined }
+      sign_contract_by_token: {
+        Args: {
+          p_cpf_signatario: string
+          p_data_hora_assinatura: string
+          p_ip_cliente: string
+          p_nome_signatario: string
+          p_token: string
+          p_user_agent: string
+        }
+        Returns: Json
+      }
       slugify: { Args: { txt: string }; Returns: string }
       submit_event_rsvp: {
         Args: {
