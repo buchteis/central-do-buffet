@@ -56,10 +56,28 @@ export function QuoteDetailModal({ quote, onClose, onFullEdit, onPdf }: Props) {
   const save = useMutation({
     mutationFn: async () => {
       if (!quote) return;
+      const nextStage = stageOfStatus(form.status);
+      const targetDate = (form.event_date ?? quote.event_date ?? "").toString().trim();
+
+      if (nextStage === "degustacao") {
+        if (!targetDate) throw new Error("Selecione a data da degustação antes de salvar.");
+
+        const { data: sameDayEvents, error: conflictError } = await supabase
+          .from("events")
+          .select("id, quote_id")
+          .eq("event_date", targetDate)
+          .limit(1);
+
+        if (conflictError) throw conflictError;
+        if ((sameDayEvents ?? []).some((item: any) => item?.quote_id && item.quote_id !== quote.id)) {
+          throw new Error("Já existe outra degustação agendada para esta data. Escolha outra data.");
+        }
+      }
+
       const { error } = await supabase
         .from("quotes")
         .update({
-          event_date: form.event_date || quote.event_date,
+          event_date: targetDate || quote.event_date,
           event_time: form.event_time ? form.event_time : null,
           event_type: form.event_type || null,
           event_address: form.event_address || null,
@@ -73,6 +91,35 @@ export function QuoteDetailModal({ quote, onClose, onFullEdit, onPdf }: Props) {
         } as any)
         .eq("id", quote.id);
       if (error) throw error;
+
+      if (nextStage === "degustacao") {
+        const { data: existingEvent } = await supabase
+          .from("events")
+          .select("id")
+          .eq("quote_id", quote.id)
+          .maybeSingle();
+
+        if (!existingEvent) {
+          const { error: eventError } = await supabase.from("events").insert({
+            client_id: quote.client_id ?? null,
+            owner_id: quote.owner_id,
+            tenant_id: quote.tenant_id ?? null,
+            package_id: quote.package_id ?? null,
+            quote_id: quote.id,
+            event_date: targetDate,
+            event_time: form.event_time ? form.event_time : quote.event_time ?? null,
+            event_address: form.event_address || quote.event_address || null,
+            guest_count: (Number(form.adults) || 0) + (Number(form.children_7_10) || 0) + (Number(form.children_0_6) || 0),
+            notes: form.notes || quote.notes || null,
+            status: "agendado",
+            total_value: Number(form.total_value) || Number(quote.total_value) || 0,
+            host_token: crypto.randomUUID(),
+            rsvp_token: crypto.randomUUID(),
+          } as any);
+
+          if (eventError) throw eventError;
+        }
+      }
     },
     onSuccess: () => {
       ["quotes", "agenda", "dashboard-stats-v2", "leads"].forEach((k) =>
@@ -173,6 +220,17 @@ export function QuoteDetailModal({ quote, onClose, onFullEdit, onPdf }: Props) {
               ))}
             </select>
           </label>
+          {stageOfStatus(form.status) === "degustacao" && (
+            <label className="text-xs font-bold space-y-1 sm:col-span-2">
+              <span>Data da degustação</span>
+              <input
+                type="date"
+                className={field}
+                value={form.event_date ?? ""}
+                onChange={(e) => setForm((f) => ({ ...f, event_date: e.target.value }))}
+              />
+            </label>
+          )}
           <label className="text-xs font-bold space-y-1 sm:col-span-2">
             <span>Endereço do evento</span>
             <input

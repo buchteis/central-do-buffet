@@ -19,7 +19,7 @@ import { Users, CalendarDays } from "lucide-react";
 type Props = {
   quotes: QuoteAny[];
   onOpen: (q: QuoteAny) => void;
-  onMove: (q: QuoteAny, stage: StageId) => void;
+  onMove: (q: QuoteAny, stage: StageId, selectedDate?: string | null) => void;
 };
 
 function QuoteCard({
@@ -100,6 +100,19 @@ export function QuoteKanban({ quotes, onOpen, onMove }: Props) {
   const [dragId, setDragId] = useState<string | null>(null);
   const [overStage, setOverStage] = useState<StageId | null>(null);
   const [tab, setTab] = useState<StageId>("novo");
+  const [pendingStage, setPendingStage] = useState<{ q: QuoteAny; stage: StageId } | null>(null);
+  const [pendingDate, setPendingDate] = useState<string>("");
+
+  const openStageDatePicker = (q: QuoteAny, stage: StageId) => {
+    if (stage !== "degustacao") {
+      onMove(q, stage);
+      return;
+    }
+
+    const today = new Date().toISOString().slice(0, 10);
+    setPendingStage({ q, stage });
+    setPendingDate(q.event_date ?? today);
+  };
 
   const byStage = new Map<StageId, QuoteAny[]>();
   PIPELINE.forEach((c) => byStage.set(c.id, []));
@@ -109,7 +122,7 @@ export function QuoteKanban({ quotes, onOpen, onMove }: Props) {
     const q = quotes.find((x) => x.id === dragId);
     setDragId(null);
     setOverStage(null);
-    if (q && stageOfStatus(q.status) !== stage) onMove(q, stage);
+    if (q && stageOfStatus(q.status) !== stage) openStageDatePicker(q, stage);
   };
 
   if (isMobile) {
@@ -145,7 +158,7 @@ export function QuoteKanban({ quotes, onOpen, onMove }: Props) {
               <QuoteCard q={q} onOpen={onOpen} onDragStart={() => setDragId(q.id)} dragging={false} />
               <select
                 value={stageOfStatus(q.status)}
-                onChange={(e) => onMove(q, e.target.value as StageId)}
+                onChange={(e) => openStageDatePicker(q, e.target.value as StageId)}
                 className="w-full text-[11px] border border-border rounded-lg bg-background px-2 py-2"
               >
                 {PIPELINE.map((c) => (
@@ -165,8 +178,51 @@ export function QuoteKanban({ quotes, onOpen, onMove }: Props) {
   }
 
   return (
-    <div className="overflow-x-auto pb-4 scroll-smooth">
-      <div className="flex gap-3 min-w-max">
+    <>
+      {pendingStage && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-2xl border border-border bg-background p-5 shadow-xl">
+            <div className="text-sm font-bold uppercase tracking-[0.18em] text-muted-foreground">Degustação</div>
+            <h3 className="mt-2 text-xl font-bold">Selecione a data da degustação</h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              A data escolhida não pode conflitar com outra degustação já agendada.
+            </p>
+            <label className="mt-4 block text-xs font-bold uppercase tracking-wider text-muted-foreground">
+              Data
+              <input
+                type="date"
+                value={pendingDate}
+                onChange={(e) => setPendingDate(e.target.value)}
+                className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none ring-0 focus:border-primary"
+              />
+            </label>
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setPendingStage(null)}
+                className="rounded-xl border border-border bg-background px-3 py-2 text-sm font-semibold"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!pendingDate) return;
+                  onMove(pendingStage.q, pendingStage.stage, pendingDate);
+                  setPendingStage(null);
+                  setPendingDate("");
+                }}
+                className="rounded-xl bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground"
+              >
+                Confirmar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="overflow-x-auto pb-4 scroll-smooth">
+        <div className="flex gap-3 min-w-max">
         {PIPELINE.map((c) => {
           const items = byStage.get(c.id) ?? [];
           const total = items.reduce((s, q) => s + Number(q.total_value ?? 0), 0);
@@ -218,7 +274,8 @@ export function QuoteKanban({ quotes, onOpen, onMove }: Props) {
             </div>
           );
         })}
+        </div>
       </div>
-    </div>
+    </>
   );
 }
