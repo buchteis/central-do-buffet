@@ -247,7 +247,6 @@ function ContractsPage() {
         a.click();
       }
     } catch (error) {
-      win.close();
       const errorObject =
         error && typeof error === "object" ? (error as Record<string, unknown>) : null;
       const details =
