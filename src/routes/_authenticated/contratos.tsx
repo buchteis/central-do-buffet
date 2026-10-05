@@ -236,16 +236,21 @@ function ContractsPage() {
         contract.status === "assinado"
           ? `Olá ${client?.name ?? ""}! Segue o link para consultar o seu contrato assinado: ${link}.`
           : `Olá ${client?.name ?? ""}! Segue o link para assinatura do seu contrato do evento: ${link}. Qualquer dúvida, estou à disposição!`;
-      const whatsappUrl = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
-      // Abrir direto (sem about:blank) e sem opener: o WhatsApp bloqueia janelas ligadas ao app.
-      const win = window.open(whatsappUrl, "_blank", "noopener,noreferrer");
-      if (!win) {
-        const a = document.createElement("a");
-        a.href = whatsappUrl;
-        a.target = "_blank";
-        a.rel = "noopener noreferrer";
-        a.click();
-      }
+      // Copia o link como garantia caso o WhatsApp não abra.
+      navigator.clipboard?.writeText(link).catch(() => {});
+      const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+      // No computador, usa o WhatsApp Web direto (api.whatsapp.com bloqueia aberturas vindas do app).
+      const whatsappUrl = isMobile
+        ? `https://wa.me/${phone}?text=${encodeURIComponent(message)}`
+        : `https://web.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(message)}`;
+      const a = document.createElement("a");
+      a.href = whatsappUrl;
+      a.target = "_blank";
+      a.rel = "noopener noreferrer";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      toast.success("Abrindo WhatsApp. O link do contrato também foi copiado.");
     } catch (error) {
       const errorObject =
         error && typeof error === "object" ? (error as Record<string, unknown>) : null;
