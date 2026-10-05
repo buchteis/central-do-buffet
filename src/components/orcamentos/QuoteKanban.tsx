@@ -80,6 +80,13 @@ function QuoteCard({
         </span>
       </div>
 
+      {stageOfStatus(q.status) === "degustacao" && q.tasting_date && (
+        <div className="mt-2 inline-flex items-center gap-1 rounded-lg border border-violet-500/30 bg-violet-500/10 px-2 py-1 text-[11px] font-bold text-violet-700">
+          🍽️ Degustação: {formatDateBR(q.tasting_date)}
+          {q.tasting_time && ` · ${String(q.tasting_time).slice(0, 5)}`}
+        </div>
+      )}
+
       <div className="mt-2 font-mono font-bold text-sm">{brl(q.total_value)}</div>
 
       {alerts.length > 0 && (
@@ -111,7 +118,7 @@ export function QuoteKanban({ quotes, onOpen, onMove }: Props) {
 
     const today = new Date().toISOString().slice(0, 10);
     setPendingStage({ q, stage });
-    setPendingDate(q.event_date ?? today);
+    setPendingDate(q.tasting_date ?? today);
   };
 
   const byStage = new Map<StageId, QuoteAny[]>();
