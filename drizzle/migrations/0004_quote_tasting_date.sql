@@ -1,0 +1,1 @@
+ALTER TABLE public.quotes ADD COLUMN IF NOT EXISTS tasting_date date, ADD COLUMN IF NOT EXISTS tasting_time time;

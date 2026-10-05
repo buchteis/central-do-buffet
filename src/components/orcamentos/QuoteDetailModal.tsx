@@ -50,6 +50,8 @@ export function QuoteDetailModal({ quote, onClose, onFullEdit, onPdf }: Props) {
       notes: quote.notes ?? "",
       status: quote.status ?? "novo",
       paid: !!quote.paid,
+      tasting_date: quote.tasting_date ?? "",
+      tasting_time: (quote.tasting_time ?? "").toString().slice(0, 5),
     });
   }, [quote?.id]);
 
@@ -58,18 +60,19 @@ export function QuoteDetailModal({ quote, onClose, onFullEdit, onPdf }: Props) {
       if (!quote) return;
       const nextStage = stageOfStatus(form.status);
       const targetDate = (form.event_date ?? quote.event_date ?? "").toString().trim();
+      const tastingDate = (form.tasting_date ?? "").toString().trim();
 
       if (nextStage === "degustacao") {
-        if (!targetDate) throw new Error("Selecione a data da degustação antes de salvar.");
-
-        const { data: sameDayEvents, error: conflictError } = await supabase
-          .from("events")
-          .select("id, quote_id")
-          .eq("event_date", targetDate)
+        if (!tastingDate) throw new Error("Selecione a data da degustação antes de salvar.");
+        const { data: sameDay, error: conflictError } = await supabase
+          .from("quotes")
+          .select("id")
+          .eq("tasting_date" as any, tastingDate)
+          .eq("status", "visitado")
+          .neq("id", quote.id)
           .limit(1);
-
         if (conflictError) throw conflictError;
-        if ((sameDayEvents ?? []).some((item: any) => item?.quote_id && item.quote_id !== quote.id)) {
+        if ((sameDay ?? []).length > 0) {
           throw new Error("Já existe outra degustação agendada para esta data. Escolha outra data.");
         }
       }
@@ -88,38 +91,12 @@ export function QuoteDetailModal({ quote, onClose, onFullEdit, onPdf }: Props) {
           notes: form.notes || null,
           status: form.status as any,
           paid: !!form.paid,
+          ...(nextStage === "degustacao"
+            ? { tasting_date: tastingDate, tasting_time: form.tasting_time || null }
+            : {}),
         } as any)
         .eq("id", quote.id);
       if (error) throw error;
-
-      if (nextStage === "degustacao") {
-        const { data: existingEvent } = await supabase
-          .from("events")
-          .select("id")
-          .eq("quote_id", quote.id)
-          .maybeSingle();
-
-        if (!existingEvent) {
-          const { error: eventError } = await supabase.from("events").insert({
-            client_id: quote.client_id ?? null,
-            owner_id: quote.owner_id,
-            tenant_id: quote.tenant_id ?? null,
-            package_id: quote.package_id ?? null,
-            quote_id: quote.id,
-            event_date: targetDate,
-            event_time: form.event_time ? form.event_time : quote.event_time ?? null,
-            event_address: form.event_address || quote.event_address || null,
-            guest_count: (Number(form.adults) || 0) + (Number(form.children_7_10) || 0) + (Number(form.children_0_6) || 0),
-            notes: form.notes || quote.notes || null,
-            status: "agendado",
-            total_value: Number(form.total_value) || Number(quote.total_value) || 0,
-            host_token: crypto.randomUUID(),
-            rsvp_token: crypto.randomUUID(),
-          } as any);
-
-          if (eventError) throw eventError;
-        }
-      }
     },
     onSuccess: () => {
       ["quotes", "agenda", "dashboard-stats-v2", "leads"].forEach((k) =>
@@ -221,15 +198,26 @@ export function QuoteDetailModal({ quote, onClose, onFullEdit, onPdf }: Props) {
             </select>
           </label>
           {stageOfStatus(form.status) === "degustacao" && (
-            <label className="text-xs font-bold space-y-1 sm:col-span-2">
-              <span>Data da degustação</span>
-              <input
-                type="date"
-                className={field}
-                value={form.event_date ?? ""}
-                onChange={(e) => setForm((f) => ({ ...f, event_date: e.target.value }))}
-              />
-            </label>
+            <>
+              <label className="text-xs font-bold space-y-1">
+                <span>Data da degustação</span>
+                <input
+                  type="date"
+                  className={field}
+                  value={form.tasting_date ?? ""}
+                  onChange={(e) => setForm((f) => ({ ...f, tasting_date: e.target.value }))}
+                />
+              </label>
+              <label className="text-xs font-bold space-y-1">
+                <span>Horário da degustação</span>
+                <input
+                  type="time"
+                  className={field}
+                  value={form.tasting_time ?? ""}
+                  onChange={(e) => setForm((f) => ({ ...f, tasting_time: e.target.value }))}
+                />
+              </label>
+            </>
           )}
           <label className="text-xs font-bold space-y-1 sm:col-span-2">
             <span>Endereço do evento</span>

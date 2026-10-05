@@ -1440,6 +1440,8 @@ export type Database = {
           paid: boolean
           payment_method: string
           status: Database["public"]["Enums"]["quote_status"]
+          tasting_date: string | null
+          tasting_time: string | null
           tenant_id: string | null
           total_value: number
           unit_items_consumed_at: string | null
@@ -1468,6 +1470,8 @@ export type Database = {
           paid?: boolean
           payment_method?: string
           status?: Database["public"]["Enums"]["quote_status"]
+          tasting_date?: string | null
+          tasting_time?: string | null
           tenant_id?: string | null
           total_value?: number
           unit_items_consumed_at?: string | null
@@ -1496,6 +1500,8 @@ export type Database = {
           paid?: boolean
           payment_method?: string
           status?: Database["public"]["Enums"]["quote_status"]
+          tasting_date?: string | null
+          tasting_time?: string | null
           tenant_id?: string | null
           total_value?: number
           unit_items_consumed_at?: string | null
