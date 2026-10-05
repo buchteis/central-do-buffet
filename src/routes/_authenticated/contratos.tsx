@@ -237,7 +237,7 @@ function ContractsPage() {
           ? `Olá ${client?.name ?? ""}! Segue o link para consultar o seu contrato assinado: ${link}.`
           : `Olá ${client?.name ?? ""}! Segue o link para assinatura do seu contrato do evento: ${link}. Qualquer dúvida, estou à disposição!`;
       // Copia o link como garantia caso o WhatsApp não abra.
-      navigator.clipboard?.writeText(link).catch(() => {});
+      navigator.clipboard?.writeText(message).catch(() => {});
       const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
       // No computador, usa o WhatsApp Web direto (api.whatsapp.com bloqueia aberturas vindas do app).
       const whatsappUrl = isMobile
@@ -250,7 +250,7 @@ function ContractsPage() {
       document.body.appendChild(a);
       a.click();
       a.remove();
-      toast.success("Abrindo WhatsApp. O link do contrato também foi copiado.");
+      toast.success("Mensagem com o link copiada! Se o WhatsApp não abrir, cole no chat do cliente.", { duration: 8000 });
     } catch (error) {
       const errorObject =
         error && typeof error === "object" ? (error as Record<string, unknown>) : null;
