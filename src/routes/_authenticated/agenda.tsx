@@ -32,6 +32,7 @@ const statusColor: Record<string, string> = {
   pago: "bg-emerald-500 text-white",
   concluido: "bg-slate-400 text-white",
   cancelado: "bg-rose-500 text-white",
+  degustacao: "bg-violet-500 text-white",
   realizado: "bg-slate-600 text-white",
 };
 
@@ -41,6 +42,7 @@ const statusOptions = [
   { key: "pago", label: "Pago" },
   { key: "concluido", label: "Concluído" },
   { key: "cancelado", label: "Cancelado" },
+  { key: "degustacao", label: "Degustação" },
 ];
 
 type ViewMode = "mes" | "semana" | "dia";
@@ -96,15 +98,45 @@ function AgendaPage() {
     },
   });
 
+  const { data: tastings } = useQuery({
+    queryKey: ["agenda", "tastings", range.start, range.end],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("quotes")
+        .select("id, tasting_date, tasting_time, event_type, event_address, adults, children_7_10, children_0_6, notes, package_id, total_value, extras, clients(name, phone, whatsapp)")
+        .eq("status", "visitado")
+        .gte("tasting_date" as any, range.start)
+        .lt("tasting_date" as any, range.end);
+      return (data ?? []).map((q: any) => ({
+        id: `tasting:${q.id}`,
+        quote_id: q.id,
+        is_tasting: true,
+        event_date: q.tasting_date,
+        event_time: q.tasting_time,
+        status: "degustacao",
+        total_value: q.total_value,
+        event_address: q.event_address,
+        guest_count: Number(q.adults ?? 0) + Number(q.children_7_10 ?? 0) + Number(q.children_0_6 ?? 0),
+        notes: q.notes,
+        package_id: q.package_id,
+        clients: q.clients ?? { name: q.extras?.requester?.name ?? "Degustação" },
+        packages: { name: "Degustação" },
+      }));
+    },
+  });
+
   const filtered = useMemo(() => {
     const q = filters.query.trim().toLowerCase();
-    return (events ?? []).filter((e: any) => {
+    return [...(events ?? []), ...(tastings ?? [])].filter((e: any) => {
       if (filters.statuses.length && !filters.statuses.includes(e.status)) return false;
       if (filters.packageId && e.package_id !== filters.packageId) return false;
       if (q && !(e.clients?.name ?? "").toLowerCase().includes(q)) return false;
       return true;
     });
-  }, [events, filters]);
+  }, [events, tastings, filters]);
+  const selectedTasting = selected?.startsWith("tasting:")
+    ? (tastings ?? []).find((t: any) => t.id === selected) ?? null
+    : null;
 
   const moveEvent = useMutation({
     mutationFn: async ({
@@ -116,6 +148,13 @@ function AgendaPage() {
       date: string;
       time?: string | null;
     }) => {
+      if (id.startsWith("tasting:")) {
+        const patch: any = { tasting_date: date };
+        if (time !== undefined) patch.tasting_time = time;
+        const { error } = await supabase.from("quotes").update(patch).eq("id", id.slice(8));
+        if (error) throw error;
+        return;
+      }
       const patch: any = { event_date: date };
       if (time !== undefined) patch.event_time = time;
       const { error } = await supabase.from("events").update(patch).eq("id", id);
@@ -123,14 +162,15 @@ function AgendaPage() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["agenda"] });
-      toast.success("Evento reagendado");
+      qc.invalidateQueries({ queryKey: ["quotes"] });
+      toast.success("Data atualizada");
     },
     onError: (e: any) => toast.error(e.message),
   });
 
   const { data: selectedEvent } = useQuery({
     queryKey: ["event-detail", selected],
-    enabled: !!selected,
+    enabled: !!selected && !selected.startsWith("tasting:"),
     queryFn: async () => {
       const { data } = await supabase
         .from("events")
@@ -240,7 +280,55 @@ function AgendaPage() {
         />
       )}
 
-      {selected && <EventPanel event={selectedEvent} onClose={() => setSelected(null)} />}
+      {selected && !selected.startsWith("tasting:") && (
+        <EventPanel event={selectedEvent} onClose={() => setSelected(null)} />
+      )}
+      {selectedTasting && (
+        <TastingPanel
+          tasting={selectedTasting}
+          onClose={() => setSelected(null)}
+          onSave={(date, time) => {
+            moveEvent.mutate({ id: selectedTasting.id, date, time: time || null });
+            setSelected(null);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function TastingPanel({
+  tasting,
+  onClose,
+  onSave,
+}: {
+  tasting: any;
+  onClose: () => void;
+  onSave: (date: string, time: string) => void;
+}) {
+  const [date, setDate] = useState<string>(tasting.event_date ?? "");
+  const [time, setTime] = useState<string>((tasting.event_time ?? "").toString().slice(0, 5));
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      <div className="w-full max-w-md rounded-2xl border border-border bg-background p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <div className="text-xs font-bold uppercase tracking-widest text-violet-600">Degustação</div>
+        <h3 className="mt-1 text-xl font-bold">{tasting.clients?.name ?? "Cliente"}</h3>
+        <p className="text-sm text-muted-foreground">{tasting.guest_count} convidados · {brl(tasting.total_value)}</p>
+        <div className="mt-4 grid grid-cols-2 gap-3">
+          <label className="text-xs font-bold space-y-1">
+            <span>Data</span>
+            <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm" />
+          </label>
+          <label className="text-xs font-bold space-y-1">
+            <span>Horário</span>
+            <input type="time" value={time} onChange={(e) => setTime(e.target.value)} className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm" />
+          </label>
+        </div>
+        <div className="mt-5 flex justify-end gap-2">
+          <Button variant="outline" onClick={onClose}>Cancelar</Button>
+          <Button onClick={() => date && onSave(date, time)}>Salvar</Button>
+        </div>
+      </div>
     </div>
   );
 }
