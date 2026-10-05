@@ -177,68 +177,31 @@ function QuotesPage() {
       if (!quote) throw new Error("Orçamento não encontrado.");
 
       if (status === "visitado") {
-        const resolvedDate = (event_date ?? quote.event_date ?? "").trim();
+        const resolvedDate = (event_date ?? (quote as any).tasting_date ?? "").trim();
         if (!resolvedDate) throw new Error("Selecione a data da degustação antes de confirmar.");
 
-        const { data: sameDayEvents, error: dateConflictError } = await supabase
-          .from("events")
-          .select("id, quote_id")
-          .eq("event_date", resolvedDate)
+        const { data: sameDay, error: dateConflictError } = await supabase
+          .from("quotes")
+          .select("id")
+          .eq("tasting_date" as any, resolvedDate)
+          .eq("status", "visitado")
+          .neq("id", id)
           .limit(1);
-
         if (dateConflictError) throw dateConflictError;
-        if ((sameDayEvents ?? []).some((item: any) => item?.quote_id && item.quote_id !== id)) {
+        if ((sameDay ?? []).length > 0) {
           throw new Error("Já existe outra degustação agendada para esta data. Escolha outra data.");
         }
+
+        const { error } = await supabase
+          .from("quotes")
+          .update({ status: status as any, tasting_date: resolvedDate } as any)
+          .eq("id", id);
+        if (error) throw error;
+        return;
       }
 
-      const finalEventDate = status === "visitado" ? (event_date ?? quote.event_date ?? "") : quote.event_date;
-
-      const { error } = await supabase
-        .from("quotes")
-        .update({
-          status: status as any,
-          event_date: finalEventDate || quote.event_date,
-        })
-        .eq("id", id);
+      const { error } = await supabase.from("quotes").update({ status: status as any }).eq("id", id);
       if (error) throw error;
-
-      if (status !== "visitado") return;
-
-      const { data: existingEvent } = await supabase
-        .from("events")
-        .select("id")
-        .eq("quote_id", id)
-        .maybeSingle();
-
-      if (existingEvent) return;
-
-      const guestCount = Number(quote.adults ?? 0) + Number(quote.children_7_10 ?? 0) + Number(quote.children_0_6 ?? 0);
-      const packageId =
-        quote.package_id ??
-        (Array.isArray((quote.extras as any)?.packages) ? (quote.extras as any).packages[0]?.package_id ?? null : null) ??
-        (Array.isArray((quote.extras as any)?.packages) ? (quote.extras as any).packages[0]?.id ?? null : null) ??
-        null;
-      const eventDate = String(finalEventDate || quote.event_date || new Date().toISOString().slice(0, 10));
-
-      const { error: eventError } = await supabase.from("events").insert({
-        client_id: quote.client_id ?? null,
-        owner_id: quote.owner_id,
-        tenant_id: quote.tenant_id ?? null,
-        package_id: packageId,
-        quote_id: quote.id,
-        event_date: eventDate,
-        event_time: quote.event_time || null,
-        event_address: quote.event_address || null,
-        guest_count: guestCount || null,
-        notes: quote.notes || null,
-        status: "agendado",
-        total_value: Number(quote.total_value ?? 0) || 0,
-        host_token: crypto.randomUUID(),
-        rsvp_token: crypto.randomUUID(),
-      } as any);
-
-      if (eventError) throw eventError;
     },
     onSuccess: (_d, vars) => {
       qc.invalidateQueries({ queryKey: ["quotes"] });
