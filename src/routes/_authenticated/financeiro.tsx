@@ -166,10 +166,11 @@ function FinanceiroPage() {
         category: "Entrada de evento",
         amount,
         type: "entrada",
-        status: incomeForm.status,
+        // Entrada manual já conta como recebida (Receita recebida e Saldo atual).
+        status: "pago",
         method: incomeForm.method,
         due_date: incomeForm.date,
-        paid_date: incomeForm.status === "pago" ? incomeForm.date : null,
+        paid_date: incomeForm.date,
         event_id: incomeForm.event_id || null,
         client_id,
         owner_id: access.userId,
@@ -183,6 +184,7 @@ function FinanceiroPage() {
       setIncomeForm((f) => ({ ...f, description: "", amount: "", event_id: "" }));
       qc.invalidateQueries({ queryKey: ["financeiro-transactions"] });
       qc.invalidateQueries({ queryKey: ["dashboard"] });
+      qc.invalidateQueries({ queryKey: ["dashboard-stats-v2"] });
     },
     onError: (e: any) => toast.error(e.message ?? "Erro ao registrar entrada"),
   });
@@ -728,25 +730,9 @@ function FinanceiroPage() {
                 </select>
               </div>
 
-              <div>
-                <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Situação</label>
-                <div className="mt-1 flex gap-2">
-                  {(["pago", "pendente"] as const).map((s) => (
-                    <button
-                      key={s}
-                      onClick={() => setIncomeForm({ ...incomeForm, status: s })}
-                      className={cn(
-                        "px-3 py-1.5 text-xs font-bold rounded-full border transition-colors capitalize",
-                        incomeForm.status === s
-                          ? "bg-primary text-primary-foreground border-primary"
-                          : "border-border hover:bg-muted",
-                      )}
-                    >
-                      {s === "pago" ? "Recebido (Entra no saldo)" : "A Receber (Pendente)"}
-                    </button>
-                  ))}
-                </div>
-              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Esta entrada já entra como recebida na Receita recebida e no Saldo atual.
+              </p>
             </div>
 
             <div className="flex justify-end gap-2 pt-1">
