@@ -166,10 +166,11 @@ function FinanceiroPage() {
         category: "Entrada de evento",
         amount,
         type: "entrada",
-        status: incomeForm.status,
+        // Entrada manual já conta como recebida (Receita recebida e Saldo atual).
+        status: "pago",
         method: incomeForm.method,
         due_date: incomeForm.date,
-        paid_date: incomeForm.status === "pago" ? incomeForm.date : null,
+        paid_date: incomeForm.date,
         event_id: incomeForm.event_id || null,
         client_id,
         owner_id: access.userId,
@@ -183,6 +184,7 @@ function FinanceiroPage() {
       setIncomeForm((f) => ({ ...f, description: "", amount: "", event_id: "" }));
       qc.invalidateQueries({ queryKey: ["financeiro-transactions"] });
       qc.invalidateQueries({ queryKey: ["dashboard"] });
+      qc.invalidateQueries({ queryKey: ["dashboard-stats-v2"] });
     },
     onError: (e: any) => toast.error(e.message ?? "Erro ao registrar entrada"),
   });
