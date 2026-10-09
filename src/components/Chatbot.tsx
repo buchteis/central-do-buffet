@@ -1,7 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useTheme } from "@/components/theme-provider";
 import { useTenantAccess } from "@/hooks/useTenantAccess";
 import { chatWithAssistant } from "@/lib/chatbot.functions";
 import { getBuffetAlerts, type BuffetAlert } from "@/lib/alerts.functions";
@@ -79,8 +78,6 @@ export const Chatbot = () => {
   const fileRef = useRef<HTMLInputElement>(null);
 
   const { data: access } = useTenantAccess();
-  const { theme } = useTheme();
-  const isDark = theme === "dark";
   const chat = useServerFn(chatWithAssistant);
   const fetchAlerts = useServerFn(getBuffetAlerts);
   const parseNf = useServerFn(parseInvoiceFile);
@@ -498,7 +495,7 @@ export const Chatbot = () => {
           top: pos?.y ?? -999,
           touchAction: "none",
           zIndex: 9999,
-          background: "#FF7A00",
+          background: "var(--chat-accent-action)",
           border: "none",
           borderRadius: 16,
           width: 60,
@@ -537,6 +534,7 @@ export const Chatbot = () => {
 
       {isOpen && (
         <div
+          className="chatbot-widget"
           style={{
             position: "fixed",
             ...(pos && pos.y > 560 ? { bottom: Math.max(8, window.innerHeight - pos.y + 10) } : { top: (pos?.y ?? 0) + 70 }),
@@ -546,10 +544,10 @@ export const Chatbot = () => {
             maxWidth: "90vw",
             height: 520,
             maxHeight: "75vh",
-            background: isDark ? "#0f172a" : "white",
+            background: "var(--chat-surface)",
             borderRadius: 16,
             boxShadow: "0 8px 32px rgba(0,0,0,0.25)",
-            border: isDark ? "1px solid #334155" : "1px solid #e5e7eb",
+            border: "1px solid var(--chat-border)",
             display: "flex",
             flexDirection: "column",
             overflow: "hidden",
@@ -558,18 +556,18 @@ export const Chatbot = () => {
           <div
             style={{
               padding: "16px 20px",
-              background: isDark ? "#111827" : "#f3f4f6",
-              borderBottom: isDark ? "1px solid #334155" : "1px solid #e5e7eb",
+              background: "var(--chat-header)",
+              borderBottom: "1px solid var(--chat-border)",
               display: "flex",
               justifyContent: "space-between",
               alignItems: "center",
             }}
           >
-            <span style={{ fontWeight: "bold", fontSize: 16, display: "flex", alignItems: "center", gap: 8, color: isDark ? "#e2e8f0" : "#111827" }}>
+            <span style={{ fontWeight: "bold", fontSize: 16, display: "flex", alignItems: "center", gap: 8, color: "var(--chat-text)" }}>
               <div style={{
                 width: 28,
                 height: 28,
-                background: "#FF7A00",
+                background: "var(--chat-accent-action)",
                 borderRadius: 8,
                 display: "flex",
                 alignItems: "center",
@@ -585,7 +583,7 @@ export const Chatbot = () => {
                 <button
                   onClick={ackAll}
                   style={{
-                    background: "#e5e7eb",
+                    background: "var(--chat-control)",
                     border: "none",
                     borderRadius: 8,
                     padding: "4px 8px",
@@ -608,7 +606,7 @@ export const Chatbot = () => {
 
           <div
             ref={scrollRef}
-            style={{ flex: 1, padding: "16px 20px", overflowY: "auto", background: isDark ? "#0b1220" : "#f9fafb" }}
+            style={{ flex: 1, padding: "16px 20px", overflowY: "auto", background: "var(--chat-history)" }}
           >
             {messages.map((msg, i) => (
               <div
@@ -622,10 +620,10 @@ export const Chatbot = () => {
                     borderRadius: 12,
                     maxWidth: "85%",
                     whiteSpace: "pre-wrap",
-                    background: msg.role === "user" ? "#22c55e" : isDark ? "#1e293b" : "white",
-                    color: msg.role === "user" ? "white" : isDark ? "#e2e8f0" : "#1f2937",
+                    background: msg.role === "user" ? "var(--chat-success-action)" : "var(--chat-surface)",
+                    color: msg.role === "user" ? "var(--chat-success-foreground)" : "var(--chat-text)",
                     boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
-                    border: msg.role === "assistant" ? isDark ? "1px solid #334155" : "1px solid #e5e7eb" : "none",
+                    border: msg.role === "assistant" ? "1px solid var(--chat-border)" : "none",
                     textAlign: "left",
                   }}
                 >
@@ -635,7 +633,7 @@ export const Chatbot = () => {
                       <button
                         onClick={() => ackAlert(msg.alertId!)}
                         style={{
-                          background: "#FF7A00",
+                          background: "var(--chat-accent-action)",
                           color: "white",
                           border: "none",
                           borderRadius: 8,
@@ -657,15 +655,15 @@ export const Chatbot = () => {
                           <div
                             key={j}
                             style={{
-                              border: "1px solid #e5e7eb",
+                              border: "1px solid var(--chat-border)",
                               borderRadius: 10,
                               padding: 10,
-                              background: ok ? "#f0fdf4" : "#fff7ed",
+                              background: ok ? "var(--chat-success-surface)" : "var(--chat-warning-surface)",
                               fontSize: 12,
                             }}
                           >
                             <div style={{ fontWeight: 700 }}>{m.item.descricao}</div>
-                            <div style={{ color: "#4b5563" }}>
+                            <div style={{ color: "var(--chat-muted)" }}>
                               {m.item.quantidade} {m.item.unidade ?? "un"} • {brl(m.item.valor_unitario)} un •
                               total {brl(m.item.valor_total)}
                             </div>
@@ -675,7 +673,7 @@ export const Chatbot = () => {
                                 {m.product_unit}) — Confiança: <b>{m.confidence}%</b>
                               </div>
                             ) : (
-                              <div style={{ marginTop: 4, color: "#9a3412" }}>
+                              <div style={{ marginTop: 4, color: "var(--chat-warning-text)" }}>
                                 Produto não identificado. Deseja relacionar este item a um produto existente ou
                                 cadastrar um novo produto no Estoque?
                               </div>
@@ -688,7 +686,7 @@ export const Chatbot = () => {
                                 width: "100%",
                                 padding: "6px 8px",
                                 borderRadius: 8,
-                                border: "1px solid #d1d5db",
+                                border: "1px solid var(--chat-control-border)",
                                 fontSize: 12,
                               }}
                             >
@@ -706,8 +704,8 @@ export const Chatbot = () => {
                         onClick={() => confirmEntry(msg.review!, i)}
                         disabled={isLoading}
                         style={{
-                          background: "#22c55e",
-                          color: "white",
+                          background: "var(--chat-success-action)",
+                          color: "var(--chat-success-foreground)",
                           border: "none",
                           borderRadius: 8,
                           padding: "8px 12px",
@@ -731,8 +729,8 @@ export const Chatbot = () => {
                               onClick={() => selectStrategy(i, s.id)}
                               style={{
                                 textAlign: "left",
-                                border: `1px solid ${active ? "#FF7A00" : "#e5e7eb"}`,
-                                background: active ? "#fff7ed" : "white",
+                                border: `1px solid ${active ? "var(--chat-selected-border)" : "var(--chat-border)"}`,
+                                background: active ? "var(--chat-selected-surface)" : "var(--chat-surface)",
                                 borderRadius: 10,
                                 padding: 10,
                                 cursor: "pointer",
@@ -742,8 +740,8 @@ export const Chatbot = () => {
                               <div style={{ fontWeight: 700 }}>
                                 {s.nome} — {s.total_profissionais} profissionais
                               </div>
-                              <div style={{ color: "#4b5563" }}>{s.descricao}</div>
-                              <div style={{ color: "#4b5563" }}>
+                              <div style={{ color: "var(--chat-muted)" }}>{s.descricao}</div>
+                              <div style={{ color: "var(--chat-muted)" }}>
                                 Custo estimado: <b>{brl(s.custo_estimado)}</b>
                                 {s.vagas_sem_funcionario > 0
                                   ? ` • ${s.vagas_sem_funcionario} vaga(s) sem funcionário disponível`
@@ -763,10 +761,10 @@ export const Chatbot = () => {
                               <div
                                 key={j}
                                 style={{
-                                  border: "1px solid #e5e7eb",
+                                  border: "1px solid var(--chat-border)",
                                   borderRadius: 10,
                                   padding: 8,
-                                  background: sl.employee_id ? "#f0fdf4" : "#fff7ed",
+                                  background: sl.employee_id ? "var(--chat-success-surface)" : "var(--chat-warning-surface)",
                                   fontSize: 12,
                                 }}
                               >
@@ -779,7 +777,7 @@ export const Chatbot = () => {
                                     width: "100%",
                                     padding: "6px 8px",
                                     borderRadius: 8,
-                                    border: "1px solid #d1d5db",
+                                    border: "1px solid var(--chat-control-border)",
                                     fontSize: 12,
                                   }}
                                 >
@@ -796,8 +794,8 @@ export const Chatbot = () => {
                               onClick={() => confirmStaffing(msg.staffing!, i)}
                               disabled={isLoading}
                               style={{
-                                background: "#22c55e",
-                                color: "white",
+                                background: "var(--chat-success-action)",
+                                color: "var(--chat-success-foreground)",
                                 border: "none",
                                 borderRadius: 8,
                                 padding: "8px 12px",
@@ -824,9 +822,9 @@ export const Chatbot = () => {
                     display: "inline-block",
                     padding: "10px 16px",
                     borderRadius: 12,
-                    background: isDark ? "#1e293b" : "white",
-                    color: isDark ? "#cbd5e1" : "#6b7280",
-                    border: isDark ? "1px solid #334155" : "1px solid #e5e7eb",
+                    background: "var(--chat-surface)",
+                    color: "var(--chat-muted)",
+                    border: "1px solid var(--chat-border)",
                   }}
                 >
                   Digitando…
@@ -838,8 +836,8 @@ export const Chatbot = () => {
           <div
             style={{
               padding: "12px 16px",
-              borderTop: isDark ? "1px solid #334155" : "1px solid #e5e7eb",
-              background: isDark ? "#111827" : "white",
+              borderTop: "1px solid var(--chat-border)",
+              background: "var(--chat-surface)",
               display: "flex",
               gap: 8,
             }}
@@ -861,13 +859,13 @@ export const Chatbot = () => {
               aria-label="Enviar nota fiscal"
               style={{
                 padding: "10px 12px",
-                background: isDark ? "#1e293b" : "#f3f4f6",
-                border: isDark ? "1px solid #334155" : "1px solid #d1d5db",
+                background: "var(--chat-control)",
+                border: "1px solid var(--chat-control-border)",
                 borderRadius: 8,
                 cursor: "pointer",
                 display: "flex",
                 alignItems: "center",
-                color: isDark ? "#e2e8f0" : "#111827",
+                color: "var(--chat-text)",
               }}
             >
               <Paperclip className="size-4" />
@@ -881,10 +879,8 @@ export const Chatbot = () => {
                 flex: 1,
                 padding: "10px 14px",
                 borderRadius: 8,
-                border: isDark ? "1px solid #334155" : "1px solid #d1d5db",
+                border: "1px solid var(--chat-control-border)",
                 outline: "none",
-                background: isDark ? "#0f172a" : "white",
-                color: isDark ? "#e2e8f0" : "#111827",
                 fontSize: 14,
               }}
               disabled={isLoading}
@@ -894,8 +890,8 @@ export const Chatbot = () => {
               disabled={isLoading || !input.trim()}
               style={{
                 padding: "10px 18px",
-                background: "#22c55e",
-                color: "white",
+                background: "var(--chat-success-action)",
+                color: "var(--chat-success-foreground)",
                 border: "none",
                 borderRadius: 8,
                 cursor: "pointer",
