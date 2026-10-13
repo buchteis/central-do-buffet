@@ -162,7 +162,7 @@ export const Chatbot = () => {
     );
     list.forEach((a) => seenRef.current.add(a.id));
     if (!urgent.length) return;
-    try { navigator.vibrate?.([200, 100, 200]); } catch {}
+    if (canVibrateRef.current) { try { navigator.vibrate?.([200, 100, 200]); } catch {} }
     setShake(true);
     const t = setTimeout(() => setShake(false), 1200);
     return () => clearTimeout(t);
