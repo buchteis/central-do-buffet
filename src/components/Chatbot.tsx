@@ -142,6 +142,13 @@ export const Chatbot = () => {
   // Vibra quando surgem alertas novos (observação, estoque crítico, débito vencido)
   const [shake, setShake] = useState(false);
   const seenRef = useRef<Set<string>>(new Set());
+  // O navegador só permite vibrar depois da primeira interação do usuário
+  const canVibrateRef = useRef(false);
+  useEffect(() => {
+    const mark = () => { canVibrateRef.current = true; };
+    window.addEventListener("pointerdown", mark, { once: true });
+    return () => window.removeEventListener("pointerdown", mark);
+  }, []);
   useEffect(() => {
     const list = alertData?.alerts ?? [];
     const urgent = list.filter(
@@ -155,7 +162,7 @@ export const Chatbot = () => {
     );
     list.forEach((a) => seenRef.current.add(a.id));
     if (!urgent.length) return;
-    try { navigator.vibrate?.([200, 100, 200]); } catch {}
+    if (canVibrateRef.current) { try { navigator.vibrate?.([200, 100, 200]); } catch {} }
     setShake(true);
     const t = setTimeout(() => setShake(false), 1200);
     return () => clearTimeout(t);
