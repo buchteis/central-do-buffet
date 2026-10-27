@@ -1,8 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useMemo } from "react";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
-import { Calendar as CalendarIcon, CalendarPlus, FileText, XCircle, CalendarDays, Link2 } from "lucide-react";
-import { copyToClipboard } from "@/lib/clipboard";
+import { Calendar as CalendarIcon, CalendarPlus, FileText, XCircle, CalendarDays } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { brl, formatDateBR } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -318,38 +317,6 @@ function EventsPage() {
                             >
                               <CalendarPlus className="size-3.5" /> Agenda
                             </a>
-                          )}
-                          {e.rsvp_token && e.status !== "cancelado" && (
-                            <button
-                              onClick={async () => {
-                                const url = `${window.location.origin}/convite/${e.rsvp_token}`;
-                                const ok = await copyToClipboard(url);
-                                toast[ok ? "success" : "error"](
-                                  ok ? "Link de convite copiado! Envie para o cliente." : url,
-                                );
-                              }}
-                              title="Copiar link de confirmação de presença para o cliente enviar aos convidados"
-                              className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold rounded-full bg-sky-100 text-sky-700 hover:bg-sky-200 transition-colors"
-                            >
-                              <Link2 className="size-3.5" /> Convite
-                            </button>
-                          )}
-                          {e.rsvp_token && e.host_token && e.status !== "cancelado" && (
-                            <button
-                              onClick={async () => {
-                                const url = `${window.location.origin}/convite/${e.rsvp_token}?host=${e.host_token}`;
-                                const ok = await copyToClipboard(url);
-                                toast[ok ? "success" : "error"](
-                                  ok
-                                    ? "Link do aniversariante copiado! Só ele vê os nomes de quem confirmou."
-                                    : url,
-                                );
-                              }}
-                              title="Link exclusivo do aniversariante, com os nomes de quem confirmou"
-                              className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold rounded-full bg-violet-100 text-violet-700 hover:bg-violet-200 transition-colors"
-                            >
-                              <Link2 className="size-3.5" /> Lista
-                            </button>
                           )}
                           {canCancel && (
                             <button
