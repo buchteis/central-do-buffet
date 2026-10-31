@@ -37,6 +37,7 @@ const MONTH_LABELS = [
 import {
   RECEIVED_EVENT_STATUSES,
   FINANCE_EVENT_STATUSES,
+  computeFinanceTotals,
 } from "@/lib/finance-logic";
 
 const statusLabels: Record<string, string> = {
@@ -215,6 +216,7 @@ function FinanceiroPage() {
       .on("postgres_changes", { event: "*", schema: "public", table: "payment_installments" }, () => {
         qc.invalidateQueries({ queryKey: ["financeiro-installments"] });
         qc.invalidateQueries({ queryKey: ["installments"] });
+        qc.invalidateQueries({ queryKey: ["dashboard"] });
       })
       .subscribe();
     return () => {
@@ -262,11 +264,14 @@ function FinanceiroPage() {
     queryFn: async () => {
       let q = supabase
         .from("payment_installments")
-        .select("id, label, number, total_count, amount, due_date, paid_at, status, events(event_date, clients(name))")
+        .select("id, event_id, label, number, total_count, amount, due_date, paid_at, status, events(status, event_date, clients(name))")
         .order("due_date", { ascending: false });
       if (tenantId && !isSuperAdmin) q = q.eq("tenant_id", tenantId);
       const { data } = await q;
-      return data ?? [];
+      return (data ?? []).filter(
+        (installment: any) =>
+          !installment.event_id || FINANCE_EVENT_STATUSES.includes(String(installment.events?.status ?? "")),
+      );
     },
   });
 
@@ -281,22 +286,35 @@ function FinanceiroPage() {
     amount: number;
     kind: "recebido" | "receber" | "saida";
     method?: string | null;
+    eventId?: string | null;
   };
 
-  const eventRows: Row[] = (events ?? []).map((e: any) => {
-    const st = String(e.status ?? "").toLowerCase();
-    const isReceived = RECEIVED_EVENT_STATUSES.includes(st);
-    return {
-      id: `ev-${e.id}`,
-      source: "evento",
-      title: e.packages?.name ?? e.clients?.name ?? "Evento",
-      client: e.clients?.name ?? null,
-      date: e.event_date ?? null,
-      status: st,
-      amount: Number(e.total_value ?? 0),
-      kind: isReceived ? "recebido" : "receber",
-    };
-  });
+  const scheduledByEvent = new Map<string, number>();
+  for (const installment of installmentsHistory ?? []) {
+    if (!installment.event_id) continue;
+    scheduledByEvent.set(
+      installment.event_id,
+      (scheduledByEvent.get(installment.event_id) ?? 0) + Number(installment.amount ?? 0),
+    );
+  }
+
+  const eventRows: Row[] = (events ?? [])
+    .map((e: any) => {
+      const st = String(e.status ?? "").toLowerCase();
+      const isReceived = RECEIVED_EVENT_STATUSES.includes(st);
+      return {
+        id: `ev-${e.id}`,
+        source: "evento",
+        title: e.packages?.name ?? e.clients?.name ?? "Evento",
+        client: e.clients?.name ?? null,
+        date: e.event_date ?? null,
+        status: st,
+        amount: Math.max(Number(e.total_value ?? 0) - (scheduledByEvent.get(e.id) ?? 0), 0),
+        kind: isReceived ? "recebido" : "receber",
+        eventId: e.id,
+      };
+    })
+    .filter((row) => row.amount > 0);
 
   const txRows: Row[] = (transactions ?? []).map((t: any) => {
     const st = String(t.status ?? "pendente").toLowerCase();
@@ -327,6 +345,7 @@ function FinanceiroPage() {
       amount: Number(i.amount ?? 0),
       kind: st === "pago" ? "recebido" : "receber",
       method: "link de pagamento",
+      eventId: i.event_id,
     };
   });
 
@@ -358,21 +377,17 @@ function FinanceiroPage() {
 
   const periodFiltered = allRows.filter(filterByPeriod);
 
-  // Parcelas não entram nos totais (o valor do evento já é contabilizado) — aparecem só no histórico
-  const totals = periodFiltered
-    .filter((r) => r.source !== "parcela")
-    .reduce(
-      (acc, r) => {
-        if (r.kind === "recebido") acc.recebido += r.amount;
-        else if (r.kind === "receber") acc.receber += r.amount;
-        else if (r.kind === "saida") {
-          acc.saidas += r.amount;
-          if (r.status === "pago") acc.saidasPagas += r.amount;
-        }
-        return acc;
-      },
-      { recebido: 0, receber: 0, saidas: 0, saidasPagas: 0 },
-    );
+  const totals = computeFinanceTotals(
+    periodFiltered
+      .filter((row) => row.source === "evento")
+      .map((row) => ({ status: row.status, total_value: row.amount })),
+    periodFiltered
+      .filter((row) => row.source === "transacao")
+      .map((row) => ({ type: row.kind === "saida" ? "saida" : "entrada", status: row.status, amount: row.amount })),
+    periodFiltered
+      .filter((row) => row.source === "parcela")
+      .map((row) => ({ status: row.status, amount: row.amount })),
+  );
 
   // Aplica filtro de origem (entrada avulsa x parcela x evento x despesa)
   const sourceFiltered = periodFiltered.filter((r) => {
