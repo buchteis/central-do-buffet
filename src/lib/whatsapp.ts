@@ -9,12 +9,6 @@ export function normalizeWhatsAppPhone(phone: string | null | undefined) {
 export function waLink(phone: string | null | undefined, message: string) {
   const number = normalizeWhatsAppPhone(phone);
   const text = encodeURIComponent(message);
-  const isMobile =
-    typeof navigator !== "undefined" &&
-    (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
-      (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1));
-
-  if (isMobile) return `https://wa.me/${number}?text=${text}`;
   return `https://web.whatsapp.com/send/?phone=${number}&text=${text}`;
 }
 
