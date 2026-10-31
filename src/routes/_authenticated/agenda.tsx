@@ -15,7 +15,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { brl, formatDateFullBR } from "@/lib/format";
-import { waLink } from "@/lib/whatsapp";
+import { fillTemplate, waLink } from "@/lib/whatsapp";
 import { dedupePackages } from "@/lib/quote-calc";
 
 import { toast } from "sonner";
@@ -745,6 +745,18 @@ function DayView({
 
 function EventPanel({ event, onClose }: { event: any; onClose: () => void }) {
   const qc = useQueryClient();
+  const { data: settings } = useQuery({
+    queryKey: ["buffet-settings"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("buffet_settings")
+        .select("wa_reminder_template, wa_pix_template, pix_key")
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+
   const changeStatus = useMutation({
     mutationFn: async (status: string) => {
       const { error } = await supabase.from("events").update({ status: status as any }).eq("id", event.id);
@@ -827,13 +839,46 @@ function EventPanel({ event, onClose }: { event: any; onClose: () => void }) {
             <a
               href={waLink(
                 phone,
-                `Olá ${c?.name}! Sobre seu evento em ${formatDateFullBR(event.event_date)}...`,
+                fillTemplate(
+                  settings?.wa_reminder_template?.trim() ||
+                    "Olá {cliente}! Passando para lembrar do seu evento em {data} às {hora}.",
+                  {
+                    cliente: c?.name ?? "",
+                    data: formatDateFullBR(event.event_date),
+                    hora: event.event_time?.slice(0, 5) ?? "",
+                    valor: brl(event.total_value),
+                    pix: settings?.pix_key ?? "",
+                  },
+                ),
               )}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center justify-center gap-2 h-10 rounded-lg bg-emerald-500 text-white text-xs font-bold"
             >
-              <MessageCircle className="size-4" /> WhatsApp
+              <MessageCircle className="size-4" /> Enviar lembrete
+            </a>
+          )}
+          {phone && (
+            <a
+              href={waLink(
+                phone,
+                fillTemplate(
+                  settings?.wa_pix_template?.trim() ||
+                    "Olá {cliente}! Segue a chave PIX para pagamento: {pix} — valor {valor}.",
+                  {
+                    cliente: c?.name ?? "",
+                    data: formatDateFullBR(event.event_date),
+                    hora: event.event_time?.slice(0, 5) ?? "",
+                    valor: brl(event.total_value),
+                    pix: settings?.pix_key ?? "",
+                  },
+                ),
+              )}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-center gap-2 h-10 rounded-lg border border-emerald-500 text-emerald-700 text-xs font-bold"
+            >
+              <MessageCircle className="size-4" /> Enviar dados PIX
             </a>
           )}
           <a

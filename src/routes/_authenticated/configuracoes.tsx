@@ -7,6 +7,7 @@ import { copyToClipboard } from "@/lib/clipboard";
 import { useTenantAccess } from "@/hooks/useTenantAccess";
 import { useLogoDisplayUrl } from "@/lib/logo";
 import { DEFAULT_CONTRACT_TEMPLATE } from "@/lib/contract-template";
+import { DEFAULT_WA_CONTRACT_TEMPLATE } from "@/lib/whatsapp";
 import { maskCpfCnpj } from "@/lib/doc";
 import VariableInserter from "@/components/VariableInserter";
 
@@ -41,6 +42,7 @@ function SettingsPage() {
     bank_holder: "",
     logo_url: "",
     contract_template: "",
+    wa_contract_template: "",
     wa_quote_template: "",
     wa_reminder_template: "",
     wa_pix_template: "",
@@ -68,6 +70,7 @@ function SettingsPage() {
         bank_holder: (data as any).bank_holder ?? "",
         logo_url: (data as any).logo_url ?? "",
         contract_template: data.contract_template ?? "",
+        wa_contract_template: (data as any).wa_contract_template ?? DEFAULT_WA_CONTRACT_TEMPLATE,
         wa_quote_template: data.wa_quote_template ?? "",
         wa_reminder_template: data.wa_reminder_template ?? "",
         wa_pix_template: data.wa_pix_template ?? "",
@@ -288,7 +291,8 @@ function SettingsPage() {
 
       <Section title="Modelos de mensagens (WhatsApp)">
         <p className="text-xs text-muted-foreground">
-          Variáveis disponíveis: {"{cliente}"}, {"{valor}"}, {"{data}"}, {"{hora}"}, {"{pix}"}.
+          Personalize o texto que será aberto no WhatsApp. Revise e envie a mensagem pelo próprio WhatsApp.
+          Variáveis disponíveis: {"{cliente}"}, {"{valor}"}, {"{data}"}, {"{hora}"}, {"{pix}"}, {"{link}"}.
         </p>
         <Field label="Envio de orçamento">
           <textarea
@@ -311,6 +315,18 @@ function SettingsPage() {
             rows={2}
             value={f.wa_pix_template}
             onChange={(e) => setF({ ...f, wa_pix_template: e.target.value })}
+            className="input min-h-[70px]"
+          />
+        </Field>
+        <Field label="Envio de contrato">
+          <p className="mb-1 text-[11px] text-muted-foreground">
+            Variáveis: {"{cliente}"}, {"{acao}"} (assinatura ou consulta) e {"{link}"}.
+          </p>
+          <textarea
+            rows={2}
+            value={f.wa_contract_template}
+            onChange={(e) => setF({ ...f, wa_contract_template: e.target.value })}
+            placeholder={DEFAULT_WA_CONTRACT_TEMPLATE}
             className="input min-h-[70px]"
           />
         </Field>
