@@ -202,6 +202,10 @@ export default function InstallmentsSection({ tenantId, ownerId, isSuperAdmin }:
       pix: (settings as any)?.pix_key ?? "",
     });
     const phone = item.events?.clients?.whatsapp ?? item.events?.clients?.phone ?? "";
+    if (!phone) {
+      toast.error("Cadastre um WhatsApp para este cliente antes de enviar a cobrança.");
+      return;
+    }
     window.open(waLink(phone, msg), "_blank");
   };
 
