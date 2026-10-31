@@ -19,7 +19,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { brl, formatDateFullBR } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { fillTemplate } from "@/lib/whatsapp";
+import { DEFAULT_WA_CONTRACT_TEMPLATE, fillTemplate, waLink } from "@/lib/whatsapp";
 import { useLogoDisplayUrl, getLogoDisplayUrl } from "@/lib/logo";
 import { normalizeSearch, useSearchFilter } from "@/lib/search-store";
 import { DEFAULT_CONTRACT_TEMPLATE } from "@/lib/contract-template";
@@ -209,6 +209,9 @@ function ContractsPage() {
       return;
     }
 
+    const whatsappWindow = window.open("about:blank", "_blank");
+    if (whatsappWindow) whatsappWindow.opener = null;
+
     let link: string;
     try {
       let signingToken =
@@ -232,26 +235,35 @@ function ContractsPage() {
         ? "https://centraldobuffet.lovable.app"
         : window.location.origin;
       link = `${origin}/contrato-assinatura/${encodeURIComponent(signingToken)}`;
-      const message =
-        contract.status === "assinado"
-          ? `Olá ${client?.name ?? ""}! Segue o link para consultar o seu contrato assinado: ${link}.`
-          : `Olá ${client?.name ?? ""}! Segue o link para assinatura do seu contrato do evento: ${link}. Qualquer dúvida, estou à disposição!`;
-      // Copia o link como garantia caso o WhatsApp não abra.
-      navigator.clipboard?.writeText(message).catch(() => {});
-      const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-      // No computador, usa o WhatsApp Web direto (api.whatsapp.com bloqueia aberturas vindas do app).
-      const whatsappUrl = isMobile
-        ? `https://wa.me/${phone}?text=${encodeURIComponent(message)}`
-        : `https://web.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(message)}`;
-      const a = document.createElement("a");
-      a.href = whatsappUrl;
-      a.target = "_blank";
-      a.rel = "noopener noreferrer";
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      toast.success("Mensagem com o link copiada! Se o WhatsApp não abrir, cole no chat do cliente.", { duration: 8000 });
+      const message = fillTemplate(
+        settings?.wa_contract_template?.trim() || DEFAULT_WA_CONTRACT_TEMPLATE,
+        {
+          cliente: client?.name ?? "",
+          link,
+          acao: contract.status === "assinado" ? "consulta" : "assinatura",
+        },
+      );
+      if (whatsappWindow) {
+        whatsappWindow.location.href = waLink(rawPhone, message);
+      } else {
+        let copied = false;
+        try {
+          if (navigator.clipboard) {
+            await navigator.clipboard.writeText(message);
+            copied = true;
+          }
+        } catch {
+          copied = false;
+        }
+        toast.error(
+          copied
+            ? "O navegador bloqueou a nova aba. A mensagem foi copiada para você colar no WhatsApp."
+            : "O navegador bloqueou a nova aba e não permitiu copiar a mensagem.",
+        );
+        return;
+      }
     } catch (error) {
+      whatsappWindow?.close();
       const errorObject =
         error && typeof error === "object" ? (error as Record<string, unknown>) : null;
       const details =
@@ -288,7 +300,7 @@ function ContractsPage() {
       return;
     }
 
-    toast.success("Link de assinatura gerado. Confirme o envio no WhatsApp.", {
+    toast.success("Mensagem preparada no WhatsApp. Revise e envie por lá.", {
       description: link,
       duration: 15000,
     });

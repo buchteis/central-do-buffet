@@ -7,6 +7,7 @@ import { brl } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useSearchFilter } from "@/lib/search-store";
+import { waLink } from "@/lib/whatsapp";
 
 export const Route = createFileRoute("/_authenticated/funcionarios")({
   head: () => ({ meta: [{ title: "Funcionários — Central do Buffet" }] }),
@@ -86,7 +87,7 @@ function FuncionariosPage() {
                       <span>{e.phone ?? "—"}</span>
                       {e.phone && (
                         <a
-                          href={`https://wa.me/${String(e.phone).replace(/\D/g, "").replace(/^(?!55)/, "55")}`}
+                          href={waLink(e.phone, "")}
                           target="_blank"
                           rel="noreferrer"
                           title="Enviar WhatsApp"
