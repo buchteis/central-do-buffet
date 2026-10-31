@@ -142,14 +142,22 @@ function Dashboard() {
   const transactionsData = useDashboardQuery("transactions-data", async () => {
     const { data: evts } = await supabase
       .from("events")
-      .select("total_value, status")
+      .select("id, total_value, status")
       .in("status", FINANCE_EVENT_STATUSES as any);
 
     const { data: txs } = await supabase
       .from("transactions")
       .select("amount, type, status, due_date");
 
-    const totals = computeFinanceTotals(evts ?? [], txs ?? []);
+    const { data: installments } = await supabase
+      .from("payment_installments")
+      .select("event_id, amount, status");
+
+    const eventIds = new Set((evts ?? []).map((event) => event.id));
+    const eligibleInstallments = (installments ?? []).filter(
+      (installment) => !installment.event_id || eventIds.has(installment.event_id),
+    );
+    const totals = computeFinanceTotals(evts ?? [], txs ?? [], eligibleInstallments);
 
     const vencidos =
       txs?.filter(
@@ -592,4 +600,3 @@ function FinanceCard({ label, value, icon: Icon, color }: any) {
     </div>
   );
 }
-
