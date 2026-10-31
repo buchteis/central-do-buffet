@@ -8,8 +8,8 @@ export function normalizeWhatsAppPhone(phone: string | null | undefined) {
 
 export function waLink(phone: string | null | undefined, message: string) {
   const number = normalizeWhatsAppPhone(phone);
-  const text = encodeURIComponent(message);
-  return `https://web.whatsapp.com/send/?phone=${number}&text=${text}`;
+  const params = new URLSearchParams({ phone: number, text: message });
+  return `https://web.whatsapp.com/send?${params.toString()}`;
 }
 
 export function fillTemplate(tpl: string, vars: Record<string, string>) {
