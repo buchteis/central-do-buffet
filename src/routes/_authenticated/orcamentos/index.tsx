@@ -36,7 +36,7 @@ export const Route = createFileRoute("/_authenticated/orcamentos/")({
 });
 
 function whatsappMessage(q: any, settings?: { wa_quote_template?: string | null; pix_key?: string | null } | null) {
-  const fullName = q.clients?.name ?? (q?.extras as any)?.requester?.name ?? (q?.request as any)?.name ?? null;
+  const fullName: string | null = q.clients?.name ?? (q?.extras as any)?.requester?.name ?? null;
   const name = fullName?.split(" ")[0] ?? "tudo bem";
   const date = formatDateBR(q.event_date) ?? "a data definida";
   const pkg = quotePackagesLabel(q);
