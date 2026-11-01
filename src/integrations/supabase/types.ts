@@ -95,7 +95,6 @@ export type Database = {
           pix_key: string | null
           tenant_id: string | null
           updated_at: string
-          wa_contract_template: string | null
           wa_installment_template: string | null
           wa_pix_template: string | null
           wa_quote_template: string | null
@@ -122,7 +121,6 @@ export type Database = {
           pix_key?: string | null
           tenant_id?: string | null
           updated_at?: string
-          wa_contract_template?: string | null
           wa_installment_template?: string | null
           wa_pix_template?: string | null
           wa_quote_template?: string | null
@@ -149,7 +147,6 @@ export type Database = {
           pix_key?: string | null
           tenant_id?: string | null
           updated_at?: string
-          wa_contract_template?: string | null
           wa_installment_template?: string | null
           wa_pix_template?: string | null
           wa_quote_template?: string | null
