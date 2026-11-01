@@ -9,7 +9,7 @@ export function normalizeWhatsAppPhone(phone: string | null | undefined) {
 export function waLink(phone: string | null | undefined, message: string) {
   const number = normalizeWhatsAppPhone(phone);
   const text = encodeURIComponent(message);
-  return `https://web.whatsapp.com/send/?phone=${number}&text=${text}`;
+  return `whatsapp://send?phone=${number}&text=${text}`;
 }
 
 export function fillTemplate(tpl: string, vars: Record<string, string>) {
