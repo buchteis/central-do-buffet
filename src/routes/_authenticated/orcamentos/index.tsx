@@ -26,7 +26,7 @@ import { calcQuote } from "@/lib/quote-calc";
 import { copyToClipboard } from "@/lib/clipboard";
 import { useTenantAccess } from "@/hooks/useTenantAccess";
 import { useEffect } from "react";
-import { PIPELINE, stageOfStatus } from "@/lib/quote-pipeline";
+import { PIPELINE, quotePhone, stageOfStatus } from "@/lib/quote-pipeline";
 import { QuoteKanban } from "@/components/orcamentos/QuoteKanban";
 import { QuoteDetailModal } from "@/components/orcamentos/QuoteDetailModal";
 
@@ -36,7 +36,8 @@ export const Route = createFileRoute("/_authenticated/orcamentos/")({
 });
 
 function whatsappMessage(q: any, settings?: { wa_quote_template?: string | null; pix_key?: string | null } | null) {
-  const name = q.clients?.name?.split(" ")[0] ?? "tudo bem";
+  const fullName: string | null = q.clients?.name ?? (q?.extras as any)?.requester?.name ?? null;
+  const name = fullName?.split(" ")[0] ?? "tudo bem";
   const date = formatDateBR(q.event_date) ?? "a data definida";
   const pkg = quotePackagesLabel(q);
   const value = brl(q.total_value);
@@ -44,7 +45,7 @@ function whatsappMessage(q: any, settings?: { wa_quote_template?: string | null;
   const tpl = settings?.wa_quote_template?.trim();
   if (tpl) {
     return fillTemplate(tpl, {
-      cliente: q.clients?.name ?? name,
+      cliente: fullName ?? name,
       valor: value,
       data: date,
       hora,
@@ -641,6 +642,10 @@ function QuotesPage() {
           openEdit(q);
         }}
         onPdf={handlePdf}
+        whatsappHref={(q) => {
+          const p = q.clients?.whatsapp ?? q.clients?.phone ?? quotePhone(q);
+          return p ? waLink(p, whatsappMessage(q, settings)) : null;
+        }}
       />
     </div>
 
