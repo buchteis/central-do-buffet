@@ -20,19 +20,20 @@ import {
 } from "@/lib/quote-pipeline";
 import { cn } from "@/lib/utils";
 import { dedupePackages } from "@/lib/quote-calc";
-import { ExternalLink, FileText, Save } from "lucide-react";
+import { ExternalLink, FileText, MessageCircle, Save } from "lucide-react";
 
 type Props = {
   quote: QuoteAny | null;
   onClose: () => void;
   onFullEdit: (q: QuoteAny) => void;
   onPdf?: (q: QuoteAny) => void;
+  whatsappHref?: (q: QuoteAny) => string | null;
 };
 
 const field =
   "w-full h-10 rounded-xl border border-primary/25 bg-primary/5 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30";
 
-export function QuoteDetailModal({ quote, onClose, onFullEdit, onPdf }: Props) {
+export function QuoteDetailModal({ quote, onClose, onFullEdit, onPdf, whatsappHref }: Props) {
   const qc = useQueryClient();
   const [form, setForm] = useState<Record<string, any>>({});
 
@@ -340,6 +341,20 @@ export function QuoteDetailModal({ quote, onClose, onFullEdit, onPdf }: Props) {
               <FileText className="size-4" /> Gerar PDF
             </button>
           )}
+          {waHref ? (
+            <a
+              href={waHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 h-10 px-4 rounded-full border border-emerald-500 text-emerald-700 text-xs font-bold hover:bg-emerald-500/10"
+            >
+              <MessageCircle className="size-4" /> Enviar no WhatsApp
+            </a>
+          ) : whatsappHref ? (
+            <span className="text-[11px] text-muted-foreground self-center">
+              Cadastre o WhatsApp do cliente para enviar.
+            </span>
+          ) : null}
         </div>
       </DialogContent>
     </Dialog>

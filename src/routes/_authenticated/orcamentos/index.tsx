@@ -641,6 +641,10 @@ function QuotesPage() {
           openEdit(q);
         }}
         onPdf={handlePdf}
+        whatsappHref={(q) => {
+          const p = q.clients?.whatsapp ?? q.clients?.phone ?? quotePhone(q);
+          return p ? waLink(p, whatsappMessage(q, settings)) : null;
+        }}
       />
     </div>
 
