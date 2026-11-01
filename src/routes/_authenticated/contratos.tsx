@@ -209,9 +209,6 @@ function ContractsPage() {
       return;
     }
 
-    const whatsappWindow = window.open("about:blank", "_blank");
-    if (whatsappWindow) whatsappWindow.opener = null;
-
     let link: string;
     try {
       let signingToken =
@@ -243,9 +240,8 @@ function ContractsPage() {
           acao: contract.status === "assinado" ? "consulta" : "assinatura",
         },
       );
-      if (whatsappWindow) {
-        whatsappWindow.location.href = waLink(rawPhone, message);
-      } else {
+      const whatsappWindow = window.open(waLink(rawPhone, message), "_blank");
+      if (!whatsappWindow) {
         let copied = false;
         try {
           if (navigator.clipboard) {
@@ -263,7 +259,6 @@ function ContractsPage() {
         return;
       }
     } catch (error) {
-      whatsappWindow?.close();
       const errorObject =
         error && typeof error === "object" ? (error as Record<string, unknown>) : null;
       const details =
