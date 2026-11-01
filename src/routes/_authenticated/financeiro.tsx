@@ -299,7 +299,7 @@ function FinanceiroPage() {
   }
 
   const eventRows: Row[] = (events ?? [])
-    .map((e: any) => {
+    .map((e: any): Row => {
       const st = String(e.status ?? "").toLowerCase();
       const isReceived = RECEIVED_EVENT_STATUSES.includes(st);
       return {

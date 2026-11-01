@@ -9,7 +9,8 @@ export function normalizeWhatsAppPhone(phone: string | null | undefined) {
 export function waLink(phone: string | null | undefined, message: string) {
   const number = normalizeWhatsAppPhone(phone);
   const text = encodeURIComponent(message);
-  return `whatsapp://send?phone=${number}&text=${text}`;
+  // wa.me funciona em qualquer aparelho: abre o app no celular e o WhatsApp Web no computador.
+  return `https://wa.me/${number}?text=${text}`;
 }
 
 export function fillTemplate(tpl: string, vars: Record<string, string>) {
