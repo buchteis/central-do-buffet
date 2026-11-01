@@ -235,7 +235,7 @@ function ContractsPage() {
         : window.location.origin;
       link = `${origin}/contrato-assinatura/${encodeURIComponent(signingToken)}`;
       const message = fillTemplate(
-        settings?.wa_contract_template?.trim() || DEFAULT_WA_CONTRACT_TEMPLATE,
+        (settings as { wa_contract_template?: string | null } | null | undefined)?.wa_contract_template?.trim() || DEFAULT_WA_CONTRACT_TEMPLATE,
         {
           cliente: client?.name ?? "",
           link,
