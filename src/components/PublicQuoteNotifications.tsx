@@ -143,7 +143,7 @@ export function PublicQuoteNotifications() {
               ? {
                   label: "Avisar no WhatsApp",
                   onClick: () =>
-                    window.open(waLink(alertPhone, buildAlertMessage({ ...row, clients: null })), "_blank"),
+                    window.open(waLink(alertPhone, buildAlertMessage({ ...row, clients: null })), "_blank", "noopener"),
                 }
               : undefined,
           });
@@ -251,7 +251,7 @@ export function PublicQuoteNotifications() {
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => window.open(waLink(alertPhone, buildAlertMessage(q)), "_blank")}
+                          onClick={() => window.open(waLink(alertPhone, buildAlertMessage(q)), "_blank", "noopener")}
                         >
                           <MessageCircle className="size-3" /> Enviar ao meu celular
                         </Button>

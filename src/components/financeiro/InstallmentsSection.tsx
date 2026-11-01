@@ -206,7 +206,7 @@ export default function InstallmentsSection({ tenantId, ownerId, isSuperAdmin }:
       toast.error("Cadastre um WhatsApp para este cliente antes de enviar a cobrança.");
       return;
     }
-    window.open(waLink(phone, msg), "_blank");
+    window.open(waLink(phone, msg), "_blank", "noopener");
   };
 
   const viewReceipt = async (id: string) => {
