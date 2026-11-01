@@ -209,6 +209,8 @@ function ContractsPage() {
       return;
     }
 
+    // Abre a aba já no clique (antes de qualquer espera), senão o navegador bloqueia.
+    const pendingTab = window.open("about:blank", "_blank");
     let link: string;
     try {
       let signingToken =
@@ -240,25 +242,25 @@ function ContractsPage() {
           acao: contract.status === "assinado" ? "consulta" : "assinatura",
         },
       );
-      const whatsappWindow = window.open(waLink(rawPhone, message), "_blank");
-      if (!whatsappWindow) {
-        let copied = false;
+      const url = waLink(rawPhone, message);
+      navigator.clipboard?.writeText(message).catch(() => {});
+      if (pendingTab && !pendingTab.closed) {
         try {
-          if (navigator.clipboard) {
-            await navigator.clipboard.writeText(message);
-            copied = true;
-          }
+          pendingTab.opener = null;
         } catch {
-          copied = false;
+          /* ignore */
         }
-        toast.error(
-          copied
-            ? "O navegador bloqueou a nova aba. A mensagem foi copiada para você colar no WhatsApp."
-            : "O navegador bloqueou a nova aba e não permitiu copiar a mensagem.",
-        );
-        return;
+        pendingTab.location.href = url;
+      } else {
+        const fallback = window.open(url, "_blank", "noopener");
+        if (!fallback) {
+          window.location.href = url;
+          return;
+        }
       }
+      toast.success("WhatsApp aberto com a mensagem. Ela também foi copiada, caso precise colar.");
     } catch (error) {
+      if (pendingTab && !pendingTab.closed) pendingTab.close();
       const errorObject =
         error && typeof error === "object" ? (error as Record<string, unknown>) : null;
       const details =
