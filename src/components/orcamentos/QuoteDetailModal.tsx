@@ -112,6 +112,7 @@ export function QuoteDetailModal({ quote, onClose, onFullEdit, onPdf, whatsappHr
   if (!quote) return null;
   const q = quote;
   const r = requesterOf(q);
+  const waHref = whatsappHref?.(q) ?? null;
   const alerts = quoteAlerts(q);
   const origin = quoteOrigin(q);
   const unitItems = quoteUnitItems(q);
