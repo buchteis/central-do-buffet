@@ -209,8 +209,6 @@ function ContractsPage() {
       return;
     }
 
-    // Abre a aba já no clique (antes de qualquer espera), senão o navegador bloqueia.
-    const pendingTab = window.open("about:blank", "_blank");
     let link: string;
     try {
       let signingToken =
@@ -218,6 +216,8 @@ function ContractsPage() {
           ? contract.signing_token.trim()
           : null;
 
+      // Só espera o banco quando o contrato ainda não tem token (raro).
+      // Com o token em mãos, a aba abre no mesmo clique e o navegador não bloqueia.
       if (!signingToken) {
         const { data, error } = await supabase
           .from("contracts")
@@ -244,23 +244,19 @@ function ContractsPage() {
       );
       const url = waLink(rawPhone, message);
       navigator.clipboard?.writeText(message).catch(() => {});
-      if (pendingTab && !pendingTab.closed) {
-        try {
-          pendingTab.opener = null;
-        } catch {
-          /* ignore */
-        }
-        pendingTab.location.href = url;
-      } else {
-        const fallback = window.open(url, "_blank", "noopener");
-        if (!fallback) {
-          window.location.href = url;
-          return;
-        }
+      try {
+        const a = document.createElement("a");
+        a.href = url;
+        a.target = "_blank";
+        a.rel = "noopener noreferrer";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        toast.success("WhatsApp aberto em nova aba. A mensagem também foi copiada, caso precise colar.");
+      } catch {
+        toast.message("Não foi possível abrir o WhatsApp aqui. A mensagem foi copiada: cole no chat do cliente.");
       }
-      toast.success("WhatsApp aberto com a mensagem. Ela também foi copiada, caso precise colar.");
     } catch (error) {
-      if (pendingTab && !pendingTab.closed) pendingTab.close();
       const errorObject =
         error && typeof error === "object" ? (error as Record<string, unknown>) : null;
       const details =
