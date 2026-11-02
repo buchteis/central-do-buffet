@@ -539,17 +539,18 @@ function FinanceiroPage() {
               onClick={() => setMonthFilter(idx)}
               className={cn(
                 "text-left p-4 rounded-2xl border transition-all duration-200",
-                "bg-blue-50/80 border-blue-100 hover:bg-blue-100 hover:-translate-y-0.5 hover:shadow-md",
-                selected && "bg-blue-500 border-blue-500 text-white shadow-md",
+                selected
+                  ? "bg-blue-600 border-blue-600 text-white shadow-md dark:bg-blue-600 dark:border-blue-500"
+                  : "bg-blue-50 border-blue-200 hover:bg-blue-100 hover:-translate-y-0.5 hover:shadow-md dark:bg-blue-500/10 dark:border-blue-400/25 dark:hover:bg-blue-500/20",
               )}
             >
-              <div className={cn("text-xs font-bold uppercase tracking-wider", selected ? "text-blue-100" : "text-blue-400")}>
+              <div className={cn("text-xs font-bold uppercase tracking-wider", selected ? "text-blue-100 dark:text-blue-100" : "text-blue-700 dark:text-blue-300")}>
                 {g.label}
               </div>
-              <div className={cn("mt-1 text-lg font-extrabold tracking-tight", selected ? "text-white" : "text-blue-700")}>
+              <div className={cn("mt-1 text-lg font-extrabold tracking-tight", selected ? "text-white" : "text-blue-950 dark:text-blue-50")}>
                 {brl(g.total)}
               </div>
-              <div className={cn("mt-1 text-[10px] font-semibold", selected ? "text-blue-100" : "text-blue-400")}>
+              <div className={cn("mt-1 text-[10px] font-semibold", selected ? "text-blue-100 dark:text-blue-100" : "text-blue-800/80 dark:text-blue-200/80")}>
                 {g.count} registro{g.count === 1 ? "" : "s"}
               </div>
             </button>
@@ -573,11 +574,11 @@ function FinanceiroPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            <tr className="bg-blue-50/60">
-              <td colSpan={5} className="px-5 py-2 text-[11px] font-extrabold uppercase tracking-widest text-blue-700">
+            <tr className="bg-blue-50 dark:bg-blue-500/10">
+              <td colSpan={5} className="px-5 py-2 text-[11px] font-extrabold uppercase tracking-widest text-blue-800 dark:text-blue-200">
                 {selectedGroup.label} · {selectedGroup.count} registro{selectedGroup.count === 1 ? "" : "s"}
               </td>
-              <td colSpan={2} className="px-4 py-2 text-xs font-mono font-bold text-right text-blue-700">
+              <td colSpan={2} className="px-4 py-2 text-xs font-mono font-bold text-right text-blue-800 dark:text-blue-200">
                 {brl(selectedGroup.total)}
               </td>
             </tr>

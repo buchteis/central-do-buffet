@@ -154,7 +154,7 @@ function InvitePage() {
               {(guests ?? []).map((g, i) => (
                 <div
                   key={i}
-                  className="rounded-xl bg-sky-50/70 border border-sky-100 px-4 py-3 flex items-start justify-between gap-3"
+                  className="rounded-xl bg-sky-50/70 border border-sky-100 dark:bg-sky-500/10 dark:border-sky-400/25 px-4 py-3 flex items-start justify-between gap-3"
                 >
                   <div className="min-w-0">
                     <div className="text-sm font-bold text-foreground break-words">{g.guest_name}</div>
@@ -284,7 +284,7 @@ function InvitePage() {
 
 function InfoRow({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
-    <div className="flex items-start gap-3 rounded-xl bg-sky-50/70 border border-sky-100 px-4 py-3">
+    <div className="flex items-start gap-3 rounded-xl bg-sky-50/70 border border-sky-100 dark:bg-sky-500/10 dark:border-sky-400/25 px-4 py-3">
       <span className="mt-0.5 text-sky-500">{icon}</span>
       <div className="min-w-0">
         <div className="text-[10px] font-bold uppercase tracking-widest text-sky-500">{label}</div>
