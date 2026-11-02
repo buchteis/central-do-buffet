@@ -119,7 +119,7 @@ function InvitePage() {
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-sky-50 via-background to-sky-50 py-10 px-4">
+    <main className="min-h-screen bg-gradient-to-b from-sky-50 via-background to-sky-50 dark:from-background dark:to-background py-10 px-4">
       <div className="max-w-lg mx-auto space-y-6">
         <section className="rounded-3xl bg-card border border-sky-100 shadow-sm p-7 text-center">
           <div className="inline-flex items-center justify-center size-12 rounded-2xl bg-sky-100 text-sky-600 mb-3">

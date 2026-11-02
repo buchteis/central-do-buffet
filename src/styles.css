@@ -240,3 +240,56 @@
   30%, 60%, 90% { transform: translateX(5px) rotate(6deg); }
 }
 .chatbot-shake { animation: chatbot-shake 0.4s ease-in-out 3; }
+
+/* Tema escuro: suaviza cores claras fixas (fundos pastel e textos escuros) para manter o texto legível */
+.dark .bg-red-50:not([class*="dark:bg-"]), .dark .bg-red-100:not([class*="dark:bg-"]) { background-color: color-mix(in oklab, var(--color-red-500) 16%, transparent); }
+.dark .text-red-700:not([class*="dark:text-"]), .dark .text-red-800:not([class*="dark:text-"]), .dark .text-red-900:not([class*="dark:text-"]) { color: var(--color-red-300); }
+.dark .border-red-100:not([class*="dark:border-"]), .dark .border-red-200:not([class*="dark:border-"]) { border-color: color-mix(in oklab, var(--color-red-500) 30%, transparent); }
+.dark .bg-orange-50:not([class*="dark:bg-"]), .dark .bg-orange-100:not([class*="dark:bg-"]) { background-color: color-mix(in oklab, var(--color-orange-500) 16%, transparent); }
+.dark .text-orange-700:not([class*="dark:text-"]), .dark .text-orange-800:not([class*="dark:text-"]), .dark .text-orange-900:not([class*="dark:text-"]) { color: var(--color-orange-300); }
+.dark .border-orange-100:not([class*="dark:border-"]), .dark .border-orange-200:not([class*="dark:border-"]) { border-color: color-mix(in oklab, var(--color-orange-500) 30%, transparent); }
+.dark .bg-amber-50:not([class*="dark:bg-"]), .dark .bg-amber-100:not([class*="dark:bg-"]) { background-color: color-mix(in oklab, var(--color-amber-500) 16%, transparent); }
+.dark .text-amber-700:not([class*="dark:text-"]), .dark .text-amber-800:not([class*="dark:text-"]), .dark .text-amber-900:not([class*="dark:text-"]) { color: var(--color-amber-300); }
+.dark .border-amber-100:not([class*="dark:border-"]), .dark .border-amber-200:not([class*="dark:border-"]) { border-color: color-mix(in oklab, var(--color-amber-500) 30%, transparent); }
+.dark .bg-yellow-50:not([class*="dark:bg-"]), .dark .bg-yellow-100:not([class*="dark:bg-"]) { background-color: color-mix(in oklab, var(--color-yellow-500) 16%, transparent); }
+.dark .text-yellow-700:not([class*="dark:text-"]), .dark .text-yellow-800:not([class*="dark:text-"]), .dark .text-yellow-900:not([class*="dark:text-"]) { color: var(--color-yellow-300); }
+.dark .border-yellow-100:not([class*="dark:border-"]), .dark .border-yellow-200:not([class*="dark:border-"]) { border-color: color-mix(in oklab, var(--color-yellow-500) 30%, transparent); }
+.dark .bg-lime-50:not([class*="dark:bg-"]), .dark .bg-lime-100:not([class*="dark:bg-"]) { background-color: color-mix(in oklab, var(--color-lime-500) 16%, transparent); }
+.dark .text-lime-700:not([class*="dark:text-"]), .dark .text-lime-800:not([class*="dark:text-"]), .dark .text-lime-900:not([class*="dark:text-"]) { color: var(--color-lime-300); }
+.dark .border-lime-100:not([class*="dark:border-"]), .dark .border-lime-200:not([class*="dark:border-"]) { border-color: color-mix(in oklab, var(--color-lime-500) 30%, transparent); }
+.dark .bg-green-50:not([class*="dark:bg-"]), .dark .bg-green-100:not([class*="dark:bg-"]) { background-color: color-mix(in oklab, var(--color-green-500) 16%, transparent); }
+.dark .text-green-700:not([class*="dark:text-"]), .dark .text-green-800:not([class*="dark:text-"]), .dark .text-green-900:not([class*="dark:text-"]) { color: var(--color-green-300); }
+.dark .border-green-100:not([class*="dark:border-"]), .dark .border-green-200:not([class*="dark:border-"]) { border-color: color-mix(in oklab, var(--color-green-500) 30%, transparent); }
+.dark .bg-emerald-50:not([class*="dark:bg-"]), .dark .bg-emerald-100:not([class*="dark:bg-"]) { background-color: color-mix(in oklab, var(--color-emerald-500) 16%, transparent); }
+.dark .text-emerald-700:not([class*="dark:text-"]), .dark .text-emerald-800:not([class*="dark:text-"]), .dark .text-emerald-900:not([class*="dark:text-"]) { color: var(--color-emerald-300); }
+.dark .border-emerald-100:not([class*="dark:border-"]), .dark .border-emerald-200:not([class*="dark:border-"]) { border-color: color-mix(in oklab, var(--color-emerald-500) 30%, transparent); }
+.dark .bg-teal-50:not([class*="dark:bg-"]), .dark .bg-teal-100:not([class*="dark:bg-"]) { background-color: color-mix(in oklab, var(--color-teal-500) 16%, transparent); }
+.dark .text-teal-700:not([class*="dark:text-"]), .dark .text-teal-800:not([class*="dark:text-"]), .dark .text-teal-900:not([class*="dark:text-"]) { color: var(--color-teal-300); }
+.dark .border-teal-100:not([class*="dark:border-"]), .dark .border-teal-200:not([class*="dark:border-"]) { border-color: color-mix(in oklab, var(--color-teal-500) 30%, transparent); }
+.dark .bg-cyan-50:not([class*="dark:bg-"]), .dark .bg-cyan-100:not([class*="dark:bg-"]) { background-color: color-mix(in oklab, var(--color-cyan-500) 16%, transparent); }
+.dark .text-cyan-700:not([class*="dark:text-"]), .dark .text-cyan-800:not([class*="dark:text-"]), .dark .text-cyan-900:not([class*="dark:text-"]) { color: var(--color-cyan-300); }
+.dark .border-cyan-100:not([class*="dark:border-"]), .dark .border-cyan-200:not([class*="dark:border-"]) { border-color: color-mix(in oklab, var(--color-cyan-500) 30%, transparent); }
+.dark .bg-sky-50:not([class*="dark:bg-"]), .dark .bg-sky-100:not([class*="dark:bg-"]) { background-color: color-mix(in oklab, var(--color-sky-500) 16%, transparent); }
+.dark .text-sky-700:not([class*="dark:text-"]), .dark .text-sky-800:not([class*="dark:text-"]), .dark .text-sky-900:not([class*="dark:text-"]) { color: var(--color-sky-300); }
+.dark .border-sky-100:not([class*="dark:border-"]), .dark .border-sky-200:not([class*="dark:border-"]) { border-color: color-mix(in oklab, var(--color-sky-500) 30%, transparent); }
+.dark .bg-blue-50:not([class*="dark:bg-"]), .dark .bg-blue-100:not([class*="dark:bg-"]) { background-color: color-mix(in oklab, var(--color-blue-500) 16%, transparent); }
+.dark .text-blue-700:not([class*="dark:text-"]), .dark .text-blue-800:not([class*="dark:text-"]), .dark .text-blue-900:not([class*="dark:text-"]) { color: var(--color-blue-300); }
+.dark .border-blue-100:not([class*="dark:border-"]), .dark .border-blue-200:not([class*="dark:border-"]) { border-color: color-mix(in oklab, var(--color-blue-500) 30%, transparent); }
+.dark .bg-indigo-50:not([class*="dark:bg-"]), .dark .bg-indigo-100:not([class*="dark:bg-"]) { background-color: color-mix(in oklab, var(--color-indigo-500) 16%, transparent); }
+.dark .text-indigo-700:not([class*="dark:text-"]), .dark .text-indigo-800:not([class*="dark:text-"]), .dark .text-indigo-900:not([class*="dark:text-"]) { color: var(--color-indigo-300); }
+.dark .border-indigo-100:not([class*="dark:border-"]), .dark .border-indigo-200:not([class*="dark:border-"]) { border-color: color-mix(in oklab, var(--color-indigo-500) 30%, transparent); }
+.dark .bg-violet-50:not([class*="dark:bg-"]), .dark .bg-violet-100:not([class*="dark:bg-"]) { background-color: color-mix(in oklab, var(--color-violet-500) 16%, transparent); }
+.dark .text-violet-700:not([class*="dark:text-"]), .dark .text-violet-800:not([class*="dark:text-"]), .dark .text-violet-900:not([class*="dark:text-"]) { color: var(--color-violet-300); }
+.dark .border-violet-100:not([class*="dark:border-"]), .dark .border-violet-200:not([class*="dark:border-"]) { border-color: color-mix(in oklab, var(--color-violet-500) 30%, transparent); }
+.dark .bg-purple-50:not([class*="dark:bg-"]), .dark .bg-purple-100:not([class*="dark:bg-"]) { background-color: color-mix(in oklab, var(--color-purple-500) 16%, transparent); }
+.dark .text-purple-700:not([class*="dark:text-"]), .dark .text-purple-800:not([class*="dark:text-"]), .dark .text-purple-900:not([class*="dark:text-"]) { color: var(--color-purple-300); }
+.dark .border-purple-100:not([class*="dark:border-"]), .dark .border-purple-200:not([class*="dark:border-"]) { border-color: color-mix(in oklab, var(--color-purple-500) 30%, transparent); }
+.dark .bg-fuchsia-50:not([class*="dark:bg-"]), .dark .bg-fuchsia-100:not([class*="dark:bg-"]) { background-color: color-mix(in oklab, var(--color-fuchsia-500) 16%, transparent); }
+.dark .text-fuchsia-700:not([class*="dark:text-"]), .dark .text-fuchsia-800:not([class*="dark:text-"]), .dark .text-fuchsia-900:not([class*="dark:text-"]) { color: var(--color-fuchsia-300); }
+.dark .border-fuchsia-100:not([class*="dark:border-"]), .dark .border-fuchsia-200:not([class*="dark:border-"]) { border-color: color-mix(in oklab, var(--color-fuchsia-500) 30%, transparent); }
+.dark .bg-pink-50:not([class*="dark:bg-"]), .dark .bg-pink-100:not([class*="dark:bg-"]) { background-color: color-mix(in oklab, var(--color-pink-500) 16%, transparent); }
+.dark .text-pink-700:not([class*="dark:text-"]), .dark .text-pink-800:not([class*="dark:text-"]), .dark .text-pink-900:not([class*="dark:text-"]) { color: var(--color-pink-300); }
+.dark .border-pink-100:not([class*="dark:border-"]), .dark .border-pink-200:not([class*="dark:border-"]) { border-color: color-mix(in oklab, var(--color-pink-500) 30%, transparent); }
+.dark .bg-rose-50:not([class*="dark:bg-"]), .dark .bg-rose-100:not([class*="dark:bg-"]) { background-color: color-mix(in oklab, var(--color-rose-500) 16%, transparent); }
+.dark .text-rose-700:not([class*="dark:text-"]), .dark .text-rose-800:not([class*="dark:text-"]), .dark .text-rose-900:not([class*="dark:text-"]) { color: var(--color-rose-300); }
+.dark .border-rose-100:not([class*="dark:border-"]), .dark .border-rose-200:not([class*="dark:border-"]) { border-color: color-mix(in oklab, var(--color-rose-500) 30%, transparent); }
