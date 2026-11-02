@@ -91,10 +91,10 @@ function PagamentosDiariasPage() {
   return (
     <div className="p-4 md:p-6 space-y-6 max-w-7xl mx-auto">
       <div>
-        <h1 className="text-2xl font-extrabold text-slate-800 flex items-center gap-2">
+        <h1 className="text-2xl font-extrabold text-foreground flex items-center gap-2">
           <Wallet className="size-7 text-emerald-600" /> Pagamento de Diárias (Pix)
         </h1>
-        <p className="text-sm text-slate-500 mt-1">
+        <p className="text-sm text-muted-foreground mt-1">
           Copie as chaves Pix dos freelancers e confirme a quitação após transferir.
         </p>
       </div>
@@ -125,20 +125,20 @@ function PagamentosDiariasPage() {
       </div>
 
       {/* Lista de Diárias Pendentes */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="p-4 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
-          <h2 className="font-bold text-slate-800 text-base">Pendentes de Pagamento</h2>
+      <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
+        <div className="p-4 border-b border-border bg-muted/30 flex justify-between items-center">
+          <h2 className="font-bold text-foreground text-base">Pendentes de Pagamento</h2>
         </div>
 
         {isLoading ? (
-          <div className="p-8 text-center text-slate-500">Carregando diárias...</div>
+          <div className="p-8 text-center text-muted-foreground">Carregando diárias...</div>
         ) : pendentes.length === 0 ? (
-          <div className="p-8 text-center text-slate-500">Tudo em dia! Nenhuma diária pendente.</div>
+          <div className="p-8 text-center text-muted-foreground">Tudo em dia! Nenhuma diária pendente.</div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="border-b border-slate-100 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                <tr className="border-b border-border text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
                   <th className="p-4">Freelancer</th>
                   <th className="p-4">Evento / Data</th>
                   <th className="p-4">Chave Pix</th>
@@ -146,7 +146,7 @@ function PagamentosDiariasPage() {
                   <th className="p-4 text-center">Ações</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 text-sm">
+              <tbody className="divide-y divide-border text-sm">
                 {pendentes.map((item: any) => {
                   const valorTotal =
                     Number(item.valor_diaria || 0) +
@@ -155,33 +155,33 @@ function PagamentosDiariasPage() {
                   return (
                     <tr key={item.id} className="hover:bg-amber-50/30 transition-colors">
                       <td className="p-4">
-                        <div className="font-semibold text-slate-800">{item.equipe_freelancers?.nome}</div>
-                        <div className="text-xs text-slate-500">{item.equipe_freelancers?.funcao}</div>
+                        <div className="font-semibold text-foreground">{item.equipe_freelancers?.nome}</div>
+                        <div className="text-xs text-muted-foreground">{item.equipe_freelancers?.funcao}</div>
                       </td>
-                      <td className="p-4 text-slate-600">
-                        <div className="font-medium text-slate-700">
+                      <td className="p-4 text-muted-foreground">
+                        <div className="font-medium text-foreground">
                           {item.events?.clients?.name ?? "Evento em Geral"}
                         </div>
-                        <div className="text-xs text-slate-500 flex items-center gap-1">
+                        <div className="text-xs text-muted-foreground flex items-center gap-1">
                           <Calendar className="size-3" />
                           {item.events?.event_date ? formatDateBR(item.events.event_date) : "—"}
                         </div>
                       </td>
                       <td className="p-4">
                         <div className="flex items-center gap-2">
-                          <span className="font-mono text-xs text-slate-700 bg-slate-100 px-2 py-1 rounded-md border">
+                          <span className="font-mono text-xs text-foreground bg-muted px-2 py-1 rounded-md border">
                             {item.equipe_freelancers?.chave_pix}
                           </span>
                           <button
                             onClick={() => handleCopyPix(item.equipe_freelancers?.chave_pix)}
-                            className="p-1 hover:bg-slate-200 rounded text-slate-600"
+                            className="p-1 hover:bg-accent rounded text-muted-foreground"
                             title="Copiar Chave Pix"
                           >
                             <Copy className="size-3.5" />
                           </button>
                         </div>
                       </td>
-                      <td className="p-4 text-right font-black text-slate-800 text-base">
+                      <td className="p-4 text-right font-black text-foreground text-base">
                         {brl(valorTotal)}
                       </td>
                       <td className="p-4 text-center">

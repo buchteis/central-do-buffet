@@ -1537,7 +1537,7 @@ ${signatureInfo ? `<div class="signature">
         </div>
         <div className="flex-1 overflow-auto bg-muted/40 p-2 sm:p-6">
           <div
-            className="relative mx-auto max-w-[720px] bg-white text-neutral-900 shadow-lg rounded-md p-5 sm:p-12 overflow-hidden"
+            className="relative mx-auto max-w-[720px] bg-card text-foreground shadow-lg rounded-md p-5 sm:p-12 overflow-hidden"
             style={{
               fontFamily: "'Cambria', 'Palatino Linotype', Georgia, serif",
               fontSize: "15px",
@@ -1568,7 +1568,7 @@ ${signatureInfo ? `<div class="signature">
             </h1>
             <div className="whitespace-pre-wrap text-justify relative z-10">{contract.content}</div>
             {signatureInfo && (
-              <div className="relative z-10 mt-8 rounded-lg border border-neutral-300 bg-neutral-50 p-4 text-[13px] leading-relaxed">
+              <div className="relative z-10 mt-8 rounded-lg border border-border bg-muted/50 p-4 text-[13px] leading-relaxed">
                 <h2 className="mb-3 text-sm font-bold uppercase tracking-wide">
                   Registro de assinatura eletrônica
                 </h2>
