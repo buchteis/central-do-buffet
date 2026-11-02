@@ -9,6 +9,7 @@ import { brl, formatDateBR } from "@/lib/format";
 import { waLink } from "@/lib/whatsapp";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { useNotificationState } from "@/hooks/useNotificationState";
 
 type PublicQuote = {
   id: string;
@@ -24,8 +25,6 @@ type PublicQuote = {
   extras: any;
   clients?: { name: string | null; whatsapp: string | null; phone: string | null; city: string | null } | null;
 };
-
-const seenKey = (userId: string) => `cdb_public_quotes_seen:${userId}`;
 
 function guests(q: PublicQuote) {
   return (q.adults ?? 0) + (q.children_7_10 ?? 0) + (q.children_0_6 ?? 0);
@@ -69,16 +68,13 @@ export function PublicQuoteNotifications() {
   const { data: access } = useTenantAccess();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
-  const [seenAt, setSeenAt] = useState<string | null>(null);
   const notifiedRef = useRef<Set<string>>(new Set());
 
   const userId = access?.userId;
   const tenantId = access?.tenant?.id as string | undefined;
 
-  useEffect(() => {
-    if (!userId || typeof window === "undefined") return;
-    setSeenAt(localStorage.getItem(seenKey(userId)));
-  }, [userId]);
+  const { state: notif, ready: notifReady, update: updateNotif } = useNotificationState();
+  const seenAt = notif.quotes_seen_at;
 
   // Celular cadastrado em Configurações
   const { data: settings } = useQuery({
@@ -118,8 +114,9 @@ export function PublicQuoteNotifications() {
 
   const list = quotes ?? [];
   const unread = useMemo(
-    () => list.filter((q) => !seenAt || new Date(q.created_at) > new Date(seenAt)),
-    [list, seenAt],
+    () =>
+      notifReady ? list.filter((q) => !seenAt || new Date(q.created_at) > new Date(seenAt)) : [],
+    [list, seenAt, notifReady],
   );
 
   // Realtime: avisa na hora que um orçamento do link público entra
@@ -161,9 +158,9 @@ export function PublicQuoteNotifications() {
   function markAllRead() {
     if (!userId) return;
     const now = new Date().toISOString();
-    localStorage.setItem(seenKey(userId), now);
-    setSeenAt(now);
-    window.dispatchEvent(new Event("cdb:quotes-seen"));
+    void updateNotif(() => ({ quotes_seen_at: now })).then(() =>
+      window.dispatchEvent(new Event("cdb:quotes-seen")),
+    );
   }
 
   return (
@@ -221,7 +218,7 @@ export function PublicQuoteNotifications() {
                 </li>
               )}
               {shown.map((q) => {
-                const isNew = !seenAt || new Date(q.created_at) > new Date(seenAt);
+                const isNew = true;
                 return (
                   <li key={q.id} className={cn("p-4 space-y-2", isNew && "bg-primary/5")}>
                     <div className="flex items-center justify-between gap-2">

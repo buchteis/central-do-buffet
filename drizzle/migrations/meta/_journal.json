@@ -50,6 +50,13 @@
       "when": 1793551931324,
       "tag": "0006_add_wa_contract_template",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1793647931677,
+      "tag": "0007_notification_state",
+      "breakpoints": true
     }
   ]
 }

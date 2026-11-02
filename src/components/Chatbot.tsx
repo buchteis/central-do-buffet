@@ -7,6 +7,7 @@ import { getBuffetAlerts, type BuffetAlert } from "@/lib/alerts.functions";
 import { parseInvoiceFile, commitInvoiceStockEntry } from "@/lib/nf-stock.functions";
 import { suggestEventStaffing, assignEventStaffing } from "@/lib/staffing.functions";
 import { Flame, Paperclip } from "lucide-react";
+import { useNotificationState } from "@/hooks/useNotificationState";
 
 type NfReview = {
   header: any;
@@ -41,24 +42,6 @@ type Msg = {
 };
 
 
-const ACK_KEY = "cdb_alertas_confirmados";
-
-
-function readAck(): string[] {
-  try {
-    return JSON.parse(localStorage.getItem(ACK_KEY) ?? "[]");
-  } catch {
-    return [];
-  }
-}
-
-function writeAck(ids: string[]) {
-  try {
-    localStorage.setItem(ACK_KEY, JSON.stringify(ids.slice(-300)));
-  } catch {
-    /* ignore */
-  }
-}
 
 const brl = (v: number) =>
   Number(v || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -87,10 +70,8 @@ export const Chatbot = () => {
   const queryClient = useQueryClient();
 
 
-  const [acked, setAcked] = useState<string[]>([]);
-  useEffect(() => {
-    setAcked(readAck());
-  }, []);
+  const { state: notif, ready: notifReady, update: updateNotif } = useNotificationState();
+  const acked = notif.acked_alerts;
 
   const { data: alertData } = useQuery({
     queryKey: ["buffet-alerts", access?.tenant?.id ?? null],
@@ -147,6 +128,7 @@ export const Chatbot = () => {
     return () => window.removeEventListener("pointerdown", mark);
   }, []);
   useEffect(() => {
+    if (!notifReady) return;
     const list = alertData?.alerts ?? [];
     const urgent = list.filter(
       (a) =>
@@ -163,13 +145,15 @@ export const Chatbot = () => {
     setShake(true);
     const t = setTimeout(() => setShake(false), 1200);
     return () => clearTimeout(t);
-  }, [alertData]);
+  }, [alertData, notifReady]);
 
-  const pending: BuffetAlert[] = (alertData?.alerts ?? []).filter((a) => !acked.includes(a.id));
+  const pending: BuffetAlert[] = notifReady
+    ? (alertData?.alerts ?? []).filter((a) => !acked.includes(a.id))
+    : [];
 
   // Injeta os alertas pendentes na conversa (uma vez cada)
   useEffect(() => {
-    if (!alertData) return;
+    if (!alertData || !notifReady) return;
     setMessages((prev) => {
       const current = new Set((alertData?.alerts ?? []).map((a) => a.id));
       prev = prev.filter((m) => !m.alertId || current.has(m.alertId));
@@ -179,19 +163,16 @@ export const Chatbot = () => {
         .map((a) => ({ role: "assistant" as const, content: a.message, alertId: a.id }));
       return novos.length ? [...prev, ...novos] : prev;
     });
-  }, [alertData, acked]);
+  }, [alertData, acked, notifReady]);
 
   const ackAlert = (id: string) => {
-    const next = Array.from(new Set([...readAck(), id]));
-    writeAck(next);
-    setAcked(next);
+    void updateNotif((prev) => ({ acked_alerts: Array.from(new Set([...prev.acked_alerts, id])) }));
     setMessages((p) => [...p, { role: "assistant", content: "✅ Alerta confirmado. Não vou avisar novamente sobre este item." }]);
   };
 
   const ackAll = () => {
-    const next = Array.from(new Set([...readAck(), ...pending.map((a) => a.id)]));
-    writeAck(next);
-    setAcked(next);
+    const ids = pending.map((a) => a.id);
+    void updateNotif((prev) => ({ acked_alerts: Array.from(new Set([...prev.acked_alerts, ...ids])) }));
   };
 
   useEffect(() => {
@@ -586,7 +567,7 @@ export const Chatbot = () => {
               Assistente — Central do Buffet
             </span>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              {pending.length > 1 && (
+              {pending.length > 0 && (
                 <button
                   onClick={ackAll}
                   style={{

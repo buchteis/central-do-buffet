@@ -1033,6 +1033,30 @@ export type Database = {
           },
         ]
       }
+      notification_state: {
+        Row: {
+          acked_alerts: string[]
+          dashboard_seen: Json
+          quotes_seen_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          acked_alerts?: string[]
+          dashboard_seen?: Json
+          quotes_seen_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          acked_alerts?: string[]
+          dashboard_seen?: Json
+          quotes_seen_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       package_price_tiers: {
         Row: {
           created_at: string

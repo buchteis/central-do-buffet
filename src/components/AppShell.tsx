@@ -32,17 +32,19 @@ import { useTenantAccess } from "@/hooks/useTenantAccess";
 import { Chatbot } from "@/components/Chatbot";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { PublicQuoteNotifications } from "@/components/PublicQuoteNotifications";
+import { useNotificationState } from "@/hooks/useNotificationState";
 
 type NavItem = { to: string; label: string; icon: typeof Home; badge?: number };
 
 /** Conta orçamentos do link público ainda não lidos para o selo no menu. */
 function usePublicLeadCount(tenantId?: string, userId?: string) {
   const [count, setCount] = useState(0);
+  const { state: notif, ready } = useNotificationState();
+  const seenAt = notif.quotes_seen_at;
   useEffect(() => {
-    if (!tenantId || !userId) return;
+    if (!tenantId || !userId || !ready) return;
     let active = true;
     async function load() {
-      const seenAt = localStorage.getItem(`cdb_public_quotes_seen:${userId}`);
       const { data } = await supabase
         .from("quotes")
         .select("id, extras, created_at")
@@ -74,8 +76,8 @@ function usePublicLeadCount(tenantId?: string, userId?: string) {
       window.removeEventListener("cdb:quotes-seen", onSeen);
       supabase.removeChannel(channel);
     };
-  }, [tenantId, userId]);
-  return count;
+  }, [tenantId, userId, ready, seenAt]);
+  return ready ? count : 0;
 }
 
 const primary: NavItem[] = [
