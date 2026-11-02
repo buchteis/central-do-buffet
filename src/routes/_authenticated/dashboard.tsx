@@ -1,6 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
+import { X } from "lucide-react";
+import { useNotificationState } from "@/hooks/useNotificationState";
+import { markDashboardSeen, unseenDashboardAlerts } from "@/lib/dashboard-alerts";
 import { supabase } from "@/integrations/supabase/client";
 import { isOpenQuote } from "@/lib/quote-pipeline";
 import { brl, brlCompact, formatDateBR, formatDateFullBR } from "@/lib/format";
@@ -277,15 +280,32 @@ function Dashboard() {
   };
 
   // ===== ALERTAS =====
-  const alerts: { icon: any; label: string; tone: string }[] = [];
-  if (stats.txOverdue > 0)
-    alerts.push({ icon: AlertTriangle, label: `${stats.txOverdue} pagamento(s) atrasado(s)`, tone: "destructive" });
-  if (stats.contractsPending > 0)
-    alerts.push({ icon: FileText, label: `${stats.contractsPending} contrato(s) pendente(s)`, tone: "warning" });
-  if (stats.alertsEvTomorrow.length > 0)
-    alerts.push({ icon: CalendarCheck, label: `${stats.alertsEvTomorrow.length} evento(s) amanhã`, tone: "info" });
-  if (stats.qPend > 0)
-    alerts.push({ icon: Hourglass, label: `${stats.qPend} orçamento(s) aguardando resposta`, tone: "muted" });
+  // Cada aviso aparece só uma vez: na próxima visita, só volta se houver itens novos.
+  const allAlerts: { key: string; count: number; icon: any; label: string; tone: string }[] = [
+    { key: "pay", count: stats.txOverdue, icon: AlertTriangle, label: `${stats.txOverdue} pagamento(s) atrasado(s)`, tone: "destructive" },
+    { key: "contracts", count: stats.contractsPending, icon: FileText, label: `${stats.contractsPending} contrato(s) pendente(s)`, tone: "warning" },
+    { key: `ev:${tomorrow}`, count: stats.alertsEvTomorrow.length, icon: CalendarCheck, label: `${stats.alertsEvTomorrow.length} evento(s) amanhã`, tone: "info" },
+    { key: "quotes", count: stats.qPend, icon: Hourglass, label: `${stats.qPend} orçamento(s) aguardando resposta`, tone: "muted" },
+  ];
+  const { state: notif, ready: notifReady, update: updateNotif } = useNotificationState();
+  const baselineRef = useRef<Record<string, number> | null>(null);
+  if (notifReady && baselineRef.current === null) baselineRef.current = { ...notif.dashboard_seen };
+  const [dismissed, setDismissed] = useState<Record<string, number>>({});
+  const alertsLoaded =
+    notifReady && transactionsData.isSuccess && contractsPending.isSuccess && alertsEvTomorrow.isSuccess && quotesData.isSuccess;
+  const alerts = alertsLoaded
+    ? unseenDashboardAlerts(allAlerts, { ...(baselineRef.current ?? {}), ...dismissed })
+    : [];
+  const countsSig = allAlerts.map((a) => `${a.key}=${a.count}`).join("|");
+  useEffect(() => {
+    if (!alertsLoaded) return;
+    const counts = allAlerts.map(({ key, count }) => ({ key, count }));
+    void updateNotif((prev) => {
+      const next = markDashboardSeen(counts, prev.dashboard_seen);
+      return { dashboard_seen: next };
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [alertsLoaded, countsSig]);
 
   return (
     <div className="space-y-8 p-4 md:p-6 bg-background">
@@ -309,9 +329,9 @@ function Dashboard() {
       {/* Alertas */}
       {alerts.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-          {alerts.map((a, i) => (
+          {alerts.map((a) => (
             <div
-              key={i}
+              key={a.key}
               className={cn(
                 "flex items-center gap-3 p-3 rounded-xl border text-sm font-medium shadow-sm",
                 a.tone === "destructive" && "border-red-200 bg-red-50 text-red-700",
@@ -321,7 +341,16 @@ function Dashboard() {
               )}
             >
               <a.icon className="size-5 shrink-0" />
-              <span>{a.label}</span>
+              <span className="flex-1">{a.label}</span>
+              <button
+                type="button"
+                onClick={() => setDismissed((d) => ({ ...d, [a.key]: a.count }))}
+                className="p-1 rounded-md opacity-70 hover:opacity-100"
+                aria-label="Ciente, ocultar aviso"
+                title="Ciente"
+              >
+                <X className="size-4" />
+              </button>
             </div>
           ))}
         </div>
