@@ -107,7 +107,7 @@ const statusStyles: Record<string, string> = {
   pago: "bg-success/10 text-success",
   concluido: "bg-muted text-muted-foreground",
   cancelado: "bg-destructive/10 text-destructive",
-  realizado: "bg-slate-500/10 text-slate-600",
+  realizado: "bg-slate-500/10 text-muted-foreground",
 };
 
 const statusLabels: Record<string, string> = {

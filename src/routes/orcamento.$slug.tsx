@@ -439,7 +439,7 @@ function PublicQuoteForm() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 px-4 py-8 md:py-12">
+    <div className="min-h-screen bg-muted/50 px-4 py-8 md:py-12">
       <div className="mx-auto max-w-2xl rounded-2xl border bg-card p-6 shadow-sm md:p-8">
         <div className="mb-8 text-center">
           {logoUrl ? (
@@ -678,7 +678,7 @@ function PublicQuoteForm() {
               )}
 
               {previewTotal > 0 && (
-                <div className="mt-2 rounded-lg bg-slate-100 p-3 text-right">
+                <div className="mt-2 rounded-lg bg-muted p-3 text-right">
                   <span className="text-xs text-muted-foreground">Valor Total: </span>
                   <span className="text-base font-bold text-primary">{brl(previewTotal)}</span>
                 </div>

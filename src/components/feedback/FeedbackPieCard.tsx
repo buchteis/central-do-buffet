@@ -35,10 +35,10 @@ export function FeedbackPieCard() {
   ].filter((d) => d.value > 0);
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-      <div className="p-5 md:p-6 border-b border-slate-100 flex justify-between items-center">
+    <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
+      <div className="p-5 md:p-6 border-b border-border flex justify-between items-center">
         <div>
-          <h2 className="font-extrabold text-lg tracking-tight text-slate-800 flex items-center gap-2">
+          <h2 className="font-extrabold text-lg tracking-tight text-foreground flex items-center gap-2">
             <Star className="size-5 text-amber-500" />
             Avaliações dos clientes
           </h2>

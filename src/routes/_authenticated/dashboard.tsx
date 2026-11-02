@@ -39,7 +39,7 @@ const statusStyles: Record<string, string> = {
   agendado: "bg-blue-100 text-blue-800",
   em_andamento: "bg-amber-100 text-amber-800",
   pago: "bg-green-100 text-green-800",
-  concluido: "bg-gray-100 text-gray-800",
+  concluido: "bg-muted text-foreground",
   cancelado: "bg-red-100 text-red-800",
   realizado: "bg-purple-100 text-purple-800",
 };
@@ -288,11 +288,11 @@ function Dashboard() {
     alerts.push({ icon: Hourglass, label: `${stats.qPend} orçamento(s) aguardando resposta`, tone: "muted" });
 
   return (
-    <div className="space-y-8 p-4 md:p-6 bg-slate-50">
+    <div className="space-y-8 p-4 md:p-6 bg-background">
       {/* Cabeçalho */}
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-slate-800">Dashboard</h1>
+          <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-foreground">Dashboard</h1>
           <p className="text-sm text-muted-foreground mt-1 flex items-center gap-2">
             <Calendar className="size-4" />
             {formatDateFullBR(new Date())} · Central operacional
@@ -317,7 +317,7 @@ function Dashboard() {
                 a.tone === "destructive" && "border-red-200 bg-red-50 text-red-700",
                 a.tone === "warning" && "border-amber-200 bg-amber-50 text-amber-700",
                 a.tone === "info" && "border-blue-200 bg-blue-50 text-blue-700",
-                a.tone === "muted" && "border-gray-200 bg-gray-50 text-gray-700",
+                a.tone === "muted" && "border-border bg-muted/50 text-foreground",
               )}
             >
               <a.icon className="size-5 shrink-0" />
@@ -330,7 +330,7 @@ function Dashboard() {
       {/* ===== LINHA 1: EVENTOS ===== */}
       <section>
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-lg font-bold text-slate-700 flex items-center gap-2">
+          <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
             <Calendar className="size-5 text-blue-600" />
             Eventos
           </h2>
@@ -355,7 +355,7 @@ function Dashboard() {
       {/* ===== LINHA 2: FINANCEIRO ===== */}
       <section>
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-lg font-bold text-slate-700 flex items-center gap-2">
+          <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
             <DollarSign className="size-5 text-emerald-600" />
             Financeiro
           </h2>
@@ -383,7 +383,7 @@ function Dashboard() {
       {/* ===== LINHA 3: ORÇAMENTOS E CLIENTES ===== */}
       <section>
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-lg font-bold text-slate-700 flex items-center gap-2">
+          <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
             <FileText className="size-5 text-amber-600" />
             Orçamentos e Clientes
           </h2>
@@ -408,7 +408,7 @@ function Dashboard() {
       {/* ===== LINHA 4: OPERACIONAL ===== */}
       <section>
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-lg font-bold text-slate-700 flex items-center gap-2">
+          <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
             <Building2 className="size-5 text-violet-600" />
             Operacional
           </h2>
@@ -447,10 +447,10 @@ function Dashboard() {
 
       {/* ===== PRÓXIMOS EVENTOS ===== */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="p-5 md:p-6 border-b border-slate-100 flex justify-between items-center">
+        <div className="lg:col-span-2 bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
+          <div className="p-5 md:p-6 border-b border-border flex justify-between items-center">
             <div>
-              <h2 className="font-extrabold text-lg tracking-tight text-slate-800 flex items-center gap-2">
+              <h2 className="font-extrabold text-lg tracking-tight text-foreground flex items-center gap-2">
                 <Calendar className="size-5 text-blue-600" />
                 Próximos eventos
               </h2>
@@ -465,7 +465,7 @@ function Dashboard() {
             <div className="overflow-x-auto">
               <table className="w-full text-left">
                 <thead>
-                  <tr className="text-[10px] uppercase tracking-widest text-slate-500 border-b border-slate-100 bg-slate-50/50">
+                  <tr className="text-[10px] uppercase tracking-widest text-muted-foreground border-b border-border bg-muted/30">
                     <th className="px-5 py-3 font-bold">Cliente</th>
                     <th className="px-4 py-3 font-bold">Data</th>
                     <th className="px-4 py-3 font-bold hidden md:table-cell">Pacote</th>
@@ -473,20 +473,20 @@ function Dashboard() {
                     <th className="px-4 py-3 font-bold">Status</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-border">
                   {stats.upcoming.map((e: any) => (
-                    <tr key={e.id} className="hover:bg-slate-50/70 transition-colors">
-                      <td className="px-5 py-4 text-sm font-semibold text-slate-700">{e.clients?.name ?? "—"}</td>
-                      <td className="px-4 py-4 text-xs font-mono text-slate-600">{formatDateBR(e.event_date)}</td>
-                      <td className="px-4 py-4 hidden md:table-cell text-xs text-slate-600">
+                    <tr key={e.id} className="hover:bg-muted/60 transition-colors">
+                      <td className="px-5 py-4 text-sm font-semibold text-foreground">{e.clients?.name ?? "—"}</td>
+                      <td className="px-4 py-4 text-xs font-mono text-muted-foreground">{formatDateBR(e.event_date)}</td>
+                      <td className="px-4 py-4 hidden md:table-cell text-xs text-muted-foreground">
                         {e.packages?.name ?? "—"}
                       </td>
-                      <td className="px-4 py-4 text-sm font-mono text-right text-slate-700">{brl(e.total_value)}</td>
+                      <td className="px-4 py-4 text-sm font-mono text-right text-foreground">{brl(e.total_value)}</td>
                       <td className="px-4 py-4">
                         <span
                           className={cn(
                             "px-2 py-1 text-[10px] rounded-full font-bold uppercase tracking-wider whitespace-nowrap",
-                            statusStyles[e.status] ?? "bg-gray-100 text-gray-800",
+                            statusStyles[e.status] ?? "bg-muted text-foreground",
                           )}
                         >
                           {statusLabels[e.status] ?? e.status}
@@ -503,10 +503,10 @@ function Dashboard() {
         </div>
 
         {/* ===== PENDÊNCIAS / ALERTAS ===== */}
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col justify-between">
+        <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden flex flex-col justify-between">
           <div>
-            <div className="p-5 md:p-6 border-b border-slate-100">
-              <h2 className="font-extrabold text-lg tracking-tight text-slate-800 flex items-center gap-2">
+            <div className="p-5 md:p-6 border-b border-border">
+              <h2 className="font-extrabold text-lg tracking-tight text-foreground flex items-center gap-2">
                 <AlertTriangle className="size-5 text-amber-600" />
                 Atenção / Pendências
               </h2>
@@ -514,24 +514,24 @@ function Dashboard() {
             </div>
             <div className="p-5 space-y-4">
               <div className="flex items-center justify-between text-sm">
-                <span className="text-slate-600">Pagamentos em atraso:</span>
+                <span className="text-muted-foreground">Pagamentos em atraso:</span>
                 <span className="font-bold text-red-600">{stats.txOverdue}</span>
               </div>
               <div className="flex items-center justify-between text-sm">
-                <span className="text-slate-600">Contratos p/ assinar:</span>
+                <span className="text-muted-foreground">Contratos p/ assinar:</span>
                 <span className="font-bold text-amber-600">{stats.contractsPending}</span>
               </div>
               <div className="flex items-center justify-between text-sm">
-                <span className="text-slate-600">Orçamentos pendentes:</span>
+                <span className="text-muted-foreground">Orçamentos pendentes:</span>
                 <span className="font-bold text-blue-600">{stats.qPend}</span>
               </div>
             </div>
           </div>
 
-          <div className="p-4 bg-slate-50 border-t border-slate-100">
+          <div className="p-4 bg-muted/50 border-t border-border">
             <Link
               to="/financeiro"
-              className="w-full py-2.5 px-4 bg-white border border-slate-200 hover:bg-slate-100 rounded-xl text-xs font-bold text-slate-700 flex items-center justify-center gap-2 transition-colors shadow-sm"
+              className="w-full py-2.5 px-4 bg-card border border-border hover:bg-muted rounded-xl text-xs font-bold text-foreground flex items-center justify-center gap-2 transition-colors shadow-sm"
             >
               Ir para gestão financeira <ArrowRight className="size-3.5" />
             </Link>
@@ -571,15 +571,15 @@ const iconBg = (color?: string) => ICON_BG[color ?? ""] ?? "bg-slate-500";
 // Componente Auxiliar para Cards Métricos
 function MetricCard({ label, value, icon: Icon, color, subtitle }: any) {
   return (
-    <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-2">
+    <div className="bg-card p-4 rounded-2xl border border-border shadow-sm space-y-2">
       <div className="flex items-center justify-between">
-        <span className="text-xs font-bold uppercase tracking-wider text-slate-500">{label}</span>
+        <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{label}</span>
         <div className={cn("p-2 rounded-xl text-white", iconBg(color))}>
           <Icon className="size-4" />
         </div>
       </div>
       <div>
-        <div className="text-2xl font-black tracking-tight text-slate-800">{value}</div>
+        <div className="text-2xl font-black tracking-tight text-foreground">{value}</div>
         {subtitle && <p className="text-[11px] text-muted-foreground mt-0.5">{subtitle}</p>}
       </div>
     </div>
@@ -589,10 +589,10 @@ function MetricCard({ label, value, icon: Icon, color, subtitle }: any) {
 // Componente Auxiliar para Cards Financeiros
 function FinanceCard({ label, value, icon: Icon, color }: any) {
   return (
-    <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between gap-3">
+    <div className="bg-card p-5 rounded-2xl border border-border shadow-sm flex items-center justify-between gap-3">
       <div className="space-y-1 min-w-0">
-        <span className="text-xs font-bold uppercase tracking-wider text-slate-500">{label}</span>
-        <div className="text-xl md:text-2xl font-black tracking-tight text-slate-800 break-words">{value}</div>
+        <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{label}</span>
+        <div className="text-xl md:text-2xl font-black tracking-tight text-foreground break-words">{value}</div>
       </div>
       <div className={cn("p-3 rounded-2xl text-white shrink-0", iconBg(color))}>
         <Icon className="size-6" />

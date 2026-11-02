@@ -238,12 +238,12 @@ function DiagnosticoPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 p-4 md:p-8">
+    <div className="min-h-screen bg-muted/50 p-4 md:p-8">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* CABEÇALHO */}
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-slate-800 flex items-center gap-3">
+            <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-foreground flex items-center gap-3">
               <ShieldCheck className="size-8 text-blue-600" />
               Diagnóstico do Sistema
             </h1>
@@ -274,8 +274,8 @@ function DiagnosticoPage() {
 
         {/* LINHA 1: EVENTOS + FINANCEIRO */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
-            <h3 className="text-sm font-bold text-slate-700 flex items-center gap-2 mb-4">
+          <div className="bg-card rounded-2xl border border-border p-6 shadow-sm">
+            <h3 className="text-sm font-bold text-foreground flex items-center gap-2 mb-4">
               <Calendar className="size-5 text-blue-600" />
               Eventos
             </h3>
@@ -290,14 +290,14 @@ function DiagnosticoPage() {
                 color="emerald"
               />
             </div>
-            <div className="mt-4 pt-4 border-t border-slate-100">
+            <div className="mt-4 pt-4 border-t border-border">
               <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
                 Distribuição por status
               </h4>
               <div className="flex flex-wrap gap-2">
                 {data?.eventos?.porStatus &&
                   Object.entries(data.eventos.porStatus).map(([status, count]) => (
-                    <span key={status} className="px-3 py-1 bg-slate-100 rounded-full text-xs font-medium">
+                    <span key={status} className="px-3 py-1 bg-muted rounded-full text-xs font-medium">
                       {status}: {String(count)}
                     </span>
                   ))}
@@ -305,8 +305,8 @@ function DiagnosticoPage() {
             </div>
           </div>
 
-          <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
-            <h3 className="text-sm font-bold text-slate-700 flex items-center gap-2 mb-4">
+          <div className="bg-card rounded-2xl border border-border p-6 shadow-sm">
+            <h3 className="text-sm font-bold text-foreground flex items-center gap-2 mb-4">
               <DollarSign className="size-5 text-emerald-600" />
               Financeiro
             </h3>
@@ -337,8 +337,8 @@ function DiagnosticoPage() {
 
         {/* LINHA 2: ORÇAMENTOS + CLIENTES + INTEGRIDADE */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
-            <h3 className="text-sm font-bold text-slate-700 flex items-center gap-2 mb-4">
+          <div className="bg-card rounded-2xl border border-border p-6 shadow-sm">
+            <h3 className="text-sm font-bold text-foreground flex items-center gap-2 mb-4">
               <FileText className="size-5 text-amber-600" />
               Orçamentos
             </h3>
@@ -360,8 +360,8 @@ function DiagnosticoPage() {
             </div>
           </div>
 
-          <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
-            <h3 className="text-sm font-bold text-slate-700 flex items-center gap-2 mb-4">
+          <div className="bg-card rounded-2xl border border-border p-6 shadow-sm">
+            <h3 className="text-sm font-bold text-foreground flex items-center gap-2 mb-4">
               <Users className="size-5 text-green-600" />
               Clientes
             </h3>
@@ -371,8 +371,8 @@ function DiagnosticoPage() {
             </div>
           </div>
 
-          <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
-            <h3 className="text-sm font-bold text-slate-700 flex items-center gap-2 mb-4">
+          <div className="bg-card rounded-2xl border border-border p-6 shadow-sm">
+            <h3 className="text-sm font-bold text-foreground flex items-center gap-2 mb-4">
               <Database className="size-5 text-purple-600" />
               Integridade
             </h3>
@@ -400,7 +400,7 @@ function DiagnosticoPage() {
         </div>
 
         {/* RODAPÉ */}
-        <div className="text-center text-xs text-muted-foreground border-t border-slate-200 pt-6">
+        <div className="text-center text-xs text-muted-foreground border-t border-border pt-6">
           <p>Diagnóstico · Central do Buffet · {new Date().toLocaleDateString()}</p>
           <p className="mt-1">
             {data?.integridade?.integridadePercentual >= 90 ? (
@@ -446,7 +446,7 @@ function AdminCard({
     <div
       className={cn(
         "rounded-xl p-4 border text-center",
-        colors[color as keyof typeof colors] || "bg-slate-50 text-slate-700",
+        colors[color as keyof typeof colors] || "bg-muted/50 text-foreground",
       )}
     >
       <Icon className="size-5 mx-auto mb-1 opacity-80" />
@@ -482,7 +482,7 @@ function Stat({
     <div
       className={cn(
         "flex items-center gap-3 p-3 rounded-xl border",
-        colors[color as keyof typeof colors] || "bg-slate-50 text-slate-700",
+        colors[color as keyof typeof colors] || "bg-muted/50 text-foreground",
       )}
     >
       <Icon className="size-5 shrink-0" />

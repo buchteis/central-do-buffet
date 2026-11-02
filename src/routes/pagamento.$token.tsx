@@ -191,7 +191,7 @@ function PublicPaymentPage() {
               ) : null}
               <img
                 alt="QR Code PIX"
-                className="mx-auto w-40 h-40 bg-white p-2 rounded"
+                className="mx-auto w-40 h-40 bg-card p-2 rounded"
                 src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(data.pix_key)}`}
               />
             </>

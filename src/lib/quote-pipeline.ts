@@ -25,7 +25,7 @@ export const PIPELINE: StageDef[] = [
     match: ["novo"],
     label: "Novo / Recebido",
     short: "Novo",
-    tone: "bg-slate-500/10 text-slate-600 border-slate-500/20",
+    tone: "bg-slate-500/10 text-muted-foreground border-slate-500/20",
     dot: "bg-slate-400",
   },
   {

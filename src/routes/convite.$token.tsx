@@ -101,7 +101,7 @@ function InvitePage() {
 
   if (isLoading) {
     return (
-      <main className="min-h-screen grid place-items-center p-6 text-sm text-slate-500">
+      <main className="min-h-screen grid place-items-center p-6 text-sm text-muted-foreground">
         Carregando convite…
       </main>
     );
@@ -112,24 +112,24 @@ function InvitePage() {
       <main className="min-h-screen grid place-items-center p-6 text-center">
         <div>
           <h1 className="text-xl font-extrabold">Convite não encontrado</h1>
-          <p className="text-sm text-slate-500 mt-2">Este link pode ter expirado ou o evento foi cancelado.</p>
+          <p className="text-sm text-muted-foreground mt-2">Este link pode ter expirado ou o evento foi cancelado.</p>
         </div>
       </main>
     );
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-sky-50 via-white to-sky-50 py-10 px-4">
+    <main className="min-h-screen bg-gradient-to-b from-sky-50 via-background to-sky-50 dark:from-background dark:to-background py-10 px-4">
       <div className="max-w-lg mx-auto space-y-6">
-        <section className="rounded-3xl bg-white border border-sky-100 shadow-sm p-7 text-center">
+        <section className="rounded-3xl bg-card border border-sky-100 shadow-sm p-7 text-center">
           <div className="inline-flex items-center justify-center size-12 rounded-2xl bg-sky-100 text-sky-600 mb-3">
             <PartyPopper className="size-6" />
           </div>
-          <h1 className="text-2xl font-extrabold tracking-tight text-slate-800">
+          <h1 className="text-2xl font-extrabold tracking-tight text-foreground">
             Você está convidado{invite.client_name ? `!` : "!"}
           </h1>
           {invite.client_name && (
-            <p className="text-sm text-slate-500 mt-1">Convite de {invite.client_name}</p>
+            <p className="text-sm text-muted-foreground mt-1">Convite de {invite.client_name}</p>
           )}
 
           <div className="mt-6 space-y-3 text-left">
@@ -142,14 +142,14 @@ function InvitePage() {
         </section>
 
         {host && (
-          <section className="rounded-3xl bg-white border border-sky-100 shadow-sm p-7">
-            <h2 className="text-lg font-extrabold text-slate-800">Quem confirmou</h2>
-            <p className="text-xs text-slate-500 mt-1">
+          <section className="rounded-3xl bg-card border border-sky-100 shadow-sm p-7">
+            <h2 className="text-lg font-extrabold text-foreground">Quem confirmou</h2>
+            <p className="text-xs text-muted-foreground mt-1">
               Esta lista aparece somente para você, com este link exclusivo. Os convidados veem apenas a quantidade.
             </p>
             <div className="mt-4 space-y-2">
               {(guests ?? []).length === 0 && (
-                <p className="text-sm text-slate-500">Nenhuma resposta ainda.</p>
+                <p className="text-sm text-muted-foreground">Nenhuma resposta ainda.</p>
               )}
               {(guests ?? []).map((g, i) => (
                 <div
@@ -157,17 +157,17 @@ function InvitePage() {
                   className="rounded-xl bg-sky-50/70 border border-sky-100 px-4 py-3 flex items-start justify-between gap-3"
                 >
                   <div className="min-w-0">
-                    <div className="text-sm font-bold text-slate-800 break-words">{g.guest_name}</div>
-                    <div className="text-xs text-slate-500">
+                    <div className="text-sm font-bold text-foreground break-words">{g.guest_name}</div>
+                    <div className="text-xs text-muted-foreground">
                       {g.companions > 0 ? `+${g.companions} acompanhante(s)` : "sem acompanhantes"}
                       {g.phone ? ` · ${g.phone}` : ""}
                     </div>
-                    {g.message && <div className="text-xs text-slate-600 mt-1 italic">“{g.message}”</div>}
+                    {g.message && <div className="text-xs text-muted-foreground mt-1 italic">“{g.message}”</div>}
                   </div>
                   <span
                     className={cn(
                       "shrink-0 px-2.5 py-1 rounded-full text-[11px] font-bold",
-                      g.attending ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600",
+                      g.attending ? "bg-emerald-100 text-emerald-700" : "bg-muted text-muted-foreground",
                     )}
                   >
                     {g.attending ? "Vai" : "Não vai"}
@@ -181,12 +181,12 @@ function InvitePage() {
 
 
         {done ? (
-          <section className="rounded-3xl bg-white border border-emerald-100 shadow-sm p-8 text-center">
+          <section className="rounded-3xl bg-card border border-emerald-100 shadow-sm p-8 text-center">
             <div className="inline-flex items-center justify-center size-12 rounded-2xl bg-emerald-100 text-emerald-600 mb-3">
               <Check className="size-6" />
             </div>
-            <h2 className="text-lg font-extrabold text-slate-800">Resposta registrada!</h2>
-            <p className="text-sm text-slate-500 mt-1">
+            <h2 className="text-lg font-extrabold text-foreground">Resposta registrada!</h2>
+            <p className="text-sm text-muted-foreground mt-1">
               {form.attending ? "Nos vemos no evento." : "Obrigado por avisar."}
             </p>
           </section>
@@ -196,43 +196,43 @@ function InvitePage() {
               e.preventDefault();
               submit.mutate();
             }}
-            className="rounded-3xl bg-white border border-sky-100 shadow-sm p-7 space-y-5"
+            className="rounded-3xl bg-card border border-sky-100 shadow-sm p-7 space-y-5"
           >
-            <h2 className="text-lg font-extrabold text-slate-800">Confirmar presença</h2>
+            <h2 className="text-lg font-extrabold text-foreground">Confirmar presença</h2>
 
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
+              <label className="block text-sm font-medium text-foreground mb-1">
                 Seu nome <span className="text-red-500">*</span>
               </label>
               <input
                 required
                 value={form.guest_name}
                 onChange={(ev) => setForm({ ...form, guest_name: ev.target.value })}
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-sky-400 focus:ring-2 focus:ring-sky-100 outline-none"
+                className="w-full px-4 py-3 rounded-xl border border-border focus:border-sky-400 focus:ring-2 focus:ring-sky-100 outline-none"
                 placeholder="Nome completo"
               />
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">WhatsApp</label>
+                <label className="block text-sm font-medium text-foreground mb-1">WhatsApp</label>
                 <input
                   value={form.phone}
                   onChange={(ev) => setForm({ ...form, phone: ev.target.value })}
                   inputMode="tel"
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-sky-400 focus:ring-2 focus:ring-sky-100 outline-none"
+                  className="w-full px-4 py-3 rounded-xl border border-border focus:border-sky-400 focus:ring-2 focus:ring-sky-100 outline-none"
                   placeholder="(00) 00000-0000"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Acompanhantes</label>
+                <label className="block text-sm font-medium text-foreground mb-1">Acompanhantes</label>
                 <input
                   type="number"
                   min="0"
                   max="20"
                   value={form.companions}
                   onChange={(ev) => setForm({ ...form, companions: ev.target.value })}
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-sky-400 focus:ring-2 focus:ring-sky-100 outline-none"
+                  className="w-full px-4 py-3 rounded-xl border border-border focus:border-sky-400 focus:ring-2 focus:ring-sky-100 outline-none"
                 />
               </div>
             </div>
@@ -249,7 +249,7 @@ function InvitePage() {
                       ? v
                         ? "bg-emerald-500 border-emerald-500 text-white shadow"
                         : "bg-slate-500 border-slate-500 text-white shadow"
-                      : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50",
+                      : "bg-card border-border text-muted-foreground hover:bg-muted/50",
                   )}
                 >
                   {v ? "Vou comparecer" : "Não vou poder ir"}
@@ -258,12 +258,12 @@ function InvitePage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Mensagem (opcional)</label>
+              <label className="block text-sm font-medium text-foreground mb-1">Mensagem (opcional)</label>
               <textarea
                 rows={3}
                 value={form.message}
                 onChange={(ev) => setForm({ ...form, message: ev.target.value })}
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-sky-400 focus:ring-2 focus:ring-sky-100 outline-none resize-none"
+                className="w-full px-4 py-3 rounded-xl border border-border focus:border-sky-400 focus:ring-2 focus:ring-sky-100 outline-none resize-none"
                 placeholder="Restrição alimentar, recado…"
               />
             </div>
@@ -288,7 +288,7 @@ function InfoRow({ icon, label, value }: { icon: React.ReactNode; label: string;
       <span className="mt-0.5 text-sky-500">{icon}</span>
       <div className="min-w-0">
         <div className="text-[10px] font-bold uppercase tracking-widest text-sky-500">{label}</div>
-        <div className="text-sm font-semibold text-slate-700 break-words">{value}</div>
+        <div className="text-sm font-semibold text-foreground break-words">{value}</div>
       </div>
     </div>
   );

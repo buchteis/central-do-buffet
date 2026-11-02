@@ -276,7 +276,7 @@ export function ChecklistPreDefinido({
               type="text"
               value={i.label}
               onChange={(e) => updateItem(i.id, { label: e.target.value })}
-              className="flex-1 min-w-0 bg-transparent px-1 py-0.5 rounded outline-none text-slate-700 focus:bg-muted/60 focus:ring-1 focus:ring-primary/30"
+              className="flex-1 min-w-0 bg-transparent px-1 py-0.5 rounded outline-none text-foreground focus:bg-muted/60 focus:ring-1 focus:ring-primary/30"
             />
             <input
               type="number"
