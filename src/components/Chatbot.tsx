@@ -7,6 +7,7 @@ import { getBuffetAlerts, type BuffetAlert } from "@/lib/alerts.functions";
 import { parseInvoiceFile, commitInvoiceStockEntry } from "@/lib/nf-stock.functions";
 import { suggestEventStaffing, assignEventStaffing } from "@/lib/staffing.functions";
 import { Flame, Paperclip } from "lucide-react";
+import { useNotificationState } from "@/hooks/useNotificationState";
 
 type NfReview = {
   header: any;
