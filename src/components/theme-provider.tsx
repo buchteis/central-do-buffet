@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState } from "react";
 
-type Theme = "dark" | "light" | "system";
+type Theme = "dark" | "light";
 
 type ThemeProviderProps = {
   children: React.ReactNode;
@@ -15,39 +15,35 @@ type ThemeProviderState = {
 
 const ThemeProviderContext = createContext<ThemeProviderState | undefined>(undefined);
 
+/**
+ * Tema claro é o padrão no primeiro acesso (não segue o tema do aparelho).
+ * Depois que o usuário escolhe, a escolha fica salva neste navegador.
+ */
 export function ThemeProvider({
   children,
-  defaultTheme = "system",
+  defaultTheme = "light",
   storageKey = "app-ui-theme",
 }: ThemeProviderProps) {
-  const [theme, setTheme] = useState<Theme>(
-    () =>
-      (typeof window !== "undefined" && (localStorage.getItem(storageKey) as Theme)) ||
-      defaultTheme,
-  );
+  const [theme, setThemeState] = useState<Theme>(defaultTheme);
+
+  // Lê a escolha salva só após montar (evita divergência SSR/cliente)
+  useEffect(() => {
+    const saved = localStorage.getItem(storageKey);
+    if (saved === "dark" || saved === "light") setThemeState(saved);
+    else localStorage.removeItem(storageKey); // valores antigos como "system"
+  }, [storageKey]);
 
   useEffect(() => {
     const root = window.document.documentElement;
     root.classList.remove("light", "dark");
-
-    if (theme === "system") {
-      const systemTheme = window.matchMedia("(prefers-color-scheme: dark)").matches
-        ? "dark"
-        : "light";
-      root.classList.add(systemTheme);
-      return;
-    }
-
     root.classList.add(theme);
   }, [theme]);
 
   const value = {
     theme,
-    setTheme: (theme: Theme) => {
-      if (typeof window !== "undefined") {
-        localStorage.setItem(storageKey, theme);
-      }
-      setTheme(theme);
+    setTheme: (next: Theme) => {
+      localStorage.setItem(storageKey, next);
+      setThemeState(next);
     },
   };
 
