@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 
 export const Route = createFileRoute("/auth")({
@@ -557,10 +558,13 @@ um único lugar.
 
 
 <div className="
-flex items-center justify-center
+relative flex items-center justify-center
 p-6
 ">
 
+<div className="absolute top-4 right-4">
+<ThemeToggle />
+</div>
 
 <div className="w-full max-w-md">
 
