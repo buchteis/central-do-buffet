@@ -28,6 +28,7 @@ import { Route as AuthenticatedNotasFiscaisRouteImport } from './routes/_authent
 import { Route as AuthenticatedPacotesRouteImport } from './routes/_authenticated/pacotes'
 import { Route as AuthenticatedPagamentosDiariasRouteImport } from './routes/_authenticated/pagamentos-diarias'
 import { Route as AuthenticatedRelatoriosRouteImport } from './routes/_authenticated/relatorios'
+import { Route as AuthenticatedWhatsappRouteImport } from './routes/_authenticated/whatsapp'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as AvaliarSlugRouteImport } from './routes/avaliar.$slug'
 import { Route as ContratoAssinaturaTokenRouteImport } from './routes/contrato-assinatura.$token'
@@ -44,6 +45,7 @@ import { Route as AuthenticatedOrcamentosIndexRouteImport } from './routes/_auth
 import { Route as AuthenticatedOrcamentosIdRouteImport } from './routes/_authenticated/orcamentos/$id'
 import { Route as AuthenticatedOrcamentosNovoRouteImport } from './routes/_authenticated/orcamentos/novo'
 import { Route as AuthenticatedClientesIdEditarRouteImport } from './routes/_authenticated/clientes/$id.editar'
+import { Route as ApiPublicEvolutionWebhookTokenRouteImport } from './routes/api/public/evolution/webhook.$token'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -144,6 +146,11 @@ const AuthenticatedRelatoriosRoute = AuthenticatedRelatoriosRouteImport.update({
   path: '/relatorios',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedWhatsappRoute = AuthenticatedWhatsappRouteImport.update({
+  id: '/whatsapp',
+  path: '/whatsapp',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthCallbackRoute = AuthCallbackRouteImport.update({
   id: '/callback',
   path: '/callback',
@@ -234,6 +241,12 @@ const AuthenticatedClientesIdEditarRoute =
     path: '/clientes/$id/editar',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const ApiPublicEvolutionWebhookTokenRoute =
+  ApiPublicEvolutionWebhookTokenRouteImport.update({
+    id: '/api/public/evolution/webhook/$token',
+    path: '/api/public/evolution/webhook/$token',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -254,6 +267,7 @@ export interface FileRoutesByFullPath {
   '/pacotes': typeof AuthenticatedPacotesRoute
   '/pagamentos-diarias': typeof AuthenticatedPagamentosDiariasRoute
   '/relatorios': typeof AuthenticatedRelatoriosRoute
+  '/whatsapp': typeof AuthenticatedWhatsappRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/avaliar/$slug': typeof AvaliarSlugRoute
   '/contrato-assinatura/$token': typeof ContratoAssinaturaTokenRoute
@@ -270,6 +284,7 @@ export interface FileRoutesByFullPath {
   '/feedbacks/': typeof AuthenticatedFeedbacksIndexRoute
   '/orcamentos/': typeof AuthenticatedOrcamentosIndexRoute
   '/clientes/$id/editar': typeof AuthenticatedClientesIdEditarRoute
+  '/api/public/evolution/webhook/$token': typeof ApiPublicEvolutionWebhookTokenRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -290,6 +305,7 @@ export interface FileRoutesByTo {
   '/pacotes': typeof AuthenticatedPacotesRoute
   '/pagamentos-diarias': typeof AuthenticatedPagamentosDiariasRoute
   '/relatorios': typeof AuthenticatedRelatoriosRoute
+  '/whatsapp': typeof AuthenticatedWhatsappRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/avaliar/$slug': typeof AvaliarSlugRoute
   '/contrato-assinatura/$token': typeof ContratoAssinaturaTokenRoute
@@ -306,6 +322,7 @@ export interface FileRoutesByTo {
   '/feedbacks': typeof AuthenticatedFeedbacksIndexRoute
   '/orcamentos': typeof AuthenticatedOrcamentosIndexRoute
   '/clientes/$id/editar': typeof AuthenticatedClientesIdEditarRoute
+  '/api/public/evolution/webhook/$token': typeof ApiPublicEvolutionWebhookTokenRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -328,6 +345,7 @@ export interface FileRoutesById {
   '/_authenticated/pacotes': typeof AuthenticatedPacotesRoute
   '/_authenticated/pagamentos-diarias': typeof AuthenticatedPagamentosDiariasRoute
   '/_authenticated/relatorios': typeof AuthenticatedRelatoriosRoute
+  '/_authenticated/whatsapp': typeof AuthenticatedWhatsappRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/avaliar/$slug': typeof AvaliarSlugRoute
   '/contrato-assinatura/$token': typeof ContratoAssinaturaTokenRoute
@@ -344,6 +362,7 @@ export interface FileRoutesById {
   '/_authenticated/feedbacks/': typeof AuthenticatedFeedbacksIndexRoute
   '/_authenticated/orcamentos/': typeof AuthenticatedOrcamentosIndexRoute
   '/_authenticated/clientes/$id/editar': typeof AuthenticatedClientesIdEditarRoute
+  '/api/public/evolution/webhook/$token': typeof ApiPublicEvolutionWebhookTokenRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -366,6 +385,7 @@ export interface FileRouteTypes {
     | '/pacotes'
     | '/pagamentos-diarias'
     | '/relatorios'
+    | '/whatsapp'
     | '/auth/callback'
     | '/avaliar/$slug'
     | '/contrato-assinatura/$token'
@@ -382,6 +402,7 @@ export interface FileRouteTypes {
     | '/feedbacks/'
     | '/orcamentos/'
     | '/clientes/$id/editar'
+    | '/api/public/evolution/webhook/$token'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -402,6 +423,7 @@ export interface FileRouteTypes {
     | '/pacotes'
     | '/pagamentos-diarias'
     | '/relatorios'
+    | '/whatsapp'
     | '/auth/callback'
     | '/avaliar/$slug'
     | '/contrato-assinatura/$token'
@@ -418,6 +440,7 @@ export interface FileRouteTypes {
     | '/feedbacks'
     | '/orcamentos'
     | '/clientes/$id/editar'
+    | '/api/public/evolution/webhook/$token'
   id:
     | '__root__'
     | '/'
@@ -439,6 +462,7 @@ export interface FileRouteTypes {
     | '/_authenticated/pacotes'
     | '/_authenticated/pagamentos-diarias'
     | '/_authenticated/relatorios'
+    | '/_authenticated/whatsapp'
     | '/auth/callback'
     | '/avaliar/$slug'
     | '/contrato-assinatura/$token'
@@ -455,6 +479,7 @@ export interface FileRouteTypes {
     | '/_authenticated/feedbacks/'
     | '/_authenticated/orcamentos/'
     | '/_authenticated/clientes/$id/editar'
+    | '/api/public/evolution/webhook/$token'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -467,6 +492,7 @@ export interface RootRouteChildren {
   ConviteTokenRoute: typeof ConviteTokenRoute
   OrcamentoSlugRoute: typeof OrcamentoSlugRoute
   PagamentoTokenRoute: typeof PagamentoTokenRoute
+  ApiPublicEvolutionWebhookTokenRoute: typeof ApiPublicEvolutionWebhookTokenRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -604,6 +630,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedRelatoriosRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/whatsapp': {
+      id: '/_authenticated/whatsapp'
+      path: '/whatsapp'
+      fullPath: '/whatsapp'
+      preLoaderRoute: typeof AuthenticatedWhatsappRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/auth/callback': {
       id: '/auth/callback'
       path: '/callback'
@@ -716,6 +749,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedClientesIdEditarRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/api/public/evolution/webhook/$token': {
+      id: '/api/public/evolution/webhook/$token'
+      path: '/api/public/evolution/webhook/$token'
+      fullPath: '/api/public/evolution/webhook/$token'
+      preLoaderRoute: typeof ApiPublicEvolutionWebhookTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -735,6 +775,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedPacotesRoute: typeof AuthenticatedPacotesRoute
   AuthenticatedPagamentosDiariasRoute: typeof AuthenticatedPagamentosDiariasRoute
   AuthenticatedRelatoriosRoute: typeof AuthenticatedRelatoriosRoute
+  AuthenticatedWhatsappRoute: typeof AuthenticatedWhatsappRoute
   AuthenticatedClientesImportarRoute: typeof AuthenticatedClientesImportarRoute
   AuthenticatedClientesNovoRoute: typeof AuthenticatedClientesNovoRoute
   AuthenticatedEventosCreateRoute: typeof AuthenticatedEventosCreateRoute
@@ -763,6 +804,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedPacotesRoute: AuthenticatedPacotesRoute,
   AuthenticatedPagamentosDiariasRoute: AuthenticatedPagamentosDiariasRoute,
   AuthenticatedRelatoriosRoute: AuthenticatedRelatoriosRoute,
+  AuthenticatedWhatsappRoute: AuthenticatedWhatsappRoute,
   AuthenticatedClientesImportarRoute: AuthenticatedClientesImportarRoute,
   AuthenticatedClientesNovoRoute: AuthenticatedClientesNovoRoute,
   AuthenticatedEventosCreateRoute: AuthenticatedEventosCreateRoute,
@@ -798,6 +840,7 @@ const rootRouteChildren: RootRouteChildren = {
   ConviteTokenRoute: ConviteTokenRoute,
   OrcamentoSlugRoute: OrcamentoSlugRoute,
   PagamentoTokenRoute: PagamentoTokenRoute,
+  ApiPublicEvolutionWebhookTokenRoute: ApiPublicEvolutionWebhookTokenRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

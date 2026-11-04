@@ -57,6 +57,13 @@
       "when": 1793647931677,
       "tag": "0007_notification_state",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1793824372436,
+      "tag": "0008_whatsapp_attendant",
+      "breakpoints": true
     }
   ]
 }
