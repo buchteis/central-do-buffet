@@ -28,6 +28,7 @@ import { Route as AuthenticatedNotasFiscaisRouteImport } from './routes/_authent
 import { Route as AuthenticatedPacotesRouteImport } from './routes/_authenticated/pacotes'
 import { Route as AuthenticatedPagamentosDiariasRouteImport } from './routes/_authenticated/pagamentos-diarias'
 import { Route as AuthenticatedRelatoriosRouteImport } from './routes/_authenticated/relatorios'
+import { Route as AuthenticatedWhatsappRouteImport } from './routes/_authenticated/whatsapp'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as AvaliarSlugRouteImport } from './routes/avaliar.$slug'
 import { Route as ContratoAssinaturaTokenRouteImport } from './routes/contrato-assinatura.$token'
@@ -143,6 +144,11 @@ const AuthenticatedPagamentosDiariasRoute =
 const AuthenticatedRelatoriosRoute = AuthenticatedRelatoriosRouteImport.update({
   id: '/relatorios',
   path: '/relatorios',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedWhatsappRoute = AuthenticatedWhatsappRouteImport.update({
+  id: '/whatsapp',
+  path: '/whatsapp',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthCallbackRoute = AuthCallbackRouteImport.update({
@@ -261,6 +267,7 @@ export interface FileRoutesByFullPath {
   '/pacotes': typeof AuthenticatedPacotesRoute
   '/pagamentos-diarias': typeof AuthenticatedPagamentosDiariasRoute
   '/relatorios': typeof AuthenticatedRelatoriosRoute
+  '/whatsapp': typeof AuthenticatedWhatsappRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/avaliar/$slug': typeof AvaliarSlugRoute
   '/contrato-assinatura/$token': typeof ContratoAssinaturaTokenRoute
@@ -298,6 +305,7 @@ export interface FileRoutesByTo {
   '/pacotes': typeof AuthenticatedPacotesRoute
   '/pagamentos-diarias': typeof AuthenticatedPagamentosDiariasRoute
   '/relatorios': typeof AuthenticatedRelatoriosRoute
+  '/whatsapp': typeof AuthenticatedWhatsappRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/avaliar/$slug': typeof AvaliarSlugRoute
   '/contrato-assinatura/$token': typeof ContratoAssinaturaTokenRoute
@@ -337,6 +345,7 @@ export interface FileRoutesById {
   '/_authenticated/pacotes': typeof AuthenticatedPacotesRoute
   '/_authenticated/pagamentos-diarias': typeof AuthenticatedPagamentosDiariasRoute
   '/_authenticated/relatorios': typeof AuthenticatedRelatoriosRoute
+  '/_authenticated/whatsapp': typeof AuthenticatedWhatsappRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/avaliar/$slug': typeof AvaliarSlugRoute
   '/contrato-assinatura/$token': typeof ContratoAssinaturaTokenRoute
@@ -376,6 +385,7 @@ export interface FileRouteTypes {
     | '/pacotes'
     | '/pagamentos-diarias'
     | '/relatorios'
+    | '/whatsapp'
     | '/auth/callback'
     | '/avaliar/$slug'
     | '/contrato-assinatura/$token'
@@ -413,6 +423,7 @@ export interface FileRouteTypes {
     | '/pacotes'
     | '/pagamentos-diarias'
     | '/relatorios'
+    | '/whatsapp'
     | '/auth/callback'
     | '/avaliar/$slug'
     | '/contrato-assinatura/$token'
@@ -451,6 +462,7 @@ export interface FileRouteTypes {
     | '/_authenticated/pacotes'
     | '/_authenticated/pagamentos-diarias'
     | '/_authenticated/relatorios'
+    | '/_authenticated/whatsapp'
     | '/auth/callback'
     | '/avaliar/$slug'
     | '/contrato-assinatura/$token'
@@ -618,6 +630,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedRelatoriosRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/whatsapp': {
+      id: '/_authenticated/whatsapp'
+      path: '/whatsapp'
+      fullPath: '/whatsapp'
+      preLoaderRoute: typeof AuthenticatedWhatsappRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/auth/callback': {
       id: '/auth/callback'
       path: '/callback'
@@ -756,6 +775,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedPacotesRoute: typeof AuthenticatedPacotesRoute
   AuthenticatedPagamentosDiariasRoute: typeof AuthenticatedPagamentosDiariasRoute
   AuthenticatedRelatoriosRoute: typeof AuthenticatedRelatoriosRoute
+  AuthenticatedWhatsappRoute: typeof AuthenticatedWhatsappRoute
   AuthenticatedClientesImportarRoute: typeof AuthenticatedClientesImportarRoute
   AuthenticatedClientesNovoRoute: typeof AuthenticatedClientesNovoRoute
   AuthenticatedEventosCreateRoute: typeof AuthenticatedEventosCreateRoute
@@ -784,6 +804,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedPacotesRoute: AuthenticatedPacotesRoute,
   AuthenticatedPagamentosDiariasRoute: AuthenticatedPagamentosDiariasRoute,
   AuthenticatedRelatoriosRoute: AuthenticatedRelatoriosRoute,
+  AuthenticatedWhatsappRoute: AuthenticatedWhatsappRoute,
   AuthenticatedClientesImportarRoute: AuthenticatedClientesImportarRoute,
   AuthenticatedClientesNovoRoute: AuthenticatedClientesNovoRoute,
   AuthenticatedEventosCreateRoute: AuthenticatedEventosCreateRoute,
