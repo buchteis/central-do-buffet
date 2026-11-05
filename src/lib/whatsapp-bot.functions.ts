@@ -34,7 +34,7 @@ function friendly(e: unknown): string {
 export const getWhatsappOverview = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { evolutionConfig } = await import("./evolution.server");
+    const { evolutionConfig, toQrDataUrl } = await import("./evolution.server");
     const { data: tenantId, error: tenantError } = await context.supabase.rpc("current_tenant_id");
     if (tenantError) throw new Error("Não foi possível verificar seu buffet.");
     if (!tenantId) throw new Error("Nenhum buffet vinculado à sua conta.");
@@ -44,7 +44,8 @@ export const getWhatsappOverview = createServerFn({ method: "GET" })
       .eq("tenant_id", tenantId)
       .maybeSingle();
     if (error) throw new Error("Não foi possível carregar a conexão do WhatsApp.");
-    return { serverConfigured: !!evolutionConfig(), instance: data };
+    const qrCode = data?.qr_code ? await toQrDataUrl(data.qr_code) : null;
+    return { serverConfigured: !!evolutionConfig(), instance: data ? { ...data, qr_code: qrCode } : null };
   });
 
 const ConnectWhatsappInput = z.object({
@@ -57,7 +58,8 @@ export const connectWhatsapp = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const tenantId = await myTenantId(context.supabase);
     const evo = await import("./evolution.server");
-    const { toQrDataUrl, mapConnectionState } = await import("./evolution-parse");
+    const { formatPairingCode, mapConnectionState } = await import("./evolution-parse");
+    const { toQrDataUrl } = evo;
     if (!evo.evolutionConfig()) return { ok: false as const, error: "O servidor de WhatsApp ainda não foi configurado." };
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -84,8 +86,7 @@ export const connectWhatsapp = createServerFn({ method: "POST" })
     try {
       try {
         const created: any = await evo.createInstance(inst.instance_name, hook);
-        qr = toQrDataUrl(created?.qrcode?.base64);
-        pairingCode = created?.pairingCode ?? created?.code ?? null;
+        qr = await toQrDataUrl(created?.qrcode?.base64);
       } catch (e: any) {
         // Instance already exists on the server — reuse it.
         if (![400, 403, 409].includes(e?.status)) throw e;
@@ -102,12 +103,12 @@ export const connectWhatsapp = createServerFn({ method: "POST" })
       }
       if (data.phoneNumber) {
         const codeResponse = await evo.connectInstance(inst.instance_name, data.phoneNumber.replace(/\D/g, ""));
-        pairingCode = codeResponse.pairingCode ?? codeResponse.code ?? pairingCode;
-        qr = toQrDataUrl(codeResponse.base64);
+        pairingCode = formatPairingCode(codeResponse.pairingCode ?? codeResponse.code);
+        qr = null;
+        if (!pairingCode) throw new Error("A Evolution API não retornou um código de pareamento válido.");
       } else if (!qr) {
         const connectResponse = await evo.connectInstance(inst.instance_name);
-        qr = toQrDataUrl(connectResponse.base64);
-        pairingCode = connectResponse.pairingCode ?? connectResponse.code ?? pairingCode;
+        qr = await toQrDataUrl(connectResponse.base64);
       }
     } catch (e) {
       return { ok: false as const, error: friendly(e) };
@@ -125,7 +126,7 @@ export const refreshWhatsappStatus = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const tenantId = await myTenantId(context.supabase);
     const evo = await import("./evolution.server");
-    const { toQrDataUrl, mapConnectionState } = await import("./evolution-parse");
+    const { mapConnectionState } = await import("./evolution-parse");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const admin = supabaseAdmin as any;
     const { data: inst } = await admin.from("whatsapp_instances").select("*").eq("tenant_id", tenantId).maybeSingle();
@@ -133,7 +134,7 @@ export const refreshWhatsappStatus = createServerFn({ method: "POST" })
     try {
       const status = mapConnectionState((await evo.connectionState(inst.instance_name))?.instance?.state);
       const patch: Record<string, unknown> = { status };
-      let qr: string | null = inst.qr_code ?? null;
+      let qr: string | null = await evo.toQrDataUrl(inst.qr_code);
       if (status === "connected") {
         const info = await evo.fetchInstanceInfo(inst.instance_name).catch(() => ({ phone: null, profileName: null }));
         Object.assign(patch, {
@@ -143,7 +144,7 @@ export const refreshWhatsappStatus = createServerFn({ method: "POST" })
         });
         qr = null;
       } else if (data.refreshQr) {
-        const fresh = toQrDataUrl((await evo.connectInstance(inst.instance_name))?.base64);
+        const fresh = await evo.toQrDataUrl((await evo.connectInstance(inst.instance_name))?.base64);
         if (fresh) {
           qr = fresh;
           Object.assign(patch, { qr_code: fresh, qr_updated_at: new Date().toISOString(), status: "connecting" });

@@ -1,4 +1,5 @@
-import { mapConnectionState, parseInboundMessage, toQrDataUrl } from "./evolution-parse";
+import { mapConnectionState, parseInboundMessage } from "./evolution-parse";
+import { toQrDataUrl } from "./evolution.server";
 
 type Admin = any;
 
@@ -80,7 +81,7 @@ export async function handleEvolutionWebhook(request: Request, token: string | n
   }
 
   if (event === "qrcode.updated") {
-    const qr = toQrDataUrl(payload?.data?.qrcode?.base64 ?? payload?.data?.base64);
+    const qr = await toQrDataUrl(payload?.data?.qrcode?.base64 ?? payload?.data?.base64);
     if (qr) {
       const { error } = await admin
         .from("whatsapp_instances")
