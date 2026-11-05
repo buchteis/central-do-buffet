@@ -1,12 +1,25 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/integrations/supabase/types";
 import { z } from "zod";
 
-async function myTenant(supabase: any, userId: string) {
-  const { data, error } = await supabase.from("tenants").select("id, status").eq("owner_id", userId).maybeSingle();
+export type WhatsappInstanceOverview = {
+  id: string;
+  status: string;
+  phone_number: string | null;
+  profile_name: string | null;
+  bot_enabled: boolean;
+  qr_code: string | null;
+  qr_updated_at: string | null;
+  last_event_at: string | null;
+};
+
+async function myTenantId(supabase: SupabaseClient<Database>) {
+  const { data, error } = await supabase.rpc("current_tenant_id");
   if (error) throw new Error("Não foi possível verificar seu buffet.");
   if (!data) throw new Error("Nenhum buffet vinculado à sua conta.");
-  return data as { id: string; status: string };
+  return data;
 }
 
 function friendly(e: unknown): string {
@@ -22,32 +35,42 @@ export const getWhatsappOverview = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { evolutionConfig } = await import("./evolution.server");
-    const { data } = await (context.supabase as any)
+    const { data: tenantId, error: tenantError } = await context.supabase.rpc("current_tenant_id");
+    if (tenantError) throw new Error("Não foi possível verificar seu buffet.");
+    if (!tenantId) throw new Error("Nenhum buffet vinculado à sua conta.");
+    const { data, error } = await context.supabase
       .from("whatsapp_instances")
       .select("id, status, phone_number, profile_name, bot_enabled, qr_code, qr_updated_at, last_event_at")
+      .eq("tenant_id", tenantId)
       .maybeSingle();
-    return { serverConfigured: !!evolutionConfig(), instance: (data ?? null) as null | Record<string, any> };
+    if (error) throw new Error("Não foi possível carregar a conexão do WhatsApp.");
+    return { serverConfigured: !!evolutionConfig(), instance: data };
   });
+
+const ConnectWhatsappInput = z.object({
+  phoneNumber: z.string().trim().regex(/^\+?[1-9]\d{7,14}$/, "Informe um número de telefone válido.").optional(),
+});
 
 export const connectWhatsapp = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    const tenant = await myTenant(context.supabase, context.userId);
+  .inputValidator((d: unknown) => ConnectWhatsappInput.parse(d ?? {}))
+  .handler(async ({ data, context }) => {
+    const tenantId = await myTenantId(context.supabase);
     const evo = await import("./evolution.server");
     const { toQrDataUrl, mapConnectionState } = await import("./evolution-parse");
     if (!evo.evolutionConfig()) return { ok: false as const, error: "O servidor de WhatsApp ainda não foi configurado." };
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const admin = supabaseAdmin as any;
-    let { data: inst, error } = await admin.from("whatsapp_instances").select("*").eq("tenant_id", tenant.id).maybeSingle();
+    let { data: inst, error } = await admin.from("whatsapp_instances").select("*").eq("tenant_id", tenantId).maybeSingle();
     if (error) return { ok: false as const, error: "Erro ao ler a conexão." };
     if (!inst) {
       const ins = await admin
         .from("whatsapp_instances")
         .insert({
-          tenant_id: tenant.id,
+          tenant_id: tenantId,
           owner_id: context.userId,
-          instance_name: `cb_${tenant.id.replace(/-/g, "")}`,
+          instance_name: `cb_${tenantId.replace(/-/g, "")}`,
         })
         .select("*")
         .single();
@@ -57,15 +80,17 @@ export const connectWhatsapp = createServerFn({ method: "POST" })
 
     const hook = evo.webhookUrlFor(inst.webhook_secret);
     let qr: string | null = null;
+    let pairingCode: string | null = null;
     try {
       try {
         const created: any = await evo.createInstance(inst.instance_name, hook);
         qr = toQrDataUrl(created?.qrcode?.base64);
+        pairingCode = created?.pairingCode ?? created?.code ?? null;
       } catch (e: any) {
         // Instance already exists on the server — reuse it.
         if (![400, 403, 409].includes(e?.status)) throw e;
       }
-      await evo.setWebhook(inst.instance_name, hook).catch((e) => console.error("setWebhook", e));
+      await evo.setWebhook(inst.instance_name, hook);
       const state = mapConnectionState((await evo.connectionState(inst.instance_name))?.instance?.state);
       if (state === "connected") {
         const info = await evo.fetchInstanceInfo(inst.instance_name).catch(() => ({ phone: null, profileName: null }));
@@ -73,9 +98,17 @@ export const connectWhatsapp = createServerFn({ method: "POST" })
           .from("whatsapp_instances")
           .update({ status: "connected", qr_code: null, phone_number: info.phone, profile_name: info.profileName })
           .eq("id", inst.id);
-        return { ok: true as const, status: "connected" as const, qr: null };
+        return { ok: true as const, status: "connected" as const, qr: null, pairingCode: null };
       }
-      if (!qr) qr = toQrDataUrl((await evo.connectInstance(inst.instance_name))?.base64);
+      if (data.phoneNumber) {
+        const codeResponse = await evo.connectInstance(inst.instance_name, data.phoneNumber.replace(/\D/g, ""));
+        pairingCode = codeResponse.pairingCode ?? codeResponse.code ?? pairingCode;
+        qr = toQrDataUrl(codeResponse.base64);
+      } else if (!qr) {
+        const connectResponse = await evo.connectInstance(inst.instance_name);
+        qr = toQrDataUrl(connectResponse.base64);
+        pairingCode = connectResponse.pairingCode ?? connectResponse.code ?? pairingCode;
+      }
     } catch (e) {
       return { ok: false as const, error: friendly(e) };
     }
@@ -83,19 +116,19 @@ export const connectWhatsapp = createServerFn({ method: "POST" })
       .from("whatsapp_instances")
       .update({ status: "connecting", qr_code: qr, qr_updated_at: new Date().toISOString() })
       .eq("id", inst.id);
-    return { ok: true as const, status: "connecting" as const, qr };
+    return { ok: true as const, status: "connecting" as const, qr, pairingCode };
   });
 
 export const refreshWhatsappStatus = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => z.object({ refreshQr: z.boolean().default(false) }).parse(d ?? {}))
   .handler(async ({ data, context }) => {
-    const tenant = await myTenant(context.supabase, context.userId);
+    const tenantId = await myTenantId(context.supabase);
     const evo = await import("./evolution.server");
     const { toQrDataUrl, mapConnectionState } = await import("./evolution-parse");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const admin = supabaseAdmin as any;
-    const { data: inst } = await admin.from("whatsapp_instances").select("*").eq("tenant_id", tenant.id).maybeSingle();
+    const { data: inst } = await admin.from("whatsapp_instances").select("*").eq("tenant_id", tenantId).maybeSingle();
     if (!inst) return { status: "disconnected" as const, qr: null, phone: null, error: null as string | null };
     try {
       const status = mapConnectionState((await evo.connectionState(inst.instance_name))?.instance?.state);
@@ -131,11 +164,11 @@ export const refreshWhatsappStatus = createServerFn({ method: "POST" })
 export const disconnectWhatsapp = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const tenant = await myTenant(context.supabase, context.userId);
+    const tenantId = await myTenantId(context.supabase);
     const evo = await import("./evolution.server");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const admin = supabaseAdmin as any;
-    const { data: inst } = await admin.from("whatsapp_instances").select("*").eq("tenant_id", tenant.id).maybeSingle();
+    const { data: inst } = await admin.from("whatsapp_instances").select("*").eq("tenant_id", tenantId).maybeSingle();
     if (!inst) return { ok: true };
     await evo.logoutInstance(inst.instance_name).catch(() => null);
     await evo.deleteInstance(inst.instance_name).catch(() => null);
@@ -152,19 +185,19 @@ export const sendOwnerWhatsappMessage = createServerFn({ method: "POST" })
     z.object({ conversationId: z.string().uuid(), text: z.string().trim().min(1).max(4000) }).parse(d),
   )
   .handler(async ({ data, context }) => {
-    const tenant = await myTenant(context.supabase, context.userId);
+    const tenantId = await myTenantId(context.supabase);
     // RLS guarantees the conversation belongs to the caller's buffet.
     const { data: conv } = await (context.supabase as any)
       .from("whatsapp_conversations")
       .select("id, tenant_id, phone, remote_jid")
       .eq("id", data.conversationId)
       .maybeSingle();
-    if (!conv || conv.tenant_id !== tenant.id) return { ok: false as const, error: "Conversa não encontrada." };
+    if (!conv || conv.tenant_id !== tenantId) return { ok: false as const, error: "Conversa não encontrada." };
 
     const evo = await import("./evolution.server");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const admin = supabaseAdmin as any;
-    const { data: inst } = await admin.from("whatsapp_instances").select("*").eq("tenant_id", tenant.id).maybeSingle();
+    const { data: inst } = await admin.from("whatsapp_instances").select("*").eq("tenant_id", tenantId).maybeSingle();
     if (!inst || inst.status !== "connected") return { ok: false as const, error: "Seu WhatsApp não está conectado." };
 
     let sentId: string | null = null;
@@ -175,7 +208,7 @@ export const sendOwnerWhatsappMessage = createServerFn({ method: "POST" })
     }
     const now = new Date().toISOString();
     await admin.from("whatsapp_messages").insert({
-      tenant_id: tenant.id,
+      tenant_id: tenantId,
       conversation_id: conv.id,
       direction: "out",
       sender: "owner",

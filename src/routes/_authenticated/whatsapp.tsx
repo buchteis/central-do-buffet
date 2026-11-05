@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
@@ -29,6 +30,7 @@ import {
   getWhatsappOverview,
   refreshWhatsappStatus,
   sendOwnerWhatsappMessage,
+  type WhatsappInstanceOverview,
 } from "@/lib/whatsapp-bot.functions";
 
 export const Route = createFileRoute("/_authenticated/whatsapp")({
@@ -103,18 +105,19 @@ function WhatsappPage() {
         <div className="flex items-center gap-2 text-muted-foreground text-sm">
           <Loader2 className="size-4 animate-spin" /> Carregando…
         </div>
-      ) : !overview.data?.serverConfigured ? (
-        <div className="rounded-2xl border border-border bg-card p-6 space-y-2">
-          <div className="flex items-center gap-2 font-bold">
-            <QrCode className="size-5 text-primary" /> Conexão por QR Code ainda não disponível
-          </div>
-          <p className="text-sm text-muted-foreground">
-            O servidor de WhatsApp da Central do Buffet ainda não foi ligado. Assim que estiver pronto, você poderá
-            conectar seu número aqui escaneando um QR Code.
-          </p>
-        </div>
       ) : (
         <>
+          {inst?.status !== "connected" && !overview.data?.serverConfigured && (
+            <div className="rounded-2xl border border-border bg-card p-6 space-y-2">
+              <div className="flex items-center gap-2 font-bold">
+                <QrCode className="size-5 text-primary" /> Conexão por QR Code ainda não disponível
+              </div>
+              <p className="text-sm text-muted-foreground">
+                O servidor de WhatsApp da Central do Buffet ainda não foi ligado. Assim que estiver pronto, você poderá
+                conectar seu número aqui escaneando um QR Code.
+              </p>
+            </div>
+          )}
           <ConnectionCard
             instance={inst}
             onChanged={() => qc.invalidateQueries({ queryKey: ["wa-overview"] })}
@@ -128,13 +131,15 @@ function WhatsappPage() {
   );
 }
 
-function ConnectionCard({ instance, onChanged }: { instance: Record<string, any> | null; onChanged: () => void }) {
+function ConnectionCard({ instance, onChanged }: { instance: WhatsappInstanceOverview | null; onChanged: () => void }) {
   const connect = useServerFn(connectWhatsapp);
   const refresh = useServerFn(refreshWhatsappStatus);
   const disconnect = useServerFn(disconnectWhatsapp);
   const [qr, setQr] = useState<string | null>(instance?.qr_code ?? null);
   const [status, setStatus] = useState<string>(instance?.status ?? "disconnected");
   const [phone, setPhone] = useState<string | null>(instance?.phone_number ?? null);
+  const [phoneInput, setPhoneInput] = useState("");
+  const [pairingCode, setPairingCode] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const ticks = useRef(0);
 
@@ -166,18 +171,19 @@ function ConnectionCard({ instance, onChanged }: { instance: Record<string, any>
       }
     }, 4000);
     return () => window.clearInterval(id);
-  }, [status]);
+  }, [status, pairingCode]);
 
-  async function handleConnect() {
+  async function handleConnect(phoneNumber?: string) {
     setBusy(true);
     try {
-      const r = await connect();
+      const r = await connect({ data: phoneNumber ? { phoneNumber } : {} });
       if (!r.ok) {
         toast.error(r.error);
         return;
       }
       setStatus(r.status);
       setQr(r.qr);
+      setPairingCode(r.pairingCode ?? null);
       if (r.status === "connected") toast.success("WhatsApp já está conectado.");
       onChanged();
     } catch (e: any) {
@@ -223,6 +229,11 @@ function ConnectionCard({ instance, onChanged }: { instance: Record<string, any>
                 <Unplug className="size-4" /> Desconectar
               </Button>
             </>
+          ) : status === "connecting" && pairingCode ? (
+            <p className="text-sm text-muted-foreground">
+              No WhatsApp do número informado, abra <strong>Aparelhos conectados</strong>, escolha <strong>Conectar
+              usando número de telefone</strong> e digite o código exibido.
+            </p>
           ) : status === "connecting" ? (
             <ol className="text-sm text-muted-foreground space-y-1 list-decimal pl-5">
               <li>Abra o WhatsApp no celular do buffet.</li>
@@ -238,23 +249,57 @@ function ConnectionCard({ instance, onChanged }: { instance: Record<string, any>
               <Button onClick={handleConnect} disabled={busy}>
                 {busy ? <Loader2 className="size-4 animate-spin" /> : <QrCode className="size-4" />} Conectar WhatsApp
               </Button>
+              <div className="space-y-2 pt-2">
+                <label htmlFor="whatsapp-pairing-number" className="text-sm font-medium">
+                  Ou informe o número do WhatsApp para receber um código de 8 dígitos
+                </label>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <Input
+                    id="whatsapp-pairing-number"
+                    type="tel"
+                    inputMode="tel"
+                    autoComplete="tel"
+                    placeholder="5511999999999"
+                    value={phoneInput}
+                    onChange={(event) => setPhoneInput(event.target.value)}
+                    disabled={busy}
+                  />
+                  <Button
+                    variant="outline"
+                    onClick={() => handleConnect(phoneInput.trim())}
+                    disabled={busy || phoneInput.replace(/\D/g, "").length < 8}
+                  >
+                    Receber código
+                  </Button>
+                </div>
+              </div>
             </>
           )}
         </div>
         {status === "connecting" && (
           <div className="flex flex-col items-center gap-2">
-            <div className="rounded-xl bg-background p-3 border border-border">
-              {qr ? (
-                <img src={qr} alt="QR Code para conectar o WhatsApp" className="size-56 [image-rendering:pixelated] bg-white rounded" />
-              ) : (
-                <div className="size-56 flex items-center justify-center text-muted-foreground">
-                  <Loader2 className="size-6 animate-spin" />
+            {qr && (
+              <>
+                <div className="rounded-xl bg-background p-3 border border-border">
+                  <img src={qr} alt="QR Code para conectar o WhatsApp" className="size-56 [image-rendering:pixelated] bg-white rounded" />
                 </div>
-              )}
-            </div>
-            <Button variant="ghost" size="sm" onClick={handleConnect} disabled={busy}>
-              Gerar novo QR Code
-            </Button>
+                <Button variant="ghost" size="sm" onClick={() => handleConnect()} disabled={busy}>
+                  Gerar novo QR Code
+                </Button>
+              </>
+            )}
+            {pairingCode && (
+              <div className="rounded-xl bg-muted p-4 text-center">
+                <p className="text-xs text-muted-foreground">Código de pareamento do WhatsApp</p>
+                <p className="font-mono text-2xl font-bold tracking-[0.3em]">{pairingCode}</p>
+                <p className="mt-1 text-xs text-muted-foreground">Digite este código no WhatsApp do número informado.</p>
+              </div>
+            )}
+            {!qr && !pairingCode && (
+              <div className="size-56 flex items-center justify-center text-muted-foreground">
+                <Loader2 className="size-6 animate-spin" />
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -262,7 +307,7 @@ function ConnectionCard({ instance, onChanged }: { instance: Record<string, any>
   );
 }
 
-function BotToggle({ instance, onChanged }: { instance: Record<string, any>; onChanged: () => void }) {
+function BotToggle({ instance, onChanged }: { instance: WhatsappInstanceOverview; onChanged: () => void }) {
   const [on, setOn] = useState<boolean>(!!instance.bot_enabled);
   useEffect(() => setOn(!!instance.bot_enabled), [instance.bot_enabled]);
   async function toggle(v: boolean) {
