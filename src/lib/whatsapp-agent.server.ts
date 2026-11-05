@@ -68,7 +68,7 @@ const AGENT_TOOLS = [
   {
     type: "function",
     name: "consultar_agenda",
-    description: "Verifica se existe evento ou pré-reserva ativa na data solicitada.",
+    description: "Verifica a disponibilidade da data para evento ou degustação, incluindo eventos, degustações e pré-reservas ativas.",
     strict: true,
     parameters: {
       type: "object",
@@ -76,8 +76,9 @@ const AGENT_TOOLS = [
       properties: {
         buffet_id: { type: "string" },
         data: { type: "string", description: "Data no formato AAAA-MM-DD." },
+        tipo: { type: "string", enum: ["evento", "degustacao"] },
       },
-      required: ["buffet_id", "data"],
+      required: ["buffet_id", "data", "tipo"],
     },
   },
   {
@@ -96,6 +97,61 @@ const AGENT_TOOLS = [
         nome: { type: "string" },
       },
       required: ["buffet_id", "data", "pacote_id", "telefone", "nome"],
+    },
+  },
+  {
+    type: "function",
+    name: "confirmar_evento",
+    description:
+      "Registra o evento no calendário depois de consultar a disponibilidade, confirmar o pacote e receber confirmação explícita do cliente para o resumo completo.",
+    strict: true,
+    parameters: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        buffet_id: { type: "string" },
+        data: { type: "string", description: "Data do evento no formato AAAA-MM-DD." },
+        pacote_id: { type: "string" },
+        nome: { type: "string" },
+        convidados: { type: "integer" },
+        tipo_evento: { type: ["string", "null"] },
+        horario: { type: ["string", "null"], description: "Horário HH:MM ou null." },
+        endereco: { type: ["string", "null"] },
+      },
+      required: ["buffet_id", "data", "pacote_id", "nome", "convidados", "tipo_evento", "horario", "endereco"],
+    },
+  },
+  {
+    type: "function",
+    name: "agendar_degustacao",
+    description:
+      "Agenda uma degustação no calendário depois de consultar a disponibilidade e receber confirmação explícita do cliente para o resumo completo.",
+    strict: true,
+    parameters: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        buffet_id: { type: "string" },
+        data_degustacao: { type: "string", description: "Data da degustação no formato AAAA-MM-DD." },
+        data_evento: { type: "string", description: "Data provável do evento no formato AAAA-MM-DD." },
+        pacote_id: { type: "string" },
+        nome: { type: "string" },
+        convidados: { type: "integer" },
+        tipo_evento: { type: ["string", "null"] },
+        horario: { type: ["string", "null"], description: "Horário HH:MM ou null." },
+        endereco: { type: ["string", "null"] },
+      },
+      required: [
+        "buffet_id",
+        "data_degustacao",
+        "data_evento",
+        "pacote_id",
+        "nome",
+        "convidados",
+        "tipo_evento",
+        "horario",
+        "endereco",
+      ],
     },
   },
 ] as const;
@@ -154,7 +210,7 @@ export function relevantPackagePricing(
 
 export async function buildBuffetKnowledge(admin: Admin, tenantId: string) {
   const [tenantRes, settingsRes, packagesRes, extrasRes] = await Promise.all([
-    admin.from("tenants").select("name, slug, city, contact_phone").eq("id", tenantId).maybeSingle(),
+    admin.from("tenants").select("id, owner_id, name, slug, city, contact_phone").eq("id", tenantId).maybeSingle(),
     admin
       .from("buffet_settings")
       .select("business_name, address, phone, whatsapp")
@@ -249,7 +305,7 @@ Regras Gerais de Conversação:
 
 Use listar_pacotes antes de recomendar pacotes ou preços. Quando souber o número de convidados, envie-o para a ferramenta; ela retorna a faixa aplicável e a estimativa ou, se o número ficar fora/entre faixas, as faixas mais próximas para você explicar sem interromper o atendimento. Use somente preços positivos disponíveis nos dados, não invente valores e não transforme valores ausentes em zero. Uma pré-reserva criada continua pendente até validação humana; isso não significa, por si só, que a equipe humana assumirá a conversa.
 
-Para consultar a agenda ou criar uma pré-reserva, use as ferramentas disponíveis. Nunca confirme disponibilidade sem consultar a agenda e nunca diga que a data está confirmada. Só crie pré-reserva quando souber data, pacote, nome e telefone do cliente.
+Para verificar uma data, consulte a agenda. Uma pré-reserva é apenas pendente e não significa evento confirmado. Para evento ou degustação, recapitule data, horário, pacote, quantidade de convidados e valor calculado, e peça confirmação explícita. Só chame confirmar_evento ou agendar_degustacao se a mensagem mais recente do cliente for uma confirmação clara daquele resumo. Se ainda não confirmou, não grave nada. O evento confirmado será registrado no calendário; a degustação será registrada no calendário usando a data provável da festa informada pelo cliente. Nunca declare agendamento concluído antes de a ferramenta retornar sucesso.
 
 Preencha "lead" com o que já souber da conversa inteira (null quando não souber).
 Dados já conhecidos deste cliente: ${JSON.stringify({
@@ -284,13 +340,36 @@ function validDate(value: unknown): value is string {
   return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value;
 }
 
+function validFutureDate(value: string) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+  const fields = Object.fromEntries(parts.map(({ type, value: part }) => [type, part]));
+  const today = `${fields.year}-${fields.month}-${fields.day}`;
+  return value >= today;
+}
+
+function validTime(value: unknown): value is string {
+  if (typeof value !== "string" || !/^([01]\d|2[0-3]):[0-5]\d$/.test(value)) return false;
+  return true;
+}
+
 function normalizePhone(value: string) {
   return value.replace(/\D/g, "");
 }
 
-async function checkAvailability(admin: Admin, tenantId: string, date: string) {
+async function checkAvailability(
+  admin: Admin,
+  tenantId: string,
+  date: string,
+  type: "evento" | "degustacao" = "evento",
+  allowedReservationConversationId?: string,
+) {
   if (!validDate(date)) return { available: false, error: "Data inválida; use o formato AAAA-MM-DD." };
-  const [events, reservations] = await Promise.all([
+  const [events, reservations, tastings] = await Promise.all([
     admin
       .from("events")
       .select("id")
@@ -300,19 +379,288 @@ async function checkAvailability(admin: Admin, tenantId: string, date: string) {
       .limit(1),
     admin
       .from("whatsapp_pre_reservations")
-      .select("id")
+      .select("id, conversation_id")
       .eq("tenant_id", tenantId)
       .eq("event_date", date)
       .in("status", ["pendente", "confirmada"])
+      .limit(20),
+    admin
+      .from("quotes")
+      .select("id")
+      .eq("tenant_id", tenantId)
+      .eq("tasting_date", date)
+      .neq("status", "cancelado")
       .limit(1),
   ]);
   if (events.error) throw events.error;
   if (reservations.error) throw reservations.error;
+  if (tastings.error) throw tastings.error;
+  const foreignReservations = (reservations.data ?? []).filter(
+    (reservation: any) => reservation.conversation_id !== allowedReservationConversationId,
+  );
+  const dateBusy = Boolean(events.data?.length || foreignReservations.length || tastings.data?.length);
   return {
-    available: !(events.data?.length || reservations.data?.length),
+    available: !dateBusy,
     has_event: Boolean(events.data?.length),
-    has_pre_reservation: Boolean(reservations.data?.length),
+    has_pre_reservation: Boolean(foreignReservations.length),
+    has_tasting: Boolean(tastings.data?.length),
     date,
+    type,
+  };
+}
+
+export function hasExplicitBookingConfirmation(message: string) {
+  const normalized = message
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase();
+  if (!normalized || /\b(nao|mas|porem|talvez|depois|ainda)\b/.test(normalized)) return false;
+  return /^(sim(?:[, ]+pode)?(?:[, ]+(?:confirmar|fechar|agendar))?|isso(?: mesmo)?|confirmo|confirmado|confirmada|aceito|aceitamos|concordo|fechado|pode confirmar|pode fechar|pode agendar|quero agendar)[.!?\s]*$/.test(
+    normalized,
+  );
+}
+
+export function hasBookingConfirmationPrompt(message: string) {
+  const normalized = message.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  return (
+    /\b(confirm|confirma|agendar|fechar)\w*\b/.test(normalized) &&
+    /\bpacote\b/.test(normalized) &&
+    /\b(pessoas|convidados)\b/.test(normalized) &&
+    /\b(r\$|valor)\b/.test(normalized) &&
+    /(\d{4}-\d{2}-\d{2}|\d{1,2}[/-]\d{1,2})/.test(normalized)
+  );
+}
+
+export function isConfirmedBookingReply(message: string, previousAssistantMessage: string) {
+  return hasExplicitBookingConfirmation(message) && hasBookingConfirmationPrompt(previousAssistantMessage);
+}
+
+async function findOrCreateWhatsappClient(admin: Admin, tenantId: string, ownerId: string, name: string, phone: string) {
+  const { data: clients, error: clientsError } = await admin
+    .from("clients")
+    .select("id, phone, whatsapp")
+    .eq("tenant_id", tenantId)
+    .or(`phone.eq.${phone},whatsapp.eq.${phone}`)
+    .limit(10);
+  if (clientsError) throw clientsError;
+  const existing = (clients ?? []).find(
+    (client: any) => normalizePhone(String(client.phone ?? "")) === phone || normalizePhone(String(client.whatsapp ?? "")) === phone,
+  );
+  if (existing) return existing.id as string;
+  const { data: client, error: insertError } = await admin
+    .from("clients")
+    .insert({
+      tenant_id: tenantId,
+      owner_id: ownerId,
+      name,
+      phone,
+      whatsapp: phone,
+    })
+    .select("id")
+    .single();
+  if (insertError) throw insertError;
+  return client.id as string;
+}
+
+async function registerConfirmedBooking(
+  admin: Admin,
+  tenantId: string,
+  conv: any,
+  knowledge: any,
+  args: Record<string, unknown>,
+  isTasting: boolean,
+) {
+  const date = String(isTasting ? args.data_degustacao : args.data);
+  const eventDate = String(isTasting ? args.data_evento : args.data);
+  if (!validDate(date) || !validDate(eventDate)) return { ok: false, error: "Data inválida; use o formato AAAA-MM-DD." };
+  if (!validFutureDate(date) || !validFutureDate(eventDate)) return { ok: false, error: "Não é possível agendar em uma data passada." };
+  const time = args.horario;
+  if (time !== null && time !== undefined && !validTime(time)) return { ok: false, error: "Horário inválido; use HH:MM." };
+  const guests = Number(args.convidados);
+  if (!Number.isInteger(guests) || guests <= 0) return { ok: false, error: "Informe um número válido de convidados." };
+  const packageId = String(args.pacote_id ?? "");
+  const pkg = (knowledge?.pacotes ?? []).find((item: any) => item.id === packageId);
+  if (!pkg) return { ok: false, error: "Pacote ativo não encontrado para este buffet." };
+
+  const pricing = relevantPackagePricing(pkg, guests);
+  const total = pricing.estimativa_total;
+  if (total === null || total <= 0) {
+    return {
+      ok: false,
+      price_unavailable: true,
+      message: "Não há preço cadastrado para essa quantidade. Explique as faixas disponíveis e não confirme o agendamento.",
+    };
+  }
+
+  const phone = normalizePhone(String(conv.phone ?? conv.remote_jid ?? ""));
+  if (phone.length < 10) return { ok: false, error: "Não foi possível identificar o telefone do cliente." };
+  const clientName = String(args.nome ?? "").trim().slice(0, 120) || conv.lead_name || conv.contact_name;
+  if (!clientName) return { ok: false, error: "Nome do cliente não informado." };
+  const { data: tenant, error: tenantError } = await admin
+    .from("tenants")
+    .select("owner_id")
+    .eq("id", tenantId)
+    .maybeSingle();
+  if (tenantError) throw tenantError;
+  const ownerId = tenant?.owner_id;
+  if (!ownerId) throw new Error("Responsável do buffet não encontrado para registrar o agendamento.");
+  const clientId = await findOrCreateWhatsappClient(admin, tenantId, ownerId, clientName, phone);
+
+  if (isTasting) {
+    const { data: existingTasting, error: existingTastingError } = await admin
+      .from("quotes")
+      .select("id")
+      .eq("tenant_id", tenantId)
+      .eq("client_id", clientId)
+      .eq("tasting_date", date)
+      .neq("status", "cancelado")
+      .limit(1)
+      .maybeSingle();
+    if (existingTastingError) throw existingTastingError;
+    if (existingTasting) {
+      return { ok: true, already_scheduled: true, tasting_id: existingTasting.id, date, type: "degustacao" };
+    }
+    const availability = await checkAvailability(admin, tenantId, date, "degustacao");
+    if (!availability.available) return { ok: false, available: false, message: "A data da degustação não está disponível." };
+
+    const { data: quote, error: quoteError } = await admin
+      .from("quotes")
+      .insert({
+        tenant_id: tenantId,
+        owner_id: ownerId,
+        client_id: clientId,
+        package_id: packageId,
+        event_date: eventDate,
+        event_time: time ?? null,
+        event_type: typeof args.tipo_evento === "string" ? args.tipo_evento : null,
+        event_address: typeof args.endereco === "string" ? args.endereco : null,
+        adults: guests,
+        children_7_10: 0,
+        children_0_6: 0,
+        total_value: total,
+        entry_value: 0,
+        balance_value: total,
+        status: "visitado",
+        tasting_date: date,
+        tasting_time: time ?? null,
+        notes: "Degustação confirmada pelo cliente via WhatsApp.",
+      })
+      .select("id")
+      .single();
+    if (quoteError) throw quoteError;
+    return { ok: true, type: "degustacao", tasting_id: quote.id, date, event_date: eventDate, package: pkg.nome, total };
+  }
+
+  const { data: existingEvent, error: existingEventError } = await admin
+    .from("events")
+    .select("id")
+    .eq("tenant_id", tenantId)
+    .eq("client_id", clientId)
+    .eq("event_date", date)
+    .neq("status", "cancelado")
+    .limit(1)
+    .maybeSingle();
+  if (existingEventError) throw existingEventError;
+  if (existingEvent) return { ok: true, already_scheduled: true, event_id: existingEvent.id, date };
+
+  const availability = await checkAvailability(admin, tenantId, date, "evento", conv.id);
+  if (!availability.available) return { ok: false, available: false, message: "A data do evento não está disponível." };
+
+  const { data: existingReservation, error: reservationError } = await admin
+    .from("whatsapp_pre_reservations")
+    .select("id, conversation_id, status")
+    .eq("tenant_id", tenantId)
+    .eq("event_date", date)
+    .in("status", ["pendente", "confirmada"])
+    .maybeSingle();
+  if (reservationError) throw reservationError;
+  if (existingReservation && existingReservation.conversation_id !== conv.id) {
+    return { ok: false, available: false, message: "A data já possui uma pré-reserva ativa." };
+  }
+
+  let reservationId = existingReservation?.id as string | undefined;
+  let createdReservation = false;
+  if (!reservationId) {
+    const { data: reservation, error: reserveError } = await admin
+      .from("whatsapp_pre_reservations")
+      .insert({
+        tenant_id: tenantId,
+        conversation_id: conv.id,
+        phone,
+        name: clientName,
+        event_date: date,
+        package_id: packageId,
+        status: "pendente",
+      })
+      .select("id")
+      .single();
+    if (reserveError?.code === "23505") {
+      return { ok: false, available: false, message: "A data acabou de receber outra reserva." };
+    }
+    if (reserveError) throw reserveError;
+    reservationId = reservation.id;
+    createdReservation = true;
+  }
+
+  const { error: confirmError } = await admin
+    .from("whatsapp_pre_reservations")
+    .update({ status: "confirmada" })
+    .eq("id", reservationId)
+    .eq("tenant_id", tenantId);
+  if (confirmError) throw confirmError;
+
+  const { data: quote, error: quoteError } = await admin
+    .from("quotes")
+    .insert({
+      tenant_id: tenantId,
+      owner_id: ownerId,
+      client_id: clientId,
+      package_id: packageId,
+      event_date: date,
+      event_time: time ?? null,
+      event_type: typeof args.tipo_evento === "string" ? args.tipo_evento : null,
+      event_address: typeof args.endereco === "string" ? args.endereco : null,
+      adults: guests,
+      children_7_10: 0,
+      children_0_6: 0,
+      total_value: total,
+      entry_value: 0,
+      balance_value: total,
+      status: "fechado",
+      paid: false,
+      notes: "Evento confirmado pelo cliente via WhatsApp.",
+    })
+    .select("id")
+    .single();
+  if (quoteError) {
+    await admin
+      .from("whatsapp_pre_reservations")
+      .update({ status: createdReservation ? "cancelada" : "pendente" })
+      .eq("id", reservationId)
+      .eq("tenant_id", tenantId);
+    throw quoteError;
+  }
+
+  const { data: event, error: eventError } = await admin
+    .from("events")
+    .select("id")
+    .eq("tenant_id", tenantId)
+    .eq("quote_id", quote.id)
+    .maybeSingle();
+  if (eventError) throw eventError;
+  if (!event) throw new Error("O evento foi registrado no orçamento, mas não apareceu no calendário.");
+
+  return {
+    ok: true,
+    type: "evento",
+    event_id: event.id,
+    date,
+    time: time ?? null,
+    package: pkg.nome,
+    guests,
+    total,
+    message: "Evento confirmado e registrado no calendário.",
   };
 }
 
@@ -323,6 +671,7 @@ async function executeAgentTool(
   tenantId: string,
   conv: any,
   knowledge: any,
+  canConfirmBooking: boolean,
 ): Promise<{ output: unknown; preReservationCreated: boolean }> {
   if (args.buffet_id !== tenantId) {
     return { output: { error: "Buffet inválido." }, preReservationCreated: false };
@@ -337,7 +686,24 @@ async function executeAgentTool(
     return { output: packages, preReservationCreated: false };
   }
   if (name === "consultar_agenda") {
-    return { output: await checkAvailability(admin, tenantId, args.data as string), preReservationCreated: false };
+    const type = args.tipo === "degustacao" ? "degustacao" : "evento";
+    return { output: await checkAvailability(admin, tenantId, args.data as string, type), preReservationCreated: false };
+  }
+  if (name === "confirmar_evento" || name === "agendar_degustacao") {
+    if (!canConfirmBooking) {
+      return {
+        output: {
+          ok: false,
+          confirmation_required: true,
+          message: "Peça ao cliente que confirme explicitamente o resumo do agendamento antes de registrar qualquer coisa.",
+        },
+        preReservationCreated: false,
+      };
+    }
+    return {
+      output: await registerConfirmedBooking(admin, tenantId, conv, knowledge, args, name === "agendar_degustacao"),
+      preReservationCreated: false,
+    };
   }
   if (name !== "pre_reservar") return { output: { error: "Ferramenta desconhecida." }, preReservationCreated: false };
 
@@ -443,6 +809,14 @@ export async function runAgent(
     input.push({ role: "user", content: "(o cliente enviou uma mensagem sem texto)" });
   }
 
+  const latestCustomerIndex = [...history].map((message) => message.sender).lastIndexOf("client");
+  const latestCustomerMessage = latestCustomerIndex >= 0 ? history[latestCustomerIndex].body : "";
+  const previousAssistantMessage =
+    latestCustomerIndex > 0
+      ? [...history.slice(0, latestCustomerIndex)].reverse().find((message) => message.sender !== "client")?.body ?? ""
+      : "";
+  const canConfirmBooking = isConfirmedBookingReply(latestCustomerMessage, previousAssistantMessage);
+
   let preReservationCreated = false;
   for (let step = 0; step < 5; step++) {
     const res = await generateResponse({
@@ -477,6 +851,7 @@ export async function runAgent(
         tenantId,
         conv,
         knowledge,
+        canConfirmBooking,
       );
       preReservationCreated ||= created;
       input.push(call);
