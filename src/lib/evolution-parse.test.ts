@@ -33,6 +33,22 @@ describe("parseInboundMessage", () => {
       text: "Quero um orçamento",
     });
   });
+
+  it("ignores messages without text", () => {
+    const r = parseInboundMessage({
+      key: { remoteJid: "5531999990000@s.whatsapp.net", fromMe: false, id: "A4" },
+      message: { imageMessage: { caption: "" } },
+    });
+    expect(r).toEqual({ kind: "ignore", reason: "no_text" });
+  });
+
+  it("extracts text from ephemeral messages", () => {
+    const r = parseInboundMessage({
+      key: { remoteJid: "5531999990000@s.whatsapp.net", fromMe: false, id: "A5" },
+      message: { ephemeralMessage: { message: { conversation: "Olá" } } },
+    });
+    expect(r).toMatchObject({ kind: "message", text: "Olá" });
+  });
 });
 
 describe("mapConnectionState", () => {

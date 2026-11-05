@@ -46,6 +46,7 @@ import { Route as AuthenticatedOrcamentosIdRouteImport } from './routes/_authent
 import { Route as AuthenticatedOrcamentosNovoRouteImport } from './routes/_authenticated/orcamentos/novo'
 import { Route as AuthenticatedClientesIdEditarRouteImport } from './routes/_authenticated/clientes/$id.editar'
 import { Route as ApiPublicEvolutionWebhookTokenRouteImport } from './routes/api/public/evolution/webhook.$token'
+import { Route as WebhookWhatsappRouteImport } from './routes/webhook.whatsapp'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -247,6 +248,11 @@ const ApiPublicEvolutionWebhookTokenRoute =
     path: '/api/public/evolution/webhook/$token',
     getParentRoute: () => rootRouteImport,
   } as any)
+const WebhookWhatsappRoute = WebhookWhatsappRouteImport.update({
+  id: '/webhook/whatsapp',
+  path: '/webhook/whatsapp',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -285,6 +291,7 @@ export interface FileRoutesByFullPath {
   '/orcamentos/': typeof AuthenticatedOrcamentosIndexRoute
   '/clientes/$id/editar': typeof AuthenticatedClientesIdEditarRoute
   '/api/public/evolution/webhook/$token': typeof ApiPublicEvolutionWebhookTokenRoute
+  '/webhook/whatsapp': typeof WebhookWhatsappRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -323,6 +330,7 @@ export interface FileRoutesByTo {
   '/orcamentos': typeof AuthenticatedOrcamentosIndexRoute
   '/clientes/$id/editar': typeof AuthenticatedClientesIdEditarRoute
   '/api/public/evolution/webhook/$token': typeof ApiPublicEvolutionWebhookTokenRoute
+  '/webhook/whatsapp': typeof WebhookWhatsappRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -363,6 +371,7 @@ export interface FileRoutesById {
   '/_authenticated/orcamentos/': typeof AuthenticatedOrcamentosIndexRoute
   '/_authenticated/clientes/$id/editar': typeof AuthenticatedClientesIdEditarRoute
   '/api/public/evolution/webhook/$token': typeof ApiPublicEvolutionWebhookTokenRoute
+  '/webhook/whatsapp': typeof WebhookWhatsappRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -403,6 +412,7 @@ export interface FileRouteTypes {
     | '/orcamentos/'
     | '/clientes/$id/editar'
     | '/api/public/evolution/webhook/$token'
+    | '/webhook/whatsapp'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -441,6 +451,7 @@ export interface FileRouteTypes {
     | '/orcamentos'
     | '/clientes/$id/editar'
     | '/api/public/evolution/webhook/$token'
+    | '/webhook/whatsapp'
   id:
     | '__root__'
     | '/'
@@ -480,6 +491,7 @@ export interface FileRouteTypes {
     | '/_authenticated/orcamentos/'
     | '/_authenticated/clientes/$id/editar'
     | '/api/public/evolution/webhook/$token'
+    | '/webhook/whatsapp'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -493,6 +505,7 @@ export interface RootRouteChildren {
   OrcamentoSlugRoute: typeof OrcamentoSlugRoute
   PagamentoTokenRoute: typeof PagamentoTokenRoute
   ApiPublicEvolutionWebhookTokenRoute: typeof ApiPublicEvolutionWebhookTokenRoute
+  WebhookWhatsappRoute: typeof WebhookWhatsappRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -756,6 +769,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicEvolutionWebhookTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/webhook/whatsapp': {
+      id: '/webhook/whatsapp'
+      path: '/webhook/whatsapp'
+      fullPath: '/webhook/whatsapp'
+      preLoaderRoute: typeof WebhookWhatsappRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -841,6 +861,7 @@ const rootRouteChildren: RootRouteChildren = {
   OrcamentoSlugRoute: OrcamentoSlugRoute,
   PagamentoTokenRoute: PagamentoTokenRoute,
   ApiPublicEvolutionWebhookTokenRoute: ApiPublicEvolutionWebhookTokenRoute,
+  WebhookWhatsappRoute: WebhookWhatsappRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

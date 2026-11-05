@@ -1,7 +1,7 @@
 // Pure helpers for Evolution API webhook payloads (no I/O) — shared by the webhook and tests.
 
 export type ParsedInbound =
-  | { kind: "ignore"; reason: "from_me" | "group" | "broadcast" | "no_key" }
+  | { kind: "ignore"; reason: "from_me" | "group" | "broadcast" | "no_key" | "no_text" }
   | {
       kind: "message";
       waMessageId: string;
@@ -14,33 +14,13 @@ export type ParsedInbound =
       timestamp: number | null;
     };
 
-const MEDIA_LABELS: Record<string, string> = {
-  audioMessage: "[o cliente enviou um áudio]",
-  imageMessage: "[o cliente enviou uma imagem]",
-  videoMessage: "[o cliente enviou um vídeo]",
-  documentMessage: "[o cliente enviou um documento]",
-  stickerMessage: "[o cliente enviou uma figurinha]",
-  locationMessage: "[o cliente enviou uma localização]",
-  contactMessage: "[o cliente enviou um contato]",
-};
-
 export function extractText(message: any): string {
   if (!message || typeof message !== "object") return "";
-  const direct =
-    message.conversation ??
-    message.extendedTextMessage?.text ??
-    message.imageMessage?.caption ??
-    message.videoMessage?.caption ??
-    message.documentMessage?.caption ??
-    message.buttonsResponseMessage?.selectedDisplayText ??
-    message.listResponseMessage?.title ??
-    message.templateButtonReplyMessage?.selectedDisplayText;
-  if (typeof direct === "string" && direct.trim()) return direct.trim();
+  for (const candidate of [message.conversation, message.extendedTextMessage?.text]) {
+    if (typeof candidate === "string" && candidate.trim()) return candidate.trim();
+  }
   if (message.ephemeralMessage?.message) return extractText(message.ephemeralMessage.message);
   if (message.viewOnceMessage?.message) return extractText(message.viewOnceMessage.message);
-  for (const key of Object.keys(MEDIA_LABELS)) {
-    if (message[key]) return MEDIA_LABELS[key];
-  }
   return "";
 }
 
@@ -62,6 +42,8 @@ export function parseInboundMessage(data: any): ParsedInbound {
   }
   const alt: string | null = key.remoteJidAlt ?? key.senderPn ?? null;
   const phone = jidDigits(jid) ?? jidDigits(alt);
+  const text = extractText(data?.message);
+  if (!text) return { kind: "ignore", reason: "no_text" };
   const ts = Number(data?.messageTimestamp);
   return {
     kind: "message",
@@ -70,7 +52,7 @@ export function parseInboundMessage(data: any): ParsedInbound {
     replyTo: phone ?? jid,
     phone,
     pushName: typeof data?.pushName === "string" && data.pushName.trim() ? data.pushName.trim() : null,
-    text: extractText(data?.message),
+    text,
     timestamp: Number.isFinite(ts) && ts > 0 ? ts : null,
   };
 }
