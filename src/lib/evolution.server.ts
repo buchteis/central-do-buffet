@@ -11,7 +11,7 @@ export function evolutionConfig(): { url: string; key: string } | null {
 }
 
 export function publicAppOrigin(): string {
-  const raw = (process.env["PUBLIC_APP_URL"] ?? "").trim().replace(/\/+$/, "");
+  const raw = (process.env["APP_URL"] ?? process.env["PUBLIC_APP_URL"] ?? "").trim().replace(/\/+$/, "");
   return /^https?:\/\//.test(raw) ? raw : "https://centraldobuffet.lovable.app";
 }
 
@@ -70,10 +70,10 @@ export function setWebhook(instanceName: string, webhookUrl: string) {
   });
 }
 
-export function connectInstance(instanceName: string) {
+export function connectInstance(instanceName: string, phoneNumber?: string) {
   return call<{ base64?: string; code?: string; pairingCode?: string; instance?: { state?: string } }>(
     "GET",
-    `/instance/connect/${enc(instanceName)}`,
+    `/instance/connect/${enc(instanceName)}${phoneNumber ? `?number=${enc(phoneNumber)}` : ""}`,
   );
 }
 
