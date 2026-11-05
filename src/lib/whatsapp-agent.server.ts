@@ -14,6 +14,7 @@ export type AgentResult = {
     event_type: string | null;
     event_date: string | null;
     guest_count: number | null;
+    budget: string | null;
   };
 };
 
@@ -31,22 +32,71 @@ const RESULT_SCHEMA = {
     lead: {
       type: "object",
       additionalProperties: false,
-      required: ["name", "event_type", "event_date", "guest_count"],
+      required: ["name", "event_type", "event_date", "guest_count", "budget"],
       properties: {
         name: { type: ["string", "null"] },
         event_type: { type: ["string", "null"] },
         event_date: { type: ["string", "null"], description: "Data desejada como o cliente informou." },
         guest_count: { type: ["integer", "null"] },
+        budget: { type: ["string", "null"], description: "Orçamento máximo informado pelo cliente." },
       },
     },
   },
 } as const;
 
+const AGENT_TOOLS = [
+  {
+    type: "function",
+    name: "listar_pacotes",
+    description: "Lista os pacotes ativos e preços cadastrados para este buffet.",
+    strict: true,
+    parameters: {
+      type: "object",
+      additionalProperties: false,
+      properties: { buffet_id: { type: "string", description: "ID do buffet informado pelo sistema." } },
+      required: ["buffet_id"],
+    },
+  },
+  {
+    type: "function",
+    name: "consultar_agenda",
+    description: "Verifica se existe evento ou pré-reserva ativa na data solicitada.",
+    strict: true,
+    parameters: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        buffet_id: { type: "string" },
+        data: { type: "string", description: "Data no formato AAAA-MM-DD." },
+      },
+      required: ["buffet_id", "data"],
+    },
+  },
+  {
+    type: "function",
+    name: "pre_reservar",
+    description: "Cria uma pré-reserva pendente após verificar a agenda; nunca confirma o evento.",
+    strict: true,
+    parameters: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        buffet_id: { type: "string" },
+        data: { type: "string", description: "Data no formato AAAA-MM-DD." },
+        pacote_id: { type: "string" },
+        telefone: { type: "string" },
+        nome: { type: "string" },
+      },
+      required: ["buffet_id", "data", "pacote_id", "telefone", "nome"],
+    },
+  },
+] as const;
+
 const brl = (n: number) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
 export async function buildBuffetKnowledge(admin: Admin, tenantId: string) {
   const [tenantRes, settingsRes, packagesRes, tiersRes, extrasRes] = await Promise.all([
-    admin.from("tenants").select("name, slug, city, contact_phone, owner_id").eq("id", tenantId).maybeSingle(),
+    admin.from("tenants").select("name, slug, city, contact_phone").eq("id", tenantId).maybeSingle(),
     admin
       .from("buffet_settings")
       .select("business_name, address, phone, whatsapp")
@@ -71,7 +121,11 @@ export async function buildBuffetKnowledge(admin: Admin, tenantId: string) {
       .order("position"),
   ]);
 
+  for (const result of [tenantRes, settingsRes, packagesRes, tiersRes, extrasRes]) {
+    if (result.error) throw result.error;
+  }
   const tenant = tenantRes.data;
+  if (!tenant) throw new Error("Buffet não encontrado para esta instância do WhatsApp.");
   const settings = settingsRes.data;
   const tiers = (tiersRes.data ?? []) as any[];
   const packages = ((packagesRes.data ?? []) as any[]).map((p) => {
@@ -84,6 +138,7 @@ export async function buildBuffetKnowledge(admin: Admin, tenantId: string) {
           : `de ${t.min_guests} a ${t.max_guests} convidados: ${brl(Number(t.price_per_person || 0))} por pessoa`,
       );
     return {
+      id: p.id,
       nome: p.name,
       descricao: p.description ?? null,
       itens_inclusos: p.included_items ?? [],
@@ -119,9 +174,11 @@ Tom: educado, acolhedor, ágil e profissional, como uma pessoa real da equipe. P
 
 Roteiro:
 a) Cumprimente com cordialidade e, de forma natural (no máximo 2 perguntas por mensagem), descubra: nome, tipo de evento (aniversário, casamento, corporativo etc.), data desejada e número estimado de convidados.
-b) Com o número de convidados, apresente os pacotes e as faixas de preço EXATAMENTE como estão nos dados. Nunca invente preços, pacotes, itens ou disponibilidade de data. Se não houver pacote cadastrado, diga que um atendente enviará os valores.
-c) Tire dúvidas gerais (duração, equipe inclusa, bebidas, itens adicionais) só com o que está nos dados; se não souber, diga que vai confirmar com a equipe.
-d) Se o cliente quiser fechar/contratar/reservar a data, pedir para falar com uma pessoa, reclamar, negociar desconto ou a conversa sair do que você sabe: responda que um atendente vai continuar o atendimento em instantes e marque handoff=true com o motivo.
+b) Pergunte também o orçamento quando for útil para recomendar opções. Use a ferramenta listar_pacotes antes de recomendar pacote ou preço, e respeite os convidados e orçamento informados. Apresente preços EXATAMENTE como estão nos dados.
+c) Nunca invente preços, pacotes, itens ou disponibilidade de data. Se não houver pacote cadastrado, diga que um atendente enviará os valores.
+d) Tire dúvidas gerais (duração, equipe inclusa, bebidas, itens adicionais) só com o que está nos dados; se não souber, diga que vai confirmar com a equipe.
+e) Se o cliente pedir uma pré-reserva, só use pre_reservar quando souber data, pacote, nome e telefone; consulte a agenda antes e jamais diga que a data está confirmada. Informe que a pré-reserva está pendente de validação humana e marque handoff=true.
+f) Se o cliente pedir uma pessoa, reclamar, negociar desconto ou a conversa sair do que você sabe: responda que um atendente vai continuar o atendimento em instantes e marque handoff=true com o motivo.
 Se houver link de orçamento online, você pode oferecê-lo para o cliente simular e enviar o pedido.
 
 Preencha "lead" com o que já souber da conversa inteira (null quando não souber).
@@ -130,9 +187,11 @@ Dados já conhecidos deste cliente: ${JSON.stringify({
     tipo_evento: conv.event_type ?? null,
     data: conv.event_date ?? null,
     convidados: conv.guest_count ?? null,
+    orcamento: conv.budget ?? null,
   })}
 
 DADOS DO BUFFET (fonte única de verdade):
+Para as ferramentas, use buffet_id=${conv.tenant_id}.
 ${JSON.stringify(knowledge, null, 2)}`;
 }
 
@@ -146,8 +205,155 @@ function outputText(res: any): string {
   return parts.join("");
 }
 
-export async function runAgent(knowledge: unknown, conv: any, history: { sender: string; body: string }[]) {
-  const input = history
+function validDate(value: unknown): value is string {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const date = new Date(`${value}T00:00:00.000Z`);
+  return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value;
+}
+
+function normalizePhone(value: string) {
+  return value.replace(/\D/g, "");
+}
+
+async function checkAvailability(admin: Admin, tenantId: string, date: string) {
+  if (!validDate(date)) return { available: false, error: "Data inválida; use o formato AAAA-MM-DD." };
+  const [events, reservations] = await Promise.all([
+    admin
+      .from("events")
+      .select("id")
+      .eq("tenant_id", tenantId)
+      .eq("event_date", date)
+      .neq("status", "cancelado")
+      .limit(1),
+    admin
+      .from("whatsapp_pre_reservations")
+      .select("id")
+      .eq("tenant_id", tenantId)
+      .eq("event_date", date)
+      .in("status", ["pendente", "confirmada"])
+      .limit(1),
+  ]);
+  if (events.error) throw events.error;
+  if (reservations.error) throw reservations.error;
+  return {
+    available: !(events.data?.length || reservations.data?.length),
+    has_event: Boolean(events.data?.length),
+    has_pre_reservation: Boolean(reservations.data?.length),
+    date,
+  };
+}
+
+async function executeAgentTool(
+  admin: Admin,
+  name: string,
+  args: Record<string, unknown>,
+  tenantId: string,
+  conv: any,
+  knowledge: any,
+): Promise<{ output: unknown; preReservationCreated: boolean }> {
+  if (args.buffet_id !== tenantId) {
+    return { output: { error: "Buffet inválido." }, preReservationCreated: false };
+  }
+
+  if (name === "listar_pacotes") {
+    return { output: knowledge?.pacotes ?? [], preReservationCreated: false };
+  }
+  if (name === "consultar_agenda") {
+    return { output: await checkAvailability(admin, tenantId, args.data as string), preReservationCreated: false };
+  }
+  if (name !== "pre_reservar") return { output: { error: "Ferramenta desconhecida." }, preReservationCreated: false };
+
+  const date = args.data;
+  if (!validDate(date)) return { output: { error: "Data inválida; use o formato AAAA-MM-DD." }, preReservationCreated: false };
+  const packageId = args.pacote_id;
+  if (typeof packageId !== "string") return { output: { error: "Pacote inválido." }, preReservationCreated: false };
+
+  const phone = normalizePhone(String(conv.phone ?? ""));
+  if (!phone || phone !== normalizePhone(String(args.telefone ?? ""))) {
+    return { output: { error: "Telefone do cliente não validado." }, preReservationCreated: false };
+  }
+  const name = String(args.nome ?? "").trim().slice(0, 120) || conv.lead_name || conv.contact_name;
+  if (!name) return { output: { error: "Nome do cliente não informado." }, preReservationCreated: false };
+
+  const { data: pkg, error: pkgError } = await admin
+    .from("packages")
+    .select("id, name")
+    .eq("id", packageId)
+    .eq("tenant_id", tenantId)
+    .eq("active", true)
+    .maybeSingle();
+  if (pkgError) throw pkgError;
+  if (!pkg) return { output: { error: "Pacote não encontrado para este buffet." }, preReservationCreated: false };
+
+  const { data: existingReservation, error: existingError } = await admin
+    .from("whatsapp_pre_reservations")
+    .select("id, conversation_id, status")
+    .eq("tenant_id", tenantId)
+    .eq("event_date", date)
+    .in("status", ["pendente", "confirmada"])
+    .maybeSingle();
+  if (existingError) throw existingError;
+  if (existingReservation) {
+    const sameConversation = existingReservation.conversation_id === conv.id;
+    return {
+      output: sameConversation
+        ? {
+            ok: true,
+            id: existingReservation.id,
+            status: existingReservation.status,
+            message: "A pré-reserva já existe e aguarda confirmação humana.",
+          }
+        : { ok: false, available: false, message: "A data já possui uma pré-reserva ativa." },
+      preReservationCreated: sameConversation,
+    };
+  }
+
+  const availability = await checkAvailability(admin, tenantId, date);
+  if (!availability.available) {
+    return { output: { ok: false, available: false, message: "A data não está disponível." }, preReservationCreated: false };
+  }
+
+  const { data: reservation, error: insertError } = await admin
+    .from("whatsapp_pre_reservations")
+    .insert({
+      tenant_id: tenantId,
+      conversation_id: conv.id,
+      phone,
+      name,
+      event_date: date,
+      package_id: packageId,
+      status: "pendente",
+    })
+    .select("id, status")
+    .single();
+  if (insertError?.code === "23505") {
+    return {
+      output: { ok: false, available: false, message: "A data acabou de receber outra pré-reserva." },
+      preReservationCreated: false,
+    };
+  }
+  if (insertError) throw insertError;
+  return {
+    output: {
+      ok: true,
+      id: reservation.id,
+      status: reservation.status,
+      package: pkg.name,
+      date,
+      message: "Pré-reserva criada. Ela permanece pendente até confirmação humana.",
+    },
+    preReservationCreated: true,
+  };
+}
+
+export async function runAgent(
+  admin: Admin,
+  tenantId: string,
+  knowledge: unknown,
+  conv: any,
+  history: { sender: string; body: string }[],
+) {
+  const input: any[] = history
     .filter((m) => m.body?.trim())
     .map((m) =>
       m.sender === "client"
@@ -158,18 +364,47 @@ export async function runAgent(knowledge: unknown, conv: any, history: { sender:
     input.push({ role: "user", content: "(o cliente enviou uma mensagem sem texto)" });
   }
 
-  const res = await generateResponse({
-    model: "openai/gpt-6-astra",
-    instructions: systemPrompt(knowledge, conv),
-    input: input as any,
-    reasoning: { effort: "low" },
-    max_output_tokens: 1200,
-    text: { format: { type: "json_schema", name: "atendimento", strict: true, schema: RESULT_SCHEMA as any } },
-  });
-  const raw = outputText(res);
-  const parsed = JSON.parse(raw) as AgentResult;
-  if (!parsed?.reply?.trim()) throw new Error("Resposta vazia da IA");
-  return parsed;
+  let preReservationCreated = false;
+  for (let step = 0; step < 5; step++) {
+    const res = await generateResponse({
+      model: "openai/gpt-6-astra",
+      instructions: systemPrompt(knowledge, conv),
+      input: input as any,
+      tools: AGENT_TOOLS as any,
+      tool_choice: "auto",
+      reasoning: { effort: "low" },
+      max_output_tokens: 1200,
+      text: { format: { type: "json_schema", name: "atendimento", strict: true, schema: RESULT_SCHEMA as any } },
+    });
+    const calls = (res as any)?.output?.filter((item: any) => item?.type === "function_call") ?? [];
+    if (!calls.length) {
+      const raw = outputText(res);
+      const parsed = JSON.parse(raw) as AgentResult;
+      if (!parsed?.reply?.trim()) throw new Error("Resposta vazia da IA");
+      return { result: parsed, preReservationCreated };
+    }
+
+    for (const call of calls) {
+      let args: Record<string, unknown>;
+      try {
+        args = JSON.parse(call.arguments ?? "{}");
+      } catch {
+        args = {};
+      }
+      const { output, preReservationCreated: created } = await executeAgentTool(
+        admin,
+        call.name,
+        args,
+        tenantId,
+        conv,
+        knowledge,
+      );
+      preReservationCreated ||= created;
+      input.push(call);
+      input.push({ type: "function_call_output", call_id: call.call_id, output: JSON.stringify(output) });
+    }
+  }
+  throw new Error("A IA excedeu o limite de chamadas de ferramentas.");
 }
 
 const clip = (s: string, n = 120) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
@@ -207,7 +442,7 @@ export async function replyToInbound(admin: Admin, instance: any, messageId: str
   if (!instance.bot_enabled) return skip("robô desligado");
   if (conv.bot_paused) return skip("atendimento humano");
 
-  // A newer customer message will be answered with the full history — avoid double replies.
+  // A newer customer message will be answered with the recent history — avoid double replies.
   const { count: newer, error: newerErr } = await admin
     .from("whatsapp_messages")
     .select("id", { count: "exact", head: true })
@@ -246,10 +481,15 @@ export async function replyToInbound(admin: Admin, instance: any, messageId: str
       .select("sender, body, created_at")
       .eq("conversation_id", conv.id)
       .order("created_at", { ascending: false })
-      .limit(30);
+      .limit(10);
     if (histErr) throw histErr;
     const { knowledge } = await buildBuffetKnowledge(admin, instance.tenant_id);
-    result = await runAgent(knowledge, conv, [...(history ?? [])].reverse());
+    const run = await runAgent(admin, instance.tenant_id, knowledge, conv, [...(history ?? [])].reverse());
+    result = run.result;
+    if (run.preReservationCreated) {
+      result.handoff = true;
+      result.handoff_reason = "Pré-reserva pendente de confirmação humana";
+    }
   } catch (e) {
     return fail(e);
   }
@@ -282,6 +522,7 @@ export async function replyToInbound(admin: Admin, instance: any, messageId: str
     event_type: lead.event_type ?? conv.event_type,
     event_date: lead.event_date ?? conv.event_date,
     guest_count: Number.isInteger(lead.guest_count) ? lead.guest_count : conv.guest_count,
+    budget: lead.budget ?? conv.budget,
   };
   if (result.handoff) {
     Object.assign(convUpdate, {

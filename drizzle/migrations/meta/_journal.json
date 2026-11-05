@@ -64,6 +64,13 @@
       "when": 1793824372436,
       "tag": "0008_whatsapp_attendant",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1793847153935,
+      "tag": "0009_whatsapp_ai_reservations",
+      "breakpoints": true
     }
   ]
 }
