@@ -26,7 +26,8 @@ const RESULT_SCHEMA = {
     reply: { type: "string", description: "Mensagem a enviar ao cliente no WhatsApp." },
     handoff: {
       type: "boolean",
-      description: "true quando o cliente quer fechar/contratar, pede uma pessoa, reclama ou a dúvida foge do que você sabe.",
+      description:
+        "true somente quando o cliente pede expressamente uma pessoa, pede desconto excepcional fora da tabela ou faz pergunta específica que você realmente não consegue responder.",
     },
     handoff_reason: { type: ["string", "null"], description: "Motivo curto do encaminhamento ao dono." },
     lead: {
@@ -48,13 +49,20 @@ const AGENT_TOOLS = [
   {
     type: "function",
     name: "listar_pacotes",
-    description: "Lista os pacotes ativos e preços cadastrados para este buffet.",
+    description:
+      "Lista todos os pacotes ativos e preços cadastrados para este buffet. Informe o número de convidados quando conhecido para receber a estimativa exata ou as faixas mais próximas.",
     strict: true,
     parameters: {
       type: "object",
       additionalProperties: false,
-      properties: { buffet_id: { type: "string", description: "ID do buffet informado pelo sistema." } },
-      required: ["buffet_id"],
+      properties: {
+        buffet_id: { type: "string", description: "ID do buffet informado pelo sistema." },
+        convidados: {
+          type: ["integer", "null"],
+          description: "Número de convidados informado pelo cliente, ou null quando ainda não souber.",
+        },
+      },
+      required: ["buffet_id", "convidados"],
     },
   },
   {
@@ -94,8 +102,58 @@ const AGENT_TOOLS = [
 
 const brl = (n: number) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
+type PackageTier = {
+  min_guests: number;
+  max_guests: number;
+  price_per_guest: number | null;
+  price_fixed: number | null;
+};
+
+function positivePrice(value: unknown): number | null {
+  const price = Number(value);
+  return Number.isFinite(price) && price > 0 ? price : null;
+}
+
+export function relevantPackagePricing(
+  pkg: { cobranca: string; preco_base: number | null; faixas_de_preco: PackageTier[] },
+  guests: number | null,
+) {
+  const tiers = pkg.faixas_de_preco;
+  if (guests === null || !Number.isInteger(guests) || guests <= 0) {
+    return { convidados_considerados: null, faixas_relevantes: tiers, estimativa_total: null };
+  }
+
+  const matching = tiers.filter((tier) => guests >= tier.min_guests && guests <= tier.max_guests);
+  const distanceToTier = (tier: PackageTier) =>
+    Math.min(Math.abs(guests - tier.min_guests), Math.abs(guests - tier.max_guests));
+  const closestDistance = tiers.length ? Math.min(...tiers.map(distanceToTier)) : null;
+  const selected = matching.length
+    ? matching
+    : tiers.filter((tier) => distanceToTier(tier) === closestDistance);
+  const isExactMatch = matching.length > 0;
+
+  if (pkg.cobranca === "preço fechado") {
+    return {
+      convidados_considerados: guests,
+      faixa_encontrada: isExactMatch,
+      faixas_relevantes: selected,
+      estimativa_total: isExactMatch ? (selected[0]?.price_fixed ?? null) : null,
+    };
+  }
+
+  const hasBasePrice = tiers.length === 0 && pkg.preco_base !== null;
+  const pricePerPerson = isExactMatch ? selected[0]?.price_per_guest ?? null : hasBasePrice ? pkg.preco_base : null;
+  return {
+    convidados_considerados: guests,
+    faixa_encontrada: isExactMatch || hasBasePrice,
+    faixas_relevantes: selected,
+    preco_por_pessoa_aplicavel: pricePerPerson,
+    estimativa_total: pricePerPerson === null ? null : pricePerPerson * guests,
+  };
+}
+
 export async function buildBuffetKnowledge(admin: Admin, tenantId: string) {
-  const [tenantRes, settingsRes, packagesRes, tiersRes, extrasRes] = await Promise.all([
+  const [tenantRes, settingsRes, packagesRes, extrasRes] = await Promise.all([
     admin.from("tenants").select("name, slug, city, contact_phone").eq("id", tenantId).maybeSingle(),
     admin
       .from("buffet_settings")
@@ -109,11 +167,6 @@ export async function buildBuffetKnowledge(admin: Admin, tenantId: string) {
       .eq("active", true)
       .order("name"),
     admin
-      .from("package_price_tiers")
-      .select("package_id, min_guests, max_guests, price_per_person, price_fixed, position")
-      .eq("tenant_id", tenantId)
-      .order("min_guests"),
-    admin
       .from("additional_items")
       .select("name, unit, unit_price, active")
       .eq("tenant_id", tenantId)
@@ -121,32 +174,43 @@ export async function buildBuffetKnowledge(admin: Admin, tenantId: string) {
       .order("position"),
   ]);
 
-  for (const result of [tenantRes, settingsRes, packagesRes, tiersRes, extrasRes]) {
+  for (const result of [tenantRes, settingsRes, packagesRes, extrasRes]) {
     if (result.error) throw result.error;
   }
   const tenant = tenantRes.data;
   if (!tenant) throw new Error("Buffet não encontrado para esta instância do WhatsApp.");
   const settings = settingsRes.data;
+  const packageRows = (packagesRes.data ?? []) as any[];
+  const packageIds = packageRows.map((pkg) => pkg.id);
+  const tiersRes = packageIds.length
+    ? await admin
+        .from("package_price_tiers")
+        .select("package_id, min_guests, max_guests, price_per_person, price_fixed, position")
+        .in("package_id", packageIds)
+        .order("min_guests")
+    : { data: [], error: null };
+  if (tiersRes.error) throw tiersRes.error;
   const tiers = (tiersRes.data ?? []) as any[];
-  const packages = ((packagesRes.data ?? []) as any[]).map((p) => {
+  const packages = packageRows.map((p) => {
     const isFixed = String(p.pricing_type ?? "per_person") === "fixed";
-    const faixas = tiers
+    const packageTiers = tiers
       .filter((t) => t.package_id === p.id)
-      .map((t) =>
-        isFixed
-          ? `de ${t.min_guests} a ${t.max_guests} convidados: ${brl(Number(t.price_fixed || 0))} (preço fechado)`
-          : `de ${t.min_guests} a ${t.max_guests} convidados: ${brl(Number(t.price_per_person || 0))} por pessoa`,
-      );
+      .map((t) => ({
+        min_guests: Number(t.min_guests),
+        max_guests: Number(t.max_guests),
+        price_per_guest: positivePrice(t.price_per_person),
+        price_fixed: positivePrice(t.price_fixed),
+      }));
     return {
       id: p.id,
       nome: p.name,
       descricao: p.description ?? null,
       itens_inclusos: p.included_items ?? [],
       cobranca: isFixed ? "preço fechado" : "por pessoa",
-      preco_base_por_pessoa: isFixed ? null : brl(Number(p.price_per_person || 0)),
+      preco_base: isFixed ? null : positivePrice(p.price_per_person),
       convidados_min: p.min_people ?? null,
       convidados_max: p.max_people ?? null,
-      faixas_de_preco: faixas,
+      faixas_de_preco: packageTiers,
     };
   });
 
@@ -162,24 +226,30 @@ export async function buildBuffetKnowledge(admin: Admin, tenantId: string) {
       pacotes: packages,
       itens_adicionais: ((extrasRes.data ?? []) as any[]).map((i) => ({
         nome: i.name,
-        preco: `${brl(Number(i.unit_price || 0))} por ${i.unit || "unidade"}`,
+        preco: positivePrice(i.unit_price) ? `${brl(Number(i.unit_price))} por ${i.unit || "unidade"}` : null,
       })),
     },
   };
 }
 
 function systemPrompt(knowledge: unknown, conv: any) {
-  return `Você é o atendente comercial virtual do buffet descrito abaixo, conversando pelo WhatsApp.
-Tom: educado, acolhedor, ágil e profissional, como uma pessoa real da equipe. Português do Brasil. Mensagens curtas (até ~5 linhas), sem markdown pesado; pode usar 1 emoji quando fizer sentido. Nunca diga que é uma IA a menos que perguntem diretamente.
+  return `Você é a assistente virtual inteligente da Central do Buffet. Você atende no WhatsApp de forma acolhedora, educada, ágil e focada em ajudar o cliente a escolher a melhor opção para a festa dele.
 
-Roteiro:
-a) Cumprimente com cordialidade e, de forma natural (no máximo 2 perguntas por mensagem), descubra: nome, tipo de evento (aniversário, casamento, corporativo etc.), data desejada e número estimado de convidados.
-b) Pergunte também o orçamento quando for útil para recomendar opções. Use a ferramenta listar_pacotes antes de recomendar pacote ou preço, e respeite os convidados e orçamento informados. Apresente preços EXATAMENTE como estão nos dados.
-c) Nunca invente preços, pacotes, itens ou disponibilidade de data. Se não houver pacote cadastrado, diga que um atendente enviará os valores.
-d) Tire dúvidas gerais (duração, equipe inclusa, bebidas, itens adicionais) só com o que está nos dados; se não souber, diga que vai confirmar com a equipe.
-e) Se o cliente pedir uma pré-reserva, só use pre_reservar quando souber data, pacote, nome e telefone; consulte a agenda antes e jamais diga que a data está confirmada. Informe que a pré-reserva está pendente de validação humana e marque handoff=true.
-f) Se o cliente pedir uma pessoa, reclamar, negociar desconto ou a conversa sair do que você sabe: responda que um atendente vai continuar o atendimento em instantes e marque handoff=true com o motivo.
-Se houver link de orçamento online, você pode oferecê-lo para o cliente simular e enviar o pedido.
+Regras Gerais de Conversação:
+
+- Seja natural, cordial e clara. Use emojis com moderação.
+- Nunca diga 'não tenho pacote cadastrado para esse grupo' nem trave o atendimento se houver qualquer pacote disponível.
+- Se o pacote tiver preço por pessoa com faixas de convidados:
+    * Calcule a estimativa multiplicando os convidados informados pelo valor da faixa correspondente e informe o total estimado de forma transparente.
+    * Se o número de convidados não bater com uma faixa exata, mostre as faixas disponíveis educadamente (ex: 'Para até 50 pessoas o valor é R$ X por pessoa, e acima disso temos a faixa de R$ Y').
+- Se o pacote for preço fixo (preço fechado), informe o valor total do pacote e quantos convidados ele cobre.
+- Jamais mencione termos de banco de dados ou fale em 'R$ 0,00'.
+- Conduza a conversa proativamente para entender: a data prevista do evento, o número estimado de pessoas e se gostaria de agendar uma pré-reserva.
+- Só chame a equipe humana se o cliente pedir expressamente para falar com uma pessoa, se pedir descontos excepcionais fora da tabela, ou se fizer perguntas específicas que você realmente não tenha como responder.
+
+Use listar_pacotes antes de recomendar pacotes ou preços. Quando souber o número de convidados, envie-o para a ferramenta; ela retorna a faixa aplicável e a estimativa ou, se o número ficar fora/entre faixas, as faixas mais próximas para você explicar sem interromper o atendimento. Use somente preços positivos disponíveis nos dados, não invente valores e não transforme valores ausentes em zero. Uma pré-reserva criada continua pendente até validação humana; isso não significa, por si só, que a equipe humana assumirá a conversa.
+
+Para consultar a agenda ou criar uma pré-reserva, use as ferramentas disponíveis. Nunca confirme disponibilidade sem consultar a agenda e nunca diga que a data está confirmada. Só crie pré-reserva quando souber data, pacote, nome e telefone do cliente.
 
 Preencha "lead" com o que já souber da conversa inteira (null quando não souber).
 Dados já conhecidos deste cliente: ${JSON.stringify({
@@ -256,7 +326,12 @@ async function executeAgentTool(
   }
 
   if (name === "listar_pacotes") {
-    return { output: knowledge?.pacotes ?? [], preReservationCreated: false };
+    const guests = typeof args.convidados === "number" ? args.convidados : null;
+    const packages = (knowledge?.pacotes ?? []).map((pkg: any) => ({
+      ...pkg,
+      precificacao_para_convidados: relevantPackagePricing(pkg, guests),
+    }));
+    return { output: packages, preReservationCreated: false };
   }
   if (name === "consultar_agenda") {
     return { output: await checkAvailability(admin, tenantId, args.data as string), preReservationCreated: false };
@@ -486,10 +561,6 @@ export async function replyToInbound(admin: Admin, instance: any, messageId: str
     const { knowledge } = await buildBuffetKnowledge(admin, instance.tenant_id);
     const run = await runAgent(admin, instance.tenant_id, knowledge, conv, [...(history ?? [])].reverse());
     result = run.result;
-    if (run.preReservationCreated) {
-      result.handoff = true;
-      result.handoff_reason = "Pré-reserva pendente de confirmação humana";
-    }
   } catch (e) {
     return fail(e);
   }
