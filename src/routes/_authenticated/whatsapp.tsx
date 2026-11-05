@@ -101,9 +101,16 @@ function WhatsappPage() {
         </p>
       </header>
 
-      {overview.isLoading ? (
+      {overview.isPending ? (
         <div className="flex items-center gap-2 text-muted-foreground text-sm">
           <Loader2 className="size-4 animate-spin" /> Carregando…
+        </div>
+      ) : overview.isError ? (
+        <div role="alert" className="rounded-2xl border border-destructive/30 bg-card p-6 space-y-3">
+          <p className="text-sm text-destructive">Não foi possível carregar a conexão do WhatsApp.</p>
+          <Button variant="outline" onClick={() => void overview.refetch()}>
+            Tentar novamente
+          </Button>
         </div>
       ) : (
         <>
@@ -246,7 +253,7 @@ function ConnectionCard({ instance, onChanged }: { instance: WhatsappInstanceOve
                 Gere um QR Code e escaneie com o WhatsApp do buffet. Você continua usando o WhatsApp normalmente no
                 celular.
               </p>
-              <Button onClick={handleConnect} disabled={busy}>
+              <Button onClick={() => handleConnect()} disabled={busy}>
                 {busy ? <Loader2 className="size-4 animate-spin" /> : <QrCode className="size-4" />} Conectar WhatsApp
               </Button>
               <div className="space-y-2 pt-2">

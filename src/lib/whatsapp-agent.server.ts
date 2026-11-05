@@ -272,8 +272,8 @@ async function executeAgentTool(
   if (!phone || phone !== normalizePhone(String(args.telefone ?? ""))) {
     return { output: { error: "Telefone do cliente não validado." }, preReservationCreated: false };
   }
-  const name = String(args.nome ?? "").trim().slice(0, 120) || conv.lead_name || conv.contact_name;
-  if (!name) return { output: { error: "Nome do cliente não informado." }, preReservationCreated: false };
+  const clientName = String(args.nome ?? "").trim().slice(0, 120) || conv.lead_name || conv.contact_name;
+  if (!clientName) return { output: { error: "Nome do cliente não informado." }, preReservationCreated: false };
 
   const { data: pkg, error: pkgError } = await admin
     .from("packages")
@@ -319,7 +319,7 @@ async function executeAgentTool(
       tenant_id: tenantId,
       conversation_id: conv.id,
       phone,
-      name,
+      name: clientName,
       event_date: date,
       package_id: packageId,
       status: "pendente",
