@@ -35,6 +35,7 @@ import { Route as ContratoAssinaturaTokenRouteImport } from './routes/contrato-a
 import { Route as ConviteTokenRouteImport } from './routes/convite.$token'
 import { Route as OrcamentoSlugRouteImport } from './routes/orcamento.$slug'
 import { Route as PagamentoTokenRouteImport } from './routes/pagamento.$token'
+import { Route as WebhookWhatsappRouteImport } from './routes/webhook.whatsapp'
 import { Route as AuthenticatedClientesIndexRouteImport } from './routes/_authenticated/clientes/index'
 import { Route as AuthenticatedClientesImportarRouteImport } from './routes/_authenticated/clientes/importar'
 import { Route as AuthenticatedClientesNovoRouteImport } from './routes/_authenticated/clientes/novo'
@@ -46,7 +47,6 @@ import { Route as AuthenticatedOrcamentosIdRouteImport } from './routes/_authent
 import { Route as AuthenticatedOrcamentosNovoRouteImport } from './routes/_authenticated/orcamentos/novo'
 import { Route as AuthenticatedClientesIdEditarRouteImport } from './routes/_authenticated/clientes/$id.editar'
 import { Route as ApiPublicEvolutionWebhookTokenRouteImport } from './routes/api/public/evolution/webhook.$token'
-import { Route as WebhookWhatsappRouteImport } from './routes/webhook.whatsapp'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -182,6 +182,11 @@ const PagamentoTokenRoute = PagamentoTokenRouteImport.update({
   path: '/pagamento/$token',
   getParentRoute: () => rootRouteImport,
 } as any)
+const WebhookWhatsappRoute = WebhookWhatsappRouteImport.update({
+  id: '/webhook/whatsapp',
+  path: '/webhook/whatsapp',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedClientesIndexRoute =
   AuthenticatedClientesIndexRouteImport.update({
     id: '/clientes/',
@@ -248,11 +253,6 @@ const ApiPublicEvolutionWebhookTokenRoute =
     path: '/api/public/evolution/webhook/$token',
     getParentRoute: () => rootRouteImport,
   } as any)
-const WebhookWhatsappRoute = WebhookWhatsappRouteImport.update({
-  id: '/webhook/whatsapp',
-  path: '/webhook/whatsapp',
-  getParentRoute: () => rootRouteImport,
-} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -280,6 +280,7 @@ export interface FileRoutesByFullPath {
   '/convite/$token': typeof ConviteTokenRoute
   '/orcamento/$slug': typeof OrcamentoSlugRoute
   '/pagamento/$token': typeof PagamentoTokenRoute
+  '/webhook/whatsapp': typeof WebhookWhatsappRoute
   '/clientes/importar': typeof AuthenticatedClientesImportarRoute
   '/clientes/novo': typeof AuthenticatedClientesNovoRoute
   '/eventos/create': typeof AuthenticatedEventosCreateRoute
@@ -291,7 +292,6 @@ export interface FileRoutesByFullPath {
   '/orcamentos/': typeof AuthenticatedOrcamentosIndexRoute
   '/clientes/$id/editar': typeof AuthenticatedClientesIdEditarRoute
   '/api/public/evolution/webhook/$token': typeof ApiPublicEvolutionWebhookTokenRoute
-  '/webhook/whatsapp': typeof WebhookWhatsappRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -319,6 +319,7 @@ export interface FileRoutesByTo {
   '/convite/$token': typeof ConviteTokenRoute
   '/orcamento/$slug': typeof OrcamentoSlugRoute
   '/pagamento/$token': typeof PagamentoTokenRoute
+  '/webhook/whatsapp': typeof WebhookWhatsappRoute
   '/clientes/importar': typeof AuthenticatedClientesImportarRoute
   '/clientes/novo': typeof AuthenticatedClientesNovoRoute
   '/eventos/create': typeof AuthenticatedEventosCreateRoute
@@ -330,7 +331,6 @@ export interface FileRoutesByTo {
   '/orcamentos': typeof AuthenticatedOrcamentosIndexRoute
   '/clientes/$id/editar': typeof AuthenticatedClientesIdEditarRoute
   '/api/public/evolution/webhook/$token': typeof ApiPublicEvolutionWebhookTokenRoute
-  '/webhook/whatsapp': typeof WebhookWhatsappRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -360,6 +360,7 @@ export interface FileRoutesById {
   '/convite/$token': typeof ConviteTokenRoute
   '/orcamento/$slug': typeof OrcamentoSlugRoute
   '/pagamento/$token': typeof PagamentoTokenRoute
+  '/webhook/whatsapp': typeof WebhookWhatsappRoute
   '/_authenticated/clientes/importar': typeof AuthenticatedClientesImportarRoute
   '/_authenticated/clientes/novo': typeof AuthenticatedClientesNovoRoute
   '/_authenticated/eventos/create': typeof AuthenticatedEventosCreateRoute
@@ -371,7 +372,6 @@ export interface FileRoutesById {
   '/_authenticated/orcamentos/': typeof AuthenticatedOrcamentosIndexRoute
   '/_authenticated/clientes/$id/editar': typeof AuthenticatedClientesIdEditarRoute
   '/api/public/evolution/webhook/$token': typeof ApiPublicEvolutionWebhookTokenRoute
-  '/webhook/whatsapp': typeof WebhookWhatsappRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -401,6 +401,7 @@ export interface FileRouteTypes {
     | '/convite/$token'
     | '/orcamento/$slug'
     | '/pagamento/$token'
+    | '/webhook/whatsapp'
     | '/clientes/importar'
     | '/clientes/novo'
     | '/eventos/create'
@@ -412,7 +413,6 @@ export interface FileRouteTypes {
     | '/orcamentos/'
     | '/clientes/$id/editar'
     | '/api/public/evolution/webhook/$token'
-    | '/webhook/whatsapp'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -440,6 +440,7 @@ export interface FileRouteTypes {
     | '/convite/$token'
     | '/orcamento/$slug'
     | '/pagamento/$token'
+    | '/webhook/whatsapp'
     | '/clientes/importar'
     | '/clientes/novo'
     | '/eventos/create'
@@ -451,7 +452,6 @@ export interface FileRouteTypes {
     | '/orcamentos'
     | '/clientes/$id/editar'
     | '/api/public/evolution/webhook/$token'
-    | '/webhook/whatsapp'
   id:
     | '__root__'
     | '/'
@@ -480,6 +480,7 @@ export interface FileRouteTypes {
     | '/convite/$token'
     | '/orcamento/$slug'
     | '/pagamento/$token'
+    | '/webhook/whatsapp'
     | '/_authenticated/clientes/importar'
     | '/_authenticated/clientes/novo'
     | '/_authenticated/eventos/create'
@@ -491,7 +492,6 @@ export interface FileRouteTypes {
     | '/_authenticated/orcamentos/'
     | '/_authenticated/clientes/$id/editar'
     | '/api/public/evolution/webhook/$token'
-    | '/webhook/whatsapp'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -504,8 +504,8 @@ export interface RootRouteChildren {
   ConviteTokenRoute: typeof ConviteTokenRoute
   OrcamentoSlugRoute: typeof OrcamentoSlugRoute
   PagamentoTokenRoute: typeof PagamentoTokenRoute
-  ApiPublicEvolutionWebhookTokenRoute: typeof ApiPublicEvolutionWebhookTokenRoute
   WebhookWhatsappRoute: typeof WebhookWhatsappRoute
+  ApiPublicEvolutionWebhookTokenRoute: typeof ApiPublicEvolutionWebhookTokenRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -692,6 +692,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PagamentoTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/webhook/whatsapp': {
+      id: '/webhook/whatsapp'
+      path: '/webhook/whatsapp'
+      fullPath: '/webhook/whatsapp'
+      preLoaderRoute: typeof WebhookWhatsappRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/clientes/': {
       id: '/_authenticated/clientes/'
       path: '/clientes'
@@ -767,13 +774,6 @@ declare module '@tanstack/react-router' {
       path: '/api/public/evolution/webhook/$token'
       fullPath: '/api/public/evolution/webhook/$token'
       preLoaderRoute: typeof ApiPublicEvolutionWebhookTokenRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/webhook/whatsapp': {
-      id: '/webhook/whatsapp'
-      path: '/webhook/whatsapp'
-      fullPath: '/webhook/whatsapp'
-      preLoaderRoute: typeof WebhookWhatsappRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -860,8 +860,8 @@ const rootRouteChildren: RootRouteChildren = {
   ConviteTokenRoute: ConviteTokenRoute,
   OrcamentoSlugRoute: OrcamentoSlugRoute,
   PagamentoTokenRoute: PagamentoTokenRoute,
-  ApiPublicEvolutionWebhookTokenRoute: ApiPublicEvolutionWebhookTokenRoute,
   WebhookWhatsappRoute: WebhookWhatsappRoute,
+  ApiPublicEvolutionWebhookTokenRoute: ApiPublicEvolutionWebhookTokenRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
