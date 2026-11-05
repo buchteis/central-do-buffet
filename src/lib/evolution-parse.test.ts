@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mapConnectionState, parseInboundMessage } from "./evolution-parse";
+import { formatPairingCode, mapConnectionState, parseInboundMessage } from "./evolution-parse";
 
 describe("parseInboundMessage", () => {
   it("ignores messages sent by the bot/owner (fromMe)", () => {
@@ -56,5 +56,16 @@ describe("mapConnectionState", () => {
     expect(mapConnectionState("open")).toBe("connected");
     expect(mapConnectionState("connecting")).toBe("connecting");
     expect(mapConnectionState("close")).toBe("disconnected");
+  });
+});
+
+describe("formatPairingCode", () => {
+  it("formats an eight-character code as four characters, a hyphen, and four characters", () => {
+    expect(formatPairingCode("abcd-1234")).toBe("ABCD-1234");
+  });
+
+  it("rejects values that are not eight alphanumeric characters", () => {
+    expect(formatPairingCode("1234567")).toBeNull();
+    expect(formatPairingCode("not-a-codes")).toBeNull();
   });
 });

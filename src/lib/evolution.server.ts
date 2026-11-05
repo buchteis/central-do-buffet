@@ -1,5 +1,6 @@
 // Evolution API (self-hosted WhatsApp) client — server only.
 // Needs EVOLUTION_API_URL (e.g. https://evo.seudominio.com) and EVOLUTION_API_KEY (global apikey).
+import QRCode from "qrcode";
 
 export const WEBHOOK_EVENTS = ["MESSAGES_UPSERT", "CONNECTION_UPDATE", "QRCODE_UPDATED"];
 
@@ -17,6 +18,20 @@ export function publicAppOrigin(): string {
 
 export function webhookUrlFor(secret: string) {
   return `${publicAppOrigin()}/api/public/evolution/webhook/${secret}`;
+}
+
+export async function toQrDataUrl(value: unknown): Promise<string | null> {
+  if (typeof value !== "string" || !value.trim()) return null;
+  const qr = value.trim();
+  if (qr.startsWith("data:image/")) {
+    const data = qr.slice(qr.indexOf(",") + 1);
+    if (data.startsWith("2@")) {
+      return QRCode.toDataURL(data, { errorCorrectionLevel: "M", margin: 2, width: 280 });
+    }
+    return qr;
+  }
+  if (qr.startsWith("2@")) return QRCode.toDataURL(qr, { errorCorrectionLevel: "M", margin: 2, width: 280 });
+  return `data:image/png;base64,${qr}`;
 }
 
 export class EvolutionError extends Error {

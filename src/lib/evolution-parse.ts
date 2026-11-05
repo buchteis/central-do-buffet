@@ -65,8 +65,9 @@ export function mapConnectionState(state: unknown): "connected" | "connecting" |
   return "disconnected";
 }
 
-/** Normalize a QR string from Evolution into a data URL usable by <img>. */
-export function toQrDataUrl(base64: unknown): string | null {
-  if (typeof base64 !== "string" || !base64) return null;
-  return base64.startsWith("data:") ? base64 : `data:image/png;base64,${base64}`;
+export function formatPairingCode(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const code = value.replace(/[^a-z0-9]/gi, "").toUpperCase();
+  if (code.length !== 8) return null;
+  return `${code.slice(0, 4)}-${code.slice(4)}`;
 }

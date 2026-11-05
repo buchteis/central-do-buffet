@@ -163,8 +163,8 @@ function ConnectionCard({ instance, onChanged }: { instance: WhatsappInstanceOve
     const id = window.setInterval(async () => {
       ticks.current += 1;
       try {
-        const r = await refresh({ data: { refreshQr: ticks.current % 6 === 0 } });
-        if (r.qr) setQr(r.qr);
+        const r = await refresh({ data: { refreshQr: ticks.current % 6 === 0 && !pairingCode } });
+        if (r.qr && !pairingCode) setQr(r.qr);
         if (r.status !== status) {
           setStatus(r.status);
           setPhone(r.phone);
@@ -285,7 +285,7 @@ function ConnectionCard({ instance, onChanged }: { instance: WhatsappInstanceOve
         </div>
         {status === "connecting" && (
           <div className="flex flex-col items-center gap-2">
-            {qr && (
+            {qr && !pairingCode && (
               <>
                 <div className="rounded-xl bg-background p-3 border border-border">
                   <img src={qr} alt="QR Code para conectar o WhatsApp" className="size-56 [image-rendering:pixelated] bg-white rounded" />
