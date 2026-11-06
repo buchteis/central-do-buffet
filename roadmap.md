@@ -6,5 +6,5 @@
 - [ ] Validar QR e atendimento real (depende do servidor ativo e leitura do QR pelo usuário).
 
 # Identificação do contrato
-- [ ] Mostrar logo e nome do buffet na página pública de assinatura, sem marca da plataforma.
-- [ ] Conferir a identidade exibida em um contrato real e em celular.
+- [x] Mostrar logo e nome do buffet na página pública de assinatura, sem marca da plataforma.
+- [x] Conferir a identidade exibida em um contrato real e em celular.
