@@ -86,7 +86,7 @@ async function buildContext(supabase: any, userId: string) {
     supabase
       .from("whatsapp_conversations")
       .select(
-        "id, remote_jid, phone, contact_name, bot_paused, needs_human, handoff_reason, lead_name, event_type, event_date, guest_count, budget, last_message_at, last_message_preview, unread_count",
+        "id, remote_jid, phone, contact_name, bot_paused, needs_human, handoff_reason, lead_name, event_type, event_date, guest_count, last_message_at, last_message_preview, unread_count",
         { count: "exact" },
       )
       .eq("tenant_id", tid)
@@ -381,7 +381,6 @@ export function summarizeWhatsappContext(
         tipo_evento: conversation.event_type ?? null,
         data: conversation.event_date ?? null,
         convidados: conversation.guest_count ?? null,
-        orcamento: conversation.budget ?? null,
       },
       mensagens_recentes: (grouped.get(conversation.id) ?? []).reverse(),
     })),
@@ -429,32 +428,35 @@ ${summary}`;
       { role: "user", content: data.message },
     ];
 
-    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Lovable-API-Key": apiKey,
-      },
-      body: JSON.stringify({
+    const { generateResponse, GatewayError } = await import("@lovable.dev/ai-gateway");
+    let reply = "";
+    try {
+      const res: any = await generateResponse({
         model: "openai/gpt-5.4-mini",
-        messages,
-      }),
-    });
-
-    if (!res.ok) {
-      const text = await res.text();
-      if (res.status === 429) {
+        instructions: systemPrompt,
+        input: messages.slice(1).map((m) =>
+          m.role === "assistant"
+            ? { role: "assistant", content: [{ type: "output_text", text: m.content, annotations: [] }] }
+            : { role: "user", content: m.content },
+        ) as any,
+      } as any);
+      reply = typeof res?.output_text === "string" && res.output_text
+        ? res.output_text
+        : (res?.output ?? [])
+            .filter((i: any) => i?.type === "message")
+            .flatMap((i: any) => i.content ?? [])
+            .filter((c: any) => c?.type === "output_text")
+            .map((c: any) => c.text)
+            .join("");
+    } catch (e: any) {
+      console.error("AI Gateway error", e);
+      if (e instanceof GatewayError && e.httpStatus === 429)
         return { reply: "Muitas requisições agora. Tente novamente em instantes." };
-      }
-      if (res.status === 402) {
-        return { reply: "Créditos de IA esgotados. Recarregue em Configurações → Planos." };
-      }
-      console.error("AI Gateway error", res.status, text);
+      if (e instanceof GatewayError && e.httpStatus === 402)
+        return { reply: "Créditos de IA esgotados. Recarregue seus créditos." };
       throw new Error("Falha ao consultar a IA.");
     }
-
-    const json = (await res.json()) as any;
-    const reply: string = json?.choices?.[0]?.message?.content ?? "Não consegui gerar uma resposta.";
+    if (!reply) reply = "Não consegui gerar uma resposta.";
     await hindsightRetain(bankId, `Dono do buffet: ${data.message}\nAssistente: ${reply}`);
     return { reply };
   });
