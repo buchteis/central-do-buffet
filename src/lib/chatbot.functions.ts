@@ -436,7 +436,7 @@ ${summary}`;
         "Lovable-API-Key": apiKey,
       },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
+        model: "openai/gpt-5.4-mini",
         messages,
       }),
     });
