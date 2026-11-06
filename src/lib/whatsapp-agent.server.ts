@@ -820,7 +820,7 @@ export async function runAgent(
   let preReservationCreated = false;
   for (let step = 0; step < 5; step++) {
     const res = await generateResponse({
-      model: "openai/gpt-6-astra",
+      model: "openai/gpt-5.4-mini",
       instructions: systemPrompt(knowledge, conv, memories),
       input: input as any,
       tools: AGENT_TOOLS as any,

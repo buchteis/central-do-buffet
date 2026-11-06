@@ -381,7 +381,6 @@ export function summarizeWhatsappContext(
         tipo_evento: conversation.event_type ?? null,
         data: conversation.event_date ?? null,
         convidados: conversation.guest_count ?? null,
-        orcamento: conversation.budget ?? null,
       },
       mensagens_recentes: (grouped.get(conversation.id) ?? []).reverse(),
     })),
@@ -433,7 +432,7 @@ ${summary}`;
     let reply = "";
     try {
       const res: any = await generateResponse({
-        model: "openai/gpt-6-astra",
+        model: "openai/gpt-5.4-mini",
         instructions: systemPrompt,
         input: messages.slice(1).map((m) =>
           m.role === "assistant"
