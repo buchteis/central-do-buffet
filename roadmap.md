@@ -8,3 +8,7 @@
 # Identificação do contrato
 - [x] Mostrar logo e nome do buffet na página pública de assinatura, sem marca da plataforma.
 - [x] Conferir a identidade exibida em um contrato real e em celular.
+
+# Modelo do chatbot
+- [ ] Trocar o chatbot e o atendente WhatsApp para openai/gpt-5-mini sem mudar memória, isolamento ou ferramentas.
+- [ ] Executar os testes relacionados e conferir uma pergunta real no chatbot.
