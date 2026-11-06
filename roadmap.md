@@ -4,3 +4,7 @@
 - [ ] Conferir isolamento por buffet e recebimento de mensagens.
 - [ ] Executar testes e conferir a página no computador e celular.
 - [ ] Validar QR e atendimento real (depende do servidor ativo e leitura do QR pelo usuário).
+
+# Identificação do contrato
+- [ ] Mostrar logo e nome do buffet na página pública de assinatura, sem marca da plataforma.
+- [ ] Conferir a identidade exibida em um contrato real e em celular.
