@@ -3,6 +3,7 @@ import { getRequest } from "@tanstack/react-start/server";
 import { isIP } from "node:net";
 import { z } from "zod";
 import { isValidCpfCnpj } from "@/lib/doc";
+import { resolveContractBranding } from "@/lib/contract-branding";
 
 const signingTokenSchema = z.string().min(32).max(128);
 
@@ -13,13 +14,43 @@ export const getPublicContractForSigning = createServerFn({ method: "GET" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: contract, error } = await supabaseAdmin
       .from("contracts")
-      .select("title, content, status")
+      .select("title, content, status, owner_id, tenant_id")
       .eq("signing_token", data.token)
       .maybeSingle();
 
     if (error) throw new Error("Não foi possível carregar o contrato.");
     if (!contract) throw new Error("Contrato não encontrado ou link inválido.");
-    return contract as { title: string; content: string; status: string };
+    let settingsQuery = supabaseAdmin
+      .from("buffet_settings")
+      .select("owner_id, tenant_id, business_name, logo_url")
+      .eq("owner_id", contract.owner_id);
+    if (contract.tenant_id) settingsQuery = settingsQuery.eq("tenant_id", contract.tenant_id);
+    const { data: settings, error: settingsError } = await settingsQuery.maybeSingle();
+    if (settingsError) throw new Error("Não foi possível carregar a identificação do buffet.");
+
+    const { businessName, logoPath } = resolveContractBranding(contract, settings);
+    let logoUrl = "";
+    if (logoPath) {
+      const { data: logo, error: logoError } = await supabaseAdmin.storage
+        .from("buffet-logos")
+        .createSignedUrl(logoPath, 60 * 60);
+      if (logoError) throw new Error("Não foi possível carregar a logo do buffet.");
+      if (logo?.signedUrl) {
+        const url = new URL(logo.signedUrl);
+        const browserUrl = new URL(import.meta.env.VITE_SUPABASE_URL);
+        url.protocol = browserUrl.protocol;
+        url.host = browserUrl.host;
+        logoUrl = url.href;
+      }
+    }
+
+    return {
+      title: contract.title,
+      content: contract.content,
+      status: contract.status,
+      businessName,
+      logoUrl,
+    };
   });
 
 function getClientIp(request: Request): string | null {
