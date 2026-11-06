@@ -3,13 +3,23 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { CheckCircle2, FileSignature, LoaderCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import {
   getPublicContractForSigning,
   submitPublicContractSignature,
 } from "@/lib/contracts.functions";
 
 export const Route = createFileRoute("/contrato-assinatura/$token")({
-  head: () => ({ meta: [{ title: "Assinatura de contrato — Meu Churras" }] }),
+  head: () => ({
+    meta: [
+      { title: "Assinatura de contrato do buffet" },
+      { name: "description", content: "Consulte e assine o contrato do buffet responsável pelo seu evento." },
+      { property: "og:title", content: "Assinatura de contrato do buffet" },
+      { property: "og:description", content: "Consulte e assine o contrato do buffet responsável pelo seu evento." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
   component: PublicContractSignaturePage,
 });
 
@@ -46,11 +56,17 @@ function PublicContractSignaturePage() {
     <main className="min-h-screen bg-muted/30 px-4 py-10">
       <div className="mx-auto max-w-3xl">
         <header className="mb-6 flex items-center gap-3">
-          <div className="grid size-11 place-items-center rounded-lg bg-primary text-primary-foreground">
-            <FileSignature className="size-5" />
-          </div>
-          <div>
-            <p className="text-xs font-semibold uppercase text-muted-foreground">Meu Churras</p>
+          {contract?.logoUrl ? (
+            <img
+              src={contract.logoUrl}
+              alt={`Logo de ${contract.businessName}`}
+              className="h-16 w-24 shrink-0 object-contain"
+            />
+          ) : (
+            <FileSignature aria-hidden="true" className="size-8 shrink-0 text-muted-foreground" />
+          )}
+          <div className="min-w-0">
+            <p className="break-words text-sm font-semibold text-foreground">{contract?.businessName ?? "Contrato"}</p>
             <h1 className="text-xl font-bold">Assinatura de contrato</h1>
           </div>
         </header>
@@ -144,14 +160,14 @@ function PublicContractSignaturePage() {
               {signature.error && (
                 <p className="text-sm text-destructive">{signature.error.message}</p>
               )}
-              <button
+              <Button
                 type="submit"
                 disabled={!accepted || signature.isPending}
-                className="inline-flex h-10 items-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-50"
+                className="h-10 px-4 font-semibold"
               >
                 {signature.isPending && <LoaderCircle className="size-4 animate-spin" />}
                 Confirmar e Assinar
-              </button>
+              </Button>
             </form>
           </>
         )}

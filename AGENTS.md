@@ -9,3 +9,4 @@
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
 - Notification read state (bell, chat alerts, Dashboard warnings) lives in `public.notification_state` per user via `useNotificationState`, not localStorage — so it syncs between phone and computer.
+- Public contract branding is resolved server-side after signing-token validation, scoped to the contract owner and tenant, and returns only the business name and a short-lived logo URL; the pure resolver guards cross-buffet settings and storage paths.
