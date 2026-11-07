@@ -2,6 +2,9 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 
+const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
+const OPENROUTER_MODEL = "meta-llama/llama-3.3-70b-instruct:free";
+
 const InputSchema = z.object({
   message: z.string().trim().min(1).max(2000),
   history: z
@@ -391,8 +394,8 @@ export const chatWithAssistant = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: unknown) => InputSchema.parse(data))
   .handler(async ({ data, context }) => {
-    const apiKey = process.env.LOVABLE_API_KEY;
-    if (!apiKey) throw new Error("LOVABLE_API_KEY não configurada.");
+    const apiKey = process.env.OPENROUTER_API_KEY;
+    if (!apiKey) throw new Error("OPENROUTER_API_KEY não configurada.");
 
     const { tenant, summary } = await buildContext(context.supabase, context.userId);
     if (!tenant) {
@@ -428,32 +431,29 @@ ${summary}`;
       { role: "user", content: data.message },
     ];
 
-    const { generateResponse, GatewayError } = await import("@lovable.dev/ai-gateway");
     let reply = "";
     try {
-      const res: any = await generateResponse({
-        model: "openai/gpt-5.4-mini",
-        instructions: systemPrompt,
-        input: messages.slice(1).map((m) =>
-          m.role === "assistant"
-            ? { role: "assistant", content: [{ type: "output_text", text: m.content, annotations: [] }] }
-            : { role: "user", content: m.content },
-        ) as any,
-      } as any);
-      reply = typeof res?.output_text === "string" && res.output_text
-        ? res.output_text
-        : (res?.output ?? [])
-            .filter((i: any) => i?.type === "message")
-            .flatMap((i: any) => i.content ?? [])
-            .filter((c: any) => c?.type === "output_text")
-            .map((c: any) => c.text)
-            .join("");
-    } catch (e: any) {
-      console.error("AI Gateway error", e);
-      if (e instanceof GatewayError && e.httpStatus === 429)
+      const response = await fetch(`${OPENROUTER_BASE_URL}/chat/completions`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: OPENROUTER_MODEL,
+          messages,
+        }),
+      });
+      if (response.status === 429)
         return { reply: "Muitas requisições agora. Tente novamente em instantes." };
-      if (e instanceof GatewayError && e.httpStatus === 402)
+      if (response.status === 402)
         return { reply: "Créditos de IA esgotados. Recarregue seus créditos." };
+      if (!response.ok) throw new Error(`OpenRouter respondeu com status ${response.status}.`);
+      const res = await response.json();
+      const content = res?.choices?.[0]?.message?.content;
+      reply = typeof content === "string" ? content : "";
+    } catch (e) {
+      console.error("OpenRouter error", e);
       throw new Error("Falha ao consultar a IA.");
     }
     if (!reply) reply = "Não consegui gerar uma resposta.";
