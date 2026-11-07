@@ -1,9 +1,8 @@
 // WhatsApp virtual attendant: builds buffet context, asks the AI and processes inbound messages.
 // Server only — uses the privileged database client after the webhook caller is verified.
 import { sendText, publicAppOrigin } from "./evolution.server";
-
-const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
-const OPENROUTER_MODEL = "meta-llama/llama-3.3-70b-instruct:free";
+import { completeOpenRouter, type OpenRouterMessage } from "./openrouter.server";
+import { z } from "zod";
 
 type Admin = any;
 
@@ -19,6 +18,28 @@ export type AgentResult = {
     budget: string | null;
   };
 };
+
+const AgentResultSchema = z.object({
+  reply: z.string().trim().min(1),
+  handoff: z.boolean(),
+  handoff_reason: z.string().nullable(),
+  lead: z.object({
+    name: z.string().nullable(),
+    event_type: z.string().nullable(),
+    event_date: z.string().nullable(),
+    guest_count: z.number().int().positive().nullable(),
+    budget: z.string().nullable(),
+  }),
+});
+
+export function parseAgentResult(text: string): AgentResult {
+  const raw = text.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
+  try {
+    return AgentResultSchema.parse(JSON.parse(raw));
+  } catch {
+    throw new Error("Não foi possível interpretar a resposta do atendente. Nenhum agendamento foi confirmado pela resposta.");
+  }
+}
 
 const RESULT_SCHEMA = {
   type: "object",
@@ -327,18 +348,6 @@ ${JSON.stringify(RESULT_SCHEMA)}
 DADOS DO BUFFET (fonte única de verdade):
 Para as ferramentas, use buffet_id=${conv.tenant_id}.
 ${JSON.stringify(knowledge, null, 2)}`;
-}
-
-function outputText(res: any): string {
-  const messageContent = res?.choices?.[0]?.message?.content;
-  if (typeof messageContent === "string" && messageContent) return messageContent;
-  if (typeof res?.output_text === "string" && res.output_text) return res.output_text;
-  const parts: string[] = [];
-  for (const item of res?.output ?? []) {
-    if (item?.type !== "message") continue;
-    for (const c of item.content ?? []) if (c?.type === "output_text" && c.text) parts.push(c.text);
-  }
-  return parts.join("");
 }
 
 function validDate(value: unknown): value is string {
@@ -805,7 +814,7 @@ export async function runAgent(
   history: { sender: string; body: string }[],
   memories: string[] = [],
 ) {
-  const input: any[] = history
+  const input: OpenRouterMessage[] = history
     .filter((m) => m.body?.trim())
     .map((m) => ({
       role: m.sender === "client" ? "user" : "assistant",
@@ -814,9 +823,7 @@ export async function runAgent(
   if (!input.length || input[input.length - 1].role !== "user") {
     input.push({ role: "user", content: "(o cliente enviou uma mensagem sem texto)" });
   }
-  const apiKey = process.env.OPENROUTER_API_KEY;
-  if (!apiKey) throw new Error("OPENROUTER_API_KEY não configurada.");
-  const messages: any[] = [{ role: "system", content: systemPrompt(knowledge, conv, memories) }, ...input];
+  const messages: OpenRouterMessage[] = [{ role: "system", content: systemPrompt(knowledge, conv, memories) }, ...input];
 
   const latestCustomerIndex = [...history].map((message) => message.sender).lastIndexOf("client");
   const latestCustomerMessage = latestCustomerIndex >= 0 ? history[latestCustomerIndex].body : "";
@@ -828,16 +835,9 @@ export async function runAgent(
 
   let preReservationCreated = false;
   for (let step = 0; step < 5; step++) {
-    const response = await fetch(`${OPENROUTER_BASE_URL}/chat/completions`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: OPENROUTER_MODEL,
+    const res = await completeOpenRouter({
         messages,
-        tools: AGENT_TOOLS.map((tool: any) => ({
+        tools: AGENT_TOOLS.map((tool) => ({
           type: "function",
           function: {
             name: tool.name,
@@ -849,20 +849,14 @@ export async function runAgent(
         tool_choice: "auto",
         max_tokens: 1200,
         response_format: { type: "json_object" },
-      }),
     });
-    if (!response.ok) throw new Error(`OpenRouter respondeu com status ${response.status}.`);
-    const res = await response.json();
-    const assistantMessage = res?.choices?.[0]?.message;
-    const calls = assistantMessage?.tool_calls ?? [];
+    const calls = res.message.tool_calls ?? [];
     if (!calls.length) {
-      const raw = outputText(res);
-      const parsed = JSON.parse(raw) as AgentResult;
-      if (!parsed?.reply?.trim()) throw new Error("Resposta vazia da IA");
+      const parsed = parseAgentResult(res.text);
       return { result: parsed, preReservationCreated };
     }
 
-    messages.push(assistantMessage);
+    messages.push(res.message);
     for (const call of calls) {
       let args: Record<string, unknown>;
       try {
@@ -947,9 +941,7 @@ export async function replyToInbound(admin: Admin, instance: any, messageId: str
 
   const fail = async (err: unknown) => {
     const text =
-      err instanceof GatewayError
-        ? `IA: ${err.code ?? err.name} ${err.message}`
-        : err instanceof Error
+      err instanceof Error
           ? err.message
           : String(err);
     console.error("WhatsApp reply failed", msg.id, text);

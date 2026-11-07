@@ -2,9 +2,6 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 
-const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
-const OPENROUTER_MODEL = "meta-llama/llama-3.3-70b-instruct:free";
-
 const InputSchema = z.object({
   message: z.string().trim().min(1).max(2000),
   history: z
@@ -394,9 +391,6 @@ export const chatWithAssistant = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: unknown) => InputSchema.parse(data))
   .handler(async ({ data, context }) => {
-    const apiKey = process.env.OPENROUTER_API_KEY;
-    if (!apiKey) throw new Error("OPENROUTER_API_KEY não configurada.");
-
     const { tenant, summary } = await buildContext(context.supabase, context.userId);
     if (!tenant) {
       return {
@@ -425,7 +419,8 @@ ${memories.length ? memories.map((m) => `- ${m}`).join("\n") : "(nenhuma ainda)"
 DADOS ATUAIS DO BUFFET (JSON):
 ${summary}`;
 
-    const messages = [
+    const { completeOpenRouter, OpenRouterError } = await import("./openrouter.server");
+    const messages: import("./openrouter.server").OpenRouterMessage[] = [
       { role: "system", content: systemPrompt },
       ...data.history.map((m) => ({ role: m.role, content: m.content })),
       { role: "user", content: data.message },
@@ -433,27 +428,11 @@ ${summary}`;
 
     let reply = "";
     try {
-      const response = await fetch(`${OPENROUTER_BASE_URL}/chat/completions`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: OPENROUTER_MODEL,
-          messages,
-        }),
-      });
-      if (response.status === 429)
-        return { reply: "Muitas requisições agora. Tente novamente em instantes." };
-      if (response.status === 402)
-        return { reply: "Créditos de IA esgotados. Recarregue seus créditos." };
-      if (!response.ok) throw new Error(`OpenRouter respondeu com status ${response.status}.`);
-      const res = await response.json();
-      const content = res?.choices?.[0]?.message?.content;
-      reply = typeof content === "string" ? content : "";
+      const res = await completeOpenRouter({ messages });
+      reply = res.text;
     } catch (e) {
-      console.error("OpenRouter error", e);
+      if (e instanceof OpenRouterError) return { reply: e.message };
+      console.error("OpenRouter assistant request failed");
       throw new Error("Falha ao consultar a IA.");
     }
     if (!reply) reply = "Não consegui gerar uma resposta.";

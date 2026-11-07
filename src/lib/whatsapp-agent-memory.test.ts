@@ -60,7 +60,7 @@ describe("WhatsApp conversation memory", () => {
   });
 
   it("passes recalled memories into the LLM instructions", async () => {
-    vi.stubEnv("OPENROUTER_API_KEY", "test-openrouter-key");
+    vi.stubEnv("OPENAI_API_KEY", "test-openrouter-key");
     fetchMock.mockImplementation(async (url) => {
       if (String(url).startsWith("https://openrouter.ai/api/v1/chat/completions")) {
         return Response.json({
@@ -88,9 +88,12 @@ describe("WhatsApp conversation memory", () => {
       ["Identificador do remetente: 5531999990000@s.whatsapp.net\nCliente: prefere decoração azul"],
     );
 
-    const [url, options] = fetchMock.mock.calls.find(([url]) =>
+    const matchedCall = fetchMock.mock.calls.find(([url]) =>
       String(url).startsWith("https://openrouter.ai/api/v1/chat/completions"),
-    )!;
+    );
+    expect(matchedCall).toBeDefined();
+    if (!matchedCall) throw new Error("Expected OpenRouter request");
+    const [url, options] = matchedCall;
     const request = JSON.parse(options.body as string);
     expect(String(url)).toBe("https://openrouter.ai/api/v1/chat/completions");
     expect(request.model).toBe("meta-llama/llama-3.3-70b-instruct:free");
