@@ -10,5 +10,9 @@
 - [x] Conferir a identidade exibida em um contrato real e em celular.
 
 # Modelo do chatbot
-- [ ] Trocar o chatbot e o atendente WhatsApp para openai/gpt-5-mini sem mudar memória, isolamento ou ferramentas.
-- [ ] Executar os testes relacionados e conferir uma pergunta real no chatbot.
+- [x] Usar OpenRouter com meta-llama/llama-3.3-70b-instruct:free e a chave salva em OPENAI_API_KEY no chatbot e atendente WhatsApp.
+- [x] Corrigir parsing, chamadas de ferramentas e referências restantes ao provedor anterior nos dois chats; nenhuma Edge Function encontrada no projeto.
+- [x] Executar 17 testes de integração/regressão e conferir uma pergunta real no chatbot autenticado; sem erros de página.
+- [ ] Restabelecer respostas reais: OpenRouter recusou a chave salva com HTTP 401, também confirmado em /auth/key; depende de uma chave válida do usuário.
+
+A leitura de notas fiscais em imagem/PDF permanece no provedor existente: o modelo Llama solicitado aceita apenas texto e não pode substituir essa função sem perder leitura de arquivos.
