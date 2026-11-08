@@ -222,3 +222,26 @@ export const sendOwnerWhatsappMessage = createServerFn({ method: "POST" })
       .eq("id", conv.id);
     return { ok: true as const };
   });
+
+export const moveWhatsappConversationPipelineStage = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z.object({
+      conversationId: z.string().uuid(),
+      stage: z.enum(["novos", "quente", "proposta", "humano", "fechado"]),
+    }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const tenantId = await myTenantId(context.supabase);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: updated, error } = await (supabaseAdmin as any)
+      .from("whatsapp_conversations")
+      .update({ pipeline_stage: data.stage })
+      .eq("id", data.conversationId)
+      .eq("tenant_id", tenantId)
+      .select("id")
+      .maybeSingle();
+    if (error) throw new Error("Não foi possível mover a conversa no pipeline.");
+    if (!updated) throw new Error("Conversa não encontrada.");
+    return { ok: true as const };
+  });

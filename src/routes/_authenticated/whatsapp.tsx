@@ -6,7 +6,9 @@ import { toast } from "sonner";
 import {
   ArrowLeft,
   Bot,
+  CalendarDays,
   CheckCircle2,
+  LayoutGrid,
   Loader2,
   MessageCircle,
   PauseCircle,
@@ -16,6 +18,7 @@ import {
   Smartphone,
   UserRound,
   Unplug,
+  Users,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -23,11 +26,20 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
+import {
+  groupWhatsappConversations,
+  moveWhatsappConversationToStage,
+  whatsappPipelineStage,
+  WHATSAPP_PIPELINE,
+  type WhatsappPipelineStage,
+} from "@/lib/whatsapp-pipeline";
 import {
   connectWhatsapp,
   disconnectWhatsapp,
   getWhatsappOverview,
+  moveWhatsappConversationPipelineStage,
   refreshWhatsappStatus,
   sendOwnerWhatsappMessage,
   type WhatsappInstanceOverview,
@@ -48,6 +60,7 @@ export const Route = createFileRoute("/_authenticated/whatsapp")({
 
 type Conversation = {
   id: string;
+  remote_jid: string;
   phone: string | null;
   contact_name: string | null;
   lead_name: string | null;
@@ -60,6 +73,8 @@ type Conversation = {
   last_message_at: string;
   last_message_preview: string | null;
   unread_count: number;
+  tenant_id: string;
+  pipeline_stage?: string | null;
 };
 
 const STATUS_LABEL: Record<string, { label: string; className: string }> = {
@@ -74,6 +89,10 @@ function fmtPhone(p: string | null) {
   if (d.length === 13) return `+${d.slice(0, 2)} (${d.slice(2, 4)}) ${d.slice(4, 9)}-${d.slice(9)}`;
   if (d.length === 12) return `+${d.slice(0, 2)} (${d.slice(2, 4)}) ${d.slice(4, 8)}-${d.slice(8)}`;
   return p;
+}
+
+function conversationContact(conversation: Conversation) {
+  return fmtPhone(conversation.phone) || fmtPhone(conversation.remote_jid.split("@")[0]) || "Sem contato";
 }
 
 function timeAgo(iso: string) {
@@ -133,7 +152,7 @@ function WhatsappPage() {
         </>
       )}
 
-      <Conversations connected={inst?.status === "connected"} />
+      <Conversations connected={inst?.status === "connected"} botEnabled={!!inst?.bot_enabled} />
     </div>
   );
 }
@@ -345,36 +364,160 @@ function BotToggle({ instance, onChanged }: { instance: WhatsappInstanceOverview
   );
 }
 
-function Conversations({ connected }: { connected: boolean }) {
+function Conversations({ connected, botEnabled }: { connected: boolean; botEnabled: boolean }) {
   const qc = useQueryClient();
+  const updatePipelineStage = useServerFn(moveWhatsappConversationPipelineStage);
+  const [view, setView] = useState<"chat" | "pipeline">("chat");
   const [selected, setSelected] = useState<string | null>(null);
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [overStage, setOverStage] = useState<WhatsappPipelineStage | null>(null);
   const convs = useQuery({
     queryKey: ["wa-conversations"],
     queryFn: async () => {
+      const { data: tenantId, error: tenantError } = await supabase.rpc("current_tenant_id");
+      if (tenantError) throw tenantError;
+      if (!tenantId) throw new Error("Nenhum buffet vinculado à sua conta.");
       const { data, error } = await (supabase as any)
         .from("whatsapp_conversations")
         .select("*")
+        .eq("tenant_id", tenantId)
         .order("needs_human", { ascending: false })
         .order("last_message_at", { ascending: false })
         .limit(200);
       if (error) throw error;
-      return (data ?? []) as Conversation[];
+      return ((data ?? []) as Conversation[]).map((conversation) => ({
+        ...conversation,
+        pipeline_stage: whatsappPipelineStage(conversation.pipeline_stage),
+      }));
     },
     refetchInterval: 5000,
   });
   const list = convs.data ?? [];
   const current = useMemo(() => list.find((c) => c.id === selected) ?? null, [list, selected]);
+  const grouped = useMemo(() => groupWhatsappConversations(list), [list]);
+
+  const moveConversation = useMutation({
+    mutationFn: async ({ conversation, stage }: { conversation: Conversation; stage: WhatsappPipelineStage }) => {
+      await updatePipelineStage({ data: { conversationId: conversation.id, stage } });
+    },
+    onMutate: async ({ conversation, stage }) => {
+      await qc.cancelQueries({ queryKey: ["wa-conversations"] });
+      const previous = qc.getQueryData<Conversation[]>(["wa-conversations"]);
+      qc.setQueryData<Conversation[]>(["wa-conversations"], (items) =>
+        items ? moveWhatsappConversationToStage(items, conversation.id, stage) : items,
+      );
+      return { previous };
+    },
+    onError: (error, _variables, context) => {
+      if (context?.previous) qc.setQueryData(["wa-conversations"], context.previous);
+      toast.error(error instanceof Error ? error.message : "Não foi possível mover a conversa.");
+      void qc.invalidateQueries({ queryKey: ["wa-conversations"] });
+    },
+    onSuccess: () => {
+      toast.success("Conversa movida.");
+      void qc.invalidateQueries({ queryKey: ["wa-conversations"] });
+    },
+  });
+
+  function dropOnStage(stage: WhatsappPipelineStage) {
+    const conversation = list.find((item) => item.id === dragId);
+    setDragId(null);
+    setOverStage(null);
+    if (conversation && whatsappPipelineStage(conversation.pipeline_stage) !== stage) {
+      moveConversation.mutate({ conversation, stage });
+    }
+  }
 
   return (
     <section className="rounded-2xl border border-border bg-card overflow-hidden">
       <div className="px-5 py-4 border-b border-border flex items-center justify-between">
-        <span className="font-bold">Conversas</span>
-        <span className="text-xs text-muted-foreground">{list.length} no total</span>
+        <div>
+          <span className="font-bold">Conversas</span>
+          <span className="ml-2 text-xs text-muted-foreground">{list.length} no total</span>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="inline-flex rounded-full bg-muted p-1" role="group" aria-label="Visualização das conversas">
+            <button
+              type="button"
+              onClick={() => setView("chat")}
+              aria-pressed={view === "chat"}
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold transition",
+                view === "chat" ? "bg-background shadow" : "text-muted-foreground",
+              )}
+            >
+              <MessageCircle className="size-3.5" /> Chat
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setSelected(null);
+                setView("pipeline");
+              }}
+              aria-pressed={view === "pipeline"}
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold transition",
+                view === "pipeline" ? "bg-background shadow" : "text-muted-foreground",
+              )}
+            >
+              <LayoutGrid className="size-3.5" /> Pipeline
+            </button>
+          </div>
+        </div>
       </div>
-      {list.length === 0 ? (
+      {convs.isError ? (
+        <div className="p-6 space-y-3">
+          <p role="alert" className="text-sm text-destructive">Não foi possível carregar as conversas.</p>
+          <Button variant="outline" size="sm" onClick={() => void convs.refetch()}>Tentar novamente</Button>
+        </div>
+      ) : convs.isPending ? (
+        <div className="p-6 flex items-center gap-2 text-sm text-muted-foreground">
+          <Loader2 className="size-4 animate-spin" /> Carregando conversas…
+        </div>
+      ) : list.length === 0 ? (
         <p className="p-6 text-sm text-muted-foreground">
           Nenhuma conversa ainda. Quando um cliente mandar mensagem para o WhatsApp conectado, ela aparece aqui.
         </p>
+      ) : view === "pipeline" ? (
+        <>
+          <WhatsappPipelineBoard
+            grouped={grouped}
+            botEnabled={botEnabled}
+            dragId={dragId}
+            overStage={overStage}
+            onOpen={(conversation) => setSelected(conversation.id)}
+            onDragStart={(id) => setDragId(id)}
+            onDragEnd={() => {
+              setDragId(null);
+              setOverStage(null);
+            }}
+            onDragOver={setOverStage}
+            onDrop={dropOnStage}
+            onMove={(conversation, stage) => moveConversation.mutate({ conversation, stage })}
+            moving={moveConversation.isPending}
+          />
+          <Sheet
+            open={view === "pipeline" && !!current}
+            onOpenChange={(open) => {
+              if (!open) setSelected(null);
+            }}
+          >
+            <SheetContent side="right" className="flex w-full flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl">
+              <SheetHeader className="sr-only">
+                <SheetTitle>{current?.lead_name || current?.contact_name || "Conversa"}</SheetTitle>
+                <SheetDescription>Histórico completo e resposta da conversa selecionada.</SheetDescription>
+              </SheetHeader>
+              {current && (
+                <Thread
+                  conv={current}
+                  connected={connected}
+                  onBack={() => setSelected(null)}
+                  onChanged={() => void qc.invalidateQueries({ queryKey: ["wa-conversations"] })}
+                />
+              )}
+            </SheetContent>
+          </Sheet>
+        </>
       ) : (
         <div className="grid md:grid-cols-[320px_1fr] min-h-[480px]">
           <ul className={cn("border-r border-border divide-y divide-border overflow-y-auto max-h-[640px]", current && "hidden md:block")}>
@@ -426,6 +569,217 @@ function Conversations({ connected }: { connected: boolean }) {
       )}
     </section>
   );
+}
+
+function WhatsappPipelineBoard({
+  grouped,
+  botEnabled,
+  dragId,
+  overStage,
+  onOpen,
+  onDragStart,
+  onDragEnd,
+  onDragOver,
+  onDrop,
+  onMove,
+  moving,
+}: {
+  grouped: Record<WhatsappPipelineStage, Conversation[]>;
+  botEnabled: boolean;
+  dragId: string | null;
+  overStage: WhatsappPipelineStage | null;
+  onOpen: (conversation: Conversation) => void;
+  onDragStart: (id: string) => void;
+  onDragEnd: () => void;
+  onDragOver: (stage: WhatsappPipelineStage | null) => void;
+  onDrop: (stage: WhatsappPipelineStage) => void;
+  onMove: (conversation: Conversation, stage: WhatsappPipelineStage) => void;
+  moving: boolean;
+}) {
+  const [mobileStage, setMobileStage] = useState<WhatsappPipelineStage>("novos");
+  const mobileCards = grouped[mobileStage];
+
+  return (
+    <div className="p-4 md:p-5">
+      <div className="mb-4 flex gap-2 overflow-x-auto pb-1 md:hidden">
+        {WHATSAPP_PIPELINE.map((column) => (
+          <button
+            key={column.id}
+            type="button"
+            onClick={() => setMobileStage(column.id)}
+            aria-pressed={mobileStage === column.id}
+            className={cn(
+              "shrink-0 rounded-full border px-3 py-2 text-xs font-bold transition",
+              mobileStage === column.id ? "border-primary bg-primary/10 text-primary" : "border-border bg-muted/40",
+            )}
+          >
+            {column.label} <span className="ml-1 opacity-70">{grouped[column.id].length}</span>
+          </button>
+        ))}
+      </div>
+
+      <div className="space-y-2 md:hidden">
+        {mobileCards.map((conversation) => (
+          <div key={conversation.id} className="space-y-1">
+            <WhatsappPipelineCard
+              conversation={conversation}
+              botEnabled={botEnabled}
+              dragging={false}
+              onOpen={() => onOpen(conversation)}
+              onDragStart={() => onDragStart(conversation.id)}
+              onDragEnd={onDragEnd}
+            />
+            <select
+              aria-label={`Mover ${conversation.lead_name || conversation.contact_name || conversationContact(conversation)}`}
+              value={whatsappPipelineStage(conversation.pipeline_stage)}
+              disabled={moving}
+              onChange={(event) => onMove(conversation, event.target.value as WhatsappPipelineStage)}
+              className="w-full rounded-lg border border-border bg-background px-2 py-2 text-xs"
+            >
+              {WHATSAPP_PIPELINE.map((column) => (
+                <option key={column.id} value={column.id}>Mover para: {column.label}</option>
+              ))}
+            </select>
+          </div>
+        ))}
+        {mobileCards.length === 0 && (
+          <div className="rounded-xl border border-dashed border-border py-8 text-center text-xs text-muted-foreground">
+            Nenhuma conversa nesta etapa.
+          </div>
+        )}
+      </div>
+
+      <div className="hidden overflow-x-auto pb-2 md:block">
+        <div className="flex min-w-max gap-3">
+          {WHATSAPP_PIPELINE.map((column) => (
+            <div
+              key={column.id}
+              onDragOver={(event) => {
+                event.preventDefault();
+                onDragOver(column.id);
+              }}
+              onDragLeave={(event) => {
+                if (
+                  event.relatedTarget instanceof Node &&
+                  event.currentTarget.contains(event.relatedTarget)
+                ) return;
+                if (overStage === column.id) onDragOver(null);
+              }}
+              onDrop={(event) => {
+                event.preventDefault();
+                onDrop(column.id);
+              }}
+              className={cn(
+                "flex max-h-[75vh] w-80 shrink-0 flex-col rounded-2xl border bg-muted/30 transition-colors",
+                overStage === column.id ? "border-primary bg-primary/5" : "border-border",
+              )}
+            >
+              <div className="border-b border-border p-3">
+                <div className="inline-flex rounded-full border border-border bg-background px-2 py-1 text-[10px] font-bold uppercase tracking-wider">
+                  {column.label}
+                </div>
+                <div className="mt-1 text-[11px] text-muted-foreground">
+                  {grouped[column.id].length} conversa(s)
+                </div>
+              </div>
+              <div className="flex-1 space-y-2 overflow-y-auto p-2">
+                {grouped[column.id].map((conversation) => (
+                  <WhatsappPipelineCard
+                    key={conversation.id}
+                    conversation={conversation}
+                    botEnabled={botEnabled}
+                    dragging={dragId === conversation.id}
+                    onOpen={() => onOpen(conversation)}
+                    onDragStart={() => onDragStart(conversation.id)}
+                    onDragEnd={onDragEnd}
+                  />
+                ))}
+                {grouped[column.id].length === 0 && (
+                  <div className="py-6 text-center text-[11px] text-muted-foreground">Arraste conversas para cá</div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function WhatsappPipelineCard({
+  conversation,
+  botEnabled,
+  dragging,
+  onOpen,
+  onDragStart,
+  onDragEnd,
+}: {
+  conversation: Conversation;
+  botEnabled: boolean;
+  dragging: boolean;
+  onOpen: () => void;
+  onDragStart: () => void;
+  onDragEnd: () => void;
+}) {
+  const robotStatus = conversation.needs_human
+    ? "Aguardando humano"
+    : conversation.bot_paused
+      ? "Robô pausado"
+      : botEnabled
+        ? "Robô ativo"
+        : "Robô desligado";
+
+  return (
+    <button
+      type="button"
+      draggable
+      onDragStart={(event) => {
+        event.dataTransfer.effectAllowed = "move";
+        event.dataTransfer.setData("text/plain", conversation.id);
+        onDragStart();
+      }}
+      onDragEnd={onDragEnd}
+      onClick={onOpen}
+      className={cn(
+        "w-full select-none rounded-xl border border-border bg-card p-3 text-left shadow-sm transition-all duration-200",
+        "cursor-pointer hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-lg active:cursor-grabbing",
+        dragging && "rotate-1 opacity-40 shadow-xl",
+      )}
+    >
+      <div className="truncate text-sm font-semibold">
+        {conversation.lead_name || conversation.contact_name || conversationContact(conversation)}
+      </div>
+      <div className="mt-0.5 truncate text-[11px] text-muted-foreground">{conversationContact(conversation)}</div>
+      {conversation.event_type && (
+        <div className="mt-2 truncate text-xs text-muted-foreground">🎉 {conversation.event_type}</div>
+      )}
+      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+        {conversation.event_date && (
+          <span className="inline-flex items-center gap-1">
+            <CalendarDays className="size-3" /> {formatConversationDate(conversation.event_date)}
+          </span>
+        )}
+        {conversation.guest_count !== null && conversation.guest_count !== undefined && (
+          <span className="inline-flex items-center gap-1">
+            <Users className="size-3" /> {conversation.guest_count} convidados
+          </span>
+        )}
+      </div>
+      <div className="mt-2 flex items-center justify-between gap-2">
+        <Badge variant={conversation.needs_human ? "destructive" : "secondary"} className="text-[10px]">
+          {robotStatus}
+        </Badge>
+        {conversation.unread_count > 0 && (
+          <span className="text-[10px] font-semibold text-primary">{conversation.unread_count} nova(s)</span>
+        )}
+      </div>
+    </button>
+  );
+}
+
+function formatConversationDate(value: string) {
+  const date = new Date(`${value}T12:00:00`);
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString("pt-BR");
 }
 
 function Thread({
