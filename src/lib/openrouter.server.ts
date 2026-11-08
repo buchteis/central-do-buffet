@@ -1,6 +1,6 @@
 // Server-only transport shared by the assistant and WhatsApp attendant.
 export const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
-export const OPENROUTER_MODEL = "meta-llama/llama-3.3-70b-instruct:free";
+export const OPENROUTER_MODEL = "google/gemma-4-31b-it:free";
 
 export type OpenRouterToolCall = {
   id: string;

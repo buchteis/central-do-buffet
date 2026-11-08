@@ -10,7 +10,7 @@
 - [x] Conferir a identidade exibida em um contrato real e em celular.
 
 # Modelo do chatbot
-- [x] Usar OpenRouter com meta-llama/llama-3.3-70b-instruct:free e a chave salva em OPENAI_API_KEY no chatbot e atendente WhatsApp.
+- [x] Usar OpenRouter com google/gemma-4-31b-it:free e a chave salva em OPENAI_API_KEY no chatbot e atendente WhatsApp.
 - [x] Corrigir parsing, chamadas de ferramentas e referências restantes ao provedor anterior nos dois chats; nenhuma Edge Function encontrada no projeto.
 - [x] Executar 17 testes de integração/regressão e conferir uma pergunta real no chatbot autenticado; sem erros de página.
 - [ ] Restabelecer respostas reais: OpenRouter recusou a chave salva com HTTP 401, também confirmado em /auth/key; depende de uma chave válida do usuário.

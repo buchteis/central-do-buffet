@@ -16,7 +16,7 @@ describe("OpenRouter integration", () => {
   });
   afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); });
 
-  it("uses the saved OPENAI_API_KEY only with OpenRouter and the requested free model", async () => {
+  it("uses the saved OPENAI_API_KEY only with OpenRouter and the active free model", async () => {
     vi.stubEnv("OPENROUTER_API_KEY", "wrong-variable");
     fetchMock.mockResolvedValue(Response.json({ choices: [{ message: { content: "Olá" } }] }));
     const result = await completeOpenRouter({ messages: [{ role: "user", content: "Olá" }] });
@@ -24,7 +24,7 @@ describe("OpenRouter integration", () => {
     const [url, options] = fetchMock.mock.calls[0];
     expect(url).toBe("https://openrouter.ai/api/v1/chat/completions");
     expect(options.headers.Authorization).toBe("Bearer test-only-key");
-    expect(JSON.parse(options.body).model).toBe("meta-llama/llama-3.3-70b-instruct:free");
+    expect(JSON.parse(options.body).model).toBe("google/gemma-4-31b-it:free");
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
