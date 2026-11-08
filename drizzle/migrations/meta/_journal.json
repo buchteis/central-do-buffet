@@ -71,6 +71,13 @@
       "when": 1793847153935,
       "tag": "0009_whatsapp_ai_reservations",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1794132000000,
+      "tag": "0010_whatsapp_conversation_pipeline_stage",
+      "breakpoints": true
     }
   ]
 }

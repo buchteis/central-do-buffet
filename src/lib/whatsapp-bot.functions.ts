@@ -245,3 +245,35 @@ export const moveWhatsappConversationPipelineStage = createServerFn({ method: "P
     if (!updated) throw new Error("Conversa não encontrada.");
     return { ok: true as const };
   });
+
+export const setWhatsappConversationBotPaused = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z.object({
+      conversationId: z.string().uuid(),
+      botPaused: z.boolean(),
+    }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const tenantId = await myTenantId(context.supabase);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: updated, error } = await (supabaseAdmin as any)
+      .from("whatsapp_conversations")
+      .update({ bot_paused: data.botPaused })
+      .eq("id", data.conversationId)
+      .eq("tenant_id", tenantId)
+      .select("id")
+      .maybeSingle();
+    if (error) throw new Error("Não foi possível atualizar o estado do robô.");
+    if (!updated) throw new Error("Conversa não encontrada.");
+    if (data.botPaused) {
+      const { advanceWhatsappConversationPipelineStage } = await import("./whatsapp-pipeline.server");
+      await advanceWhatsappConversationPipelineStage(
+        supabaseAdmin,
+        data.conversationId,
+        tenantId,
+        "humano",
+      );
+    }
+    return { ok: true as const };
+  });

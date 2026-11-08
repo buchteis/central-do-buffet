@@ -41,6 +41,7 @@ import {
   getWhatsappOverview,
   moveWhatsappConversationPipelineStage,
   refreshWhatsappStatus,
+  setWhatsappConversationBotPaused,
   sendOwnerWhatsappMessage,
   type WhatsappInstanceOverview,
 } from "@/lib/whatsapp-bot.functions";
@@ -794,6 +795,7 @@ function Thread({
   onChanged: () => void;
 }) {
   const sendFn = useServerFn(sendOwnerWhatsappMessage);
+  const setBotPaused = useServerFn(setWhatsappConversationBotPaused);
   const [text, setText] = useState("");
   const bottom = useRef<HTMLDivElement>(null);
   const msgs = useQuery({
@@ -822,7 +824,21 @@ function Thread({
   }, [msgs.data?.length]);
 
   async function patch(values: Partial<Conversation>, okMsg: string) {
-    const { error } = await (supabase as any).from("whatsapp_conversations").update(values).eq("id", conv.id);
+    if (values.bot_paused === true) {
+      try {
+        await setBotPaused({ data: { conversationId: conv.id, botPaused: true } });
+      } catch {
+        return toast.error("Não foi possível pausar o robô.");
+      }
+      toast.success(okMsg);
+      onChanged();
+      return;
+    }
+    const { error } = await (supabase as any)
+      .from("whatsapp_conversations")
+      .update(values)
+      .eq("id", conv.id)
+      .eq("tenant_id", conv.tenant_id);
     if (error) return toast.error("Não foi possível atualizar a conversa.");
     toast.success(okMsg);
     onChanged();

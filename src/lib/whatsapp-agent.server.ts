@@ -2,6 +2,12 @@
 // Server only — uses the privileged database client after the webhook caller is verified.
 import { sendText, publicAppOrigin } from "./evolution.server";
 import { completeOpenRouter, type OpenRouterMessage } from "./openrouter.server";
+import {
+  whatsappPipelineStageFromSignals,
+  whatsappQuoteRequested,
+  whatsappReplyIncludesProposalValue,
+} from "./whatsapp-pipeline";
+import { advanceWhatsappConversationPipelineStage } from "./whatsapp-pipeline.server";
 import { z } from "zod";
 
 type Admin = any;
@@ -834,6 +840,7 @@ export async function runAgent(
   const canConfirmBooking = isConfirmedBookingReply(latestCustomerMessage, previousAssistantMessage);
 
   let preReservationCreated = false;
+  let tastingScheduled = false;
   for (let step = 0; step < 5; step++) {
     const res = await completeOpenRouter({
         messages,
@@ -853,7 +860,7 @@ export async function runAgent(
     const calls = res.message.tool_calls ?? [];
     if (!calls.length) {
       const parsed = parseAgentResult(res.text);
-      return { result: parsed, preReservationCreated };
+      return { result: parsed, preReservationCreated, tastingScheduled };
     }
 
     messages.push(res.message);
@@ -874,6 +881,10 @@ export async function runAgent(
         canConfirmBooking,
       );
       preReservationCreated ||= created;
+      if (call.function?.name === "agendar_degustacao") {
+        const scheduled = objectRecord(output);
+        tastingScheduled ||= scheduled?.ok === true && scheduled.type === "degustacao";
+      }
       messages.push({
         role: "tool",
         tool_call_id: call.id,
@@ -886,6 +897,10 @@ export async function runAgent(
 
 const clip = (s: string, n = 120) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
 
+function objectRecord(value: unknown): Record<string, unknown> | null {
+  return value !== null && typeof value === "object" ? value as Record<string, unknown> : null;
+}
+
 /**
  * Generate and send the bot reply for one stored inbound message.
  * Idempotent: only a message in pending/failed state is claimed; sent/skipped ones are left alone.
@@ -895,6 +910,7 @@ export async function replyToInbound(admin: Admin, instance: any, messageId: str
     .from("whatsapp_messages")
     .select("id, tenant_id, conversation_id, created_at, body, reply_status, reply_attempts")
     .eq("id", messageId)
+    .eq("tenant_id", instance.tenant_id)
     .maybeSingle();
   if (msgErr) throw msgErr;
   if (!msg || !["pending", "failed"].includes(msg.reply_status)) return "noop";
@@ -903,6 +919,7 @@ export async function replyToInbound(admin: Admin, instance: any, messageId: str
     .from("whatsapp_conversations")
     .select("*")
     .eq("id", msg.conversation_id)
+    .eq("tenant_id", instance.tenant_id)
     .maybeSingle();
   if (convErr) throw convErr;
 
@@ -916,8 +933,11 @@ export async function replyToInbound(admin: Admin, instance: any, messageId: str
   };
 
   if (!conv) return skip("conversa não encontrada");
+  if (conv.bot_paused) {
+    await advanceWhatsappConversationPipelineStage(admin, conv.id, instance.tenant_id, "humano");
+    return skip("atendimento humano");
+  }
   if (!instance.bot_enabled) return skip("robô desligado");
-  if (conv.bot_paused) return skip("atendimento humano");
 
   // A newer customer message will be answered with the recent history — avoid double replies.
   const { count: newer, error: newerErr } = await admin
@@ -950,6 +970,7 @@ export async function replyToInbound(admin: Admin, instance: any, messageId: str
   };
 
   let result: AgentResult;
+  let tastingScheduled = false;
   let senderId = "";
   let inboundMessage = "";
   try {
@@ -969,6 +990,52 @@ export async function replyToInbound(admin: Admin, instance: any, messageId: str
     const { knowledge } = await buildBuffetKnowledge(admin, instance.tenant_id);
     const run = await runAgent(admin, instance.tenant_id, knowledge, conv, [...(history ?? [])].reverse(), memories);
     result = run.result;
+    tastingScheduled = run.tastingScheduled;
+  } catch (e) {
+    return fail(e);
+  }
+
+  const now = new Date().toISOString();
+  const lead = result.lead ?? ({} as AgentResult["lead"]);
+  const convUpdate: Record<string, unknown> = {
+    lead_name: lead.name ?? conv.lead_name,
+    event_type: lead.event_type ?? conv.event_type,
+    event_date: lead.event_date ?? conv.event_date,
+    guest_count: Number.isInteger(lead.guest_count) ? lead.guest_count : conv.guest_count,
+    budget: lead.budget ?? conv.budget,
+  };
+  if (result.handoff) {
+    Object.assign(convUpdate, {
+      bot_paused: true,
+      needs_human: true,
+      handoff_reason: result.handoff_reason ?? "Cliente precisa de atendimento humano",
+      handoff_at: now,
+    });
+  }
+  try {
+    const { error: conversationUpdateError } = await admin
+      .from("whatsapp_conversations")
+      .update(convUpdate)
+      .eq("id", conv.id)
+      .eq("tenant_id", instance.tenant_id);
+    if (conversationUpdateError) throw conversationUpdateError;
+
+    const stage = whatsappPipelineStageFromSignals({
+      hasEventDetails: Boolean(
+        lead.event_type?.trim() ||
+        lead.event_date?.trim() ||
+        Number.isInteger(lead.guest_count) ||
+        (typeof conv.event_type === "string" && conv.event_type.trim()) ||
+        (typeof conv.event_date === "string" && conv.event_date.trim()) ||
+        Number.isInteger(conv.guest_count),
+      ),
+      requestedFormalQuote: whatsappQuoteRequested(inboundMessage),
+      sentProposalWithValues: whatsappReplyIncludesProposalValue(result.reply),
+      tastingScheduled,
+      humanHandoff: result.handoff,
+      botPaused: conv.bot_paused === true,
+    });
+    if (stage) await advanceWhatsappConversationPipelineStage(admin, conv.id, instance.tenant_id, stage);
   } catch (e) {
     return fail(e);
   }
@@ -980,9 +1047,7 @@ export async function replyToInbound(admin: Admin, instance: any, messageId: str
   } catch (e) {
     return fail(e);
   }
-
   // From here the message is already delivered to WhatsApp — record it.
-  const now = new Date().toISOString();
   await admin.from("whatsapp_messages").insert({
     tenant_id: conv.tenant_id,
     conversation_id: conv.id,
@@ -998,25 +1063,13 @@ export async function replyToInbound(admin: Admin, instance: any, messageId: str
     await hindsightRetainConversation(`buffet-${instance.tenant_id}`, senderId, inboundMessage, result.reply);
   }
 
-  const lead = result.lead ?? ({} as AgentResult["lead"]);
-  const convUpdate: Record<string, unknown> = {
+  const { error: previewUpdateError } = await admin.from("whatsapp_conversations").update({
     last_message_at: now,
     last_message_preview: clip(result.reply),
-    lead_name: lead.name ?? conv.lead_name,
-    event_type: lead.event_type ?? conv.event_type,
-    event_date: lead.event_date ?? conv.event_date,
-    guest_count: Number.isInteger(lead.guest_count) ? lead.guest_count : conv.guest_count,
-    budget: lead.budget ?? conv.budget,
-  };
-  if (result.handoff) {
-    Object.assign(convUpdate, {
-      bot_paused: true,
-      needs_human: true,
-      handoff_reason: result.handoff_reason ?? "Cliente precisa de atendimento humano",
-      handoff_at: now,
-    });
-  }
-  await admin.from("whatsapp_conversations").update(convUpdate).eq("id", conv.id);
+  })
+    .eq("id", conv.id)
+    .eq("tenant_id", instance.tenant_id);
+  if (previewUpdateError) throw previewUpdateError;
 
   if (result.handoff) await notifyOwner(admin, instance, conv, result).catch((e) => console.error("notifyOwner", e));
   return "sent";
