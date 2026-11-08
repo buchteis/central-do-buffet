@@ -1,6 +1,11 @@
 // Server-only transport shared by the assistant and WhatsApp attendant.
 export const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
 export const OPENROUTER_MODEL = "google/gemma-4-31b-it:free";
+export const OPENROUTER_FALLBACK_MODELS = [
+  "nvidia/nemotron-3.5-super-vl:free",
+  "xingchen-agi/xing4.0-29b-a4b:free",
+  "dots-studio/dots-3-note-preview:free",
+] as const;
 
 export type OpenRouterToolCall = {
   id: string;
@@ -64,19 +69,25 @@ export function responseText(value: unknown): string {
   }).join("");
 }
 
-export async function completeOpenRouter(request: {
+type OpenRouterRequest = {
   messages: OpenRouterMessage[];
   tools?: unknown[];
   tool_choice?: "auto";
   max_tokens?: number;
   response_format?: { type: "json_object" };
-}): Promise<{ text: string; message: OpenRouterMessage; finishReason: string | null }> {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) throw new Error("A chave do OpenRouter não está configurada em OPENAI_API_KEY.");
+};
+
+type OpenRouterResult = { text: string; message: OpenRouterMessage; finishReason: string | null };
+
+async function completeOpenRouterWithModel(
+  request: OpenRouterRequest,
+  model: string,
+  apiKey: string,
+): Promise<OpenRouterResult> {
   const response = await fetch(`${OPENROUTER_BASE_URL}/chat/completions`, {
     method: "POST",
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ ...request, model: OPENROUTER_MODEL }),
+    body: JSON.stringify({ ...request, model }),
   });
   if (!response.ok) throw new OpenRouterError(response.status);
   const result: unknown = await response.json();
@@ -107,4 +118,22 @@ export async function completeOpenRouter(request: {
     message: { role: "assistant", content: text || null, ...(calls.length ? { tool_calls: calls } : {}) },
     finishReason: typeof choice?.finish_reason === "string" ? choice.finish_reason : null,
   };
+}
+
+export async function completeOpenRouter(request: OpenRouterRequest): Promise<OpenRouterResult> {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) throw new Error("A chave do OpenRouter não está configurada em OPENAI_API_KEY.");
+  const models = [OPENROUTER_MODEL, ...OPENROUTER_FALLBACK_MODELS];
+
+  for (const [index, model] of models.entries()) {
+    try {
+      return await completeOpenRouterWithModel(request, model, apiKey);
+    } catch (error) {
+      if (!(error instanceof OpenRouterError) || error.status !== 429 || index === models.length - 1) {
+        throw error;
+      }
+    }
+  }
+
+  throw new OpenRouterError(429);
 }
