@@ -1,7 +1,7 @@
 // WhatsApp virtual attendant: builds buffet context, asks the AI and processes inbound messages.
 // Server only — uses the privileged database client after the webhook caller is verified.
 import { sendText, publicAppOrigin } from "./evolution.server";
-import { completeOpenRouter, type OpenRouterMessage } from "./openrouter.server";
+import { completeGroq, type GroqMessage } from "./groq.server";
 import {
   whatsappPipelineStageFromSignals,
   whatsappQuoteRequested,
@@ -820,7 +820,7 @@ export async function runAgent(
   history: { sender: string; body: string }[],
   memories: string[] = [],
 ) {
-  const input: OpenRouterMessage[] = history
+  const input: GroqMessage[] = history
     .filter((m) => m.body?.trim())
     .map((m) => ({
       role: m.sender === "client" ? "user" : "assistant",
@@ -829,7 +829,7 @@ export async function runAgent(
   if (!input.length || input[input.length - 1].role !== "user") {
     input.push({ role: "user", content: "(o cliente enviou uma mensagem sem texto)" });
   }
-  const messages: OpenRouterMessage[] = [{ role: "system", content: systemPrompt(knowledge, conv, memories) }, ...input];
+  const messages: GroqMessage[] = [{ role: "system", content: systemPrompt(knowledge, conv, memories) }, ...input];
 
   const latestCustomerIndex = [...history].map((message) => message.sender).lastIndexOf("client");
   const latestCustomerMessage = latestCustomerIndex >= 0 ? history[latestCustomerIndex].body : "";
@@ -842,7 +842,7 @@ export async function runAgent(
   let preReservationCreated = false;
   let tastingScheduled = false;
   for (let step = 0; step < 5; step++) {
-    const res = await completeOpenRouter({
+    const res = await completeGroq({
         messages,
         tools: AGENT_TOOLS.map((tool) => ({
           type: "function",

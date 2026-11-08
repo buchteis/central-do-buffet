@@ -1,39 +1,34 @@
 // Server-only transport shared by the assistant and WhatsApp attendant.
-export const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
-export const OPENROUTER_MODEL = "google/gemma-4-31b-it:free";
-export const OPENROUTER_FALLBACK_MODELS = [
-  "nvidia/nemotron-3.5-super-vl:free",
-  "xingchen-agi/xing4.0-29b-a4b:free",
-  "dots-studio/dots-3-note-preview:free",
-] as const;
+export const GROQ_BASE_URL = "https://api.groq.com/openai/v1";
+export const GROQ_MODEL = "llama-3.3-70b-versatile";
 
-export type OpenRouterToolCall = {
+export type GroqToolCall = {
   id: string;
   type: "function";
   function: { name: string; arguments: string };
 };
 
-export type OpenRouterMessage = {
+export type GroqMessage = {
   role: "system" | "user" | "assistant" | "tool";
   content: string | null;
-  tool_calls?: OpenRouterToolCall[];
+  tool_calls?: GroqToolCall[];
   tool_call_id?: string;
 };
 
-export class OpenRouterError extends Error {
+export class GroqError extends Error {
   constructor(public readonly status: number) {
     super(
       status === 401 || status === 403
-        ? "A chave do OpenRouter não foi aceita. Confira a chave salva nas configurações."
+        ? "A chave da Groq não foi aceita. Confira a configuração da chave no servidor."
         : status === 402
-          ? "O OpenRouter bloqueou a solicitação por saldo ou limite da conta."
+          ? "A Groq bloqueou a solicitação por saldo ou limite da conta."
           : status === 429
-            ? "O limite de solicitações gratuitas do OpenRouter foi atingido. Tente mais tarde."
+            ? "O limite de solicitações da Groq foi atingido. Tente mais tarde."
             : status === 404 || status === 503
-              ? "O modelo gratuito do OpenRouter está indisponível no momento."
-              : "Não foi possível consultar o OpenRouter. Tente novamente mais tarde.",
+              ? "O modelo da Groq está indisponível no momento."
+              : "Não foi possível consultar a Groq. Tente novamente mais tarde.",
     );
-    this.name = "OpenRouterError";
+    this.name = "GroqError";
   }
 }
 
@@ -69,50 +64,49 @@ export function responseText(value: unknown): string {
   }).join("");
 }
 
-type OpenRouterRequest = {
-  messages: OpenRouterMessage[];
+type GroqRequest = {
+  messages: GroqMessage[];
   tools?: unknown[];
   tool_choice?: "auto";
   max_tokens?: number;
   response_format?: { type: "json_object" };
 };
 
-type OpenRouterResult = { text: string; message: OpenRouterMessage; finishReason: string | null };
+type GroqResult = { text: string; message: GroqMessage; finishReason: string | null };
 
-async function completeOpenRouterWithModel(
-  request: OpenRouterRequest,
-  model: string,
+async function completeGroqRequest(
+  request: GroqRequest,
   apiKey: string,
-): Promise<OpenRouterResult> {
-  const response = await fetch(`${OPENROUTER_BASE_URL}/chat/completions`, {
+): Promise<GroqResult> {
+  const response = await fetch(`${GROQ_BASE_URL}/chat/completions`, {
     method: "POST",
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ ...request, model }),
+    body: JSON.stringify({ ...request, model: GROQ_MODEL }),
   });
-  if (!response.ok) throw new OpenRouterError(response.status);
+  if (!response.ok) throw new GroqError(response.status);
   const result: unknown = await response.json();
   const payload = record(result);
   if (payload?.error) {
     const error = record(payload.error);
-    throw new OpenRouterError(typeof error?.code === "number" ? error.code : 502);
+    throw new GroqError(typeof error?.code === "number" ? error.code : 502);
   }
   const choices = payload?.choices;
   const choice = Array.isArray(choices) ? record(choices[0]) : null;
   const message = record(choice?.message);
   const rawCalls = message?.tool_calls;
-  const calls: OpenRouterToolCall[] = [];
-  if (rawCalls !== undefined && !Array.isArray(rawCalls)) throw new OpenRouterError(502);
+  const calls: GroqToolCall[] = [];
+  if (rawCalls !== undefined && !Array.isArray(rawCalls)) throw new GroqError(502);
   for (const raw of Array.isArray(rawCalls) ? rawCalls : []) {
     const call = record(raw);
     const fn = record(call?.function);
     if (call?.type !== "function" || typeof call.id !== "string" || !call.id ||
         typeof fn?.name !== "string" || typeof fn.arguments !== "string") {
-      throw new OpenRouterError(502);
+      throw new GroqError(502);
     }
     calls.push({ id: call.id, type: "function", function: { name: fn.name, arguments: fn.arguments } });
   }
   const text = responseText(result);
-  if (!text.trim() && calls.length === 0) throw new OpenRouterError(502);
+  if (!text.trim() && calls.length === 0) throw new GroqError(502);
   return {
     text,
     message: { role: "assistant", content: text || null, ...(calls.length ? { tool_calls: calls } : {}) },
@@ -120,20 +114,8 @@ async function completeOpenRouterWithModel(
   };
 }
 
-export async function completeOpenRouter(request: OpenRouterRequest): Promise<OpenRouterResult> {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) throw new Error("A chave do OpenRouter não está configurada em OPENAI_API_KEY.");
-  const models = [OPENROUTER_MODEL, ...OPENROUTER_FALLBACK_MODELS];
-
-  for (const [index, model] of models.entries()) {
-    try {
-      return await completeOpenRouterWithModel(request, model, apiKey);
-    } catch (error) {
-      if (!(error instanceof OpenRouterError) || error.status !== 429 || index === models.length - 1) {
-        throw error;
-      }
-    }
-  }
-
-  throw new OpenRouterError(429);
+export async function completeGroq(request: GroqRequest): Promise<GroqResult> {
+  const apiKey = process.env.GROQ_API_KEY || process.env.OPENAI_API_KEY;
+  if (!apiKey) throw new Error("A chave da Groq não está configurada em GROQ_API_KEY nem OPENAI_API_KEY.");
+  return completeGroqRequest(request, apiKey);
 }

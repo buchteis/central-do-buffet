@@ -419,8 +419,8 @@ ${memories.length ? memories.map((m) => `- ${m}`).join("\n") : "(nenhuma ainda)"
 DADOS ATUAIS DO BUFFET (JSON):
 ${summary}`;
 
-    const { completeOpenRouter, OpenRouterError } = await import("./openrouter.server");
-    const messages: import("./openrouter.server").OpenRouterMessage[] = [
+    const { completeGroq, GroqError } = await import("./groq.server");
+    const messages: import("./groq.server").GroqMessage[] = [
       { role: "system", content: systemPrompt },
       ...data.history.map((m) => ({ role: m.role, content: m.content })),
       { role: "user", content: data.message },
@@ -428,11 +428,11 @@ ${summary}`;
 
     let reply = "";
     try {
-      const res = await completeOpenRouter({ messages });
+      const res = await completeGroq({ messages });
       reply = res.text;
     } catch (e) {
-      if (e instanceof OpenRouterError) return { reply: e.message };
-      console.error("OpenRouter assistant request failed");
+      if (e instanceof GroqError) return { reply: e.message };
+      console.error("Groq assistant request failed");
       throw new Error("Falha ao consultar a IA.");
     }
     if (!reply) reply = "Não consegui gerar uma resposta.";
