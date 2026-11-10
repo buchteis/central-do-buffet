@@ -8,7 +8,7 @@ describe("Groq Integration", () => {
 
   it("uses GROQ_API_KEY, the Groq endpoint, and the configured model", async () => {
     // Valida o modelo correto recomendado para contas gratuitas
-    expect(GROQ_MODEL).toBe("qwen/qwen3.8-27b");
+    expect(GROQ_MODEL).toBe("openai/gpt-oss-20b");
     
     const fetchMock = global.fetch as any;
     fetchMock.mockResolvedValue(Response.json({ choices: [{ message: { content: "Olá" } }] }));
