@@ -1,6 +1,6 @@
 // Server-only transport shared by the assistant and WhatsApp attendant.
 export const GROQ_BASE_URL = "https://api.groq.com/openai/v1";
-export const GROQ_MODEL = "gemma2-9b-it";
+export const GROQ_MODEL = "openai/gpt-oss-20b";
 
 export type GroqToolCall = {
   id: string;
@@ -36,7 +36,6 @@ function record(value: unknown): Record<string, unknown> | null {
   return value !== null && typeof value === "object" ? value as Record<string, unknown> : null;
 }
 
-// Accept Chat Completions and the legacy Responses shape without exposing provider payloads.
 export function responseText(value: unknown): string {
   const response = record(value);
   if (!response) return "";
