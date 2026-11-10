@@ -62,6 +62,16 @@ describe("Groq integration", () => {
     expect(new GroqError(429).message).not.toContain("private values");
   });
 
+  it("preserves provider error details while redacting credentials", async () => {
+    fetchMock.mockResolvedValue(
+      new Response("Invalid API key: unit-test-groq-key; Authorization: Bearer leaked-token", { status: 401 }),
+    );
+    await expect(completeGroq({ messages: [] })).rejects.toThrow(
+      "Erro Groq 401: Invalid API key: [redacted]; Authorization: Bearer [redacted]",
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
   it("preserves reply and output_text compatibility as well as text parts", () => {
     expect(responseText({ reply: "resposta" })).toBe("resposta");
     expect(responseText({ output_text: "antiga" })).toBe("antiga");

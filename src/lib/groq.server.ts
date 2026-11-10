@@ -15,19 +15,19 @@ export type GroqMessage = {
   tool_call_id?: string;
 };
 
+function safeErrorDetail(value: string, apiKey: string): string {
+  return (apiKey ? value.replaceAll(apiKey, "[redacted]") : value)
+    .replace(/Bearer\s+\S+/gi, "Bearer [redacted]")
+    .replace(/[\u0000-\u001f\u007f]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 1000);
+}
+
 export class GroqError extends Error {
-  constructor(public readonly status: number) {
-    super(
-      status === 401 || status === 403
-        ? "A chave da Groq não foi aceita. Confira a configuração da chave no servidor."
-        : status === 402
-          ? "A Groq bloqueou a solicitação por saldo ou limite da conta."
-          : status === 429
-            ? "O limite de solicitações da Groq foi atingido. Tente mais tarde."
-            : status === 404 || status === 503
-              ? "O modelo da Groq está indisponível no momento."
-              : "Não foi possível consultar a Groq. Tente novamente mais tarde.",
-    );
+  constructor(public readonly status: number, detail = "Resposta vazia do provedor.", apiKey = "") {
+    const safeDetail = safeErrorDetail(detail, apiKey);
+    super(`Erro Groq ${status}: ${safeDetail || "Resposta vazia do provedor."}`);
     this.name = "GroqError";
   }
 }
@@ -83,12 +83,19 @@ async function completeGroqRequest(
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
     body: JSON.stringify({ ...request, model: GROQ_MODEL }),
   });
-  if (!response.ok) throw new GroqError(response.status);
+  if (!response.ok) {
+    const errorMessage = await response.text();
+    throw new GroqError(response.status, errorMessage, apiKey);
+  }
   const result: unknown = await response.json();
   const payload = record(result);
   if (payload?.error) {
     const error = record(payload.error);
-    throw new GroqError(typeof error?.code === "number" ? error.code : 502);
+    throw new GroqError(
+      typeof error?.code === "number" ? error.code : 502,
+      typeof error?.message === "string" ? error.message : "Erro retornado pelo provedor.",
+      apiKey,
+    );
   }
   const choices = payload?.choices;
   const choice = Array.isArray(choices) ? record(choices[0]) : null;
