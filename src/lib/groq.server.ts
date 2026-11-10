@@ -1,6 +1,6 @@
 // Server-only transport shared by the assistant and WhatsApp attendant.
 export const GROQ_BASE_URL = "https://api.groq.com/openai/v1";
-export const GROQ_MODEL = "llama3-8b-8192";
+export const GROQ_MODEL = "mixtral-8x7b-32768";
 
 export type GroqToolCall = {
   id: string;
