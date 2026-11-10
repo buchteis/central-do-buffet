@@ -4,8 +4,10 @@ import { sendText, publicAppOrigin } from "./evolution.server";
 import { completeGroq, type GroqMessage } from "./groq.server";
 import {
   whatsappPipelineStageFromSignals,
+  whatsappHumanRequested,
   whatsappQuoteRequested,
   whatsappReplyIncludesProposalValue,
+  whatsappTastingRequested,
 } from "./whatsapp-pipeline";
 import { advanceWhatsappConversationPipelineStage } from "./whatsapp-pipeline.server";
 import { z } from "zod";
@@ -997,6 +999,9 @@ export async function replyToInbound(admin: Admin, instance: any, messageId: str
 
   const now = new Date().toISOString();
   const lead = result.lead ?? ({} as AgentResult["lead"]);
+  const humanHandoff = result.handoff || whatsappHumanRequested(inboundMessage);
+  const handoffReason = result.handoff_reason ??
+    (humanHandoff ? "Cliente solicitou atendimento humano" : null);
   const convUpdate: Record<string, unknown> = {
     lead_name: lead.name ?? conv.lead_name,
     event_type: lead.event_type ?? conv.event_type,
@@ -1004,11 +1009,11 @@ export async function replyToInbound(admin: Admin, instance: any, messageId: str
     guest_count: Number.isInteger(lead.guest_count) ? lead.guest_count : conv.guest_count,
     budget: lead.budget ?? conv.budget,
   };
-  if (result.handoff) {
+  if (humanHandoff) {
     Object.assign(convUpdate, {
       bot_paused: true,
       needs_human: true,
-      handoff_reason: result.handoff_reason ?? "Cliente precisa de atendimento humano",
+      handoff_reason: handoffReason,
       handoff_at: now,
     });
   }
@@ -1031,8 +1036,9 @@ export async function replyToInbound(admin: Admin, instance: any, messageId: str
       ),
       requestedFormalQuote: whatsappQuoteRequested(inboundMessage),
       sentProposalWithValues: whatsappReplyIncludesProposalValue(result.reply),
+      requestedTasting: whatsappTastingRequested(inboundMessage),
       tastingScheduled,
-      humanHandoff: result.handoff,
+      humanHandoff,
       botPaused: conv.bot_paused === true,
     });
     if (stage) await advanceWhatsappConversationPipelineStage(admin, conv.id, instance.tenant_id, stage);
@@ -1071,7 +1077,13 @@ export async function replyToInbound(admin: Admin, instance: any, messageId: str
     .eq("tenant_id", instance.tenant_id);
   if (previewUpdateError) throw previewUpdateError;
 
-  if (result.handoff) await notifyOwner(admin, instance, conv, result).catch((e) => console.error("notifyOwner", e));
+  if (humanHandoff) {
+    await notifyOwner(admin, instance, conv, {
+      ...result,
+      handoff: true,
+      handoff_reason: handoffReason,
+    }).catch((e) => console.error("notifyOwner", e));
+  }
   return "sent";
 }
 

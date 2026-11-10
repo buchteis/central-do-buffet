@@ -1,13 +1,18 @@
 import { describe, expect, it, vi } from "vitest";
-import { advanceWhatsappConversationPipelineStage } from "./whatsapp-pipeline.server";
+import {
+  advanceWhatsappConversationPipelineStage,
+  moveWhatsappConversationPipelineStage,
+} from "./whatsapp-pipeline.server";
 import {
   groupWhatsappConversations,
   moveWhatsappConversationToStage,
+  whatsappHumanRequested,
   whatsappPipelineEarlierStageFilter,
   whatsappQuoteRequested,
   whatsappReplyIncludesProposalValue,
   whatsappPipelineStageFromSignals,
   whatsappPipelineStage,
+  whatsappTastingRequested,
   WHATSAPP_PIPELINE,
 } from "./whatsapp-pipeline";
 
@@ -33,6 +38,7 @@ describe("WhatsApp pipeline", () => {
       hasEventDetails: true,
       requestedFormalQuote: false,
       sentProposalWithValues: false,
+      requestedTasting: false,
       tastingScheduled: false,
       humanHandoff: false,
       botPaused: false,
@@ -41,6 +47,7 @@ describe("WhatsApp pipeline", () => {
       hasEventDetails: false,
       requestedFormalQuote: true,
       sentProposalWithValues: false,
+      requestedTasting: false,
       tastingScheduled: false,
       humanHandoff: false,
       botPaused: false,
@@ -49,6 +56,7 @@ describe("WhatsApp pipeline", () => {
       hasEventDetails: true,
       requestedFormalQuote: false,
       sentProposalWithValues: true,
+      requestedTasting: false,
       tastingScheduled: false,
       humanHandoff: false,
       botPaused: false,
@@ -57,6 +65,7 @@ describe("WhatsApp pipeline", () => {
       hasEventDetails: false,
       requestedFormalQuote: false,
       sentProposalWithValues: false,
+      requestedTasting: false,
       tastingScheduled: true,
       humanHandoff: false,
       botPaused: false,
@@ -65,6 +74,7 @@ describe("WhatsApp pipeline", () => {
       hasEventDetails: false,
       requestedFormalQuote: false,
       sentProposalWithValues: true,
+      requestedTasting: false,
       tastingScheduled: true,
       humanHandoff: true,
       botPaused: false,
@@ -73,6 +83,7 @@ describe("WhatsApp pipeline", () => {
       hasEventDetails: false,
       requestedFormalQuote: false,
       sentProposalWithValues: false,
+      requestedTasting: false,
       tastingScheduled: false,
       humanHandoff: false,
       botPaused: true,
@@ -81,6 +92,7 @@ describe("WhatsApp pipeline", () => {
       hasEventDetails: false,
       requestedFormalQuote: false,
       sentProposalWithValues: false,
+      requestedTasting: false,
       tastingScheduled: false,
       humanHandoff: false,
       botPaused: false,
@@ -90,8 +102,26 @@ describe("WhatsApp pipeline", () => {
   it("recognizes formal quote requests and proposal replies with a price", () => {
     expect(whatsappQuoteRequested("Pode me enviar um orçamento?")).toBe(true);
     expect(whatsappQuoteRequested("Quero fazer uma festa")).toBe(false);
+    expect(whatsappQuoteRequested("Não preciso de um orçamento agora")).toBe(false);
     expect(whatsappReplyIncludesProposalValue("O pacote custa R$ 1.250,00.")).toBe(true);
     expect(whatsappReplyIncludesProposalValue("Temos uma festa para 50 convidados.")).toBe(false);
+    expect(whatsappTastingRequested("Gostaria de agendar uma degustação")).toBe(true);
+    expect(whatsappTastingRequested("Não quero fazer degustação")).toBe(false);
+    expect(whatsappHumanRequested("Quero falar com uma pessoa, por favor")).toBe(true);
+    expect(whatsappHumanRequested("Não quero falar com uma pessoa")).toBe(false);
+    expect(whatsappHumanRequested("Não chame um atendente")).toBe(false);
+  });
+
+  it("moves an automatic request for a tasting to proposta, above hot lead signals", () => {
+    expect(whatsappPipelineStageFromSignals({
+      hasEventDetails: true,
+      requestedFormalQuote: true,
+      sentProposalWithValues: false,
+      requestedTasting: true,
+      tastingScheduled: false,
+      humanHandoff: false,
+      botPaused: false,
+    })).toBe("proposta");
   });
 
   it("builds atomic update filters that exclude current and later pipeline stages", () => {
@@ -119,6 +149,35 @@ describe("WhatsApp pipeline", () => {
     expect(query.or).toHaveBeenCalledWith(
       "pipeline_stage.is.null,pipeline_stage.eq.novos,pipeline_stage.eq.quente",
     );
+  });
+
+  it("persists manual stage movement with only the id filter and RLS-scoped client", async () => {
+    const query: Record<string, any> = {};
+    query.update = vi.fn(() => query);
+    query.eq = vi.fn(() => query);
+    query.select = vi.fn(() => query);
+    query.maybeSingle = vi.fn().mockResolvedValue({ data: { id: "conversation-id" }, error: null });
+    const supabase = { from: vi.fn(() => query) };
+
+    await moveWhatsappConversationPipelineStage(supabase, "conversation-id", "fechado");
+
+    expect(supabase.from).toHaveBeenCalledWith("whatsapp_conversations");
+    expect(query.update).toHaveBeenCalledWith({ pipeline_stage: "fechado" });
+    expect(query.eq).toHaveBeenCalledTimes(1);
+    expect(query.eq).toHaveBeenCalledWith("id", "conversation-id");
+    expect(query.select).toHaveBeenCalledWith("id");
+  });
+
+  it("propagates the Supabase message when a manual stage update fails", async () => {
+    const query: Record<string, any> = {};
+    query.update = vi.fn(() => query);
+    query.eq = vi.fn(() => query);
+    query.select = vi.fn(() => query);
+    query.maybeSingle = vi.fn().mockResolvedValue({ data: null, error: { message: "permission denied" } });
+    const supabase = { from: vi.fn(() => query) };
+
+    await expect(moveWhatsappConversationPipelineStage(supabase, "conversation-id", "proposta"))
+      .rejects.toThrow("permission denied");
   });
 
   it("groups conversations by stage without dropping unassigned conversations", () => {

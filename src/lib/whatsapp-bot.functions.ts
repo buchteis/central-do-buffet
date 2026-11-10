@@ -232,17 +232,8 @@ export const moveWhatsappConversationPipelineStage = createServerFn({ method: "P
     }).parse(d),
   )
   .handler(async ({ data, context }) => {
-    const tenantId = await myTenantId(context.supabase);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: updated, error } = await (supabaseAdmin as any)
-      .from("whatsapp_conversations")
-      .update({ pipeline_stage: data.stage })
-      .eq("id", data.conversationId)
-      .eq("tenant_id", tenantId)
-      .select("id")
-      .maybeSingle();
-    if (error) throw new Error("Não foi possível mover a conversa no pipeline.");
-    if (!updated) throw new Error("Conversa não encontrada.");
+    const { moveWhatsappConversationPipelineStage } = await import("./whatsapp-pipeline.server");
+    await moveWhatsappConversationPipelineStage(context.supabase, data.conversationId, data.stage);
     return { ok: true as const };
   });
 

@@ -410,8 +410,13 @@ function Conversations({ connected, botEnabled }: { connected: boolean; botEnabl
       return { previous };
     },
     onError: (error, _variables, context) => {
+      console.error("Erro Supabase ao mover pipeline:", error);
       if (context?.previous) qc.setQueryData(["wa-conversations"], context.previous);
-      toast.error(error instanceof Error ? error.message : "Não foi possível mover a conversa.");
+      const message = error !== null && typeof error === "object" &&
+        "message" in error && typeof error.message === "string"
+        ? error.message
+        : undefined;
+      toast.error(message || "Não foi possível mover a conversa no pipeline.");
       void qc.invalidateQueries({ queryKey: ["wa-conversations"] });
     },
     onSuccess: () => {

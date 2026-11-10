@@ -10,7 +10,8 @@
 - [x] Conferir a identidade exibida em um contrato real e em celular.
 
 # Modelo do chatbot
-- [x] Usar Groq com llama-3.3-70b-versatile e GROQ_API_KEY (com fallback para OPENAI_API_KEY) no chatbot e atendente WhatsApp.
+- [x] Usar Groq com llama-3.1-8b-instant e GROQ_API_KEY (com fallback para OPENAI_API_KEY) no chatbot e atendente WhatsApp.
+- [ ] Confirmar a disponibilidade do modelo solicitado: a Groq lista descontinuação em 16/08/2026 para os níveis free/developer.
 - [ ] Validar a chave do servidor e respostas reais do chatbot e atendente WhatsApp.
 
 A leitura de notas fiscais em imagem/PDF permanece no provedor existente: o modelo Llama solicitado aceita apenas texto e não pode substituir essa função sem perder leitura de arquivos.
