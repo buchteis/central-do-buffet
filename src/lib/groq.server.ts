@@ -1,7 +1,6 @@
 // Server-only transport shared by the assistant and WhatsApp attendant.
-export const GROQ_BASE_URL = "https://api.groq.com/openai/v1";
-// O qwen/qwen3.8-27b costuma ter teto maior de tokens por minuto no plano gratuito
-export const GROQ_MODEL = "qwen/qwen3.8-27b";
+export const GROQ_BASE_URL = "https://groq.com";
+export const GROQ_MODEL = "openai/gpt-oss-20b";
 
 export type GroqToolCall = {
   id: string;
@@ -34,7 +33,7 @@ export class GroqError extends Error {
 }
 
 function record(value: unknown): Record<string, unknown> | null {
-  return value !== null && typeof value === "object" ? value as Record<string, unknown> : null;
+  return value !== null && typeof value === "object" ? (value as Record<string, unknown>) : null;
 }
 
 export function responseText(value: unknown): string {
@@ -46,22 +45,27 @@ export function responseText(value: unknown): string {
   const content = message?.content;
   if (typeof content === "string" && content.trim()) return content;
   if (Array.isArray(content)) {
-    const text = content.map((part) => {
-      const item = record(part);
-      return typeof item?.text === "string" ? item.text : "";
-    }).join("");
+    const text = content
+      .map((part) => {
+        const item = record(part);
+        return typeof item?.text === "string" ? item.text : "";
+      })
+      .join("");
     if (text.trim()) return text;
   }
   if (typeof response.output_text === "string") return response.output_text;
   if (typeof response.reply === "string") return response.reply;
   const output = Array.isArray(response.output) ? response.output : [];
-  return output.flatMap((item) => {
-    const entry = record(item);
-    return entry?.type === "message" && Array.isArray(entry.content) ? entry.content : [];
-  }).map((part) => {
-    const item = record(part);
-    return item?.type === "output_text" && typeof item.text === "string" ? item.text : "";
-  }).join("");
+  return output
+    .flatMap((item) => {
+      const entry = record(item);
+      return entry?.type === "message" && Array.isArray(entry.content) ? entry.content : [];
+    })
+    .map((part) => {
+      const item = record(part);
+      return item?.type === "output_text" && typeof item.text === "string" ? item.text : "";
+    })
+    .join("");
 }
 
 type GroqRequest = {
@@ -74,14 +78,32 @@ type GroqRequest = {
 
 type GroqResult = { text: string; message: GroqMessage; finishReason: string | null };
 
-// Trava de segurança: mantém a instrução inicial (system) e apenas as últimas 6 mensagens,
-// cortando textos gigantes para não ultrapassar o limite gratuito da Groq.
+function normalizeTools(tools?: unknown[]): unknown[] | undefined {
+  if (!Array.isArray(tools) || tools.length === 0) return undefined;
+  return tools.map((raw) => {
+    const t = record(raw);
+    if (t?.type === "function" && !t.function && typeof t.name === "string") {
+      return {
+        type: "function",
+        function: {
+          name: t.name,
+          description: typeof t.description === "string" ? t.description : "",
+          parameters: t.parameters ?? { type: "object", properties: {} },
+        },
+      };
+    }
+    return raw;
+  });
+}
+
 function trimMessagesForFreeTier(messages: GroqMessage[]): GroqMessage[] {
-  const systemMessages = messages.filter((m) => m.role === "system").map((m) => ({
-    ...m,
-    content: typeof m.content === "string" ? m.content.slice(0, 12000) : m.content,
-  }));
-  const chatMessages = messages.filter((m) => m.role !== "system").slice(-6);
+  const systemMessages = messages
+    .filter((m) => m.role === "system")
+    .map((m) => ({
+      ...m,
+      content: typeof m.content === "string" ? m.content.slice(0, 22000) : m.content,
+    }));
+  const chatMessages = messages.filter((m) => m.role !== "system").slice(-8);
   return [...systemMessages, ...chatMessages];
 }
 
@@ -89,9 +111,11 @@ async function completeGroqRequest(
   request: GroqRequest,
   apiKey: string,
 ): Promise<GroqResult> {
+  const normalizedTools = normalizeTools(request.tools);
   const safeRequest: GroqRequest = {
     ...request,
     messages: trimMessagesForFreeTier(request.messages),
+    ...(normalizedTools ? { tools: normalizedTools } : {}),
     max_tokens: Math.min(request.max_tokens ?? 1024, 1500),
   };
 
@@ -123,8 +147,13 @@ async function completeGroqRequest(
   for (const raw of Array.isArray(rawCalls) ? rawCalls : []) {
     const call = record(raw);
     const fn = record(call?.function);
-    if (call?.type !== "function" || typeof call.id !== "string" || !call.id ||
-        typeof fn?.name !== "string" || typeof fn.arguments !== "string") {
+    if (
+      call?.type !== "function" ||
+      typeof call.id !== "string" ||
+      !call.id ||
+      typeof fn?.name !== "string" ||
+      typeof fn.arguments !== "string"
+    ) {
       throw new GroqError(502);
     }
     calls.push({ id: call.id, type: "function", function: { name: fn.name, arguments: fn.arguments } });
