@@ -1,6 +1,7 @@
 // Server-only transport shared by the assistant and WhatsApp attendant.
 export const GROQ_BASE_URL = "https://api.groq.com/openai/v1";
-export const GROQ_MODEL = "openai/gpt-oss-20b";
+// O qwen/qwen3.8-27b costuma ter teto maior de tokens por minuto no plano gratuito
+export const GROQ_MODEL = "qwen/qwen3.8-27b";
 
 export type GroqToolCall = {
   id: string;
@@ -73,14 +74,31 @@ type GroqRequest = {
 
 type GroqResult = { text: string; message: GroqMessage; finishReason: string | null };
 
+// Trava de segurança: mantém a instrução inicial (system) e apenas as últimas 6 mensagens,
+// cortando textos gigantes para não ultrapassar o limite gratuito da Groq.
+function trimMessagesForFreeTier(messages: GroqMessage[]): GroqMessage[] {
+  const systemMessages = messages.filter((m) => m.role === "system").map((m) => ({
+    ...m,
+    content: typeof m.content === "string" ? m.content.slice(0, 12000) : m.content,
+  }));
+  const chatMessages = messages.filter((m) => m.role !== "system").slice(-6);
+  return [...systemMessages, ...chatMessages];
+}
+
 async function completeGroqRequest(
   request: GroqRequest,
   apiKey: string,
 ): Promise<GroqResult> {
+  const safeRequest: GroqRequest = {
+    ...request,
+    messages: trimMessagesForFreeTier(request.messages),
+    max_tokens: Math.min(request.max_tokens ?? 1024, 1500),
+  };
+
   const response = await fetch(`${GROQ_BASE_URL}/chat/completions`, {
     method: "POST",
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ ...request, model: GROQ_MODEL }),
+    body: JSON.stringify({ ...safeRequest, model: GROQ_MODEL }),
   });
   if (!response.ok) {
     const errorMessage = await response.text();
