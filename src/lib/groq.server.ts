@@ -1,6 +1,6 @@
 // Server-only transport shared by the assistant and WhatsApp attendant.
-export const GROQ_BASE_URL = "https://groq.com";
-export const GROQ_MODEL = "openai/gpt-oss-20b";
+export const GROQ_BASE_URL = "https://api.groq.com/openai/v1";
+export const GROQ_MODEL = "llama3-8b-8192";
 
 export type GroqToolCall = {
   id: string;
@@ -40,7 +40,7 @@ export function responseText(value: unknown): string {
   const response = record(value);
   if (!response) return "";
   const choices = response.choices;
-  const first = Array.isArray(choices) ? record(choices) : null;
+  const first = Array.isArray(choices) ? record(choices[0]) : null;
   const message = record(first?.message);
   const content = message?.content;
   if (typeof content === "string" && content.trim()) return content;
@@ -139,7 +139,7 @@ async function completeGroqRequest(
     );
   }
   const choices = payload?.choices;
-  const choice = Array.isArray(choices) ? record(choices) : null;
+  const choice = Array.isArray(choices) ? record(choices[0]) : null;
   const message = record(choice?.message);
   const rawCalls = message?.tool_calls;
   const calls: GroqToolCall[] = [];
