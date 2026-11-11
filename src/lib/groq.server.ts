@@ -40,7 +40,7 @@ export function responseText(value: unknown): string {
   const response = record(value);
   if (!response) return "";
   const choices = response.choices;
-  const first = Array.isArray(choices) ? record(choices[0]) : null;
+  const first = Array.isArray(choices) ? record(choices) : null;
   const message = record(first?.message);
   const content = message?.content;
   if (typeof content === "string" && content.trim()) return content;
@@ -101,7 +101,7 @@ function trimMessagesForFreeTier(messages: GroqMessage[]): GroqMessage[] {
     .filter((m) => m.role === "system")
     .map((m) => ({
       ...m,
-      content: typeof m.content === "string" ? m.content.slice(0, 22000) : m.content,
+      content: typeof m.content === "string" ? m.content.slice(0, 20000) : m.content,
     }));
   const chatMessages = messages.filter((m) => m.role !== "system").slice(-8);
   return [...systemMessages, ...chatMessages];
@@ -113,9 +113,9 @@ async function completeGroqRequest(
 ): Promise<GroqResult> {
   const normalizedTools = normalizeTools(request.tools);
   const safeRequest: GroqRequest = {
-    ...request,
     messages: trimMessagesForFreeTier(request.messages),
-    ...(normalizedTools ? { tools: normalizedTools } : {}),
+    ...(normalizedTools ? { tools: normalizedTools, tool_choice: request.tool_choice ?? "auto" } : {}),
+    ...(!normalizedTools && request.response_format ? { response_format: request.response_format } : {}),
     max_tokens: Math.min(request.max_tokens ?? 1024, 1500),
   };
 
@@ -139,7 +139,7 @@ async function completeGroqRequest(
     );
   }
   const choices = payload?.choices;
-  const choice = Array.isArray(choices) ? record(choices[0]) : null;
+  const choice = Array.isArray(choices) ? record(choices) : null;
   const message = record(choice?.message);
   const rawCalls = message?.tool_calls;
   const calls: GroqToolCall[] = [];
