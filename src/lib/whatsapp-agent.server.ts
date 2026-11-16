@@ -4,6 +4,8 @@ import { sendText, publicAppOrigin } from "./evolution.server";
 import { completeGroq, type GroqMessage } from "./groq.server";
 import {
   whatsappPipelineStageFromSignals,
+  whatsappInboundPipelineStage,
+  whatsappBookingRequested,
   whatsappHumanRequested,
   whatsappQuoteRequested,
   whatsappReplyIncludesProposalValue,
@@ -816,6 +818,7 @@ export async function runAgent(
 
   let preReservationCreated = false;
   let tastingScheduled = false;
+  let eventConfirmed = false;
   for (let step = 0; step < 5; step++) {
     const res = await completeGroq({
         messages,
@@ -834,7 +837,7 @@ export async function runAgent(
     const calls = res.message.tool_calls ?? [];
     if (!calls.length) {
       const parsed = parseAgentResult(res.text);
-      return { result: parsed, preReservationCreated, tastingScheduled };
+      return { result: parsed, preReservationCreated, tastingScheduled, eventConfirmed };
     }
 
     messages.push(res.message);
@@ -859,6 +862,10 @@ export async function runAgent(
         const scheduled = objectRecord(output);
         tastingScheduled ||= scheduled?.ok === true && scheduled.type === "degustacao";
       }
+      if (call.function?.name === "confirmar_evento") {
+        const scheduled = objectRecord(output);
+        eventConfirmed ||= scheduled?.ok === true;
+      }
       messages.push({
         role: "tool",
         tool_call_id: call.id,
@@ -923,6 +930,25 @@ export async function replyToInbound(admin: Admin, instance: any, messageId: str
   if (newerErr) throw newerErr;
   if ((newer ?? 0) > 0) return skip("respondida junto com mensagem mais nova");
 
+  // Qualify from the customer's own answer before calling AI or sending a reply.
+  // A provider outage must not keep a scheduling request in Novos.
+  const { data: previousReply, error: previousReplyError } = await admin
+    .from("whatsapp_messages")
+    .select("body")
+    .eq("conversation_id", conv.id)
+    .eq("tenant_id", instance.tenant_id)
+    .eq("direction", "out")
+    .lt("created_at", msg.created_at)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (previousReplyError) throw previousReplyError;
+  const previousReplyText = String(previousReply?.body ?? "");
+  const inboundStage = whatsappInboundPipelineStage(String(msg.body ?? ""), previousReplyText);
+  if (inboundStage) {
+    await advanceWhatsappConversationPipelineStage(admin, conv.id, instance.tenant_id, inboundStage);
+  }
+
   // Claim
   const { data: claimed, error: claimErr } = await admin
     .from("whatsapp_messages")
@@ -945,6 +971,7 @@ export async function replyToInbound(admin: Admin, instance: any, messageId: str
 
   let result: AgentResult;
   let tastingScheduled = false;
+  let eventConfirmed = false;
   let senderId = "";
   let inboundMessage = "";
   try {
@@ -965,6 +992,7 @@ export async function replyToInbound(admin: Admin, instance: any, messageId: str
     const run = await runAgent(admin, instance.tenant_id, knowledge, conv, [...(history ?? [])].reverse(), memories);
     result = run.result;
     tastingScheduled = run.tastingScheduled;
+    eventConfirmed = run.eventConfirmed;
   } catch (e) {
     return fail(e);
   }
@@ -1006,8 +1034,10 @@ export async function replyToInbound(admin: Admin, instance: any, messageId: str
         Number.isInteger(conv.guest_count),
       ),
       requestedFormalQuote: whatsappQuoteRequested(inboundMessage),
+      requestedBooking: whatsappBookingRequested(inboundMessage, previousReplyText),
+      eventConfirmed,
       sentProposalWithValues: whatsappReplyIncludesProposalValue(result.reply),
-      requestedTasting: whatsappTastingRequested(inboundMessage),
+      requestedTasting: whatsappTastingRequested(inboundMessage, previousReplyText),
       tastingScheduled,
       humanHandoff,
       botPaused: conv.bot_paused === true,
