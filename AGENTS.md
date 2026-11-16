@@ -12,3 +12,4 @@
 - Public contract branding is resolved server-side after signing-token validation, scoped to the contract owner and tenant, and returns only the business name and a short-lived logo URL; the pure resolver guards cross-buffet settings and storage paths.
 - The administrative assistant and WhatsApp attendant share a server-only Groq transport with Chat Completions tool-call handling and validated attendant JSON; this keeps provider parsing consistent without changing tenant-scoped memory or booking authorization.
 - All Evolution API operations use the linked custom connector through the shared server-only client; requiring both gateway credentials prevents stale direct-server settings from bypassing the connection selected in Lovable.
+- WhatsApp pipeline stages persist in the tenant-scoped conversation row; inbound intent advances atomically without regressions before AI generation, so provider failures cannot discard customer qualification.
