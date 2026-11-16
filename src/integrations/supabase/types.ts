@@ -1945,7 +1945,6 @@ export type Database = {
           lead_name: string | null
           needs_human: boolean
           phone: string | null
-          pipeline_stage: string
           remote_jid: string
           tenant_id: string
           unread_count: number
@@ -1966,7 +1965,6 @@ export type Database = {
           lead_name?: string | null
           needs_human?: boolean
           phone?: string | null
-          pipeline_stage?: string
           remote_jid: string
           tenant_id: string
           unread_count?: number
@@ -1987,7 +1985,6 @@ export type Database = {
           lead_name?: string | null
           needs_human?: boolean
           phone?: string | null
-          pipeline_stage?: string
           remote_jid?: string
           tenant_id?: string
           unread_count?: number
