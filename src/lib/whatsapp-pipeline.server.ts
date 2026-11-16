@@ -9,11 +9,13 @@ export async function moveWhatsappConversationPipelineStage(
   supabase: Admin,
   conversationId: string,
   stage: WhatsappPipelineStage,
+  tenantId: string,
 ) {
   const { data, error } = await supabase
     .from("whatsapp_conversations")
     .update({ pipeline_stage: stage })
     .eq("id", conversationId)
+    .eq("tenant_id", tenantId)
     .select("id")
     .maybeSingle();
 

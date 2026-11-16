@@ -7,6 +7,7 @@ import {
   groupWhatsappConversations,
   moveWhatsappConversationToStage,
   whatsappHumanRequested,
+  whatsappInboundPipelineStage,
   whatsappPipelineEarlierStageFilter,
   whatsappQuoteRequested,
   whatsappReplyIncludesProposalValue,
@@ -151,7 +152,7 @@ describe("WhatsApp pipeline", () => {
     );
   });
 
-  it("persists manual stage movement with only the id filter and RLS-scoped client", async () => {
+  it("persists manual movement under both conversation and tenant filters with an RLS client", async () => {
     const query: Record<string, any> = {};
     query.update = vi.fn(() => query);
     query.eq = vi.fn(() => query);
@@ -159,12 +160,13 @@ describe("WhatsApp pipeline", () => {
     query.maybeSingle = vi.fn().mockResolvedValue({ data: { id: "conversation-id" }, error: null });
     const supabase = { from: vi.fn(() => query) };
 
-    await moveWhatsappConversationPipelineStage(supabase, "conversation-id", "fechado");
+    await moveWhatsappConversationPipelineStage(supabase, "conversation-id", "fechado", "tenant-id");
 
     expect(supabase.from).toHaveBeenCalledWith("whatsapp_conversations");
     expect(query.update).toHaveBeenCalledWith({ pipeline_stage: "fechado" });
-    expect(query.eq).toHaveBeenCalledTimes(1);
-    expect(query.eq).toHaveBeenCalledWith("id", "conversation-id");
+    expect(query.eq).toHaveBeenCalledTimes(2);
+    expect(query.eq).toHaveBeenNthCalledWith(1, "id", "conversation-id");
+    expect(query.eq).toHaveBeenNthCalledWith(2, "tenant_id", "tenant-id");
     expect(query.select).toHaveBeenCalledWith("id");
   });
 
@@ -176,7 +178,7 @@ describe("WhatsApp pipeline", () => {
     query.maybeSingle = vi.fn().mockResolvedValue({ data: null, error: { message: "permission denied" } });
     const supabase = { from: vi.fn(() => query) };
 
-    await expect(moveWhatsappConversationPipelineStage(supabase, "conversation-id", "proposta"))
+    await expect(moveWhatsappConversationPipelineStage(supabase, "conversation-id", "proposta", "tenant-id"))
       .rejects.toThrow("permission denied");
   });
 
@@ -206,5 +208,57 @@ describe("WhatsApp pipeline", () => {
       { id: "one", pipeline_stage: "fechado" },
       { id: "two", pipeline_stage: "quente" },
     ]);
+  });
+
+  it("qualifies a customer choosing the event date as a hot lead", () => {
+    expect(whatsappInboundPipelineStage("Quero marcar minha festa para 10/12/2026")).toBe("quente");
+    expect(whatsappInboundPipelineStage("20/12/2026", "Qual data para sua festa?")).toBe("quente");
+    expect(whatsappInboundPipelineStage("Quero reservar a data")).toBe("quente");
+    expect(whatsappInboundPipelineStage("A festa será dia 20 de dezembro")).toBe("quente");
+  });
+
+  it("moves a customer's tasting request to the tasting/proposal column", () => {
+    expect(whatsappInboundPipelineStage("Quero agendar uma degustação dia 20")).toBe("proposta");
+  });
+
+  it("uses the previous question to interpret a short affirmative tasting response", () => {
+    expect(whatsappInboundPipelineStage("Sim!", "Gostaria de agendar uma degustação?")).toBe("proposta");
+  });
+
+  it("uses the previous question to interpret a short affirmative event response", () => {
+    expect(whatsappInboundPipelineStage("Pode marcar", "Gostaria de marcar a data da festa?")).toBe("quente");
+    expect(whatsappInboundPipelineStage("sim", "Você gostou da decoração?")).toBeNull();
+  });
+
+  it("does not move greetings or refusals into scheduling stages", () => {
+    expect(whatsappInboundPipelineStage("Bom dia")).toBeNull();
+    expect(whatsappInboundPipelineStage("Não quero agendar degustação")).toBeNull();
+    expect(whatsappInboundPipelineStage("Não quero marcar a festa para 10/12/2026")).toBeNull();
+    expect(whatsappInboundPipelineStage("Talvez", "Gostaria de agendar uma degustação?")).toBeNull();
+  });
+
+  it("requires a successful confirmed event tool result before automatically closing a conversation", () => {
+    const signals = {
+      hasEventDetails: true, requestedFormalQuote: false, sentProposalWithValues: false,
+      requestedTasting: false, tastingScheduled: false, humanHandoff: false, botPaused: false,
+    };
+    expect(whatsappPipelineStageFromSignals({ ...signals, eventConfirmed: false })).toBe("quente");
+    expect(whatsappPipelineStageFromSignals({ ...signals, eventConfirmed: true })).toBe("fechado");
+  });
+
+  it("never regresses a manually advanced stage for a new customer reply", async () => {
+    const stored = { id: "conversation-id", tenant_id: "tenant-id", pipeline_stage: "proposta" };
+    let proposedStage: string | null = null;
+    const query: Record<string, any> = {};
+    query.update = vi.fn((patch) => { proposedStage = patch.pipeline_stage; return query; });
+    query.eq = vi.fn(() => query);
+    query.or = vi.fn((filter: string) => {
+      if (filter.includes(`pipeline_stage.eq.${stored.pipeline_stage}`) && proposedStage) {
+        stored.pipeline_stage = proposedStage;
+      }
+      return Promise.resolve({ error: null });
+    });
+    await advanceWhatsappConversationPipelineStage({ from: () => query }, stored.id, stored.tenant_id, "quente");
+    expect(stored.pipeline_stage).toBe("proposta");
   });
 });

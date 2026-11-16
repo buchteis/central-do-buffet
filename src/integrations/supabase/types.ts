@@ -1932,6 +1932,7 @@ export type Database = {
       whatsapp_conversations: {
         Row: {
           bot_paused: boolean
+          budget: string | null
           contact_name: string | null
           created_at: string
           event_date: string | null
@@ -1945,6 +1946,7 @@ export type Database = {
           lead_name: string | null
           needs_human: boolean
           phone: string | null
+          pipeline_stage: string
           remote_jid: string
           tenant_id: string
           unread_count: number
@@ -1952,6 +1954,7 @@ export type Database = {
         }
         Insert: {
           bot_paused?: boolean
+          budget?: string | null
           contact_name?: string | null
           created_at?: string
           event_date?: string | null
@@ -1965,6 +1968,7 @@ export type Database = {
           lead_name?: string | null
           needs_human?: boolean
           phone?: string | null
+          pipeline_stage?: string
           remote_jid: string
           tenant_id: string
           unread_count?: number
@@ -1972,6 +1976,7 @@ export type Database = {
         }
         Update: {
           bot_paused?: boolean
+          budget?: string | null
           contact_name?: string | null
           created_at?: string
           event_date?: string | null
@@ -1985,6 +1990,7 @@ export type Database = {
           lead_name?: string | null
           needs_human?: boolean
           phone?: string | null
+          pipeline_stage?: string
           remote_jid?: string
           tenant_id?: string
           unread_count?: number
@@ -2109,6 +2115,67 @@ export type Database = {
           },
           {
             foreignKeyName: "whatsapp_messages_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      whatsapp_pre_reservations: {
+        Row: {
+          conversation_id: string
+          created_at: string
+          event_date: string
+          id: string
+          name: string
+          package_id: string
+          phone: string
+          status: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          conversation_id: string
+          created_at?: string
+          event_date: string
+          id?: string
+          name: string
+          package_id: string
+          phone: string
+          status?: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          conversation_id?: string
+          created_at?: string
+          event_date?: string
+          id?: string
+          name?: string
+          package_id?: string
+          phone?: string
+          status?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_pre_reservations_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_pre_reservations_package_id_fkey"
+            columns: ["package_id"]
+            isOneToOne: false
+            referencedRelation: "packages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_pre_reservations_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"

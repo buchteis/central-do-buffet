@@ -78,6 +78,13 @@
       "when": 1794132000000,
       "tag": "0010_whatsapp_conversation_pipeline_stage",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1794862708125,
+      "tag": "0011_persist_whatsapp_pipeline_stage",
+      "breakpoints": true
     }
   ]
 }

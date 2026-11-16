@@ -11,6 +11,8 @@ export const WHATSAPP_PIPELINE_ORDER: readonly WhatsappPipelineStage[] = WHATSAP
 
 export type WhatsappPipelineSignals = {
   hasEventDetails: boolean;
+  requestedBooking?: boolean;
+  eventConfirmed?: boolean;
   requestedFormalQuote: boolean;
   sentProposalWithValues: boolean;
   requestedTasting: boolean;
@@ -27,7 +29,32 @@ export function whatsappQuoteRequested(message: string): boolean {
   return /\b(?:orçamento|orcamento|cotação|cotacao|proposta formal|enviar proposta|mande a proposta)\b/i.test(text);
 }
 
-export function whatsappTastingRequested(message: string): boolean {
+function normalizedMessage(message: string) {
+  return message.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+}
+
+function positiveSchedulingAnswer(message: string) {
+  return /^(?:sim|isso|isso mesmo|pode ser|pode marcar|pode agendar|confirmo|quero sim)[.!\s]*$/.test(message);
+}
+
+export function whatsappBookingRequested(message: string, previousReply = ""): boolean {
+  const text = normalizedMessage(message);
+  if (/\b(?:nao|talvez|ainda nao)\b/.test(text)) return false;
+  const date = /\b\d{4}-\d{2}-\d{2}\b|\b\d{1,2}[/-]\d{1,2}(?:[/-]\d{2,4})?\b|\bdia\s+\d{1,2}\b|\b\d{1,2}\s+de\s+(?:janeiro|fevereiro|marco|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)\b/;
+  if (date.test(text)) return true;
+  if (/\b(?:agendar|marcar|reservar|confirmar|fechar)\b/.test(text) &&
+      /\b(?:evento|festa|data|pacote|aniversario|casamento|reserva)\b/.test(text)) return true;
+  const previous = normalizedMessage(previousReply);
+  return positiveSchedulingAnswer(text) && /[?]/.test(previousReply) &&
+    /\b(?:agendar|marcar|reservar|confirmar|fechar|qual data|que dia)\b/.test(previous) &&
+    /\b(?:evento|festa|data|pacote|aniversario|casamento|reserva)\b/.test(previous);
+}
+
+export function whatsappTastingRequested(message: string, previousReply = ""): boolean {
+  const normalized = normalizedMessage(message);
+  if (/\bnao\b/.test(normalized)) return false;
+  if (positiveSchedulingAnswer(normalized) && previousReply.includes("?") &&
+      /\bdegustacao\b/.test(normalizedMessage(previousReply))) return true;
   const text = message.toLocaleLowerCase("pt-BR");
   if (/\b(?:não|nao)\b.{0,30}\b(?:quero|preciso|gostaria|solicito|fazer|agendar|marcar)\b.{0,20}\b(?:degustação|degustacao|prova)\b/i.test(text)) {
     return false;
@@ -67,10 +94,24 @@ export function whatsappPipelineStage(stage: string | null | undefined): Whatsap
 export function whatsappPipelineStageFromSignals(
   signals: WhatsappPipelineSignals,
 ): WhatsappPipelineStage | null {
+  if (signals.eventConfirmed) return "fechado";
   if (signals.humanHandoff || signals.botPaused) return "humano";
   if (signals.sentProposalWithValues || signals.requestedTasting || signals.tastingScheduled) return "proposta";
-  if (signals.hasEventDetails || signals.requestedFormalQuote) return "quente";
+  if (signals.hasEventDetails || signals.requestedFormalQuote || signals.requestedBooking) return "quente";
   return null;
+}
+
+export function whatsappInboundPipelineStage(message: string, previousReply = ""): WhatsappPipelineStage | null {
+  return whatsappPipelineStageFromSignals({
+    hasEventDetails: false,
+    requestedBooking: whatsappBookingRequested(message, previousReply),
+    requestedFormalQuote: whatsappQuoteRequested(message),
+    sentProposalWithValues: false,
+    requestedTasting: whatsappTastingRequested(message, previousReply),
+    tastingScheduled: false,
+    humanHandoff: whatsappHumanRequested(message),
+    botPaused: false,
+  });
 }
 
 export function whatsappPipelineEarlierStageFilter(stage: WhatsappPipelineStage): string {

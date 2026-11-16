@@ -233,7 +233,8 @@ export const moveWhatsappConversationPipelineStage = createServerFn({ method: "P
   )
   .handler(async ({ data, context }) => {
     const { moveWhatsappConversationPipelineStage } = await import("./whatsapp-pipeline.server");
-    await moveWhatsappConversationPipelineStage(context.supabase, data.conversationId, data.stage);
+    const tenantId = await myTenantId(context.supabase);
+    await moveWhatsappConversationPipelineStage(context.supabase, data.conversationId, data.stage, tenantId);
     return { ok: true as const };
   });
 
