@@ -1,5 +1,7 @@
 # Atendente WhatsApp
-- [ ] Vincular o servidor Evolution por conexão segura.
+- [x] Vincular e ativar o conector personalizado Evolution API Central do Buffet neste projeto.
+- [x] Integrar a conexão vinculada a todas as chamadas Evolution do atendente, sem utilizar credenciais antigas de acesso direto.
+- [ ] Verificar a conexão real e o recebimento/resposta do atendente usando o conector vinculado.
 - [ ] Corrigir conexão, estados e erros do atendente existente.
 - [ ] Conferir isolamento por buffet e recebimento de mensagens.
 - [ ] Executar testes e conferir a página no computador e celular.
