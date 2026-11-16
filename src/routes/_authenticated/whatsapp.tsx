@@ -763,6 +763,12 @@ function WhatsappPipelineCard({
         {conversation.lead_name || conversation.contact_name || conversationContact(conversation)}
       </div>
       <div className="mt-0.5 truncate text-[11px] text-muted-foreground">{conversationContact(conversation)}</div>
+      {conversation.last_message_preview && (
+        <div className="mt-1.5 line-clamp-2 text-xs text-foreground/80">
+          💬 {conversation.last_message_preview}
+          <span className="ml-1 text-[10px] text-muted-foreground">· {timeAgo(conversation.last_message_at)}</span>
+        </div>
+      )}
       {conversation.event_type && (
         <div className="mt-2 truncate text-xs text-muted-foreground">🎉 {conversation.event_type}</div>
       )}
@@ -817,10 +823,12 @@ function Thread({
         .from("whatsapp_messages")
         .select("id, direction, sender, body, created_at, reply_status")
         .eq("conversation_id", conv.id)
-        .order("created_at", { ascending: true })
+        .order("created_at", { ascending: false })
+        .order("id", { ascending: false })
         .limit(300);
       if (error) throw error;
-      return (data ?? []) as any[];
+      // Busca as 300 mais recentes e exibe em ordem cronológica (antigas em cima, novas embaixo).
+      return ((data ?? []) as any[]).slice().reverse();
     },
     refetchInterval: 4000,
   });

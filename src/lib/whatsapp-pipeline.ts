@@ -132,6 +132,9 @@ export function groupWhatsappConversations<T extends WhatsappPipelineConversatio
   for (const conversation of conversations) {
     grouped[whatsappPipelineStage(conversation.pipeline_stage)].push(conversation);
   }
+  // Regra: em cada coluna, a conversa com a mensagem mais nova fica no topo.
+  const time = (c: T) => Date.parse(String((c as { last_message_at?: string | null }).last_message_at ?? "")) || 0;
+  for (const stage of Object.keys(grouped) as WhatsappPipelineStage[]) grouped[stage].sort((a, b) => time(b) - time(a));
 
   return grouped;
 }
