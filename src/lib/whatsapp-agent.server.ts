@@ -49,33 +49,6 @@ export function parseAgentResult(text: string): AgentResult {
   }
 }
 
-const RESULT_SCHEMA = {
-  type: "object",
-  additionalProperties: false,
-  required: ["reply", "handoff", "handoff_reason", "lead"],
-  properties: {
-    reply: { type: "string", description: "Mensagem a enviar ao cliente no WhatsApp." },
-    handoff: {
-      type: "boolean",
-      description:
-        "true somente quando o cliente pede expressamente uma pessoa, pede desconto excepcional fora da tabela ou faz pergunta específica que você realmente não consegue responder.",
-    },
-    handoff_reason: { type: ["string", "null"], description: "Motivo curto do encaminhamento ao dono." },
-    lead: {
-      type: "object",
-      additionalProperties: false,
-      required: ["name", "event_type", "event_date", "guest_count", "budget"],
-      properties: {
-        name: { type: ["string", "null"] },
-        event_type: { type: ["string", "null"] },
-        event_date: { type: ["string", "null"], description: "Data desejada como o cliente informou." },
-        guest_count: { type: ["integer", "null"] },
-        budget: { type: ["string", "null"], description: "Orçamento máximo informado pelo cliente." },
-      },
-    },
-  },
-} as const;
-
 const AGENT_TOOLS = [
   {
     type: "function",
