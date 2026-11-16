@@ -1,3 +1,8 @@
+# Pipeline do atendente WhatsApp
+- [ ] Corrigir a persistência das etapas manuais sem retornar para Novos.
+- [ ] Identificar intenção de marcar data e degustação nas respostas do cliente e avançar automaticamente, sem regredir etapas.
+- [ ] Testar regras, isolamento por buffet e movimentação com recarregamento na página autenticada.
+
 # Atendente WhatsApp
 - [x] Vincular e ativar o conector personalizado Evolution API Central do Buffet neste projeto.
 - [x] Integrar a conexão vinculada a todas as chamadas Evolution do atendente, sem utilizar credenciais antigas de acesso direto.
