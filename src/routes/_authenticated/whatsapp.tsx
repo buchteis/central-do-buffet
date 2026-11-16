@@ -54,6 +54,13 @@ export const Route = createFileRoute("/_authenticated/whatsapp")({
         name: "description",
         content: "Conecte o WhatsApp do seu buffet e deixe o atendente virtual responder os clientes.",
       },
+      { property: "og:title", content: "Atendente WhatsApp — Central do Buffet" },
+      {
+        property: "og:description",
+        content: "Conecte o WhatsApp do seu buffet e deixe o atendente virtual responder os clientes.",
+      },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: WhatsappPage,

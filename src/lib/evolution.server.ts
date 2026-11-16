@@ -1,14 +1,16 @@
 // Evolution API (self-hosted WhatsApp) client — server only.
-// Needs EVOLUTION_API_URL (e.g. https://evo.seudominio.com) and EVOLUTION_API_KEY (global apikey).
+// The custom connector owns the upstream URL and credentials; never bypass it.
 import QRCode from "qrcode";
 
 export const WEBHOOK_EVENTS = ["MESSAGES_UPSERT", "CONNECTION_UPDATE", "QRCODE_UPDATED"];
 
-export function evolutionConfig(): { url: string; key: string } | null {
-  const url = (process.env["EVOLUTION_API_URL"] ?? "").trim().replace(/\/+$/, "");
-  const key = (process.env["EVOLUTION_API_KEY"] ?? "").trim();
-  if (!/^https?:\/\//.test(url) || !key) return null;
-  return { url, key };
+const GATEWAY_URL = "https://connector-gateway.lovable.dev/udc_evolution_api_central_do_buffet";
+
+export function evolutionConfig(): { url: string; key: string; gatewayKey: string } | null {
+  const gatewayKey = (process.env["LOVABLE_API_KEY"] ?? "").trim();
+  const key = (process.env["UDC_EVOLUTION_API_CENTRAL_DO_BUFFET_API_KEY"] ?? "").trim();
+  if (!gatewayKey || !key) return null;
+  return { url: GATEWAY_URL, key, gatewayKey };
 }
 
 export function publicAppOrigin(): string {
@@ -49,13 +51,17 @@ async function call<T = any>(method: string, path: string, body?: unknown): Prom
   if (!cfg) throw new EvolutionError("Servidor de WhatsApp não configurado.", 0, "");
   const res = await fetch(`${cfg.url}${path}`, {
     method,
-    headers: { "Content-Type": "application/json", apikey: cfg.key },
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${cfg.gatewayKey}`,
+      "X-Connection-Api-Key": cfg.key,
+    },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   const text = await res.text();
   if (!res.ok) {
     console.error(`Evolution ${method} ${path} failed [${res.status}]: ${text.slice(0, 500)}`);
-    throw new EvolutionError(`Evolution respondeu ${res.status}`, res.status, text);
+    throw new EvolutionError(`Evolution respondeu ${res.status}: ${text}`, res.status, text);
   }
   try {
     return (text ? JSON.parse(text) : {}) as T;
