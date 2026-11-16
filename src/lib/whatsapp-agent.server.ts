@@ -857,7 +857,6 @@ export async function runAgent(
         })),
         tool_choice: "auto",
         max_tokens: 1200,
-        response_format: { type: "json_object" },
     });
     const calls = res.message.tool_calls ?? [];
     if (!calls.length) {
@@ -1007,7 +1006,6 @@ export async function replyToInbound(admin: Admin, instance: any, messageId: str
     event_type: lead.event_type ?? conv.event_type,
     event_date: lead.event_date ?? conv.event_date,
     guest_count: Number.isInteger(lead.guest_count) ? lead.guest_count : conv.guest_count,
-    budget: lead.budget ?? conv.budget,
   };
   if (humanHandoff) {
     Object.assign(convUpdate, {
