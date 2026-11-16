@@ -327,7 +327,27 @@ async function buildContext(supabase: any, userId: string) {
 
   };
 
-  return { tenant, summary: JSON.stringify(context, null, 2) };
+  return { tenant, summary: JSON.stringify(compactContext(context)) };
+}
+
+// Remove campos vazios e corta listas longas para reduzir tokens enviados à IA.
+export function compactContext(value: unknown, depth = 0): unknown {
+  if (Array.isArray(value)) {
+    const items = value.slice(0, depth <= 1 ? 25 : 8).map((v) => compactContext(v, depth + 1))
+      .filter((v) => v !== undefined);
+    return items.length ? items : undefined;
+  }
+  if (value && typeof value === "object") {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value)) {
+      const c = compactContext(v, depth + 1);
+      if (c !== undefined) out[k] = c;
+    }
+    return Object.keys(out).length ? out : undefined;
+  }
+  if (value === null || value === "" ) return undefined;
+  if (typeof value === "string") return value.length > 300 ? value.slice(0, 300) : value;
+  return value;
 }
 
 function safeWhatsappText(value: unknown, maxLength: number) {

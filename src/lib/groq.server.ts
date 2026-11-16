@@ -85,6 +85,14 @@ function trimMessagesForFreeTier(messages: GroqMessage[]): GroqMessage[] {
   return [...systemMessages, ...chatMessages];
 }
 
+export function retryDelayMs(response: Response, text: string): number {
+  const header = Number(response.headers.get("retry-after"));
+  let ms = Number.isFinite(header) && header > 0 ? header * 1000 : 0;
+  const m = text.match(/try again in ([\d.]+)(ms|s)/i);
+  if (m) ms = Number(m[1]) * (m[2].toLowerCase() === "ms" ? 1 : 1000);
+  return Math.min(Math.max(ms || 1500, 300) + 250, 15000);
+}
+
 async function completeGroqRequest(
   request: GroqRequest,
   apiKey: string,
