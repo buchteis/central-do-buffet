@@ -585,7 +585,7 @@ function FiscalSettingsTab() {
         </button>
       </div>
 
-      <style>{`.inp{width:100%;height:40px;padding:0 12px;border:1px solid hsl(var(--border));border-radius:8px;background:hsl(var(--background));font-size:14px}`}</style>
+      <style>{`.inp{width:100%;height:40px;padding:0 12px;border:1px solid var(--field-border);border-radius:8px;background:var(--field);color:var(--foreground);font-size:14px}`}</style>
     </div>
   );
 }
