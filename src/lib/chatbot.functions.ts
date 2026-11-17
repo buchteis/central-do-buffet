@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
+import { selectAssistantContext } from "./assistant-context";
 
 const InputSchema = z.object({
   message: z.string().trim().min(1).max(2000),
@@ -11,12 +12,11 @@ const InputSchema = z.object({
         content: z.string(),
       }),
     )
-    .max(20)
     .optional()
     .default([]),
 });
 
-async function buildContext(supabase: any, userId: string) {
+async function buildContext(supabase: any, userId: string, topic: string) {
   // Tenant
   const { data: tenant } = await supabase
     .from("tenants")
@@ -289,6 +289,7 @@ async function buildContext(supabase: any, userId: string) {
       orcamentos_fechados: quotes.filter((q: any) => q.status === "fechado").length,
       faturamento_total_pago: faturamentoTotal,
       faturamento_mes_atual: faturamentoMes,
+      total_pacotes: packages.length,
       total_avaliacoes: feedbacks.length,
       nps_medio: feedbacks.length
         ? Number((feedbacks.reduce((s, f) => s + Number(f.nps_score || 0), 0) / feedbacks.length).toFixed(1))
@@ -327,7 +328,10 @@ async function buildContext(supabase: any, userId: string) {
 
   };
 
-  return { tenant, summary: JSON.stringify(compactContext(context)) };
+  const selected = selectAssistantContext(context, topic);
+  const compact = compactContext(selected) as Record<string, unknown>;
+  if ("pacotes" in selected) compact.pacotes = context.pacotes;
+  return { tenant, summary: JSON.stringify(compact) };
 }
 
 // Remove campos vazios e corta listas longas para reduzir tokens enviados à IA.
@@ -411,7 +415,8 @@ export const chatWithAssistant = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: unknown) => InputSchema.parse(data))
   .handler(async ({ data, context }) => {
-    const { tenant, summary } = await buildContext(context.supabase, context.userId);
+    const recentTopic = [...data.history.slice(-2).map((message) => message.content), data.message].join("\n");
+    const { tenant, summary } = await buildContext(context.supabase, context.userId, recentTopic);
     if (!tenant) {
       return {
         reply: "Não encontrei um buffet vinculado à sua conta. Verifique se seu cadastro foi aprovado.",
@@ -451,7 +456,17 @@ ${summary}`;
       const res = await completeGroq({ messages });
       reply = res.text;
     } catch (e) {
-      if (e instanceof GroqError) return { reply: e.message };
+      if (e instanceof GroqError) {
+        if (e.status === 429) {
+          const seconds = Math.ceil((e.retryAfterMs ?? 1750) / 1000);
+          return {
+            requestError: true,
+            retryAfterMs: e.retryAfterMs ?? 1750,
+            reply: `A Groq atingiu o limite de uso da conta. Aguarde ${seconds} segundos e envie sua pergunta novamente. Para aumentar a cota de tokens por minuto, o titular precisa ajustar o plano ou os limites na Groq.`,
+          };
+        }
+        return { requestError: true, reply: "Não consegui consultar a IA neste momento. Sua pergunta foi preservada; tente novamente mais tarde." };
+      }
       console.error("Groq assistant request failed");
       throw new Error("Falha ao consultar a IA.");
     }

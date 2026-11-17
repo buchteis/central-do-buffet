@@ -8,6 +8,7 @@ import { parseInvoiceFile, commitInvoiceStockEntry } from "@/lib/nf-stock.functi
 import { suggestEventStaffing, assignEventStaffing } from "@/lib/staffing.functions";
 import { Flame, Paperclip } from "lucide-react";
 import { useNotificationState } from "@/hooks/useNotificationState";
+import { assistantHistory } from "@/lib/assistant-context";
 
 type NfReview = {
   header: any;
@@ -36,6 +37,7 @@ type StaffingReview = {
 type Msg = {
   role: "user" | "assistant";
   content: string;
+  requestError?: boolean;
   alertId?: string;
   review?: NfReview;
   staffing?: StaffingReview;
@@ -447,23 +449,23 @@ export const Chatbot = () => {
       return;
     }
 
-    const history = messages
-      .filter((m) => m.role === "user" || m.role === "assistant")
-      .slice(-10)
-      .map((m) => ({ role: m.role, content: m.content }));
+    const history = assistantHistory(messages);
     setMessages((p) => [...p, { role: "user", content: text }]);
     setInput("");
     setIsLoading(true);
 
     try {
       const res = await chat({ data: { message: text, history } });
-      setMessages((p) => [...p, { role: "assistant", content: res.reply }]);
+      const requestError = "requestError" in res && res.requestError === true;
+      setMessages((p) => [...p, { role: "assistant", content: res.reply, requestError }]);
+      if (requestError) setInput((current) => current || text);
     } catch (e: any) {
       console.error(e);
       setMessages((p) => [
         ...p,
-        { role: "assistant", content: "❌ Erro ao consultar o assistente. Tente novamente." },
+        { role: "assistant", content: "❌ Erro ao consultar o assistente. Tente novamente.", requestError: true },
       ]);
+      setInput((current) => current || text);
     } finally {
       setIsLoading(false);
     }

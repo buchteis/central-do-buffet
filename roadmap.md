@@ -1,3 +1,9 @@
+# Limite de tokens do assistente
+- [x] Tratar o erro 429 respeitando o tempo de espera da Groq e sem mostrar o erro técnico como resposta.
+- [x] Reduzir os dados irrelevantes enviados à IA, preservando a pergunta, o histórico e os dados necessários.
+- [x] Validar 26 testes e as perguntas reais de quantidade e listagem de pacotes no assistente autenticado.
+- [ ] Aumentar a cota de tokens por minuto: depende da alteração dos limites/plano da conta Groq pelo titular; não é configurável no código.
+
 # Pipeline do atendente WhatsApp
 - [x] Corrigir a persistência das etapas manuais sem retornar para Novos.
 - [x] Identificar intenção de marcar data e degustação nas respostas do cliente e avançar automaticamente, sem regredir etapas, inclusive antes de possíveis falhas de IA.

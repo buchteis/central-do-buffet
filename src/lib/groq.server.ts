@@ -1,6 +1,6 @@
 // Server-only transport shared by the assistant and WhatsApp attendant.
 export const GROQ_BASE_URL = "https://api.groq.com/openai/v1";
-// O qwen/qwen3.8-27b costuma ter teto maior de tokens por minuto no plano gratuito
+// Provider account limits are configured at Groq, not through max_tokens.
 export const GROQ_MODEL = "qwen/qwen3.8-27b";
 
 export type GroqToolCall = {
@@ -26,7 +26,7 @@ function safeErrorDetail(value: string, apiKey: string): string {
 }
 
 export class GroqError extends Error {
-  constructor(public readonly status: number, detail = "Resposta vazia do provedor.", apiKey = "") {
+  constructor(public readonly status: number, detail = "Resposta vazia do provedor.", apiKey = "", public readonly retryAfterMs: number | null = null) {
     const safeDetail = safeErrorDetail(detail, apiKey);
     super(`Erro Groq ${status}: ${safeDetail || "Resposta vazia do provedor."}`);
     this.name = "GroqError";
@@ -74,23 +74,17 @@ type GroqRequest = {
 
 type GroqResult = { text: string; message: GroqMessage; finishReason: string | null };
 
-// Trava de segurança: mantém a instrução inicial (system) e apenas as últimas 6 mensagens,
-// cortando textos gigantes para não ultrapassar o limite gratuito da Groq.
-function trimMessagesForFreeTier(messages: GroqMessage[]): GroqMessage[] {
-  const systemMessages = messages.filter((m) => m.role === "system").map((m) => ({
-    ...m,
-    content: typeof m.content === "string" ? m.content.slice(0, 12000) : m.content,
-  }));
-  const chatMessages = messages.filter((m) => m.role !== "system").slice(-6);
-  return [...systemMessages, ...chatMessages];
-}
-
 export function retryDelayMs(response: Response, text: string): number {
-  const header = Number(response.headers.get("retry-after"));
-  let ms = Number.isFinite(header) && header > 0 ? header * 1000 : 0;
-  const m = text.match(/try again in ([\d.]+)(ms|s)/i);
-  if (m) ms = Number(m[1]) * (m[2].toLowerCase() === "ms" ? 1 : 1000);
-  return Math.min(Math.max(ms || 1500, 300) + 250, 15000);
+  const rawHeader = response.headers.get("retry-after");
+  const seconds = Number(rawHeader);
+  const headerMs = Number.isFinite(seconds) && seconds > 0
+    ? seconds * 1000
+    : rawHeader ? Math.max(0, Date.parse(rawHeader) - Date.now()) : 0;
+  const match = text.match(/try again in\s+(?:(\d+)h)?\s*(?:(\d+)m(?!s))?\s*(?:([\d.]+)(ms|s))?/i);
+  const bodyMs = match
+    ? Number(match[1] || 0) * 3600000 + Number(match[2] || 0) * 60000 + Number(match[3] || 0) * (match[4]?.toLowerCase() === "ms" ? 1 : 1000)
+    : 0;
+  return Math.max(headerMs || 0, bodyMs, 300, (!headerMs && !bodyMs) ? 1500 : 0) + 250;
 }
 
 async function completeGroqRequest(
@@ -99,7 +93,7 @@ async function completeGroqRequest(
 ): Promise<GroqResult> {
   const safeRequest: GroqRequest = {
     ...request,
-    messages: trimMessagesForFreeTier(request.messages),
+    messages: request.messages,
     max_tokens: Math.min(request.max_tokens ?? 1024, 1500),
   };
 
@@ -110,7 +104,8 @@ async function completeGroqRequest(
   });
   if (!response.ok) {
     const errorMessage = await response.text();
-    throw new GroqError(response.status, errorMessage, apiKey);
+    throw new GroqError(response.status, errorMessage, apiKey,
+      response.status === 429 ? retryDelayMs(response, errorMessage) : null);
   }
   const result: unknown = await response.json();
   const payload = record(result);
@@ -149,5 +144,17 @@ async function completeGroqRequest(
 export async function completeGroq(request: GroqRequest): Promise<GroqResult> {
   const apiKey = process.env.GROQ_API_KEY || process.env.OPENAI_API_KEY;
   if (!apiKey) throw new Error("A chave da Groq não está configurada em GROQ_API_KEY nem OPENAI_API_KEY.");
-  return completeGroqRequest(request, apiKey);
+  let waitedMs = 0;
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await completeGroqRequest(request, apiKey);
+    } catch (error) {
+      // A rejected rate-limit request is safe to retry; unknown outcomes are not.
+      if (!(error instanceof GroqError) || error.status !== 429 || attempt >= 3) throw error;
+      const delay = error.retryAfterMs ?? 1750;
+      if (delay > 15000 || waitedMs + delay > 45000) throw error;
+      waitedMs += delay;
+      await new Promise<void>((resolve) => setTimeout(resolve, delay));
+    }
+  }
 }
