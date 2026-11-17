@@ -63,6 +63,15 @@ export function whatsappTastingRequested(message: string, previousReply = ""): b
     /\b(?:quero|gostaria|podemos|pode|poderia|agendar|marcar|reservar|solicitar|fazer|conhecer|visitar)\b/i.test(text);
 }
 
+export function whatsappClosingIntent(message: string): boolean {
+  const text = message.toLocaleLowerCase("pt-BR");
+  if (/\b(?:não|nao)\s+(?:quero|vou|vamos)\s+(?:fechar|contratar)\b/i.test(text)) return false;
+  return /\b(?:quero|vou|vamos|podemos|pode|gostaria de|bora)\s+(?:fechar|contratar|reservar)\b/i.test(text) ||
+    /\b(?:fechado|fechamos|negócio fechado|negocio fechado)\b/i.test(text) ||
+    /\b(?:como|onde)\s+(?:faço|faco)\s+(?:para|pra)\s+(?:pagar|fechar|contratar)\b/i.test(text) ||
+    /\b(?:manda|mande|envia|envie)\s+(?:o\s+)?(?:contrato|pix)\b/i.test(text);
+}
+
 export function whatsappHumanRequested(message: string): boolean {
   const text = message.toLocaleLowerCase("pt-BR");
   if (/\b(?:não|nao)\s+(?:quero|preciso|gostaria|prefiro)\s+(?:de\s+)?(?:falar|conversar)\s+(?:com\s+)?(?:uma?\s+)?(?:pessoa|humano|atendente|alguém|alguem|equipe)\b/i.test(text)) {

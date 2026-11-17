@@ -280,7 +280,7 @@ export async function buildBuffetKnowledge(admin: Admin, tenantId: string) {
     tenant,
     settings,
     knowledge: {
-      buffet: settings?.business_name || tenant?.name || "o buffet",
+      buffet: tenant?.name?.trim() || settings?.business_name?.trim() || "o buffet",
       cidade: tenant?.city ?? null,
       endereco: settings?.address ?? null,
       telefone: settings?.phone ?? tenant?.contact_phone ?? null,

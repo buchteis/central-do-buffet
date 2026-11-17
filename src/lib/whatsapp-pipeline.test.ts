@@ -262,3 +262,15 @@ describe("WhatsApp pipeline", () => {
     expect(stored.pipeline_stage).toBe("proposta");
   });
 });
+
+import { whatsappClosingIntent } from "./whatsapp-pipeline";
+describe("whatsappClosingIntent", () => {
+  it("detecta intenção de fechar", () => {
+    expect(whatsappClosingIntent("Quero fechar a festa infantil")).toBe(true);
+    expect(whatsappClosingIntent("como faço para pagar?")).toBe(true);
+  });
+  it("ignora negação e perguntas", () => {
+    expect(whatsappClosingIntent("não quero fechar ainda")).toBe(false);
+    expect(whatsappClosingIntent("quanto custa para 50 crianças?")).toBe(false);
+  });
+});
