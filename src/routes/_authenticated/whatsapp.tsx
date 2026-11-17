@@ -8,6 +8,7 @@ import {
   Bot,
   CalendarDays,
   CheckCircle2,
+  Inbox,
   LayoutGrid,
   Loader2,
   MessageCircle,
@@ -656,8 +657,9 @@ function WhatsappPipelineBoard({
           </div>
         ))}
         {mobileCards.length === 0 && (
-          <div className="rounded-xl border border-dashed border-border py-8 text-center text-xs text-muted-foreground">
-            Nenhuma conversa nesta etapa.
+          <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border px-4 py-10 text-center">
+            <Inbox className="size-8 text-muted-foreground/40" aria-hidden="true" />
+            <span className="text-xs text-muted-foreground">Nenhuma conversa nesta etapa.</span>
           </div>
         )}
       </div>
@@ -695,7 +697,7 @@ function WhatsappPipelineBoard({
                   {grouped[column.id].length} conversa(s)
                 </div>
               </div>
-              <div className="flex-1 space-y-2 overflow-y-auto p-2">
+              <div className="flex flex-1 flex-col gap-2 overflow-y-auto p-2">
                 {grouped[column.id].map((conversation) => (
                   <WhatsappPipelineCard
                     key={conversation.id}
@@ -708,7 +710,10 @@ function WhatsappPipelineBoard({
                   />
                 ))}
                 {grouped[column.id].length === 0 && (
-                  <div className="py-6 text-center text-[11px] text-muted-foreground">Arraste conversas para cá</div>
+                  <div className="flex flex-1 flex-col items-center justify-center gap-2 py-6 text-center">
+                    <Inbox className="size-8 text-muted-foreground/40" aria-hidden="true" />
+                    <span className="text-xs text-muted-foreground">Arraste conversas para cá</span>
+                  </div>
                 )}
               </div>
             </div>
@@ -754,25 +759,25 @@ function WhatsappPipelineCard({
       onDragEnd={onDragEnd}
       onClick={onOpen}
       className={cn(
-        "w-full select-none rounded-xl border border-border bg-card p-3 text-left shadow-sm transition-all duration-200",
+        "w-full shrink-0 select-none rounded-xl border border-border bg-card p-4 text-left shadow-sm transition-all duration-200",
         "cursor-pointer hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-lg active:cursor-grabbing",
         dragging && "rotate-1 opacity-40 shadow-xl",
       )}
     >
-      <div className="truncate text-sm font-semibold">
+      <div className="truncate text-base font-bold leading-snug tracking-tight">
         {conversation.lead_name || conversation.contact_name || conversationContact(conversation)}
       </div>
-      <div className="mt-0.5 truncate text-[11px] text-muted-foreground">{conversationContact(conversation)}</div>
+      <div className="mt-1 truncate text-[11px] text-muted-foreground">{conversationContact(conversation)}</div>
       {conversation.last_message_preview && (
-        <div className="mt-1.5 line-clamp-2 text-xs text-foreground/80">
+        <div className="mt-2 line-clamp-2 text-xs text-foreground/80">
           💬 {conversation.last_message_preview}
           <span className="ml-1 text-[10px] text-muted-foreground">· {timeAgo(conversation.last_message_at)}</span>
         </div>
       )}
       {conversation.event_type && (
-        <div className="mt-2 truncate text-xs text-muted-foreground">🎉 {conversation.event_type}</div>
+        <div className="mt-2.5 truncate text-xs text-muted-foreground">🎉 {conversation.event_type}</div>
       )}
-      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+      <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
         {conversation.event_date && (
           <span className="inline-flex items-center gap-1">
             <CalendarDays className="size-3" /> {formatConversationDate(conversation.event_date)}
@@ -784,12 +789,14 @@ function WhatsappPipelineCard({
           </span>
         )}
       </div>
-      <div className="mt-2 flex items-center justify-between gap-2">
+      <div className="mt-3 flex flex-wrap items-center gap-2">
         <Badge variant={conversation.needs_human ? "destructive" : "secondary"} className="text-[10px]">
           {robotStatus}
         </Badge>
         {conversation.unread_count > 0 && (
-          <span className="text-[10px] font-semibold text-primary">{conversation.unread_count} nova(s)</span>
+          <span className="inline-flex items-center rounded-full bg-destructive/10 px-2 py-0.5 text-[10px] font-bold text-destructive">
+            {conversation.unread_count} nova(s)
+          </span>
         )}
       </div>
     </button>
