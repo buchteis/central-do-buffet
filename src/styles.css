@@ -200,6 +200,22 @@
   * {
     border-color: var(--color-border);
   }
+  /* Controles nativos (listas suspensas, seletores de data, barras de rolagem)
+     acompanham o tema — sem isso o popup do <select> fica claro com texto claro */
+  html {
+    color-scheme: light;
+  }
+  html.dark {
+    color-scheme: dark;
+  }
+  select {
+    color: var(--color-foreground);
+    background-color: var(--color-field);
+  }
+  select option {
+    color: var(--color-foreground);
+    background-color: var(--color-card);
+  }
   html,
   body {
     max-width: 100%;
