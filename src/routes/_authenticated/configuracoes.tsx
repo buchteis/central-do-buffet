@@ -103,7 +103,7 @@ function SettingsPage() {
     <div className="space-y-6 max-w-3xl">
       <div>
         <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">Configurações</h1>
-        <p className="text-sm text-muted-foreground mt-1">Dados do buffet, PIX e modelos de mensagens</p>
+        <p className="text-sm text-muted-foreground mt-1">Dados do buffet, PIX, parcelas e contrato</p>
       </div>
 
       {access?.tenant?.slug && (
@@ -289,53 +289,9 @@ function SettingsPage() {
         </div>
       </Section>
 
-      <Section title="Modelos de mensagens (WhatsApp)">
-        <p className="text-xs text-muted-foreground">
-          Personalize o texto que será aberto no WhatsApp. Revise e envie a mensagem pelo próprio WhatsApp.
-          Variáveis disponíveis: {"{cliente}"}, {"{valor}"}, {"{data}"}, {"{hora}"}, {"{pix}"}, {"{link}"}.
-        </p>
-        <Field label="Envio de orçamento">
-          <textarea
-            rows={2}
-            value={f.wa_quote_template}
-            onChange={(e) => setF({ ...f, wa_quote_template: e.target.value })}
-            className="input min-h-[70px]"
-          />
-        </Field>
-        <Field label="Lembrete de evento">
-          <textarea
-            rows={2}
-            value={f.wa_reminder_template}
-            onChange={(e) => setF({ ...f, wa_reminder_template: e.target.value })}
-            className="input min-h-[70px]"
-          />
-        </Field>
-        <Field label="Envio de PIX">
-          <textarea
-            rows={2}
-            value={f.wa_pix_template}
-            onChange={(e) => setF({ ...f, wa_pix_template: e.target.value })}
-            className="input min-h-[70px]"
-          />
-        </Field>
-        <Field label="Envio de contrato">
-          <p className="mb-1 text-[11px] text-muted-foreground">
-            Variáveis: {"{cliente}"}, {"{acao}"} (assinatura ou consulta) e {"{link}"}.
-          </p>
-          <textarea
-            rows={2}
-            value={f.wa_contract_template}
-            onChange={(e) => setF({ ...f, wa_contract_template: e.target.value })}
-            placeholder={DEFAULT_WA_CONTRACT_TEMPLATE}
-            className="input min-h-[70px]"
-          />
-        </Field>
-      </Section>
-
       <Section title="Parcelas & Link de pagamento">
         <p className="text-xs text-muted-foreground">
-          Padrões usados ao gerar as parcelas do evento em Financeiro. Variáveis da mensagem: {"{cliente}"},{" "}
-          {"{parcela}"}, {"{valor}"}, {"{vencimento}"}, {"{data}"}, {"{pix}"}, {"{link}"}.
+          Padrões usados ao gerar as parcelas do evento em Financeiro.
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Field label="Nº padrão de parcelas">
@@ -359,15 +315,6 @@ function SettingsPage() {
             />
           </Field>
         </div>
-        <Field label="Mensagem de cobrança (WhatsApp)">
-          <textarea
-            rows={3}
-            value={f.wa_installment_template}
-            onChange={(e) => setF({ ...f, wa_installment_template: e.target.value })}
-            placeholder="Olá {cliente}! Segue o link para pagamento da {parcela} no valor de {valor}, com vencimento em {vencimento}: {link}"
-            className="input min-h-[80px]"
-          />
-        </Field>
       </Section>
 
       <Section title="Modelo de contrato">
