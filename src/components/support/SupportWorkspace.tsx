@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { getSupportMessages, sendSupportMessage } from "@/lib/support.functions";
 import { supportInboxOptions } from "@/lib/support-query";
 import { cn } from "@/lib/utils";
+import { SupportEmptyState } from "./SupportEmptyState";
 
 type Cursor = { createdAt: string; id: string } | null;
 
@@ -112,7 +113,7 @@ function SupportConversation({ tenantId, name, isAdmin }: { tenantId: string; na
         {messages.isPending && <div className="flex h-full items-center justify-center gap-2 text-sm text-muted-foreground"><Loader2 className="size-4 animate-spin" />Carregando mensagens…</div>}
         {messages.isError && <div className="py-6 text-center"><p className="mb-3 text-sm text-destructive">Não foi possível carregar as mensagens.</p><Button variant="outline" onClick={() => messages.refetch()}>Tentar novamente</Button></div>}
         {messages.hasNextPage && <div className="text-center"><Button variant="ghost" size="sm" disabled={messages.isFetchingNextPage} onClick={() => messages.fetchNextPage()}>Mensagens anteriores</Button></div>}
-        {rows.length === 0 && !messages.isPending && !messages.isError && <div className="flex h-full flex-col items-center justify-center gap-3 text-muted-foreground"><Headset className="size-9 opacity-50" /><p className="text-sm">Nenhuma mensagem ainda.</p></div>}
+        {rows.length === 0 && !messages.isPending && !messages.isError && <SupportEmptyState />}
         {rows.map((message) => {
           const own = isAdmin ? message.sender_role === "suporte" : message.sender_role === "buffet";
           return <div key={message.id} className={cn("flex", own ? "justify-end" : "justify-start")}>

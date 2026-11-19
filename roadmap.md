@@ -3,6 +3,10 @@
 - [ ] Salvar mensagens e respostas separadas por buffet, com acesso exclusivo do dono e do administrador.
 - [ ] Testar envio, resposta, persistência e bloqueio entre cadastros no computador e celular.
 
+# Animação nas mensagens
+- [ ] Reproduzir a ilustração e o texto do print no espaço vazio da conversa, com animação suave.
+- [ ] Conferir computador, celular e tema escuro sem interferir no envio de mensagens.
+
 # Limite de tokens do assistente
 - [x] Tratar o erro 429 respeitando o tempo de espera da Groq e sem mostrar o erro técnico como resposta.
 - [x] Reduzir os dados irrelevantes enviados à IA, preservando a pergunta, o histórico e os dados necessários.

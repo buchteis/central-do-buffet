@@ -245,6 +245,15 @@
   50% { transform: translate3d(0, -22px, 0) rotate(6deg); }
 }
 
+@keyframes support-empty-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+.support-empty-float { animation: support-empty-float 4s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .support-empty-float { animation: none; }
+}
+
 @keyframes wiggle {
   0%, 100% { transform: rotate(-4deg); }
   50% { transform: rotate(6deg); }
