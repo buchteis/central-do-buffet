@@ -1734,6 +1734,41 @@ export type Database = {
           },
         ]
       }
+      support_messages: {
+        Row: {
+          body: string
+          created_at: string
+          id: string
+          sender_id: string
+          sender_role: string
+          tenant_id: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          id?: string
+          sender_id: string
+          sender_role: string
+          tenant_id: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          id?: string
+          sender_id?: string
+          sender_role?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_messages_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tenant_logins: {
         Row: {
           created_at: string
@@ -2306,6 +2341,17 @@ export type Database = {
           p_whatsapp: string
         }
         Returns: string
+      }
+      support_inbox: {
+        Args: never
+        Returns: {
+          last_body: string
+          last_message_at: string
+          last_sender: string
+          name: string
+          owner_id: string
+          tenant_id: string
+        }[]
       }
       sync_event_stock: { Args: { _event_id: string }; Returns: undefined }
       unaccent_string: { Args: { txt: string }; Returns: string }

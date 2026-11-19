@@ -24,6 +24,7 @@ import { Route as AuthenticatedEstoqueRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedFinanceiroRouteImport } from './routes/_authenticated/financeiro'
 import { Route as AuthenticatedFuncionariosRouteImport } from './routes/_authenticated/funcionarios'
 import { Route as AuthenticatedLeadsRouteImport } from './routes/_authenticated/leads'
+import { Route as AuthenticatedMensagensRouteImport } from './routes/_authenticated/mensagens'
 import { Route as AuthenticatedNotasFiscaisRouteImport } from './routes/_authenticated/notas-fiscais'
 import { Route as AuthenticatedPacotesRouteImport } from './routes/_authenticated/pacotes'
 import { Route as AuthenticatedPagamentosDiariasRouteImport } from './routes/_authenticated/pagamentos-diarias'
@@ -123,6 +124,11 @@ const AuthenticatedFuncionariosRoute =
 const AuthenticatedLeadsRoute = AuthenticatedLeadsRouteImport.update({
   id: '/leads',
   path: '/leads',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedMensagensRoute = AuthenticatedMensagensRouteImport.update({
+  id: '/mensagens',
+  path: '/mensagens',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedNotasFiscaisRoute =
@@ -269,6 +275,7 @@ export interface FileRoutesByFullPath {
   '/financeiro': typeof AuthenticatedFinanceiroRoute
   '/funcionarios': typeof AuthenticatedFuncionariosRoute
   '/leads': typeof AuthenticatedLeadsRoute
+  '/mensagens': typeof AuthenticatedMensagensRoute
   '/notas-fiscais': typeof AuthenticatedNotasFiscaisRoute
   '/pacotes': typeof AuthenticatedPacotesRoute
   '/pagamentos-diarias': typeof AuthenticatedPagamentosDiariasRoute
@@ -308,6 +315,7 @@ export interface FileRoutesByTo {
   '/financeiro': typeof AuthenticatedFinanceiroRoute
   '/funcionarios': typeof AuthenticatedFuncionariosRoute
   '/leads': typeof AuthenticatedLeadsRoute
+  '/mensagens': typeof AuthenticatedMensagensRoute
   '/notas-fiscais': typeof AuthenticatedNotasFiscaisRoute
   '/pacotes': typeof AuthenticatedPacotesRoute
   '/pagamentos-diarias': typeof AuthenticatedPagamentosDiariasRoute
@@ -349,6 +357,7 @@ export interface FileRoutesById {
   '/_authenticated/financeiro': typeof AuthenticatedFinanceiroRoute
   '/_authenticated/funcionarios': typeof AuthenticatedFuncionariosRoute
   '/_authenticated/leads': typeof AuthenticatedLeadsRoute
+  '/_authenticated/mensagens': typeof AuthenticatedMensagensRoute
   '/_authenticated/notas-fiscais': typeof AuthenticatedNotasFiscaisRoute
   '/_authenticated/pacotes': typeof AuthenticatedPacotesRoute
   '/_authenticated/pagamentos-diarias': typeof AuthenticatedPagamentosDiariasRoute
@@ -390,6 +399,7 @@ export interface FileRouteTypes {
     | '/financeiro'
     | '/funcionarios'
     | '/leads'
+    | '/mensagens'
     | '/notas-fiscais'
     | '/pacotes'
     | '/pagamentos-diarias'
@@ -429,6 +439,7 @@ export interface FileRouteTypes {
     | '/financeiro'
     | '/funcionarios'
     | '/leads'
+    | '/mensagens'
     | '/notas-fiscais'
     | '/pacotes'
     | '/pagamentos-diarias'
@@ -469,6 +480,7 @@ export interface FileRouteTypes {
     | '/_authenticated/financeiro'
     | '/_authenticated/funcionarios'
     | '/_authenticated/leads'
+    | '/_authenticated/mensagens'
     | '/_authenticated/notas-fiscais'
     | '/_authenticated/pacotes'
     | '/_authenticated/pagamentos-diarias'
@@ -613,6 +625,13 @@ declare module '@tanstack/react-router' {
       path: '/leads'
       fullPath: '/leads'
       preLoaderRoute: typeof AuthenticatedLeadsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/mensagens': {
+      id: '/_authenticated/mensagens'
+      path: '/mensagens'
+      fullPath: '/mensagens'
+      preLoaderRoute: typeof AuthenticatedMensagensRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/notas-fiscais': {
@@ -791,6 +810,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedFinanceiroRoute: typeof AuthenticatedFinanceiroRoute
   AuthenticatedFuncionariosRoute: typeof AuthenticatedFuncionariosRoute
   AuthenticatedLeadsRoute: typeof AuthenticatedLeadsRoute
+  AuthenticatedMensagensRoute: typeof AuthenticatedMensagensRoute
   AuthenticatedNotasFiscaisRoute: typeof AuthenticatedNotasFiscaisRoute
   AuthenticatedPacotesRoute: typeof AuthenticatedPacotesRoute
   AuthenticatedPagamentosDiariasRoute: typeof AuthenticatedPagamentosDiariasRoute
@@ -820,6 +840,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedFinanceiroRoute: AuthenticatedFinanceiroRoute,
   AuthenticatedFuncionariosRoute: AuthenticatedFuncionariosRoute,
   AuthenticatedLeadsRoute: AuthenticatedLeadsRoute,
+  AuthenticatedMensagensRoute: AuthenticatedMensagensRoute,
   AuthenticatedNotasFiscaisRoute: AuthenticatedNotasFiscaisRoute,
   AuthenticatedPacotesRoute: AuthenticatedPacotesRoute,
   AuthenticatedPagamentosDiariasRoute: AuthenticatedPagamentosDiariasRoute,

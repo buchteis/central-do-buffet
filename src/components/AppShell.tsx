@@ -9,6 +9,7 @@ import {
   FileText,
   Flame,
   Home,
+  Headset,
   LogOut,
   Menu,
   MessageCircle,
@@ -97,6 +98,7 @@ const primary: NavItem[] = [
   { to: "/notas-fiscais", label: "Notas Fiscais", icon: ReceiptText },
   { to: "/relatorios", label: "Relatórios", icon: BarChart3 },
   { to: "/configuracoes", label: "Configurações", icon: Settings },
+  { to: "/mensagens", label: "Mensagens", icon: Headset },
 ];
 
 export function AppShell({ children }: { children: ReactNode }) {

@@ -7,8 +7,11 @@ import { formatDateBR } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Suspense } from "react";
+import { SupportWorkspace } from "@/components/support/SupportWorkspace";
 import {
   Check,
+  Headset,
   Monitor,
   Pause,
   Play,
@@ -22,7 +25,14 @@ import {
 } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/admin")({
-  head: () => ({ meta: [{ title: "Super Admin — Central do Buffet" }] }),
+  head: () => ({ meta: [
+    { title: "Super Admin — Central do Buffet" },
+    { name: "description", content: "Administração de cadastros, acessos e mensagens de suporte Central do Buffet." },
+    { property: "og:title", content: "Super Admin — Central do Buffet" },
+    { property: "og:description", content: "Gestão da plataforma e atendimento de suporte separado por buffet." },
+    { property: "og:type", content: "website" },
+    { name: "twitter:card", content: "summary" },
+  ] }),
   component: AdminPage,
 });
 
@@ -33,7 +43,7 @@ const statusStyles: Record<string, string> = {
   suspenso: "bg-muted text-muted-foreground",
 };
 
-type Tab = "buffets" | "usuarios" | "acessos";
+type Tab = "buffets" | "usuarios" | "acessos" | "mensagens";
 
 function AdminPage() {
   const { data: access, isLoading } = useTenantAccess();
@@ -100,7 +110,7 @@ function AdminPage() {
         <Kpi label="Rejeitados" value={tenants?.filter((t: any) => t.status === "rejeitado").length ?? 0} />
       </div>
 
-      <div className="flex gap-1 bg-muted p-1 rounded-full w-fit">
+      <div className="flex max-w-full flex-wrap gap-1 bg-muted p-1 rounded-lg w-fit">
         <TabButton active={tab === "buffets"} onClick={() => setTab("buffets")} icon={Shield}>
           Buffets
         </TabButton>
@@ -109,6 +119,9 @@ function AdminPage() {
         </TabButton>
         <TabButton active={tab === "acessos"} onClick={() => setTab("acessos")} icon={Monitor}>
           Acessos & Dispositivos
+        </TabButton>
+        <TabButton active={tab === "mensagens"} onClick={() => setTab("mensagens")} icon={Headset}>
+          Mensagens
         </TabButton>
       </div>
 
@@ -136,6 +149,7 @@ function AdminPage() {
       {tab === "usuarios" && <UsersTab currentUserId={access.userId} />}
 
       {tab === "acessos" && <AccessTab />}
+      {tab === "mensagens" && <Suspense fallback={<p className="py-10 text-center text-muted-foreground">Carregando suporte…</p>}><SupportWorkspace /></Suspense>}
     </div>
   );
 }
@@ -152,7 +166,7 @@ function TabButton({
   children: React.ReactNode;
 }) {
   return (
-    <button
+    <Button variant="ghost"
       onClick={onClick}
       className={cn(
         "flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-full transition",
@@ -161,7 +175,7 @@ function TabButton({
     >
       <Icon className="size-3.5" />
       {children}
-    </button>
+    </Button>
   );
 }
 

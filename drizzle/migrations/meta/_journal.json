@@ -85,6 +85,13 @@
       "when": 1794862708125,
       "tag": "0011_persist_whatsapp_pipeline_stage",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1795087770279,
+      "tag": "0012_tenant_support_messages",
+      "breakpoints": true
     }
   ]
 }

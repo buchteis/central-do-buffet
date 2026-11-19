@@ -1,3 +1,8 @@
+# Canal de suporte
+- [ ] Adicionar Mensagens abaixo de Configurações e caixa de entrada no Super Admin.
+- [ ] Salvar mensagens e respostas separadas por buffet, com acesso exclusivo do dono e do administrador.
+- [ ] Testar envio, resposta, persistência e bloqueio entre cadastros no computador e celular.
+
 # Limite de tokens do assistente
 - [x] Tratar o erro 429 respeitando o tempo de espera da Groq e sem mostrar o erro técnico como resposta.
 - [x] Reduzir os dados irrelevantes enviados à IA, preservando a pergunta, o histórico e os dados necessários.
