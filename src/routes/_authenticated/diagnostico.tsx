@@ -1,3 +1,4 @@
+import { pageHead } from "@/lib/page-head";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -24,7 +25,7 @@ import { useState } from "react";
 import { brl } from "@/lib/format";
 
 export const Route = createFileRoute("/_authenticated/diagnostico")({
-  head: () => ({ meta: [{ title: "Diagnóstico — Central do Buffet" }] }),
+  head: () => pageHead("Diagnóstico — Central do Buffet", "Confira o estado dos dados e operações do seu buffet."),
   component: DiagnosticoPage,
 });
 

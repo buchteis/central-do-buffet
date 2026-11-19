@@ -1,3 +1,4 @@
+import { pageHead } from "@/lib/page-head";
 import { ChecklistPreDefinido } from "@/components/ChecklistPreDefinido";
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -14,7 +15,7 @@ import { brl } from "@/lib/format";
 import { BreakdownPreco } from "./BreakdownPreco";
 
 export const Route = createFileRoute("/_authenticated/orcamentos/novo")({
-  head: () => ({ meta: [{ title: "Novo orçamento — Central do Buffet" }] }),
+  head: () => pageHead("Novo orçamento — Central do Buffet", "Prepare ou atualize um orçamento para o cliente do seu buffet."),
   validateSearch: (s: Record<string, unknown>) => ({
     leadId: typeof s.leadId === "string" ? s.leadId : undefined,
     quoteId: typeof s.quoteId === "string" ? s.quoteId : undefined,

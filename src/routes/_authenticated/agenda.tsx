@@ -1,3 +1,4 @@
+import { pageHead } from "@/lib/page-head";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
@@ -22,7 +23,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/_authenticated/agenda")({
-  head: () => ({ meta: [{ title: "Agenda — Central do Buffet" }] }),
+  head: () => pageHead("Agenda — Central do Buffet", "Consulte eventos e degustações agendados no calendário do seu buffet."),
   component: AgendaPage,
 });
 

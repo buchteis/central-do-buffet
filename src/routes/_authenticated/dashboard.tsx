@@ -1,3 +1,4 @@
+import { pageHead } from "@/lib/page-head";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
@@ -34,7 +35,7 @@ import { FeedbackPieCard } from "@/components/feedback/FeedbackPieCard";
 import { UnifiedReviewsCard } from "@/components/reviews/UnifiedReviewsCard";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
-  head: () => ({ meta: [{ title: "Dashboard — Central do Buffet" }] }),
+  head: () => pageHead("Dashboard — Central do Buffet", "Acompanhe os resultados, recebimentos e próximos eventos do seu buffet."),
   component: Dashboard,
 });
 

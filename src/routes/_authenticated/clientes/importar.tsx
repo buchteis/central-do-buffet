@@ -1,3 +1,4 @@
+import { pageHead } from "@/lib/page-head";
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import * as XLSX from "xlsx";
@@ -7,7 +8,7 @@ import { useTenantAccess } from "@/hooks/useTenantAccess";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/clientes/importar")({
-  head: () => ({ meta: [{ title: "Importar Clientes — Central do Buffet" }] }),
+  head: () => pageHead("Importar clientes — Central do Buffet", "Importe os contatos dos clientes do seu buffet."),
   component: ImportClientsPage,
 });
 

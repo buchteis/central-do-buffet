@@ -1,3 +1,4 @@
+import { pageHead } from "@/lib/page-head";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Fragment, useEffect, useState } from "react";
@@ -11,7 +12,7 @@ import { useSearchFilter } from "@/lib/search-store";
 import InstallmentsSection from "@/components/financeiro/InstallmentsSection";
 
 export const Route = createFileRoute("/_authenticated/financeiro")({
-  head: () => ({ meta: [{ title: "Financeiro — Central do Buffet" }] }),
+  head: () => pageHead("Financeiro — Central do Buffet", "Acompanhe entradas, despesas e parcelas do seu buffet."),
   component: FinanceiroPage,
 });
 

@@ -1,3 +1,4 @@
+import { pageHead } from "@/lib/page-head";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
@@ -11,12 +12,7 @@ import { useSearchFilter } from "@/lib/search-store";
 import { ReviewQrCode } from "@/components/feedback/ReviewQrCode";
 
 export const Route = createFileRoute("/_authenticated/feedbacks/")({
-  head: () => ({
-    meta: [
-      { title: "Qualidade & Feedbacks — Central do Buffet" },
-      { name: "description", content: "Acompanhe o NPS e as avaliações dos clientes do seu buffet." },
-    ],
-  }),
+  head: () => pageHead("Qualidade e feedbacks — Central do Buffet", "Acompanhe o NPS e as avaliações dos clientes do seu buffet."),
   component: FeedbacksDashboard,
 });
 

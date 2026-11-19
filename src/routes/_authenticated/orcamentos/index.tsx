@@ -1,3 +1,4 @@
+import { pageHead } from "@/lib/page-head";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
@@ -31,7 +32,7 @@ import { QuoteKanban } from "@/components/orcamentos/QuoteKanban";
 import { QuoteDetailModal } from "@/components/orcamentos/QuoteDetailModal";
 
 export const Route = createFileRoute("/_authenticated/orcamentos/")({
-  head: () => ({ meta: [{ title: "Orçamentos — Central do Buffet" }] }),
+  head: () => pageHead("Orçamentos — Central do Buffet", "Acompanhe propostas e negociações dos clientes do seu buffet."),
   component: QuotesPage,
 });
 

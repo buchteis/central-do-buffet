@@ -1,3 +1,4 @@
+import { pageHead } from "@/lib/page-head";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
@@ -23,7 +24,7 @@ import {
 } from "@/components/ui/dialog";
 
 export const Route = createFileRoute("/_authenticated/pacotes")({
-  head: () => ({ meta: [{ title: "Pacotes — Central do Buffet" }] }),
+  head: () => pageHead("Pacotes — Central do Buffet", "Organize pacotes, preços e produtos consumidos do seu buffet."),
   component: PackagesPage,
 });
 

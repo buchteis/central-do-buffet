@@ -1,3 +1,4 @@
+import { pageHead } from "@/lib/page-head";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { FormEvent, useEffect, useState } from "react";
 import { Building2 } from "lucide-react";
@@ -16,15 +17,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 
 export const Route = createFileRoute("/auth")({
   ssr: false,
-  head: () => ({
-    meta: [
-      { title: "Central do Buffet — Login" },
-      {
-        name: "description",
-        content: "Acesse sua conta do Central do Buffet.",
-      },
-    ],
-  }),
+  head: () => pageHead("Login — Central do Buffet", "Acesse sua conta do Central do Buffet."),
   component: AuthPage,
 });
 

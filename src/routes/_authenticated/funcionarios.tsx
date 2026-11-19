@@ -1,3 +1,4 @@
+import { pageHead } from "@/lib/page-head";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
@@ -10,7 +11,7 @@ import { useSearchFilter } from "@/lib/search-store";
 import { waLink } from "@/lib/whatsapp";
 
 export const Route = createFileRoute("/_authenticated/funcionarios")({
-  head: () => ({ meta: [{ title: "Funcionários — Central do Buffet" }] }),
+  head: () => pageHead("Profissionais — Central do Buffet", "Gerencie profissionais e valores das diárias do seu buffet."),
   component: FuncionariosPage,
 });
 

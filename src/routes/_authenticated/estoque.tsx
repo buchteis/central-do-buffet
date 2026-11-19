@@ -1,3 +1,4 @@
+import { pageHead } from "@/lib/page-head";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
@@ -31,7 +32,7 @@ import { cn } from "@/lib/utils";
 import { StockHealthChart } from "@/components/estoque/StockHealthChart";
 
 export const Route = createFileRoute("/_authenticated/estoque")({
-  head: () => ({ meta: [{ title: "Estoque — Central do Buffet" }] }),
+  head: () => pageHead("Estoque — Central do Buffet", "Acompanhe produtos disponíveis, reservas e movimentações do seu buffet."),
   component: StockPage,
 });
 

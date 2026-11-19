@@ -1,3 +1,4 @@
+import { pageHead } from "@/lib/page-head";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useMemo } from "react";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
@@ -97,7 +98,7 @@ function googleCalendarUrl(e: any): string {
 }
 
 export const Route = createFileRoute("/_authenticated/eventos/")({
-  head: () => ({ meta: [{ title: "Eventos — Central do Buffet" }] }),
+  head: () => pageHead("Eventos — Central do Buffet", "Consulte e organize os eventos do seu buffet."),
   component: EventsPage,
 });
 

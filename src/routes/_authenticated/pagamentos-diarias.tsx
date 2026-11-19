@@ -1,3 +1,4 @@
+import { pageHead } from "@/lib/page-head";
 // @ts-nocheck
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -14,7 +15,7 @@ import {
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/pagamentos-diarias")({
-  head: () => ({ meta: [{ title: "Pagamentos de Diárias — Central do Buffet" }] }),
+  head: () => pageHead("Pagamentos de diárias — Central do Buffet", "Confira pagamentos e valores de profissionais por evento."),
   component: PagamentosDiariasPage,
 });
 

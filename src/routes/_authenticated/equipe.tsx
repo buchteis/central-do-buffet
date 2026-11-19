@@ -1,3 +1,4 @@
+import { pageHead } from "@/lib/page-head";
 // @ts-nocheck
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
@@ -16,7 +17,7 @@ import {
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/equipe")({
-  head: () => ({ meta: [{ title: "Equipe & Freelancers — Central do Buffet" }] }),
+  head: () => pageHead("Equipe e freelancers — Central do Buffet", "Organize a equipe e os profissionais dos eventos do seu buffet."),
   component: EquipePage,
 });
 

@@ -1,3 +1,4 @@
+import { pageHead } from "@/lib/page-head";
 import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
@@ -32,6 +33,7 @@ import {
 } from "recharts";
 
 export const Route = createFileRoute("/_authenticated/relatorios")({
+  head: () => pageHead("Relatórios — Central do Buffet", "Analise resultados e prepare ordens de compras para o estoque."),
   component: RelatoriosPage,
 });
 

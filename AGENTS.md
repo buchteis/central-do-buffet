@@ -15,3 +15,4 @@
 - All Evolution API operations use the linked custom connector through the shared server-only client; requiring both gateway credentials prevents stale direct-server settings from bypassing the connection selected in Lovable.
 - WhatsApp pipeline stages persist in the tenant-scoped conversation row; inbound intent advances atomically without regressions before AI generation, so provider failures cannot discard customer qualification.
 - Support messages are append-only, tenant-scoped rows accessed through authenticated server functions and owner/super-admin RLS; inbox polling reuses the same workspace in Messages and Super Admin so registrations remain isolated.
+- Leaf routes use app-specific metadata, with the shared pageHead helper for simple static pages, so navigation and link previews retain each screen's identity.

@@ -1,3 +1,4 @@
+import { pageHead } from "@/lib/page-head";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -9,6 +10,7 @@ import { quoteCustomExtras, quoteUnitItems } from "@/lib/quote-pipeline";
 import { ArrowLeft, User, Calendar, MapPin, Package } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/orcamentos/$id")({
+  head: () => pageHead("Detalhes do orçamento — Central do Buffet", "Consulte cliente, pacotes, data e valores do orçamento."),
   component: QuoteDetail,
 });
 

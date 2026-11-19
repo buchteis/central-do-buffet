@@ -1,3 +1,4 @@
+import { pageHead } from "@/lib/page-head";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
@@ -13,7 +14,7 @@ import { maskCpfCnpj, isValidCpfCnpj, onlyDigits, docKind } from "@/lib/doc";
 import { useTenantAccess } from "@/hooks/useTenantAccess";
 
 export const Route = createFileRoute("/_authenticated/clientes/novo")({
-  head: () => ({ meta: [{ title: "Novo cliente — Central do Buffet" }] }),
+  head: () => pageHead("Novo cliente — Central do Buffet", "Cadastre um novo cliente para o seu buffet."),
   component: NewClientPage,
 });
 

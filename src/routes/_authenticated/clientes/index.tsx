@@ -1,3 +1,4 @@
+import { pageHead } from "@/lib/page-head";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
@@ -52,7 +53,7 @@ function initialLetter(name: unknown): string {
 }
 
 export const Route = createFileRoute("/_authenticated/clientes/")({
-  head: () => ({ meta: [{ title: "Clientes — Central do Buffet" }] }),
+  head: () => pageHead("Clientes — Central do Buffet", "Consulte os contatos e cadastros dos clientes do seu buffet."),
   component: ClientsPage,
 });
 

@@ -23,6 +23,10 @@ export const Route = createFileRoute("/orcamento/$slug")({
   head: ({ params }) => ({
     meta: [
       { title: `Solicitar orçamento — ${params.slug}` },
+      { property: "og:title", content: `Solicitar orçamento — ${params.slug}` },
+      { property: "og:description", content: "Preencha o formulário para receber um orçamento personalizado do buffet." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
       {
         name: "description",
         content: "Preencha o formulário para receber um orçamento personalizado do buffet.",

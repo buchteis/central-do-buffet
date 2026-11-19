@@ -1,3 +1,4 @@
+import { pageHead } from "@/lib/page-head";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
@@ -12,7 +13,7 @@ import { maskCpfCnpj } from "@/lib/doc";
 import VariableInserter from "@/components/VariableInserter";
 
 export const Route = createFileRoute("/_authenticated/configuracoes")({
-  head: () => ({ meta: [{ title: "Configurações — Meu Churras" }] }),
+  head: () => pageHead("Configurações — Central do Buffet", "Configure dados do buffet, PIX, parcelas e modelo de contrato."),
   component: SettingsPage,
 });
 

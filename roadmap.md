@@ -1,11 +1,12 @@
 # Canal de suporte
-- [ ] Adicionar Mensagens abaixo de Configurações e caixa de entrada no Super Admin.
-- [ ] Salvar mensagens e respostas separadas por buffet, com acesso exclusivo do dono e do administrador.
-- [ ] Testar envio, resposta, persistência e bloqueio entre cadastros no computador e celular.
+- [x] Adicionar Mensagens abaixo de Configurações e caixa de entrada no Super Admin.
+- [x] Salvar mensagens e respostas separadas por buffet, com acesso exclusivo do dono e do administrador.
+- [x] Conferir envio e persistência autenticados, painel administrativo, regras aplicadas de privacidade e 3 testes de acesso.
+- [ ] Conferir envio e resposta entre dois cadastros reais: teste adicional recusado; nenhuma conta foi criada.
 
 # Animação nas mensagens
-- [ ] Reproduzir a ilustração e o texto do print no espaço vazio da conversa, com animação suave.
-- [ ] Conferir computador, celular e tema escuro sem interferir no envio de mensagens.
+- [x] Reproduzir a própria ilustração e o texto do print no espaço vazio da conversa, com animação suave.
+- [x] Conferir computador, celular, tema escuro, movimento reduzido e persistência de mensagem após recarregar.
 
 # Limite de tokens do assistente
 - [x] Tratar o erro 429 respeitando o tempo de espera da Groq e sem mostrar o erro técnico como resposta.

@@ -1,3 +1,4 @@
+import { pageHead } from "@/lib/page-head";
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
@@ -12,7 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { maskCpfCnpj, isValidCpfCnpj, onlyDigits, docKind } from "@/lib/doc";
 
 export const Route = createFileRoute("/_authenticated/clientes/$id/editar")({
-  head: () => ({ meta: [{ title: "Editar cliente — Central do Buffet" }] }),
+  head: () => pageHead("Editar cliente — Central do Buffet", "Atualize os dados do cliente do seu buffet."),
   component: EditClientPage,
 });
 
