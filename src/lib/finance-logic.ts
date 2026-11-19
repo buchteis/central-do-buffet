@@ -7,7 +7,7 @@
  * - Receita recebida: eventos "pago"/"concluido", parcelas e transações pagas
  * - A receber: eventos "agendado"/"em_andamento", parcelas e transações pendentes
  * - Despesas pagas: transações de saída pagas
- * - Saldo atual: recebido + a receber - despesas pagas
+ * - Saldo projetado: recebido + a receber - despesas pagas
  * - Cancelados são sempre ignorados.
  */
 export const RECEIVED_EVENT_STATUSES: string[] = ["pago", "concluido"];

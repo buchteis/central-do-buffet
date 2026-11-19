@@ -401,7 +401,7 @@ function Dashboard() {
           <FinanceCard label="A receber" value={brl(stats.toReceive)} icon={Clock} color="amber" />
           <FinanceCard label="Despesas pagas" value={brl(stats.despesasPagas)} icon={TrendingDown} color="rose" />
           <FinanceCard
-            label="Saldo atual"
+            label="Saldo Projetado"
             value={brl(stats.revenueReceived + stats.toReceive - stats.despesasPagas)}
             icon={Wallet}
             color="sky"

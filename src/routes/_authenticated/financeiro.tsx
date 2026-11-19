@@ -168,7 +168,7 @@ function FinanceiroPage() {
         category: "Entrada de evento",
         amount,
         type: "entrada",
-        // Entrada manual já conta como recebida (Receita recebida e Saldo atual).
+        // Entrada manual já conta como recebida (Receita recebida e Saldo Projetado).
         status: "pago",
         method: incomeForm.method,
         due_date: incomeForm.date,
@@ -457,7 +457,7 @@ function FinanceiroPage() {
         <Card icon={TrendingDown} label="Despesas (pagas)" value={brl(totals.saidasPagas)} tone="rose" />
         <Card
           icon={Wallet}
-          label="Saldo Atual"
+          label="Saldo Projetado"
           value={brl(totals.recebido + totals.receber - totals.saidasPagas)}
           tone="primary"
         />
@@ -748,7 +748,7 @@ function FinanceiroPage() {
               </div>
 
               <p className="text-[11px] text-muted-foreground">
-                Esta entrada já entra como recebida na Receita recebida e no Saldo atual.
+                Esta entrada já entra como recebida na Receita recebida e no Saldo Projetado.
               </p>
             </div>
 
