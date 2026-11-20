@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { TestimonialCarousel } from "@/components/auth/TestimonialCarousel";
 
 
 export const Route = createFileRoute("/auth")({
@@ -561,6 +562,7 @@ p-6
 
 <div className="w-full max-w-md">
 
+<TestimonialCarousel />
 
 <Tabs defaultValue="signin">
 
