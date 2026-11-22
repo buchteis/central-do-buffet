@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import { useTenantAccess } from "@/hooks/useTenantAccess";
 import { useSearchFilter } from "@/lib/search-store";
 import InstallmentsSection from "@/components/financeiro/InstallmentsSection";
+import { ContractsPage } from "./contratos";
 
 export const Route = createFileRoute("/_authenticated/financeiro")({
   head: () => pageHead("Financeiro — Central do Buffet", "Acompanhe entradas, despesas e parcelas do seu buffet."),
@@ -86,6 +87,20 @@ const statusStyles: Record<string, string> = {
 };
 
 function FinanceiroPage() {
+  const [tab, setTab] = useState<"financeiro" | "contratos">("financeiro");
+  return (
+    <div className="space-y-4">
+      <div className="inline-flex rounded-xl border border-border bg-card p-1 gap-1">
+        {([["financeiro", "Financeiro & Parcelas"], ["contratos", "Contratos"]] as const).map(([k, l]) => (
+          <button key={k} onClick={() => setTab(k)} className={cn("h-9 px-4 rounded-lg text-sm font-bold", tab === k ? "bg-primary text-primary-foreground" : "text-muted-foreground")}>{l}</button>
+        ))}
+      </div>
+      {tab === "financeiro" ? <FinanceOverview /> : <ContractsPage />}
+    </div>
+  );
+}
+
+function FinanceOverview() {
   const qc = useQueryClient();
   const { data: access } = useTenantAccess();
   const { match } = useSearchFilter();

@@ -25,6 +25,7 @@ import { useLogoDisplayUrl, getLogoDisplayUrl } from "@/lib/logo";
 import { normalizeSearch, useSearchFilter } from "@/lib/search-store";
 import { DEFAULT_CONTRACT_TEMPLATE } from "@/lib/contract-template";
 import VariableInserter from "@/components/VariableInserter";
+import { buildContractSchedule, scheduleText, type ScheduleItem } from "@/lib/contract-installments";
 
 export const Route = createFileRoute("/_authenticated/contratos")({
   head: () => pageHead("Contratos — Central do Buffet", "Gerencie contratos e acompanhe assinaturas dos clientes do seu buffet."),
@@ -70,7 +71,7 @@ function contractStartOf(period: "dia" | "semana" | "mes" | "ano" | "todos") {
   return null;
 }
 
-function ContractsPage() {
+export function ContractsPage() {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<any | null>(null);
@@ -848,6 +849,10 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
   const [clientId, setClientId] = useState("");
   const [title, setTitle] = useState("Contrato de prestação de serviços");
   const [formaPagamento, setFormaPagamento] = useState<"PIX" | "Dados Bancários" | "Dinheiro">("PIX");
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const [parcelas, setParcelas] = useState(1);
+  const [entryDate, setEntryDate] = useState(todayIso);
+  const [firstDue, setFirstDue] = useState(() => { const d = new Date(); d.setMonth(d.getMonth() + 1); return d.toISOString().slice(0, 10); });
   const [savingTpl, setSavingTpl] = useState(false);
   const [tplDraft, setTplDraft] = useState("");
   const [tplLoaded, setTplLoaded] = useState(false);
@@ -996,7 +1001,7 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
     mutationFn: async () => {
       const { data: u } = await supabase.auth.getUser();
       if (!u.user) throw new Error("Sem sessão");
-      const tpl = tplDraft.trim() || (settings?.contract_template ?? "").trim() || DEFAULT_CONTRACT_TEMPLATE;
+      let tpl = tplDraft.trim() || (settings?.contract_template ?? "").trim() || DEFAULT_CONTRACT_TEMPLATE;
 
       const payVars = buildPaymentVars(formaPagamento, settings);
 
@@ -1037,6 +1042,8 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
 
       let ev_id: string | null = null;
       let cli_id: string | null = null;
+      let schedule: ScheduleItem[] | null = null;
+      let quoteForEvent: string | null = null;
 
       if (source === "quote") {
         const q: any = (quotes ?? []).find((x: any) => x.id === refId);
@@ -1056,6 +1063,8 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
 
         const entryVal = Number(q.entry_value) > 0 ? Math.min(Number(q.entry_value), totalVal) : totalVal * 0.5;
         const balanceVal = Math.max(totalVal - entryVal, 0);
+        schedule = buildContractSchedule(totalVal, entryVal, parcelas, entryDate, firstDue);
+        quoteForEvent = q.id;
 
         vars = {
           ...vars,
@@ -1106,6 +1115,7 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
           if (ql.total_value != null) totalVal = Number(ql.total_value);
           entryVal = Number(ql.entry_value) > 0 ? Math.min(Number(ql.entry_value), totalVal) : totalVal * 0.5;
           balanceVal = Math.max(totalVal - entryVal, 0);
+          quoteForEvent = ev.quote_id;
           const ext: any = ql.extras ?? {};
           const pkgSnap: any[] = Array.isArray(ext.packages) ? ext.packages : [];
           const unitSnap: any[] = Array.isArray(ext.unit_items) ? ext.unit_items : [];
@@ -1118,6 +1128,7 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
           evAcrescimos = getAdditionsText(ext, totalVal, pkgTotal, uTotal, ql);
         }
 
+        schedule = buildContractSchedule(totalVal, entryVal, parcelas, entryDate, firstDue);
         vars = {
           ...vars,
           cliente: ev.clients?.name ?? "",
@@ -1159,7 +1170,21 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
         }
       }
 
+      if (schedule) {
+        const t = scheduleText(schedule);
+        vars = { ...vars, parcelas: t, cronograma_pagamento: t, numero_parcelas: String(parcelas) };
+        if (!/\{(parcelas|cronograma_pagamento)\}/.test(tpl)) {
+          tpl = tpl.replace(/(Saldo restante:[^\n]*\n)/, `$1Cronograma de pagamento:\n{parcelas}\n`);
+        }
+      }
+      if (!ev_id && quoteForEvent) {
+        const { data: evq } = await supabase.from("events").select("id").eq("quote_id", quoteForEvent).neq("status", "cancelado").maybeSingle();
+        ev_id = evq?.id ?? null;
+      }
+
       const content = fillTemplate(tpl, vars);
+
+      if (schedule && ev_id) await syncInstallments(ev_id, quoteForEvent, cli_id, u.user.id, schedule);
 
       const { error } = await supabase.from("contracts").insert({
         owner_id: u.user.id,
@@ -1173,13 +1198,34 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["contracts"] });
-      toast.success("Contrato criado");
+      qc.invalidateQueries({ queryKey: ["installments"] });
+      toast.success("Contrato criado — parcelas lançadas no Financeiro");
       onClose();
     },
     onError: (e: any) => toast.error(e.message),
   });
 
   const canCreate = source === "blank" ? true : !!refId;
+
+  async function syncInstallments(eventId: string, quoteId: string | null, clientId: string | null, ownerId: string, items: ScheduleItem[]) {
+    const { data: existing } = await supabase.from("payment_installments").select("id, status, receipt_path").eq("event_id", eventId);
+    const locked = (existing ?? []).filter((i: any) => i.status !== "pendente" || i.receipt_path);
+    if (locked.length) {
+      toast.warning("Já existem parcelas pagas ou com comprovante neste evento; o cronograma do Financeiro não foi alterado.");
+      return;
+    }
+    const { data: tid } = await supabase.rpc("current_tenant_id");
+    if ((existing ?? []).length) {
+      const { error: de } = await supabase.from("payment_installments").delete().in("id", (existing ?? []).map((i: any) => i.id));
+      if (de) throw de;
+    }
+    const rows = items.map((i) => ({
+      owner_id: ownerId, tenant_id: tid as string, event_id: eventId, quote_id: quoteId, client_id: clientId,
+      label: i.label, number: i.number, total_count: i.total, amount: i.amount, due_date: i.due_date, status: "pendente",
+    }));
+    const { error } = await supabase.from("payment_installments").insert(rows as any);
+    if (error) throw error;
+  }
 
   return (
     <div
@@ -1285,6 +1331,24 @@ function NewContractDialog({ onClose }: { onClose: () => void }) {
             </p>
           )}
         </div>
+
+        {source !== "blank" && (
+          <div className="rounded-lg border border-border p-3 space-y-2">
+            <div className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">Parcelamento acordado</div>
+            <div className="grid grid-cols-3 gap-2">
+              <label className="text-[11px]">Parcelas do saldo
+                <input type="number" min={1} max={24} value={parcelas} onChange={(e) => setParcelas(Math.max(1, Math.min(24, Number(e.target.value) || 1)))} className="mt-1 w-full h-9 px-2 border border-border rounded-lg bg-background text-sm" />
+              </label>
+              <label className="text-[11px]">Data da entrada
+                <input type="date" value={entryDate} onChange={(e) => setEntryDate(e.target.value)} className="mt-1 w-full h-9 px-2 border border-border rounded-lg bg-background text-sm" />
+              </label>
+              <label className="text-[11px]">1ª parcela
+                <input type="date" value={firstDue} onChange={(e) => setFirstDue(e.target.value)} className="mt-1 w-full h-9 px-2 border border-border rounded-lg bg-background text-sm" />
+              </label>
+            </div>
+            <p className="text-[11px] text-muted-foreground">Entrada e parcelas entram no contrato e são lançadas automaticamente no Financeiro, com os mesmos valores e datas.</p>
+          </div>
+        )}
 
         <div className="rounded-lg border border-border bg-muted/40 p-3 space-y-2">
           <div className="flex items-center justify-between gap-2">
