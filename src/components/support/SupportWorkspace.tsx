@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { getSupportMessages, sendSupportMessage } from "@/lib/support.functions";
 import { supportInboxOptions } from "@/lib/support-query";
 import { cn } from "@/lib/utils";
-import { SupportEmptyState } from "./SupportEmptyState";
+import supportIllustration from "@/assets/support-illustration.png.asset.json";
 
 type Cursor = { createdAt: string; id: string } | null;
 
@@ -109,14 +109,21 @@ function SupportConversation({ tenantId, name, isAdmin }: { tenantId: string; na
           <p className="text-xs text-muted-foreground">{isAdmin ? "Conversa do cadastro" : name}</p>
         </div>
       </header>
-      <div ref={scroller} role="log" aria-label="Mensagens de suporte" aria-live="polite" className="h-[420px] min-h-64 space-y-4 overflow-y-auto bg-background p-4 md:h-[520px]">
-        {messages.isPending && <div className="flex h-full items-center justify-center gap-2 text-sm text-muted-foreground"><Loader2 className="size-4 animate-spin" />Carregando mensagens…</div>}
-        {messages.isError && <div className="py-6 text-center"><p className="mb-3 text-sm text-destructive">Não foi possível carregar as mensagens.</p><Button variant="outline" onClick={() => messages.refetch()}>Tentar novamente</Button></div>}
-        {messages.hasNextPage && <div className="text-center"><Button variant="ghost" size="sm" disabled={messages.isFetchingNextPage} onClick={() => messages.fetchNextPage()}>Mensagens anteriores</Button></div>}
-        {rows.length === 0 && !messages.isPending && !messages.isError && <SupportEmptyState />}
+      <div ref={scroller} role="log" aria-label="Mensagens de suporte" aria-live="polite" className="relative h-[420px] min-h-64 space-y-4 overflow-y-auto bg-background p-4 md:h-[520px]">
+        <img src={supportIllustration.url} alt="" aria-hidden="true" width={336} height={247}
+          className="support-empty-float pointer-events-none sticky top-1/2 left-1/2 z-0 mx-auto aspect-[336/247] w-[336px] max-w-[80%] -translate-y-1/2 object-contain opacity-20 select-none dark:opacity-15" />
+        {messages.isPending && <div className="relative z-10 flex h-full items-center justify-center gap-2 text-sm text-muted-foreground"><Loader2 className="size-4 animate-spin" />Carregando mensagens…</div>}
+        {messages.isError && <div className="relative z-10 py-6 text-center"><p className="mb-3 text-sm text-destructive">Não foi possível carregar as mensagens.</p><Button variant="outline" onClick={() => messages.refetch()}>Tentar novamente</Button></div>}
+        {messages.hasNextPage && <div className="relative z-10 text-center"><Button variant="ghost" size="sm" disabled={messages.isFetchingNextPage} onClick={() => messages.fetchNextPage()}>Mensagens anteriores</Button></div>}
+        {rows.length === 0 && !messages.isPending && !messages.isError && (
+          <div className="relative z-10 mt-6 space-y-2 text-center">
+            <h3 className="text-xl font-medium text-foreground md:text-2xl">Nenhuma mensagem por aqui ainda!</h3>
+            <p className="text-sm leading-relaxed text-muted-foreground">Que tal iniciar uma conversa com o suporte?<br />Estamos prontos para te ajudar!</p>
+          </div>
+        )}
         {rows.map((message) => {
           const own = isAdmin ? message.sender_role === "suporte" : message.sender_role === "buffet";
-          return <div key={message.id} className={cn("flex", own ? "justify-end" : "justify-start")}>
+          return <div key={message.id} className={cn("relative z-10 flex", own ? "justify-end" : "justify-start")}>
             <div className={cn("max-w-[90%] rounded-lg border px-4 py-3 md:max-w-[80%]", own ? "border-field-border bg-field text-foreground" : "border-border bg-card text-card-foreground")}>
               <div className="mb-1 text-xs font-bold">{message.sender_role === "suporte" ? "Suporte Central do Buffet" : name}</div>
               <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">{message.body}</p>
