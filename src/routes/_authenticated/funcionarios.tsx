@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Plus, UserCog, Trash2, MessageCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { brl } from "@/lib/format";
+import { formatDateBR, brl } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useSearchFilter } from "@/lib/search-store";
@@ -26,7 +26,7 @@ function FuncionariosPage() {
   const { data: employees } = useQuery({
     queryKey: ["employees"],
     queryFn: async () => {
-      const { data } = await supabase.from("employees").select("*, event_staff(id, events(event_date))").order("name");
+      const { data } = await supabase.from("employees").select("*, event_staff(id, role, events(event_date, event_time, event_address, status, clients(name)))").order("name");
       return data ?? [];
     },
   });
@@ -57,7 +57,7 @@ function FuncionariosPage() {
         </div>
       </div>
 
-      <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
+      <div className="card-3d bg-card rounded-2xl border-2 border-border">
         {employees?.length === 0 ? (
           <div className="p-16 text-center">
             <UserCog className="size-8 mx-auto text-muted-foreground mb-3" />
@@ -80,7 +80,7 @@ function FuncionariosPage() {
               {(employees ?? [])
                 .filter((e: any) => match(e.name, e.role, e.phone, e.pix, e.notes))
                 .map((e: any) => (
-                <tr key={e.id} className="hover:bg-muted/30">
+                <tr key={e.id} className="hover:bg-muted/30 border-b-2 border-border last:border-b-0">
                   <td className="px-5 py-4 text-sm font-semibold">{e.name}</td>
                   <td className="px-4 py-4 text-xs uppercase">{e.role}</td>
                   <td className="px-4 py-4 text-xs font-mono">
@@ -101,7 +101,7 @@ function FuncionariosPage() {
                   </td>
                   <td className="px-4 py-4 text-xs font-mono">{e.pix || "—"}</td>
                   <td className="px-4 py-4 text-sm font-mono text-right">{brl(e.daily_rate)}</td>
-                  <td className="px-4 py-4 text-xs text-right">{e.event_staff?.length ?? 0}</td>
+                  <td className="px-4 py-4 text-right"><StaffEvents items={e.event_staff ?? []} /></td>
                   <td className="px-4 py-4 text-right">
                     <button onClick={() => { if (confirm(`Remover ${e.name}?`)) del.mutate(e.id); }} className="p-2 hover:bg-destructive/10 hover:text-destructive rounded">
                       <Trash2 className="size-4" />
@@ -202,6 +202,32 @@ function AssignDialog({ onClose, employees }: { onClose: () => void; employees: 
           <button disabled={!f.event_id || !f.employee_id || mut.isPending} onClick={() => mut.mutate()} className={cn("flex-1 h-10 rounded-lg bg-primary text-primary-foreground text-sm font-bold disabled:opacity-50")}>Escalar</button>
         </div>
       </div>
+    </div>
+  );
+}
+
+
+function StaffEvents({ items }: { items: any[] }) {
+  const list = items
+    .filter((s) => s.events)
+    .sort((a, b) => String(a.events.event_date).localeCompare(String(b.events.event_date)));
+  return (
+    <div className="relative inline-block group">
+      <span tabIndex={0} className="inline-flex min-w-8 justify-center rounded-lg border-2 border-border px-2 py-1 text-sm font-bold cursor-help">
+        {list.length}
+      </span>
+      {list.length > 0 && (
+        <div className="invisible opacity-0 group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100 transition absolute right-0 top-full mt-2 z-30 w-72 rounded-xl border-2 border-border bg-popover text-popover-foreground shadow-xl p-3 text-left space-y-2">
+          <div className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground">Escalado em</div>
+          {list.map((s) => (
+            <div key={s.id} className="text-sm border-t border-border pt-2 first:border-0 first:pt-0">
+              <div className="font-bold">{formatDateBR(s.events.event_date)}{s.events.event_time ? ` · ${String(s.events.event_time).slice(0, 5)}` : ""}</div>
+              <div>{s.events.clients?.name ?? "Evento sem cliente"}</div>
+              {s.events.event_address && <div className="text-xs text-muted-foreground truncate">{s.events.event_address}</div>}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

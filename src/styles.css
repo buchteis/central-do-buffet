@@ -318,3 +318,12 @@
 .dark .bg-rose-50:not([class*="dark:bg-"]), .dark .bg-rose-100:not([class*="dark:bg-"]) { background-color: color-mix(in oklab, var(--color-rose-500) 16%, transparent); }
 .dark .text-rose-700:not([class*="dark:text-"]), .dark .text-rose-800:not([class*="dark:text-"]), .dark .text-rose-900:not([class*="dark:text-"]) { color: var(--color-rose-300); }
 .dark .border-rose-100:not([class*="dark:border-"]), .dark .border-rose-200:not([class*="dark:border-"]) { border-color: color-mix(in oklab, var(--color-rose-500) 30%, transparent); }
+
+@utility card-3d {
+  box-shadow: 0 1px 0 color-mix(in oklab, var(--foreground) 6%, transparent) inset, 0 6px 0 -1px color-mix(in oklab, var(--border) 90%, transparent), 0 14px 28px -12px color-mix(in oklab, var(--foreground) 30%, transparent);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  &:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 1px 0 color-mix(in oklab, var(--foreground) 6%, transparent) inset, 0 9px 0 -1px color-mix(in oklab, var(--border) 90%, transparent), 0 20px 34px -12px color-mix(in oklab, var(--foreground) 35%, transparent);
+  }
+}

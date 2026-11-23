@@ -601,16 +601,16 @@ const iconBg = (color?: string) => ICON_BG[color ?? ""] ?? "bg-slate-500";
 // Componente Auxiliar para Cards Métricos
 function MetricCard({ label, value, icon: Icon, color, subtitle }: any) {
   return (
-    <div className="bg-card p-4 rounded-2xl border border-border shadow-sm space-y-2">
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{label}</span>
-        <div className={cn("p-2 rounded-xl text-white", iconBg(color))}>
-          <Icon className="size-4" />
+    <div className="card-3d bg-card p-5 rounded-2xl border-2 border-border space-y-3">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-sm font-bold uppercase tracking-wider text-muted-foreground">{label}</span>
+        <div className={cn("p-2.5 rounded-xl text-white shadow-md", iconBg(color))}>
+          <Icon className="size-5" />
         </div>
       </div>
       <div>
-        <div className="text-2xl font-black tracking-tight text-foreground">{value}</div>
-        {subtitle && <p className="text-[11px] text-muted-foreground mt-0.5">{subtitle}</p>}
+        <div className="text-3xl md:text-4xl font-black tracking-tight text-foreground">{value}</div>
+        {subtitle && <p className="text-sm text-muted-foreground mt-1">{subtitle}</p>}
       </div>
     </div>
   );
@@ -619,10 +619,10 @@ function MetricCard({ label, value, icon: Icon, color, subtitle }: any) {
 // Componente Auxiliar para Cards Financeiros
 function FinanceCard({ label, value, icon: Icon, color }: any) {
   return (
-    <div className="bg-card p-5 rounded-2xl border border-border shadow-sm flex items-center justify-between gap-3">
+    <div className="card-3d bg-card p-5 rounded-2xl border-2 border-border flex items-center justify-between gap-3">
       <div className="space-y-1 min-w-0">
-        <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{label}</span>
-        <div className="text-xl md:text-2xl font-black tracking-tight text-foreground break-words">{value}</div>
+        <span className="text-sm font-bold uppercase tracking-wider text-muted-foreground">{label}</span>
+        <div className="text-2xl md:text-3xl font-black tracking-tight text-foreground break-words">{value}</div>
       </div>
       <div className={cn("p-3 rounded-2xl text-white shrink-0", iconBg(color))}>
         <Icon className="size-6" />
