@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
-import { selectAssistantContext } from "./assistant-context";
+import { selectAssistantContext, serializeContextWithinBudget } from "./assistant-context";
 
 const InputSchema = z.object({
   message: z.string().trim().min(1).max(2000),
@@ -330,8 +330,13 @@ async function buildContext(supabase: any, userId: string, topic: string) {
 
   const selected = selectAssistantContext(context, topic);
   const compact = compactContext(selected) as Record<string, unknown>;
-  if ("pacotes" in selected) compact.pacotes = context.pacotes;
-  return { tenant, summary: JSON.stringify(compact) };
+  if ("pacotes" in selected) {
+    const includeProducts = /estoque|insumo|produto|consum|ingred|item|itens/i.test(topic);
+    compact.pacotes = context.pacotes.map((pkg: any) =>
+      includeProducts ? pkg : { ...pkg, produtos_consumidos: undefined },
+    );
+  }
+  return { tenant, summary: serializeContextWithinBudget(compact, 12000) };
 }
 
 // Remove campos vazios e corta listas longas para reduzir tokens enviados à IA.
@@ -445,9 +450,10 @@ DADOS ATUAIS DO BUFFET (JSON):
 ${summary}`;
 
     const { completeGroq, GroqError } = await import("./groq.server");
+    const recentHistory = data.history.slice(-16);
     const messages: import("./groq.server").GroqMessage[] = [
       { role: "system", content: systemPrompt },
-      ...data.history.map((m) => ({ role: m.role, content: m.content })),
+      ...recentHistory.map((m) => ({ role: m.role, content: m.content })),
       { role: "user", content: data.message },
     ];
 
@@ -457,6 +463,7 @@ ${summary}`;
       reply = res.text;
     } catch (e) {
       if (e instanceof GroqError) {
+        console.error("Groq assistant error:", e.status, e.message);
         if (e.status === 429) {
           const seconds = Math.ceil((e.retryAfterMs ?? 1750) / 1000);
           return {
