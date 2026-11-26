@@ -4,7 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useState } from "react";
 import { z } from "zod";
 import { toast } from "sonner";
-import { Flame, Send, CheckCircle2, Plus, Trash2 } from "lucide-react";
+import { Flame, Send, CheckCircle2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { getPublicTenantLogo } from "@/lib/public-logo.functions";
 import { brl } from "@/lib/format";
@@ -14,7 +14,22 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { maskCpfCnpj, isValidCpfCnpj, docKind } from "@/lib/doc";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
+const EVENT_TYPES = ["Casamento", "Debutante", "Aniversário", "Corporativo", "Reunião familiar"];
+
+function Chip({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      type="button"
+      data-active={active}
+      aria-pressed={active}
+      onClick={onClick}
+      className="public-quote-pill rounded-full px-4 py-2 text-sm leading-none"
+    >
+      {children}
+    </button>
+  );
+}
 
 export const Route = createFileRoute("/orcamento/$slug")({
   validateSearch: z.object({
@@ -81,22 +96,12 @@ function PublicQuoteForm() {
 
   const [selectedPackages, setSelectedPackages] = useState<{ id: string; package_id: string }[]>([]);
 
-  function addPackage() {
-    setSelectedPackages((old) => [
-      ...old,
-      {
-        id: crypto.randomUUID(),
-        package_id: "",
-      },
-    ]);
-  }
-
-  function removePackage(id: string) {
-    setSelectedPackages((old) => old.filter((p) => p.id !== id));
-  }
-
-  function updatePackage(id: string, value: string) {
-    setSelectedPackages((old) => old.map((p) => (p.id === id ? { ...p, package_id: value } : p)));
+  function togglePackage(packageId: string) {
+    setSelectedPackages((old) =>
+      old.some((p) => p.package_id === packageId)
+        ? old.filter((p) => p.package_id !== packageId)
+        : [...old, { id: crypto.randomUUID(), package_id: packageId }],
+    );
   }
 
   const { data: tenant, isLoading } = useQuery({
@@ -394,7 +399,7 @@ function PublicQuoteForm() {
       event_date: formDataState.event_date,
       event_time: formDataState.event_time,
       guest_count: guestCount,
-      event_type: formDataState.event_type,
+      event_type: formDataState.event_type.trim(),
       notes: formDataState.notes,
       package_ids: packageIds,
     };
@@ -412,29 +417,29 @@ function PublicQuoteForm() {
 
   if (isLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <p className="text-muted-foreground">Carregando formulário...</p>
+      <div className="public-quote-page flex min-h-screen items-center justify-center">
+        <p className="public-quote-muted">Carregando formulário...</p>
       </div>
     );
   }
 
   if (!tenant || tenant.status !== "ativo") {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-2 p-4 text-center">
+      <div className="public-quote-page flex min-h-screen flex-col items-center justify-center gap-2 p-4 text-center">
         <Flame className="h-10 w-10 text-destructive" />
         <h1 className="text-xl font-semibold">Buffet não encontrado ou inativo</h1>
-        <p className="text-sm text-muted-foreground">Verifique o link digitado e tente novamente.</p>
+        <p className="public-quote-muted text-sm">Verifique o link digitado e tente novamente.</p>
       </div>
     );
   }
 
   if (sent) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center p-4">
-        <div className="w-full max-w-md rounded-xl border bg-card p-6 text-center shadow-lg">
+      <div className="public-quote-page flex min-h-screen flex-col items-center justify-center p-4">
+        <div className="public-quote-card w-full max-w-md rounded-2xl p-6 text-center shadow-lg">
           <CheckCircle2 className="mx-auto mb-4 h-12 w-12 text-primary" />
           <h2 className="text-2xl font-bold">{quote_id ? "Orçamento Atualizado!" : "Solicitação Enviada!"}</h2>
-          <p className="mt-2 text-sm text-muted-foreground">
+          <p className="public-quote-muted mt-2 text-sm">
             Obrigado por seu interesse no <strong>{tenant.name}</strong>. Entraremos em contato em breve via WhatsApp ou E-mail.
           </p>
         </div>
@@ -443,8 +448,8 @@ function PublicQuoteForm() {
   }
 
   return (
-    <div className="min-h-screen bg-muted/50 px-4 py-8 md:py-12">
-      <div className="mx-auto max-w-2xl rounded-2xl border bg-card p-6 shadow-sm md:p-8">
+    <div className="public-quote-page min-h-screen px-4 py-8 md:py-12">
+      <div className="public-quote-card mx-auto max-w-xl rounded-3xl p-6 shadow-xl md:p-8">
         <div className="mb-8 text-center">
           {logoUrl ? (
             <img src={logoUrl} alt={tenant.name} className="mx-auto mb-4 max-h-16 object-contain" />
@@ -454,45 +459,143 @@ function PublicQuoteForm() {
             </div>
           )}
           <h1 className="text-2xl font-bold tracking-tight">{tenant.name}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <p className="public-quote-muted mt-1 text-sm">
             {quote_id ? "Atualização de Orçamento" : "Solicitação de Orçamento"}
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="space-y-4">
-            <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Seus Dados</h3>
+          {/* QUERO — PACOTES DO BUFFET EM PÍLULAS */}
+          <div className="space-y-3">
+            <Label className="public-quote-label block">Quero</Label>
+            {(packages ?? []).length === 0 ? (
+              <p className="public-quote-muted text-xs">Este buffet ainda não cadastrou pacotes.</p>
+            ) : (
+              <div className="flex flex-wrap gap-2.5">
+                {(packages ?? []).map((pkg) => (
+                  <Chip
+                    key={pkg.id}
+                    active={selectedPackages.some((s) => s.package_id === pkg.id)}
+                    onClick={() => togglePackage(pkg.id)}
+                  >
+                    {pkg.name}
+                  </Chip>
+                ))}
+              </div>
+            )}
+          </div>
 
-            <div>
-              <Label htmlFor="name">Nome completo *</Label>
+          {/* TIPO DE EVENTO EM PÍLULAS */}
+          <div className="space-y-3">
+            <Label className="public-quote-label block">Tipo de evento</Label>
+            <div className="flex flex-wrap gap-2.5">
+              {EVENT_TYPES.map((t) => (
+                <Chip
+                  key={t}
+                  active={formDataState.event_type === t}
+                  onClick={() =>
+                    setFormDataState({ ...formDataState, event_type: formDataState.event_type === t ? "" : t })
+                  }
+                >
+                  {t}
+                </Chip>
+              ))}
+              <Chip
+                active={!!formDataState.event_type && !EVENT_TYPES.includes(formDataState.event_type)}
+                onClick={() => setFormDataState({ ...formDataState, event_type: " " })}
+              >
+                Outro
+              </Chip>
+            </div>
+            {!!formDataState.event_type && !EVENT_TYPES.includes(formDataState.event_type) && (
+              <Input
+                id="event_type"
+                className="public-quote-input mt-2 rounded-xl"
+                value={formDataState.event_type.trimStart()}
+                onChange={(e) => setFormDataState({ ...formDataState, event_type: e.target.value || " " })}
+                placeholder="Qual o tipo de evento?"
+              />
+            )}
+          </div>
+
+          {/* CONVIDADOS E DATA */}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="guest_count" className="public-quote-label block">Convidados *</Label>
+              <Input
+                id="guest_count"
+                type="number"
+                min="1"
+                required
+                className="public-quote-input rounded-xl"
+                value={guestCount || ""}
+                onChange={(e) => setGuestCount(Number(e.target.value) || 0)}
+                placeholder="Ex.: 80"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="event_date" className="public-quote-label block">Data *</Label>
+              <Input
+                id="event_date"
+                name="event_date"
+                type="date"
+                required
+                className="public-quote-input rounded-xl"
+                value={formDataState.event_date}
+                onChange={(e) => setFormDataState({ ...formDataState, event_date: e.target.value })}
+              />
+            </div>
+          </div>
+
+          {/* RESUMO DOS PACOTES ESCOLHIDOS E ITENS ADICIONAIS */}
+          {chosenPackages.length > 0 && guestCount > 0 && (
+            <ul className="public-quote-input space-y-1.5 rounded-xl border p-3 text-xs">
+              {chosenPackages.map((p) => (
+                <li key={p.id} className="flex justify-between gap-2">
+                  <span className="truncate font-medium">{p.name}</span>
+                  <span className="public-quote-muted shrink-0">
+                    {p.isFixed ? `${brl(p.total)} (preço fechado)` : `${brl(p.price_per_person)} / pessoa`}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {/* DADOS DO CLIENTE */}
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="name" className="public-quote-label block">Seu nome *</Label>
               <Input
                 id="name"
                 name="name"
                 required
+                className="public-quote-input rounded-xl"
                 value={formDataState.name}
                 onChange={(e) => setFormDataState({ ...formDataState, name: e.target.value })}
-                placeholder="Seu nome"
+                placeholder="Como podemos te chamar?"
               />
             </div>
 
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div>
-                <Label htmlFor="whatsapp">WhatsApp *</Label>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="whatsapp" className="public-quote-label block">WhatsApp *</Label>
                 <Input
                   id="whatsapp"
                   name="whatsapp"
                   required
+                  className="public-quote-input rounded-xl"
                   value={formDataState.whatsapp}
                   onChange={(e) => setFormDataState({ ...formDataState, whatsapp: e.target.value })}
                   placeholder="(00) 00000-0000"
                 />
               </div>
-              <div>
-                <Label htmlFor="email">E-mail</Label>
+              <div className="space-y-2">
+                <Label htmlFor="email" className="public-quote-label block">E-mail</Label>
                 <Input
                   id="email"
                   name="email"
                   type="email"
+                  className="public-quote-input rounded-xl"
                   value={formDataState.email}
                   onChange={(e) => setFormDataState({ ...formDataState, email: e.target.value })}
                   placeholder="seu@email.com"
@@ -500,21 +603,23 @@ function PublicQuoteForm() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div>
-                <Label htmlFor="cpf">{(cpfKind ?? "CPF/CNPJ").toUpperCase()}</Label>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="cpf" className="public-quote-label block">{(cpfKind ?? "CPF/CNPJ").toUpperCase()}</Label>
                 <Input
                   id="cpf"
+                  className="public-quote-input rounded-xl"
                   value={cpf}
                   onChange={(e) => setCpf(maskCpfCnpj(e.target.value))}
                   placeholder="000.000.000-00"
                 />
               </div>
-              <div>
-                <Label htmlFor="city">Cidade</Label>
+              <div className="space-y-2">
+                <Label htmlFor="city" className="public-quote-label block">Cidade</Label>
                 <Input
                   id="city"
                   name="city"
+                  className="public-quote-input rounded-xl"
                   value={formDataState.city}
                   onChange={(e) => setFormDataState({ ...formDataState, city: e.target.value })}
                   placeholder="Sua cidade"
@@ -523,177 +628,82 @@ function PublicQuoteForm() {
             </div>
           </div>
 
+          {/* DETALHES DO EVENTO */}
           <div className="space-y-4">
-            <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Dados do Evento</h3>
-
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div>
-                <Label htmlFor="event_date">Data do Evento *</Label>
-                <Input
-                  id="event_date"
-                  name="event_date"
-                  type="date"
-                  required
-                  value={formDataState.event_date}
-                  onChange={(e) => setFormDataState({ ...formDataState, event_date: e.target.value })}
-                />
-              </div>
-              <div>
-                <Label htmlFor="event_time">Horário Previsto</Label>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="event_time" className="public-quote-label block">Horário previsto</Label>
                 <Input
                   id="event_time"
                   name="event_time"
                   type="time"
+                  className="public-quote-input rounded-xl"
                   value={formDataState.event_time}
                   onChange={(e) => setFormDataState({ ...formDataState, event_time: e.target.value })}
                 />
               </div>
-            </div>
-
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div>
-                <Label htmlFor="guest_count">Nº de Convidados *</Label>
+              <div className="space-y-2">
+                <Label htmlFor="event_address" className="public-quote-label block">Local / endereço</Label>
                 <Input
-                  id="guest_count"
-                  type="number"
-                  min="1"
-                  required
-                  value={guestCount || ""}
-                  onChange={(e) => setGuestCount(Number(e.target.value) || 0)}
-                  placeholder="Ex: 100"
-                />
-              </div>
-              <div>
-                <Label htmlFor="event_type">Tipo de Evento</Label>
-                <Input
-                  id="event_type"
-                  name="event_type"
-                  value={formDataState.event_type}
-                  onChange={(e) => setFormDataState({ ...formDataState, event_type: e.target.value })}
-                  placeholder="Ex: Casamento, Aniversário"
+                  id="event_address"
+                  name="event_address"
+                  className="public-quote-input rounded-xl"
+                  value={formDataState.event_address}
+                  onChange={(e) => setFormDataState({ ...formDataState, event_address: e.target.value })}
+                  placeholder="Endereço ou nome do local"
                 />
               </div>
             </div>
 
-            <div>
-              <Label htmlFor="event_address">Local do Evento / Endereço</Label>
-              <Input
-                id="event_address"
-                name="event_address"
-                value={formDataState.event_address}
-                onChange={(e) => setFormDataState({ ...formDataState, event_address: e.target.value })}
-                placeholder="Endereço completo ou nome do local"
-              />
-            </div>
-
-            {/* SELEÇÃO DE PACOTES MÚLTIPLOS */}
-            <div className="space-y-3 pt-2">
-              <div className="flex items-center justify-between">
-                <Label>Pacotes Desejados</Label>
-                <Button type="button" variant="outline" size="sm" onClick={addPackage}>
-                  <Plus className="mr-1 h-4 w-4" /> Adicionar Pacote
-                </Button>
-              </div>
-
-              {selectedPackages.length === 0 && (
-                <p className="text-xs text-muted-foreground">
-                  Nenhum pacote selecionado. Clique em "+ Adicionar Pacote" para escolher opções do buffet.
-                </p>
-              )}
-
-              <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-                {selectedPackages.map((item, index) => {
-                  const info = item.package_id
-                    ? pricingForPackage(item.package_id, guestCount)
-                    : { isFixed: false, unitPrice: 0, totalPrice: 0, priceFixed: 0, tierFound: false };
-                  return (
-                    <div key={item.id} className="flex items-center gap-2 rounded-xl border p-2">
-                      <div className="min-w-0 flex-1">
-                        <Select value={item.package_id} onValueChange={(val) => updatePackage(item.id, val)}>
-                          <SelectTrigger className="w-full">
-                            <SelectValue placeholder={`Opção de Pacote ${index + 1}`} />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {(packages ?? []).map((pkg) => (
-                              <SelectItem key={pkg.id} value={pkg.id}>
-                                {pkg.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        {info.totalPrice > 0 && (
-                          <p className="mt-1 text-xs text-muted-foreground">
-                            {info.isFixed
-                              ? `${brl(info.totalPrice)} (preço fechado)`
-                              : `${brl(info.unitPrice)} / pessoa`}
-                          </p>
-                        )}
+            {availableUnitItems.length > 0 && (
+              <div className="public-quote-input space-y-3 rounded-xl border p-3.5">
+                <Label className="public-quote-label block">Itens adicionais (opcional)</Label>
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  {availableUnitItems.map((it) => (
+                    <div
+                      key={it.id}
+                      className="flex items-center justify-between gap-3 rounded-lg border border-white/10 p-2.5"
+                    >
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium">{it.name}</p>
+                        <p className="public-quote-muted text-xs">
+                          {brl(Number(it.unit_price) || 0)} / {it.unit || "un"}
+                        </p>
                       </div>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => removePackage(item.id)}
-                        className="text-destructive hover:text-destructive"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      <Input
+                        type="number"
+                        min="0"
+                        className="public-quote-input w-20 rounded-lg"
+                        value={unitQty[it.id] ?? ""}
+                        onChange={(e) =>
+                          setUnitQty((old) => ({ ...old, [it.id]: Math.max(0, Number(e.target.value) || 0) }))
+                        }
+                        placeholder="Qtd"
+                      />
                     </div>
-                  );
-                })}
+                  ))}
+                </div>
+                {unitItemsSubtotal > 0 && (
+                  <p className="public-quote-muted text-right text-xs">
+                    Subtotal itens adicionais: <strong>{brl(unitItemsSubtotal)}</strong>
+                  </p>
+                )}
               </div>
+            )}
 
-              {availableUnitItems.length > 0 && (
-                <div className="space-y-3 rounded-xl border p-3">
-                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">
-                    Itens adicionais (opcional)
-                  </Label>
-                  <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-                    {availableUnitItems.map((it) => (
-                      <div
-                        key={it.id}
-                        className="flex items-center justify-between gap-3 rounded-lg border bg-muted/30 p-2"
-                      >
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-medium">{it.name}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {brl(Number(it.unit_price) || 0)} / {it.unit || "un"}
-                          </p>
-                        </div>
-                        <Input
-                          type="number"
-                          min="0"
-                          className="w-20"
-                          value={unitQty[it.id] ?? ""}
-                          onChange={(e) =>
-                            setUnitQty((old) => ({ ...old, [it.id]: Math.max(0, Number(e.target.value) || 0) }))
-                          }
-                          placeholder="Qtd"
-                        />
-                      </div>
-                    ))}
-                  </div>
-                  {unitItemsSubtotal > 0 && (
-                    <p className="text-right text-xs text-muted-foreground">
-                      Subtotal itens adicionais: <strong>{brl(unitItemsSubtotal)}</strong>
-                    </p>
-                  )}
-                </div>
-              )}
+            {previewTotal > 0 && (
+              <div className="public-quote-input rounded-xl border p-3.5 text-right">
+                <span className="public-quote-muted text-xs">Valor estimado: </span>
+                <span className="text-base font-bold text-primary">{brl(previewTotal)}</span>
+              </div>
+            )}
 
-              {previewTotal > 0 && (
-                <div className="mt-2 rounded-lg bg-muted p-3 text-right">
-                  <span className="text-xs text-muted-foreground">Valor Total: </span>
-                  <span className="text-base font-bold text-primary">{brl(previewTotal)}</span>
-                </div>
-              )}
-            </div>
-
-            <div>
-              <Label htmlFor="notes">Observações adicionais</Label>
+            <div className="space-y-2">
+              <Label htmlFor="notes" className="public-quote-label block">Observações adicionais</Label>
               <Textarea
                 id="notes"
                 name="notes"
+                className="public-quote-input rounded-xl"
                 value={formDataState.notes}
                 onChange={(e) => setFormDataState({ ...formDataState, notes: e.target.value })}
                 placeholder="Detalhes adicionais, preferências ou dúvidas..."
@@ -702,7 +712,7 @@ function PublicQuoteForm() {
             </div>
           </div>
 
-          <Button type="submit" className="w-full" disabled={submitMutation.isPending}>
+          <Button type="submit" className="public-quote-cta h-12 w-full rounded-full text-base" disabled={submitMutation.isPending}>
             {submitMutation.isPending ? (
               "Enviando..."
             ) : (

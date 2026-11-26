@@ -327,3 +327,68 @@
     box-shadow: 0 1px 0 color-mix(in oklab, var(--foreground) 6%, transparent) inset, 0 9px 0 -1px color-mix(in oklab, var(--border) 90%, transparent), 0 20px 34px -12px color-mix(in oklab, var(--foreground) 35%, transparent);
   }
 }
+
+/* Link público de orçamento: visual escuro acolhedor com pílulas em destaque */
+.public-quote-page {
+  --pq-bg: #120d0a;
+  --pq-card: #1b1410;
+  --pq-field: #241b16;
+  --pq-border: #3a2b22;
+  --pq-text: #f5ede7;
+  --pq-muted: #a69589;
+  --pq-label: #e58e3c;
+  --pq-pill-active-from: #f6b065;
+  --pq-pill-active-to: #e46c26;
+  --pq-pill-active-text: #1c1008;
+  --pq-cta: #25d366;
+  --pq-cta-hover: #1ebe5b;
+  --pq-cta-text: #0b1f12;
+  background-color: var(--pq-bg);
+  color: var(--pq-text);
+  color-scheme: dark;
+}
+.public-quote-card {
+  background-color: var(--pq-card);
+  border: 1px solid var(--pq-border);
+}
+.public-quote-label {
+  color: var(--pq-label);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.public-quote-muted {
+  color: var(--pq-muted);
+}
+.public-quote-input {
+  background-color: var(--pq-field) !important;
+  border-color: var(--pq-border) !important;
+  color: var(--pq-text) !important;
+}
+.public-quote-input::placeholder {
+  color: var(--pq-muted) !important;
+}
+.public-quote-pill {
+  border: 1px solid var(--pq-border);
+  background-color: var(--pq-field);
+  color: var(--pq-text);
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.12s ease;
+}
+.public-quote-pill:hover {
+  border-color: var(--pq-label);
+}
+.public-quote-pill[data-active="true"] {
+  background: linear-gradient(135deg, var(--pq-pill-active-from), var(--pq-pill-active-to));
+  border-color: transparent;
+  color: var(--pq-pill-active-text);
+  font-weight: 600;
+}
+.public-quote-cta {
+  background-color: var(--pq-cta);
+  color: var(--pq-cta-text);
+  font-weight: 700;
+}
+.public-quote-cta:hover:not(:disabled) {
+  background-color: var(--pq-cta-hover);
+}
