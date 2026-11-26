@@ -17,3 +17,4 @@
 - Support messages are append-only, tenant-scoped rows accessed through authenticated server functions and owner/super-admin RLS; inbox polling reuses the same workspace in Messages and Super Admin so registrations remain isolated.
 - Leaf routes use app-specific metadata, with the shared pageHead helper for simple static pages, so navigation and link previews retain each screen's identity.
 - Public quote catalogs use an anonymous server publishable client scoped to the active tenant and its active packages, so a signed-in visitor's identity cannot hide another buffet's public catalog.
+- Login campaign banners stay in normal document flow above the form, with promotion colors defined in global tokens, to keep account controls accessible on all screen sizes.

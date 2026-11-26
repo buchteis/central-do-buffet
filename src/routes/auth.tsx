@@ -14,6 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { TestimonialCarousel } from "@/components/auth/TestimonialCarousel";
+import { BlackFridayBanner } from "@/components/auth/BlackFridayBanner";
 
 
 export const Route = createFileRoute("/auth")({
@@ -553,7 +554,7 @@ um único lugar.
 
 <div className="
 relative flex items-center justify-center
-p-6
+p-6 pt-16
 ">
 
 <div className="absolute top-4 right-4">
@@ -562,6 +563,7 @@ p-6
 
 <div className="w-full max-w-md">
 
+<BlackFridayBanner />
 <TestimonialCarousel />
 
 <Tabs defaultValue="signin">

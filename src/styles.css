@@ -57,6 +57,12 @@
 }
 
 :root {
+  --promotion-background: oklch(0.13 0.035 295);
+  --promotion-neon: oklch(0.66 0.30 345);
+  --promotion-foreground: oklch(0.99 0.004 330);
+  --promotion-cyan: oklch(0.85 0.14 190);
+  --promotion-tag-text: oklch(0.45 0.20 345);
+  --promotion-glow: 0 0 8px var(--promotion-neon), 0 0 18px var(--promotion-neon);
   --radius: 0.75rem;
 
   /* Tons suaves com leve toque violeta — branco puro é cansativo */
@@ -129,6 +135,45 @@
   --chat-success-action: #15803d;
   --chat-success-foreground: white;
   --chat-accent-action: #c2410c;
+}
+
+.black-friday-banner {
+  background: var(--promotion-background);
+  color: var(--promotion-foreground);
+  border: 1px solid var(--promotion-neon);
+}
+.black-friday-banner::before,
+.black-friday-banner::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+  width: 75%;
+  height: 2px;
+  right: -18%;
+  transform: rotate(24deg);
+  background: var(--promotion-neon);
+  box-shadow: var(--promotion-glow);
+}
+.black-friday-banner::before { top: 20px; }
+.black-friday-banner::after {
+  bottom: 15px;
+  right: -35%;
+  background: var(--promotion-cyan);
+  box-shadow: 0 0 8px var(--promotion-cyan);
+}
+.black-friday-brand { color: var(--promotion-foreground); }
+.black-friday-title {
+  color: var(--promotion-background);
+  -webkit-text-stroke: 1.5px var(--promotion-foreground);
+  text-shadow: var(--promotion-glow);
+}
+.black-friday-underline {
+  background: var(--promotion-foreground);
+  box-shadow: var(--promotion-glow);
+}
+.black-friday-tag {
+  background: var(--promotion-foreground);
+  color: var(--promotion-tag-text);
 }
 
 .dark {
