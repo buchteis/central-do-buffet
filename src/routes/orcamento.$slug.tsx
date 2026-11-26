@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Flame, Send, CheckCircle2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { getPublicTenantLogo } from "@/lib/public-logo.functions";
+import { getPublicQuoteCatalog } from "@/lib/public-quote-catalog.functions";
 import { brl } from "@/lib/format";
 import { resolvePackagePricing, type PriceTier } from "@/lib/quote-calc";
 import { Button } from "@/components/ui/button";
@@ -104,13 +105,17 @@ function PublicQuoteForm() {
     );
   }
 
-  const { data: tenant, isLoading } = useQuery({
-    queryKey: ["public-tenant", slug],
-    queryFn: async () => {
-      const { data } = await supabase.from("tenants").select("id, name, slug, status").eq("slug", slug).maybeSingle();
-      return data;
-    },
+  const fetchCatalog = useServerFn(getPublicQuoteCatalog);
+  const { data: catalog, isLoading, isError: catalogError, refetch: reloadCatalog } = useQuery({
+    queryKey: ["public-quote-catalog", slug],
+    queryFn: () => fetchCatalog({ data: { slug } }),
+    staleTime: 0,
+    refetchOnWindowFocus: "always",
   });
+  const tenant = catalog?.tenant;
+  const packages = catalog?.packages;
+  const tiers = catalog?.tiers as PriceTier[] | undefined;
+  const unitItemsCatalog = catalog?.items;
 
   // BUSCA DADOS DO ORÇAMENTO EXISTENTE SE "quote_id" ESTIVER NA URL
   const { data: existingQuote } = useQuery({
@@ -163,62 +168,6 @@ function PublicQuoteForm() {
       }
     }
   }, [existingQuote]);
-
-  // QUERY - MOSTRA TODOS OS PACOTES
-  const { data: packages } = useQuery({
-    queryKey: ["public-packages", tenant?.id],
-    enabled: !!tenant?.id,
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("packages")
-        .select("id, name, price_per_person, pricing_type")
-        .eq("tenant_id", tenant!.id)
-        .eq("active", true)
-        .order("name");
-
-      return data ?? [];
-    },
-  });
-
-  const packageIds = useMemo(() => (packages ?? []).map((p) => p.id), [packages]);
-
-  // Tiers de preço por faixa de convidados (apenas dos pacotes deste buffet)
-  const { data: tiers } = useQuery({
-    queryKey: ["public-packages-tiers", tenant?.id, packageIds],
-    enabled: packageIds.length > 0,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("package_price_tiers")
-        .select("id, package_id, min_guests, max_guests, price_per_person, price_fixed, position, updated_at")
-        .in("package_id", packageIds)
-        .order("position", { ascending: true });
-      if (error) return [];
-      return (data ?? []) as PriceTier[];
-    },
-  });
-
-  // Itens adicionais independentes dos pacotes
-  const { data: unitItemsCatalog } = useQuery({
-    queryKey: ["public-additional-items", tenant?.id],
-    enabled: !!tenant?.id,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("additional_items")
-        .select("id, name, unit, unit_price, default_qty, position")
-        .eq("tenant_id", tenant!.id)
-        .eq("active", true)
-        .order("position", { ascending: true });
-      if (error) return [];
-      return (data ?? []) as {
-        id: string;
-        name: string;
-        unit: string;
-        unit_price: number;
-        default_qty: number;
-        position: number;
-      }[];
-    },
-  });
 
   const [unitQty, setUnitQty] = useState<Record<string, number>>({});
 
@@ -423,6 +372,15 @@ function PublicQuoteForm() {
     );
   }
 
+  if (catalogError) {
+    return (
+      <div className="public-quote-page flex min-h-screen flex-col items-center justify-center gap-3 p-4 text-center">
+        <p>Não foi possível carregar os pacotes deste buffet.</p>
+        <Button onClick={() => void reloadCatalog()}>Tentar novamente</Button>
+      </div>
+    );
+  }
+
   if (!tenant || tenant.status !== "ativo") {
     return (
       <div className="public-quote-page flex min-h-screen flex-col items-center justify-center gap-2 p-4 text-center">
@@ -469,7 +427,7 @@ function PublicQuoteForm() {
           <div className="space-y-3">
             <Label className="public-quote-label block">Quero</Label>
             {(packages ?? []).length === 0 ? (
-              <p className="public-quote-muted text-xs">Este buffet ainda não cadastrou pacotes.</p>
+              <p className="public-quote-muted text-xs">Este buffet não possui pacotes ativos no momento.</p>
             ) : (
               <div className="flex flex-wrap gap-2.5">
                 {(packages ?? []).map((pkg) => (
